@@ -33,13 +33,13 @@
             </button>
             <button class="btn-header"
                 style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--glass-border);"
-                onclick="exportCSV()">
+                onclick="exportExcel()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
                     height="14">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                CSV
+                Excel
             </button>
             <button class="btn-header" onclick="openAddModal()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
@@ -187,10 +187,35 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════ STYLE DETAILS MODAL ════════════════════════════ -->
+    <div class="modal-overlay" id="style-modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal style-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="style-modal-title">Détails du Style</div>
+                    <div class="modal-subtitle" id="style-modal-subtitle">Vue d'ensemble</div>
+                </div>
+                <button class="btn-close" onclick="closeStyleModal()" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="style-modal-body">
+                <!-- Data populated by JS -->
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeStyleModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════════════════════════════════════ TOASTS ════════════════════════════════════════ -->
     <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
     <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 
 </body>

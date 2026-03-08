@@ -668,6 +668,43 @@ tr.row-ok>td:first-child {
     color: var(--text-muted);
 }
 
+.missing-po-badge {
+    display: inline-block;
+    background: var(--danger-dim);
+    color: var(--danger);
+    border: 1px dashed rgba(255, 77, 109, 0.4);
+    border-radius: 4px;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.text-danger-bold {
+    color: var(--danger) !important;
+    font-weight: 700 !important;
+}
+
+.text-success-bold {
+    color: var(--success) !important;
+    font-weight: 600 !important;
+}
+
+.style-link {
+    color: #4da6ff;
+    text-decoration: none;
+    font-weight: 700;
+    transition: color var(--transition);
+    cursor: pointer;
+}
+
+.style-link:hover {
+    color: #80bfff;
+    text-decoration: underline;
+}
+
 .action-btns {
     display: flex;
     justify-content: flex-end;
@@ -849,8 +886,58 @@ tr.row-ok>td:first-child {
     gap: 0.4rem;
 }
 
-.form-group.full {
+.form-group.full-width {
     grid-column: 1 / -1;
+}
+
+/* ─── Style Details Modal ────────────────────────────────── */
+.style-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.style-section h4 {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.style-section h4 svg {
+    width: 14px;
+    height: 14px;
+    color: var(--accent);
+}
+
+.style-grid-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0.75rem;
+}
+
+.info-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.info-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.info-value {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 .form-label {

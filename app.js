@@ -138,6 +138,7 @@ async function fetchAllData() {
         state.data.sample = json.data.sample.rows || [];
         state.data.ordering = json.data.ordering.rows || [];
         state.loading = false;
+        renderAll(); // <-- FIX: ensures table re-renders after fetching
     } catch (err) {
         console.error(err);
         state.loading = false;
@@ -148,6 +149,7 @@ async function fetchAllData() {
         } else {
             showToast("Erreur de connexion au Google Sheet", "error");
         }
+        renderAll(); // <-- FIX: ensures table re-renders after catch
     }
 }
 
@@ -275,17 +277,45 @@ function renderTable() {
 
     tableBody.innerHTML = rows.map((row, idx) => {
         const rowIdx = row._rowIndex;
-        const cells = displayCols.map(c => {
+        const cells = displayCols.map((c, i) => {
             let val = row[c.key] ?? "";
-            if (c.key === "Dept") return `<td><span class="dept-badge">${esc(val)}</span></td>`;
+            const sticky = i === 0 ? "sticky-col" : i === 1 ? "sticky-col-2" : "";
+
+            if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
             if (c.key === "Approval") {
                 const cls = val.toLowerCase() || "unknown";
-                return `<td><span class="approval-badge ${cls}">${esc(val) || "—"}</span></td>`;
+                return `<td class="${sticky}"><span class="approval-badge ${cls}">${esc(val) || "—"}</span></td>`;
             }
+
+            if (c.key === "PO" && !val) {
+                return `<td class="${sticky}"><span class="missing-po-badge">Missing PO</span></td>`;
+            }
+
+            let isPastDate = false;
+            let displayVal = val;
             if (c.type === "date" && val) {
-                try { val = new Date(val).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) { }
+                try {
+                    const d = new Date(val);
+                    if ((c.key === "ExFty" || c.key === "Ready Date") && (d.getTime() < new Date().setHours(0, 0, 0, 0))) {
+                        isPastDate = true;
+                    }
+                    displayVal = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+                } catch (e) { }
             }
-            return `<td title="${esc(String(val))}">${esc(String(val)) || "<span style='color:var(--text-muted)'>—</span>"}</td>`;
+
+            let cellClass = sticky;
+            if (isPastDate) {
+                cellClass += " text-danger-bold";
+            } else if (val && (c.key === "Costing" || c.key === "UP")) {
+                cellClass += " text-success-bold";
+                if (!isNaN(val)) displayVal = "$" + Number(val).toFixed(2);
+            }
+
+            if (c.key === "Style" && state.activeSheet === "details") {
+                return `<td class="${cellClass.trim()}"><a class="style-link" onclick="openStyleModal('${esc(val)}')">${esc(String(displayVal))}</a></td>`;
+            }
+
+            return `<td class="${cellClass.trim()}" title="${esc(String(val))}">${esc(String(displayVal)) || "<span style='color:var(--text-muted)'>—</span>"}</td>`;
         }).join("");
         return `<tr>
       ${cells}
@@ -474,6 +504,113 @@ function esc(s) {
 }
 
 function sanitizeId(s) { return s.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_-]/g, ""); }
+
+// ─── Style Details Modal ──────────────────────────────────────
+const styleModalOverlay = document.getElementById("style-modal-overlay");
+const styleModalTitle = document.getElementById("style-modal-title");
+const styleModalBody = document.getElementById("style-modal-body");
+
+function openStyleModal(styleName) {
+    styleModalTitle.textContent = `Détails du Style : ${styleName}`;
+
+    // Find ordering info
+    const orderRows = state.data.ordering.filter(r => r.Style === styleName);
+    // Find sample info
+    const sampleRows = state.data.sample.filter(r => r.Style === styleName);
+
+    let html = "";
+
+    // 1. Ordering section (Colors, PO, Trims...)
+    if (orderRows.length) {
+        html += `<div class="style-section">
+            <h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 9H4L5 9z"/></svg> Couleurs / Achats (Ordering)</h4>`;
+
+        orderRows.forEach((r, i) => {
+            html += `<div style="${i > 0 ? 'margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--glass-border);' : ''}">
+                <div class="style-grid-info">
+                    <div class="info-box"><span class="info-label">Color</span><span class="info-value text-accent">${esc(r.Color) || "—"}</span></div>
+                    <div class="info-box"><span class="info-label">Unit Price</span><span class="info-value text-success-bold">${r.UP ? "$" + Number(r.UP).toFixed(2) : "—"}</span></div>
+                    <div class="info-box"><span class="info-label">PO Number</span><span class="info-value ${!r.PO ? 'text-danger-bold' : ''}">${esc(r.PO) || "Missing PO"}</span></div>
+                    <div class="info-box"><span class="info-label">Supplier</span><span class="info-value">${esc(r.Supplier) || "—"}</span></div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.4rem;">Trims: ${esc(r.Trims) || "—"}</div>
+            </div>`;
+        });
+        html += `</div>`;
+    } else {
+        html += `<div class="style-section"><p style="font-size:0.8rem;color:var(--text-secondary);">Aucune donnée d'achat (Ordering) trouvée pour ce style.</p></div>`;
+    }
+
+    // 2. Sample section
+    if (sampleRows.length) {
+        html += `<div class="style-section">
+            <h4><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> Prototypes (Samples)</h4>`;
+
+        sampleRows.forEach((r, i) => {
+            const cls = (r.Approval || "").toLowerCase();
+            const badge = `<span class="approval-badge ${cls}">${esc(r.Approval) || "—"}</span>`;
+
+            html += `<div style="${i > 0 ? 'margin-top:1rem; padding-top:1rem; border-top:1px dashed var(--glass-border);' : ''}">
+                <div class="style-grid-info">
+                    <div class="info-box"><span class="info-label">Type</span><span class="info-value">${esc(r.Type) || "—"}</span></div>
+                    <div class="info-box"><span class="info-label">Size</span><span class="info-value">${esc(String(r.Size).replace(/^'/, "")) || "—"}</span></div>
+                    <div class="info-box"><span class="info-label">Status</span><span class="info-value">${badge}</span></div>
+                    <div class="info-box"><span class="info-label">Ready Date</span><span class="info-value">${r["Ready Date"] ? new Date(r["Ready Date"]).toLocaleDateString("fr-FR") : "—"}</span></div>
+                </div>
+            </div>`;
+        });
+        html += `</div>`;
+    }
+
+    styleModalBody.innerHTML = html;
+    styleModalOverlay.classList.add("open");
+}
+
+function closeStyleModal() {
+    styleModalOverlay.classList.remove("open");
+}
+
+// ─── Export Excel ─────────────────────────────────────────────────────
+function exportExcel() {
+    // Check if XLSX is loaded
+    if (typeof XLSX === "undefined") {
+        showToast("Erreur: Bibliothèque d'export Excel non chargée.", "error");
+        return;
+    }
+
+    const cfg = SHEET_CONFIG[state.activeSheet];
+    const rows = state.filteredData.length ? state.filteredData : state.data[state.activeSheet];
+    if (!rows.length) { showToast("Aucune donnée à exporter", "info"); return; }
+
+    const headers = cfg.cols.map(c => c.label);
+    const dataToExport = rows.map(row => {
+        const obj = {};
+        cfg.cols.forEach(c => {
+            let val = row[c.key] ?? "";
+
+            // Format dates like in the web table
+            if (c.type === "date" && val) {
+                try { val = new Date(val).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) { }
+            }
+
+            // Clean up the forced text apostrophe for Size if present
+            if (c.key === "Size" && typeof val === "string" && val.startsWith("'")) {
+                val = val.substring(1);
+            }
+            obj[c.label] = String(val); // Export as string to prevent Excel from messing up formats
+        });
+        return obj;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport, { header: headers });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, cfg.name);
+
+    const fileName = `AW27_${cfg.name}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(workbook, fileName);
+
+    showToast(`Export Excel — ${cfg.name} (${rows.length} lignes)`, "success");
+}
 
 // ─── Start ────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", init);
