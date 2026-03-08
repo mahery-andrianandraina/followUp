@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Dashboard de suivi des commandes AW27 – SOCOTA Checkers" />
+    <title>AW27 CHECKERS – Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════ HEADER ═══════════════════════════════════════ -->
+    <header class="header">
+        <div class="header-brand">
+            <div class="header-logo">AW</div>
+            <div class="header-title">
+                <h1>AW27 CHECKERS</h1>
+                <p>Suivi & Gestion des Commandes</p>
+            </div>
+        </div>
+        <div class="header-right">
+            <span class="status-badge">Live</span>
+            <button class="btn-header"
+                style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--glass-border);"
+                onclick="fetchAllData()" title="Actualiser les données">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
+                    height="14">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+            <button class="btn-header"
+                style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--glass-border);"
+                onclick="exportCSV()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
+                    height="14">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                CSV
+            </button>
+            <button class="btn-header" onclick="openAddModal()">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
+                    height="14">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                </svg>
+                Ajouter
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════════════════════════════════════ MAIN ════════════════════════════════════════ -->
+    <main class="main">
+
+        <!-- KPI STAT BAR -->
+        <div class="kpi-bar" id="kpi-grid">
+            <!-- Rendered by JS -->
+        </div>
+
+        <!-- TAB BAR -->
+        <div class="tab-bar" role="tablist">
+            <button class="tab-btn active" data-sheet="details" role="tab" aria-selected="true" id="tab-details">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Details
+            </button>
+            <button class="tab-btn" data-sheet="sample" role="tab" aria-selected="false" id="tab-sample">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+                Sample
+            </button>
+            <button class="tab-btn" data-sheet="ordering" role="tab" aria-selected="false" id="tab-ordering">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 9H4L5 9z" />
+                </svg>
+                Ordering
+            </button>
+        </div>
+
+        <!-- TABLE CARD -->
+        <div class="table-card">
+            <div class="table-header">
+                <div>
+                    <div class="table-title" id="table-title">Détails des Styles</div>
+                    <div class="table-subtitle" id="table-subtitle">Cliquez sur un en-tête pour trier</div>
+                </div>
+                <div class="table-controls">
+                    <!-- Search -->
+                    <div class="search-wrap">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input class="search-input" type="search" id="search-input" placeholder="Rechercher…"
+                            aria-label="Rechercher dans le tableau" />
+                    </div>
+                    <!-- Dept Filter -->
+                    <select class="filter-select" id="dept-filter" aria-label="Filtrer par département">
+                        <option value="">Tous les depts</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table aria-label="Tableau de données">
+                    <thead id="table-head"></thead>
+                    <tbody id="table-body">
+                        <tr>
+                            <td colspan="99">
+                                <div class="spinner-wrap">
+                                    <div class="spinner"></div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ═══════════════════════════════════════ MODAL ADD/EDIT ═══════════════════════════════ -->
+    <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Ajouter une ligne</div>
+                    <div class="modal-subtitle" id="modal-subtitle">Remplissez les champs ci-dessous</div>
+                </div>
+                <button class="btn-close" onclick="closeModal()" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-grid" id="form-fields">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-primary" id="form-save" onclick="saveForm()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ CONFIRM DELETE ═══════════════════════════════ -->
+    <div class="modal-overlay" id="confirm-overlay" role="alertdialog" aria-modal="true">
+        <div class="modal confirm-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">Confirmer la suppression</div>
+                </div>
+                <button class="btn-close" onclick="cancelDelete()" aria-label="Annuler">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="confirm-body">
+                <div class="confirm-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="24" height="24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+                <h3>Supprimer cette ligne ?</h3>
+                <p>Cette action supprimera la ligne de votre Google Sheet. Elle est <strong>irréversible</strong>.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="cancelDelete()">Annuler</button>
+                <button class="btn btn-danger" id="confirm-delete-btn" onclick="executeDelete()">Supprimer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ TOASTS ════════════════════════════════════════ -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
+
+    <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
+    <script src="app.js"></script>
+
+</body>
+
+</html>
