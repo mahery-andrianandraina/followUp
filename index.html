@@ -11,39 +11,103 @@
 
 <body>
 
+    <!-- ═══════════════════════════════════════ SIDEBAR ═════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <div class="header-logo">AW</div>
+                <div class="sidebar-brand-text">
+                    <span class="sidebar-brand-name">AW27</span>
+                    <span class="sidebar-brand-sub">CHECKERS</span>
+                </div>
+            </div>
+            <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Réduire le menu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Nav Items -->
+        <nav class="sidebar-nav" role="tablist">
+            <div class="sidebar-section-label">Navigation</div>
+
+            <button class="nav-item active" data-sheet="details" role="tab" aria-selected="true" id="tab-details">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span class="nav-label">Details</span>
+            </button>
+
+            <button class="nav-item" data-sheet="sample" role="tab" aria-selected="false" id="tab-sample">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </span>
+                <span class="nav-label">Sample</span>
+            </button>
+
+            <button class="nav-item" data-sheet="ordering" role="tab" aria-selected="false" id="tab-ordering">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 9H4L5 9z" />
+                    </svg>
+                </span>
+                <span class="nav-label">Ordering</span>
+            </button>
+        </nav>
+
+        <!-- Sidebar Footer Actions -->
+        <div class="sidebar-footer">
+            <button class="nav-action" onclick="fetchAllData()" title="Actualiser">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </span>
+                <span class="nav-label">Actualiser</span>
+            </button>
+            <button class="nav-action" onclick="exportExcel()" title="Exporter Excel">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </span>
+                <span class="nav-label">Excel</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ═══════════════════════════════════════ LAYOUT WRAPPER ════════════════════════════════ -->
+    <div class="layout-body" id="layout-body">
+
     <!-- ═══════════════════════════════════════ HEADER ═══════════════════════════════════════ -->
     <header class="header">
-        <div class="header-brand">
-            <div class="header-logo">AW</div>
+        <div class="header-left">
+            <!-- Hamburger (visible when collapsed) -->
+            <button class="hamburger" id="hamburger" onclick="toggleSidebar()" title="Ouvrir le menu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                </svg>
+            </button>
             <div class="header-title">
-                <h1>AW27 CHECKERS</h1>
+                <h1 id="header-sheet-title">Détails des Styles</h1>
                 <p>Suivi & Gestion des Commandes</p>
             </div>
         </div>
         <div class="header-right">
             <span class="status-badge">Live</span>
-            <button class="btn-header"
-                style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--glass-border);"
-                onclick="fetchAllData()" title="Actualiser les données">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
-                    height="14">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-            </button>
-            <button class="btn-header"
-                style="background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--glass-border);"
-                onclick="exportExcel()">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
-                    height="14">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Excel
-            </button>
             <button class="btn-header" onclick="openAddModal()">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14"
-                    height="14">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
                 </svg>
                 Ajouter
@@ -57,31 +121,6 @@
         <!-- KPI STAT BAR -->
         <div class="kpi-bar" id="kpi-grid">
             <!-- Rendered by JS -->
-        </div>
-
-        <!-- TAB BAR -->
-        <div class="tab-bar" role="tablist">
-            <button class="tab-btn active" data-sheet="details" role="tab" aria-selected="true" id="tab-details">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                Details
-            </button>
-            <button class="tab-btn" data-sheet="sample" role="tab" aria-selected="false" id="tab-sample">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                </svg>
-                Sample
-            </button>
-            <button class="tab-btn" data-sheet="ordering" role="tab" aria-selected="false" id="tab-ordering">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 9H4L5 9z" />
-                </svg>
-                Ordering
-            </button>
         </div>
 
         <!-- TABLE CARD -->
@@ -105,6 +144,10 @@
                     <select class="filter-select" id="dept-filter" aria-label="Filtrer par département">
                         <option value="">Tous les depts</option>
                     </select>
+                    <!-- Client Filter -->
+                    <select class="filter-select" id="client-filter" aria-label="Filtrer par client">
+                        <option value="">Tous les clients</option>
+                    </select>
                 </div>
             </div>
 
@@ -125,6 +168,8 @@
         </div>
 
     </main>
+
+    </div><!-- /.layout-body -->
 
     <!-- ═══════════════════════════════════════ MODAL ADD/EDIT ═══════════════════════════════ -->
     <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
