@@ -74,12 +74,22 @@
                 </span>
                 <span class="nav-label">Ordering</span>
             </button>
+            <div class="sidebar-section-label" style="margin-top:0.75rem">Menus perso</div>
+            <div id="custom-nav-items"></div>
+            <button class="nav-item nav-item-add" onclick="openMenuBuilder()" id="btn-add-menu">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                </span>
+                <span class="nav-label">Ajouter menu</span>
+            </button>
         </nav>
 
         <!-- Sidebar Footer Actions -->
         <div class="sidebar-footer">
-            <button class="nav-action" onclick="fetchAllData()" title="Actualiser">
-                <span class="nav-icon">
+            <button class="nav-action" onclick="fetchAllData()" title="Actualiser" id="refresh-btn">
+                <span class="nav-icon" style="position:relative"><span id="refresh-dot" style="display:none;position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;border:1.5px solid #fff;"></span>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -283,6 +293,45 @@
     <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
+
+
+    <!-- ══════════════════════ MENU BUILDER MODAL ══════════════════════ -->
+    <div class="modal-overlay" id="menu-builder-overlay">
+        <div class="modal menu-builder-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="menu-builder-title">Créer un menu</div>
+                    <div class="modal-subtitle">Définissez le nom et les colonnes de votre feuille</div>
+                </div>
+                <button class="modal-close" onclick="closeMenuBuilder()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group full">
+                    <label class="form-label">Nom du menu <span style="color:var(--danger)">*</span></label>
+                    <input class="form-input" id="mb-menu-name" placeholder="Ex: Fabric Tracking, QC Report…" maxlength="30"/>
+                </div>
+                <div class="mb-cols-section">
+                    <div class="mb-cols-header">
+                        <span class="mb-cols-title">Colonnes</span>
+                        <button class="btn btn-ghost btn-sm" onclick="mbAddColumn()">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                            Ajouter colonne
+                        </button>
+                    </div>
+                    <div id="mb-cols-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeMenuBuilder()">Annuler</button>
+                <button class="btn btn-primary" id="mb-save-btn" onclick="saveMenuBuilder()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Créer le menu
+                </button>
+            </div>
+        </div>
+    </div>
 
 </body>
 
