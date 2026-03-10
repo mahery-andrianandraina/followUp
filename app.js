@@ -2,7 +2,7 @@
 // AW27 CHECKERS – Dashboard JavaScript
 // ============================================================
 
-const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3QYiaHORxHxYa4gaddAWiJFYweOVQuKdrQVXhiAkG8E8ykgY8xNuRducnc1ty8OsX/exec";
+const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjGHgylW9mSS-nAawGzt-exvbbujE-ugI80ygRZ53N8dYGheKpXMcCFeZQg5kWXieM/exec";
 
 // ─── Delivery Track Logic ────────────────────────────────────
 function computeDeliveryTrack(row) {
@@ -214,15 +214,33 @@ async function fetchAllData() {
         state.data.sample = fixRows(json.data.sample?.rows);
         state.data.ordering = fixRows(json.data.ordering?.rows);
         state.data.style = fixRows(json.data.style?.rows);
-        // Load custom menu data — cherche par vrai nom de feuille dans la réponse GAS
+
+        // ── Charger les menus custom depuis GAS (priorité sur localStorage)
+        if (json.menus && Array.isArray(json.menus)) {
+            // Supprimer les menus custom existants de la nav pour éviter les doublons
+            const nav = document.getElementById("custom-nav-items");
+            if (nav) nav.innerHTML = "";
+            // Réinitialiser les clés custom dans SHEET_CONFIG
+            Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => delete SHEET_CONFIG[k]);
+            // Enregistrer les menus venant du GAS
+            const migrated = json.menus.map(m => ({
+                ...m,
+                cols: m.cols.map(c => ({ ...c, key: c.label }))
+            }));
+            migrated.forEach(m => registerCustomMenu(m, false));
+            // Mettre à jour localStorage comme cache
+            localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+        }
+
+        // ── Charger les données des feuilles custom
         Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => {
             const realName = SHEET_CONFIG[k].sheetName || SHEET_CONFIG[k].label;
-            // Le GAS retourne les feuilles custom avec leur vrai nom comme clé
-            const fromGAS = Object.entries(json.data).find(([gasKey, _]) => {
-                return gasKey === realName || gasKey.toLowerCase() === realName.toLowerCase();
-            });
+            const fromGAS = Object.entries(json.data).find(([gasKey]) =>
+                gasKey === realName || gasKey.toLowerCase() === realName.toLowerCase()
+            );
             state.data[k] = fixRows(fromGAS ? fromGAS[1].rows : []);
         });
+
         state.loading = false;
         renderAll();
     } catch (err) {
@@ -1324,12 +1342,16 @@ function registerCustomMenu(menuDef, save = true) {
     if (save) persistCustomMenus();
 }
 
-// ── Persist all custom menus to localStorage ──────────────────
+// ── Persist menus : GAS (permanent) + localStorage (cache) ───
 function persistCustomMenus() {
     const menus = Object.entries(SHEET_CONFIG)
         .filter(([, v]) => v.custom)
         .map(([key, v]) => ({ key, label: v.label, cols: v.cols }));
+    // Toujours sauvegarder en localStorage comme cache rapide
     localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(menus));
+    // Sauvegarder en GAS pour persistance cross-navigateur / GitHub Pages
+    sendRequest("SAVE_MENUS", { menus })
+        .catch(() => {}); // silencieux si GAS non connecté
 }
 
 // ── Open builder (new) ────────────────────────────────────────
