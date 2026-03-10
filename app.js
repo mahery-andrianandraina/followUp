@@ -268,6 +268,21 @@ function showDashboard() {
     if (tc) tc.style.display = "none";
     if (ap) ap.innerHTML = "";
     if (sp) sp.innerHTML = "";
+    // Show skeleton while data hasn't loaded yet
+    if (ds && state.loading) {
+        ds.innerHTML = `
+        <div class="db-skeleton-wrap">
+            <div class="db-skeleton-header">
+                <div class="db-skel db-skel-title"></div>
+                <div class="db-skel db-skel-badge"></div>
+            </div>
+            <div class="db-skeleton-stats">
+                ${Array(6).fill('<div class="db-skel db-skel-stat"></div>').join("")}
+            </div>
+            <div class="db-skel db-skel-chart-title"></div>
+            <div class="db-skel db-skel-chart"></div>
+        </div>`;
+    }
 }
 
 function showTableView() {
@@ -338,59 +353,100 @@ function renderDashboard() {
         ...sample.map(r => r.Client)
     ].filter(Boolean))].sort();
 
-    const maxStyles = Math.max(1, ...clients.map(c => details.filter(r => r.Client === c).length));
-    const maxQty = Math.max(1, ...clients.map(c => details.filter(r => r.Client === c).reduce((s, r) => s + (+r.OrderQty || 0), 0)));
-    const maxOrders = Math.max(1, ...clients.map(c => ordering.filter(r => r.Client === c && r.Status !== "Cancelled").length));
+    const clientData = clients.map(client => ({
+        name: client,
+        styles: details.filter(r => r.Client === client).length,
+        orders: ordering.filter(r => r.Client === client && r.Status !== "Cancelled").length,
+        samples: sample.filter(r => r.Client === client).length,
+        approved: sample.filter(r => r.Client === client && r.Approval === "Approved").length,
+        late: ordering.filter(r => r.Client === client && computeDeliveryTrack(r).cls === "track-late").length,
+    }));
 
-    const clientCards = clients.map(client => {
-        const dRows = details.filter(r => r.Client === client);
-        const oRows = ordering.filter(r => r.Client === client && r.Status !== "Cancelled");
-        const sRows = sample.filter(r => r.Client === client);
+    const maxVal = Math.max(1, ...clientData.flatMap(c => [c.styles, c.orders, c.samples]));
 
-        const cStyles = dRows.length;
-        const cQty = dRows.reduce((s, r) => s + (+r.OrderQty || 0), 0);
-        const cOrders = oRows.length;
+    const SERIES = [
+        { key: "styles",  label: "Styles",    color: "#14b8a6" },
+        { key: "orders",  label: "Commandes", color: "#6366f1" },
+        { key: "samples", label: "Samples",   color: "#f59e0b" },
+    ];
 
-        const sApproved = sRows.filter(r => r.Approval === "Approved").length;
-        const sPending = sRows.filter(r => r.Approval === "Pending").length;
-        const sRejected = sRows.filter(r => r.Approval === "Rejected").length;
+    const BAR_H = 11;
+    const GAP   = 5;
+    const GROUP = SERIES.length * BAR_H + (SERIES.length - 1) * GAP;
+    const ROW_H = GROUP + 32;
+    const LABEL_W = 140;
+    const CHART_H = clientData.length * ROW_H + 10;
 
-        const oLate = oRows.filter(r => computeDeliveryTrack(r).cls === "track-late").length;
-        const oOntrack = oRows.filter(r => computeDeliveryTrack(r).cls === "track-ok").length;
+    const svgRows = clientData.map((c, i) => {
+        const y0 = i * ROW_H + 18;
+        const avatarColors = ["#14b8a6","#6366f1","#f59e0b","#ef4444","#3b82f6","#ec4899"];
+        const ac = avatarColors[i % avatarColors.length];
 
-        const chips = [
-            sApproved ? `<span class="db-chip approved">✓ ${sApproved} Approv\u00e9e${sApproved > 1 ? "s" : ""}</span>` : "",
-            sPending ? `<span class="db-chip pending">⏳ ${sPending} En attente</span>` : "",
-            sRejected ? `<span class="db-chip rejected">✕ ${sRejected} Rejet\u00e9e${sRejected > 1 ? "s" : ""}</span>` : "",
-            oLate ? `<span class="db-chip late">🔴 ${oLate} Retard</span>` : "",
-            oOntrack ? `<span class="db-chip ontrack">✓ ${oOntrack} On Track</span>` : "",
-        ].filter(Boolean).join("");
+        const bars = SERIES.map((s, si) => {
+            const pct = maxVal > 0 ? c[s.key] / maxVal : 0;
+            const bw = Math.round(pct * (500 - LABEL_W - 20));
+            const by = y0 + si * (BAR_H + GAP);
+            const lateTag = (s.key === "orders" && c.late) ? " ⚠" + c.late : "";
+            const apprTag = (s.key === "samples" && c.approved) ? " ✓" + c.approved : "";
+            const barW = Math.max(bw, c[s.key] > 0 ? 18 : 0);
+            return (
+                '<rect x="' + LABEL_W + '" y="' + by + '" rx="4" ry="4"' +
+                ' width="' + barW + '" height="' + BAR_H + '"' +
+                ' fill="' + s.color + '" opacity="0.88"/>' +
+                '<text x="' + (LABEL_W + barW + 6) + '" y="' + (by + BAR_H - 2) + '"' +
+                ' font-size="9" font-weight="600" fill="var(--text-secondary)" opacity="0.8">' +
+                c[s.key] + lateTag + apprTag +
+                '</text>'
+            );
+        }).join("");
 
-        const progRow = (label, count, max, barCls) => `
-        <div class="db-prog-row">
-            <div class="db-prog-labels">
-                <span class="db-prog-name">${label}</span>
-                <span class="db-prog-count">${count.toLocaleString()}</span>
-            </div>
-            <div class="db-prog-bar-wrap">
-                <div class="db-prog-bar ${barCls}" style="width:${max > 0 ? Math.round(count / max * 100) : 0}%"></div>
-            </div>
-        </div>`;
-
-        return `
-        <div class="db-client-card">
-            <div class="db-client-header">
-                <span class="db-client-name">${esc(client)}</span>
-                <span class="db-client-qty">${cQty.toLocaleString()} u.</span>
-            </div>
-            <div class="db-client-body">
-                ${progRow("Styles", cStyles, maxStyles, "styles")}
-                ${progRow("Quantit\u00e9", cQty, maxQty, "qty")}
-                ${progRow("Commandes", cOrders, maxOrders, "orders")}
-                ${chips ? `<div class="db-client-chips">${chips}</div>` : ""}
-            </div>
-        </div>`;
+        return (
+            '<g>' +
+            '<rect x="0" y="' + (y0 - 8) + '" width="500" height="' + (GROUP + 16) + '"' +
+            ' rx="7" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>' +
+            '<circle cx="12" cy="' + (y0 + GROUP/2 - 1) + '" r="11" fill="' + ac + '" opacity="0.18"/>' +
+            '<text x="12" y="' + (y0 + GROUP/2 + 4) + '" text-anchor="middle"' +
+            ' font-size="9" font-weight="800" fill="' + ac + '">' + esc(c.name.slice(0,2).toUpperCase()) + '</text>' +
+            '<text x="30" y="' + (y0 + GROUP/2 + 4) + '" font-size="11.5" font-weight="600"' +
+            ' fill="var(--text-primary)">' + esc(c.name) + '</text>' +
+            bars +
+            '</g>'
+        );
     }).join("");
+
+    const gridLines = [0, 25, 50, 75, 100].map(pct => {
+        const x = LABEL_W + Math.round(pct / 100 * (500 - LABEL_W - 20));
+        const val = Math.round(pct / 100 * maxVal);
+        return (
+            '<line x1="' + x + '" y1="-10" x2="' + x + '" y2="' + CHART_H + '"' +
+            ' stroke="rgba(150,150,180,0.1)" stroke-width="1" stroke-dasharray="3,3"/>' +
+            '<text x="' + x + '" y="-16" text-anchor="middle" font-size="8.5"' +
+            ' fill="rgba(150,150,180,0.45)">' + val + '</text>'
+        );
+    }).join("");
+
+    const legend = SERIES.map(s =>
+        '<span class="db-chart-legend-item">' +
+        '<span class="db-chart-legend-dot" style="background:' + s.color + '"></span>' +
+        s.label + '</span>'
+    ).join("");
+
+    const clientChart =
+        '<div class="db-chart-card">' +
+        '<div class="db-chart-header">' +
+        '<div>' +
+        '<div class="db-section-title" style="margin:0 0 2px">Répartition par Client</div>' +
+        '<p class="db-chart-subtitle">Styles · Commandes actives · Samples</p>' +
+        '</div>' +
+        '<div class="db-chart-legend">' + legend + '</div>' +
+        '</div>' +
+        '<div class="db-chart-wrap">' +
+        '<svg width="100%" height="' + (CHART_H + 30) + '" viewBox="0 -28 500 ' + (CHART_H + 30) + '"' +
+        ' preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
+        gridLines + svgRows +
+        '</svg>' +
+        '</div>' +
+        '</div>';
 
     // ── Date string
     const dateStr = today.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
@@ -410,10 +466,7 @@ function renderDashboard() {
 
     ${statsHtml}
 
-    <div>
-        <div class="db-section-title">R&eacute;capitulatif par Client</div>
-        <div class="db-clients-grid">${clientCards || "<p style='color:var(--text-muted)'>Aucun client trouv&eacute;.</p>"}</div>
-    </div>`;
+    ${clientChart}`;
 }
 
 // ─── KPIs ─────────────────────────────────────────────────────
@@ -593,68 +646,43 @@ function renderSampleAlertsDrawerBody() {
         return rd.getTime() === today.getTime();
     });
 
-    const approvalCls = v => ({ Approved: "approved", Pending: "pending", Rejected: "rejected" }[v] || "unknown");
+    const approvalCls = v => ({ Approved: "sal-appr", Pending: "sal-pend", Rejected: "sal-rej" }[v] || "sal-none");
 
     const cardSample = (r, isToday) => {
         const rd = new Date(r["Ready Date"]);
         const rdFmt = rd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
         const days = Math.abs(Math.round((rd - today) / 86400000));
-        const pill = isToday
-            ? `<span class="track-badge track-atrisk dac-track-pill">Aujourd'hui</span>`
-            : `<span class="track-badge track-late dac-track-pill">${days} jour(s) de retard</span>`;
-        return `<div class="drawer-alert-card ${isToday ? "card-risk" : "card-late"}">
-            <div class="dac-top">
-                <span class="dac-card-icon ${isToday ? "icon-risk" : "icon-late"}">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-                </span>
-                <div class="dac-top-info">
-                    <div class="dac-top-row1">
-                        <span class="dac-style">${esc(r.Style)}</span>
-                        ${r.Type ? `<span class="dac-color">${esc(r.Type)}</span>` : ""}
-                        <span class="dac-client">${esc(r.Client)}</span>
-                    </div>
-                    ${pill}
+        const statusDot = isToday
+            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Aujourd\'hui</span>`
+            : `<span class="sal-dot sal-dot-late"></span><span class="sal-status-txt sal-txt-late">${days}j de retard</span>`;
+
+        return `<div class="sal-card ${isToday ? "sal-card-today" : "sal-card-late"}">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${esc(r.Style)}</span>
+                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
+                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
                 </div>
+                <div class="sal-card-right">${statusDot}</div>
             </div>
-            <div class="dac-info-grid">
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Description</span>
-                    <span class="dac-info-val">${esc(r.StyleDescription) || "—"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Dept</span>
-                    <span class="dac-info-val">${esc(r.Dept) || "—"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Fabric</span>
-                    <span class="dac-info-val">${esc(r.Fabric) || "—"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Size</span>
-                    <span class="dac-info-val">${esc(r.Size) || "—"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Ready Date</span>
-                    <span class="dac-info-val text-danger-bold">${rdFmt}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Approval</span>
-                    <span class="dac-info-val"><span class="approval-badge ${approvalCls(r.Approval)}">${esc(r.Approval) || "—"}</span></span>
-                </div>
-                ${r.Remarks ? `<div class="dac-info-row" style="grid-column:1/-1">
-                    <span class="dac-info-label">Remarks</span>
-                    <span class="dac-info-val">${esc(r.Remarks)}</span>
-                </div>` : ""}
+            <div class="sal-card-body">
+                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription) || "—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept) || "—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric) || "—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size) || "—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Ready Date</span><span class="sal-val ${isToday ? "sal-date-today" : "sal-date-late"}">${rdFmt}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval) || "—"}</span></span></div>
+                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
             </div>
         </div>`;
     };
 
-    const section = (title, color, icon, items, isToday) => {
+    const section = (title, accentCls, items, isToday) => {
         if (!items.length) return "";
-        return `
-        <div class="drawer-section">
-            <div class="drawer-section-header" style="color:${color}">
-                ${icon} ${title} <span class="drawer-section-count">${items.length}</span>
+        return `<div class="sal-section">
+            <div class="sal-section-hd ${accentCls}">
+                <span class="sal-section-title">${title}</span>
+                <span class="sal-section-count">${items.length}</span>
             </div>
             ${items.map(r => cardSample(r, isToday)).join("")}
         </div>`;
@@ -662,11 +690,12 @@ function renderSampleAlertsDrawerBody() {
 
     const body = document.getElementById("sample-alerts-drawer-body");
     const html =
-        section("Ready Date aujourd'hui", "#f59e0b", "🟡", todaySamples, true) +
-        section("Ready Date dépassée", "#ff4d6d", "🔴", overdue, false);
+        section("Ready Date aujourd\'hui", "sal-hd-today", todaySamples, true) +
+        section("Ready Date dépassée", "sal-hd-late", overdue, false);
 
-    body.innerHTML = html || `<p style="color:var(--text-muted);padding:2rem;text-align:center;">Aucune alerte sample.</p>`;
+    body.innerHTML = html || `<p class="sal-empty">Aucune alerte sample.</p>`;
 }
+
 
 // ─── Alerts Drawer ─────────────────────────────────────────────
 function openAlertsDrawer() {
@@ -1056,13 +1085,26 @@ function sortBy(col) { if (state.sortCol === col) state.sortDir *= -1; else { st
 function openAddModal() { state.editingRow = null; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Ajouter – ${cfg.label}`; modalSubTitle.textContent = "Remplissez les champs ci-dessous"; buildForm(cfg.cols, {}); formSave.textContent = "Enregistrer"; openModal(); }
 function openEditModal(rowIndex) { const row = state.data[state.activeSheet].find(r => r._rowIndex === rowIndex); if (!row) return; state.editingRow = rowIndex; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Modifier – ${cfg.label}`; modalSubTitle.textContent = `Ligne ${rowIndex}`; buildForm(cfg.cols, row); formSave.textContent = "Mettre à jour"; openModal(); }
 
+function toISODateValue(val) {
+    if (!val) return "";
+    // Already in YYYY-MM-DD format
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(val).trim())) return String(val).trim();
+    // Try parsing as a date (handles "07 mars 2026", "07/03/2026", etc.)
+    try {
+        const d = new Date(val);
+        if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    } catch (e) {}
+    return "";
+}
+
 function buildForm(cols, data) {
     formFields.innerHTML = cols.map(col => {
-        const val = data[col.key] ?? ""; const full = col.full ? " full" : "";
+        const rawVal = data[col.key] ?? ""; const full = col.full ? " full" : "";
         let input;
-        if (col.type === "textarea") input = `<textarea class="form-textarea" id="field-${sanitizeId(col.key)}" placeholder="${col.label}">${esc(String(val))}</textarea>`;
-        else if (col.type === "select") { const opts = col.options.map(o => `<option value="${esc(o)}" ${o === val ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join(""); input = `<select class="form-select" id="field-${sanitizeId(col.key)}">${opts}</select>`; }
-        else input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="${col.type === "date" ? "date" : "text"}" value="${esc(String(val))}" placeholder="${col.label}" ${col.required ? "required" : ""}>`;
+        if (col.type === "textarea") input = `<textarea class="form-textarea" id="field-${sanitizeId(col.key)}" placeholder="${col.label}">${esc(String(rawVal))}</textarea>`;
+        else if (col.type === "select") { const opts = col.options.map(o => `<option value="${esc(o)}" ${o === rawVal ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join(""); input = `<select class="form-select" id="field-${sanitizeId(col.key)}">${opts}</select>`; }
+        else if (col.type === "date") { const dateVal = toISODateValue(rawVal); input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="date" value="${esc(dateVal)}" placeholder="${col.label}" ${col.required ? "required" : ""}>`; }
+        else input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="text" value="${esc(String(rawVal))}" placeholder="${col.label}" ${col.required ? "required" : ""}>`;
         return `<div class="form-group${full}"><label class="form-label" for="field-${sanitizeId(col.key)}">${col.label}${col.required ? ` <span style="color:var(--danger)">*</span>` : ""}</label>${input}</div>`;
     }).join("");
 }
