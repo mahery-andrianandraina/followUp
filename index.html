@@ -297,28 +297,30 @@
     <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
     <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- SheetJS avec fallback CDN -->
     <script>
-    // Charge SheetJS avec fallback sur un second CDN si le premier échoue
     (function() {
         function loadXLSX(url, onDone) {
-            var s = document.createElement('script');
-            s.src = url;
-            s.onload  = function() { onDone(true); };
+            var s = document.createElement('script'); s.src = url;
+            s.onload = function() { onDone(true); };
             s.onerror = function() { onDone(false); };
             document.head.appendChild(s);
         }
-        var primary   = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
-        var fallback1 = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-        var fallback2 = 'https://unpkg.com/xlsx/dist/xlsx.full.min.js';
-        loadXLSX(primary, function(ok) {
+        loadXLSX('https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js', function(ok) {
             if (ok) return;
-            loadXLSX(fallback1, function(ok2) {
+            loadXLSX('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', function(ok2) {
                 if (ok2) return;
-                loadXLSX(fallback2, function() {});
+                loadXLSX('https://unpkg.com/xlsx/dist/xlsx.full.min.js', function() {});
             });
         });
     })();
     </script>
+    <!-- Auth puis App -->
+    <script src="auth.js"></script>
     <script src="app.js"></script>
 
 

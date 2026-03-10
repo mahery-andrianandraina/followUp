@@ -2,7 +2,10 @@
 // AW27 CHECKERS – Dashboard JavaScript
 // ============================================================
 
-const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyjGHgylW9mSS-nAawGzt-exvbbujE-ugI80ygRZ53N8dYGheKpXMcCFeZQg5kWXieM/exec";
+// GOOGLE_APPS_SCRIPT_URL est maintenant dynamique — défini depuis
+// window.currentUser.gasUrl après authentification Firebase.
+// Ne pas modifier cette constante directement.
+let GOOGLE_APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 
 // ─── Delivery Track Logic ────────────────────────────────────
 function computeDeliveryTrack(row) {
@@ -121,13 +124,23 @@ const confirmOverlay = $("confirm-overlay");
 const toastContainer = $("toast-container");
 
 // ─── Init ─────────────────────────────────────────────────────
-async function init() {
+// Appelée par auth.js → onAuthReady() une fois Firebase prêt
+async function initApp() {
+    // Récupérer le GAS URL depuis le profil Firebase
+    if (window.currentUser && window.currentUser.gasUrl) {
+        GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
+    }
+
+    // Mettre à jour l'UI utilisateur dans le header
+    renderUserBadge();
+
     loadCustomMenus();
     setupTabListeners();
     setupSearchAndFilter();
     showDashboard();
     await fetchAllData();
     renderDashboard();
+    updateGlobalNotifBadge();
 }
 
 // ─── Sidebar Toggle ──────────────────────────────────────
@@ -2380,4 +2393,136 @@ function exportGlobalNotifExcel() {
     });
 }
 
-document.addEventListener("DOMContentLoaded", init);
+// ─── Démarrage ────────────────────────────────────────────────
+// L'initialisation est déclenchée par auth.js → onAuthReady()
+// après vérification Firebase. Ne pas appeler initApp() directement.
+document.addEventListener("DOMContentLoaded", () => {
+    // Afficher un spinner pendant que Firebase vérifie la session
+    showAppSpinner();
+});
+
+// ─── Spinner d'attente Firebase ───────────────────────────────
+function showAppSpinner() {
+    let s = document.getElementById("app-auth-spinner");
+    if (s) return;
+    s = document.createElement("div");
+    s.id = "app-auth-spinner";
+    s.innerHTML = `
+    <div class="aas-backdrop">
+        <div class="aas-card">
+            <div class="aas-logo">AW</div>
+            <div class="aas-spinner"></div>
+            <div class="aas-label">Vérification de la session…</div>
+        </div>
+    </div>`;
+    document.body.appendChild(s);
+}
+function hideAppSpinner() {
+    const s = document.getElementById("app-auth-spinner");
+    if (s) s.remove();
+}
+
+// ─── Badge utilisateur dans le header ────────────────────────
+function renderUserBadge() {
+    hideAppSpinner();
+    const u = window.currentUser;
+    if (!u) return;
+
+    // Retirer badge précédent si rechargement
+    const existing = document.getElementById("user-badge");
+    if (existing) existing.remove();
+
+    const initials = (u.displayName || u.email || "?")
+        .trim().split(" ")
+        .filter(Boolean)
+        .map(p => p[0].toUpperCase())
+        .slice(0,2).join("");
+
+    const badge = document.createElement("div");
+    badge.id = "user-badge";
+    badge.className = "user-badge";
+    badge.title = `${u.displayName || ""}\n${u.email}`;
+    badge.onclick = openUserSettings;
+    badge.innerHTML = u.photoURL
+        ? `<img class="user-badge-photo" src="${u.photoURL}" alt="Photo"/>`
+        : `<div class="user-badge-initials">${initials}</div>`;
+
+    // Insérer dans header-right avant le premier bouton
+    const headerRight = document.querySelector(".header-right");
+    if (headerRight) headerRight.prepend(badge);
+}
+
+// ─── Modal Paramètres Utilisateur ────────────────────────────
+function openUserSettings() {
+    let modal = document.getElementById("user-settings-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "user-settings-modal";
+        modal.className = "usm-overlay";
+        modal.innerHTML = `
+        <div class="usm-backdrop" onclick="closeUserSettings()"></div>
+        <div class="usm-panel">
+            <div class="usm-header">
+                <div class="usm-title">Mon compte</div>
+                <button class="usm-close" onclick="closeUserSettings()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="usm-body">
+                <!-- Profil -->
+                <div class="usm-profile">
+                    <div id="usm-avatar"></div>
+                    <div>
+                        <div class="usm-name"  id="usm-name"></div>
+                        <div class="usm-email" id="usm-email"></div>
+                    </div>
+                </div>
+
+                <!-- GAS URL -->
+                <div class="usm-section">
+                    <div class="usm-section-title">Google Apps Script URL</div>
+                    <div class="usm-section-desc">Modifiez cette URL pour pointer vers un autre Google Sheet.</div>
+                    <input class="usm-input" id="usm-gas-input" type="url"
+                        placeholder="https://script.google.com/macros/s/…/exec"/>
+                    <button class="usm-btn-save" onclick="saveNewGasUrl()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                        Enregistrer et recharger
+                    </button>
+                </div>
+
+                <!-- Déconnexion -->
+                <div class="usm-section">
+                    <button class="usm-btn-signout" onclick="signOut()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        Se déconnecter
+                    </button>
+                </div>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    }
+
+    // Peupler les infos
+    const u = window.currentUser;
+    const initials = (u.displayName || u.email || "?").trim().split(" ").filter(Boolean).map(p=>p[0].toUpperCase()).slice(0,2).join("");
+    document.getElementById("usm-avatar").innerHTML = u.photoURL
+        ? `<img class="usm-photo" src="${u.photoURL}" alt="Photo"/>`
+        : `<div class="usm-initials">${initials}</div>`;
+    document.getElementById("usm-name").textContent  = u.displayName || "—";
+    document.getElementById("usm-email").textContent = u.email || "—";
+    document.getElementById("usm-gas-input").value   = u.gasUrl || "";
+
+    requestAnimationFrame(() => modal.classList.add("open"));
+}
+
+function closeUserSettings() {
+    const m = document.getElementById("user-settings-modal");
+    if (m) m.classList.remove("open");
+}
+
+async function saveNewGasUrl() {
+    const input = document.getElementById("usm-gas-input");
+    if (!input) return;
+    await updateGasUrl(input.value.trim());
+    closeUserSettings();
+}

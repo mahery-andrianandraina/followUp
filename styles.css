@@ -4193,3 +4193,166 @@ select.filter-select {
     background: var(--accent);
     color: #fff;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   AUTHENTICATION UI
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── App spinner (attente Firebase) ────────────────────────── */
+.aas-backdrop {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--bg-main, #f0f4f8);
+    display: flex; align-items: center; justify-content: center;
+}
+.aas-card {
+    display: flex; flex-direction: column; align-items: center; gap: 1.2rem;
+}
+.aas-logo {
+    width: 48px; height: 48px;
+    background: linear-gradient(135deg, #0284c7, #6366f1);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.5px;
+}
+.aas-spinner {
+    width: 28px; height: 28px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #0284c7;
+    border-radius: 50%;
+    animation: aas-spin 0.75s linear infinite;
+}
+@keyframes aas-spin { to { transform: rotate(360deg); } }
+.aas-label { font-size: 0.8rem; color: var(--text-muted, #64748b); }
+
+/* ─── User badge (header) ────────────────────────────────────── */
+.user-badge {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--glass-border, #e2e8f0);
+    background: var(--bg-card, #fff);
+    cursor: pointer; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    transition: border-color 0.18s, box-shadow 0.18s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.user-badge:hover {
+    border-color: var(--accent, #0284c7);
+    box-shadow: 0 0 0 3px rgba(2,132,199,0.15);
+}
+.user-badge-photo {
+    width: 100%; height: 100%; object-fit: cover; border-radius: 50%;
+}
+.user-badge-initials {
+    font-size: 0.72rem; font-weight: 700;
+    color: var(--accent, #0284c7);
+    background: var(--accent-dim, #e0f2fe);
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+}
+
+/* ─── Modal Paramètres Utilisateur ──────────────────────────── */
+.usm-overlay {
+    position: fixed; inset: 0; z-index: 1200;
+    pointer-events: none; opacity: 0;
+    transition: opacity 0.22s ease;
+}
+.usm-overlay.open { pointer-events: all; opacity: 1; }
+.usm-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(15,23,42,0.3); backdrop-filter: blur(2px);
+}
+.usm-panel {
+    position: absolute; top: 60px; right: 1.5rem;
+    width: 320px;
+    background: var(--bg-card, #fff);
+    border-radius: 14px;
+    border: 1px solid var(--glass-border, #e2e8f0);
+    box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+    overflow: hidden;
+    transform: translateY(-8px) scale(0.97);
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+}
+.usm-overlay.open .usm-panel { transform: translateY(0) scale(1); }
+
+.usm-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.9rem 1.1rem 0.8rem;
+    border-bottom: 1px solid var(--glass-border, #e2e8f0);
+}
+.usm-title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary, #0f172a); }
+.usm-close {
+    width: 26px; height: 26px; border-radius: 6px;
+    border: 1px solid var(--glass-border, #e2e8f0);
+    background: transparent; color: var(--text-muted, #64748b);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+}
+.usm-close:hover { background: var(--danger-dim, #fef2f2); color: var(--danger, #dc2626); }
+
+.usm-body { padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 1rem; }
+
+/* Profil */
+.usm-profile {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 10px;
+    background: var(--accent-dim, #e0f2fe);
+    border: 1px solid rgba(2,132,199,0.18);
+}
+.usm-photo {
+    width: 38px; height: 38px; border-radius: 50%; object-fit: cover;
+    border: 2px solid rgba(2,132,199,0.25);
+}
+.usm-initials {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--accent, #0284c7); color: #fff;
+    font-size: 0.82rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.usm-name  { font-size: 0.84rem; font-weight: 600; color: var(--text-primary, #0f172a); }
+.usm-email { font-size: 0.72rem; color: var(--text-muted, #64748b); }
+
+/* Section */
+.usm-section { display: flex; flex-direction: column; gap: 0.5rem; }
+.usm-section-title {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--text-muted, #64748b);
+}
+.usm-section-desc { font-size: 0.74rem; color: var(--text-muted, #64748b); line-height: 1.5; }
+
+.usm-input {
+    width: 100%; padding: 0.55rem 0.75rem;
+    border-radius: 7px; border: 1.5px solid var(--glass-border, #e2e8f0);
+    font-size: 0.72rem; color: var(--text-primary, #0f172a);
+    font-family: "SFMono-Regular", Consolas, monospace;
+    background: var(--bg-secondary, #f8fafc); outline: none;
+    transition: border-color 0.15s;
+}
+.usm-input:focus {
+    border-color: var(--accent, #0284c7);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(2,132,199,0.1);
+}
+
+.usm-btn-save {
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.55rem; border-radius: 8px; border: none;
+    background: var(--accent, #0284c7); color: #fff;
+    font-size: 0.78rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+}
+.usm-btn-save:hover { background: #0369a1; }
+
+.usm-btn-signout {
+    display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+    width: 100%; padding: 0.55rem;
+    border-radius: 8px;
+    border: 1.5px solid #fecaca;
+    background: var(--danger-dim, #fef2f2); color: var(--danger, #dc2626);
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+}
+.usm-btn-signout:hover { background: #fee2e2; }
