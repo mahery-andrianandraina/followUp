@@ -334,6 +334,7 @@ function renderAll() {
     if (state.activeView === "dashboard") {
         showDashboard();
         renderDashboard();
+        updateGlobalNotifBadge();
         return;
     }
     showTableView();
@@ -345,6 +346,7 @@ function renderAll() {
     else if (state.activeSheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
     else if (SHEET_CONFIG[state.activeSheet]?.custom) { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
     else { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+    updateGlobalNotifBadge();
 }
 
 // ─── Dashboard Render ──────────────────────────────────────────
@@ -1866,14 +1868,516 @@ async function saveStyleRow(idx) { const g = document.getElementById(`edit-gmt-$
 function closeStyleModal() { styleModalOverlay.classList.remove("open"); _currentStyleName = ""; }
 
 // ─── Export Excel ─────────────────────────────────────────────
+
+// Utilitaire : retourne XLSX dès qu'il est disponible (attente max 8s)
+function _waitForXLSX(callback) {
+    if (typeof XLSX !== "undefined") { callback(XLSX); return; }
+    let tries = 0;
+    const interval = setInterval(() => {
+        if (typeof XLSX !== "undefined") {
+            clearInterval(interval);
+            callback(XLSX);
+        } else if (++tries > 40) { // 40 × 200ms = 8s
+            clearInterval(interval);
+            callback(null);
+        }
+    }, 200);
+}
+
 function exportExcel() {
-    if (typeof XLSX === "undefined") { showToast("Bibliothèque Excel non chargée", "error"); return; }
-    const cfg = SHEET_CONFIG[state.activeSheet]; const rows = state.filteredData.length ? state.filteredData : state.data[state.activeSheet];
-    if (!rows.length) { showToast("Aucune donnée à exporter", "info"); return; }
-    const headers = cfg.cols.map(c => c.label);
-    const data = rows.map(row => { const obj = {}; cfg.cols.forEach(c => { let v = row[c.key] ?? ""; if (c.type === "date" && v) try { v = new Date(v).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) { } if (c.key === "Size" && typeof v === "string" && v.startsWith("'")) v = v.substring(1); obj[c.label] = String(v); }); return obj; });
-    const ws = XLSX.utils.json_to_sheet(data, { header: headers }); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, cfg.label);
-    XLSX.writeFile(wb, `AW27_${cfg.label}_${new Date().toISOString().slice(0, 10)}.xlsx`); showToast(`Export — ${cfg.label} (${rows.length} lignes)`, "success");
+    _waitForXLSX(function(XL) {
+        if (!XL) { showToast("Bibliothèque Excel non chargée — vérifiez votre connexion", "error"); return; }
+        const cfg = SHEET_CONFIG[state.activeSheet];
+        const rows = state.filteredData.length ? state.filteredData : state.data[state.activeSheet];
+        if (!rows.length) { showToast("Aucune donnée à exporter", "info"); return; }
+        const headers = cfg.cols.map(c => c.label);
+        const data = rows.map(row => {
+            const obj = {};
+            cfg.cols.forEach(c => {
+                let v = row[c.key] ?? "";
+                if (c.type === "date" && v) try { v = new Date(v).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) {}
+                if (c.key === "Size" && typeof v === "string" && v.startsWith("'")) v = v.substring(1);
+                obj[c.label] = String(v);
+            });
+            return obj;
+        });
+        const ws = XL.utils.json_to_sheet(data, { header: headers });
+        const wb = XL.utils.book_new();
+        XL.utils.book_append_sheet(wb, ws, cfg.label);
+        XL.writeFile(wb, `AW27_${cfg.label}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast(`Export — ${cfg.label} (${rows.length} lignes)`, "success");
+    });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ─── GLOBAL NOTIFICATION SYSTEM ───────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+/*
+ * LOGIQUE MÉTIER — règles strictement mutuellement exclusives
+ *
+ * SAMPLE (PSS) — cycle de vie d'une sample :
+ *   PSD/Ready Date arrive → on attend la réception du PSS dans les 2j
+ *   Les états s'enchaînent et ne se cumulent JAMAIS :
+ *
+ *   État A : Ready Date dépassée ET pas encore reçu (Received Date vide)
+ *            ET pas encore envoyé (Sending Date vide) ET pas Approved
+ *            → "PSS non reçu — Ready Date dépassée de Xj · Relancer la factory"
+ *            (dès que Received Date est renseigné, cette alerte disparaît)
+ *
+ *   État B : Ready Date = aujourd'hui, mêmes conditions qu'état A
+ *            → "PSS attendu aujourd'hui · Prévoir la réception"
+ *
+ *   État C : Received Date renseigné + Sending Date vide + pas Approved
+ *            → "PSS reçu — à envoyer au client · Organiser l'envoi"
+ *            (dès que Sending Date est renseigné, cette alerte disparaît)
+ *
+ *   État D : Sending Date renseigné + pas Approved
+ *            → "PSS envoyé — approbation en attente depuis Xj"
+ *            (urgence progressive : >7j relancer, >14j urgent)
+ *            (dès que Approval = Approved, cette alerte disparaît)
+ *
+ * ORDERING :
+ *   - Ready Date dépassée + pas Delivered/Cancelled → Livraison en retard
+ *   - Ready Date dans ≤14j + pas Delivered          → À risque
+ *   - Pas de PO + pas Cancelled                     → PO manquant
+ *
+ * CUSTOM : même logique que Sample si colonnes détectées + dates dépassées
+ */
+
+function _fmtDate(val) {
+    if (!val) return "—";
+    try { return new Date(val).toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric" }); }
+    catch(e) { return String(val); }
+}
+function _daysDiff(dateVal) {
+    // Retourne un entier : positif = dans le futur, négatif = passé
+    const d = new Date(dateVal); d.setHours(0,0,0,0);
+    const t = new Date(); t.setHours(0,0,0,0);
+    return Math.round((d - t) / 86400000);
+}
+
+function collectAllAlerts() {
+    const all = {};
+
+    // ─── ORDERING ────────────────────────────────────────────
+    const ordRows = state.data.ordering || [];
+    const ordItems = [];
+
+    ordRows.filter(r => computeDeliveryTrack(r).cls === "track-late").forEach(r => {
+        const days = Math.abs(_daysDiff(r["Ready Date"]));
+        ordItems.push({
+            dotCls:"dot-late", tagCls:"tag-late",
+            tagLabel:`🔴 Retard ${days}j`,
+            title:`Livraison en retard de ${days} jour${days>1?"s":""}`,
+            action:"Contacter le fournisseur et replanifier la livraison",
+            style:r.Style||"—", client:r.Client||"",
+            meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.PO?" · PO : "+r.PO:" · ⚠ PO manquant"}${r.Supplier?" · "+r.Supplier:""}`,
+            urgency:"high", sheet:"ordering", rowIndex:r._rowIndex
+        });
+    });
+    ordRows.filter(r => computeDeliveryTrack(r).cls === "track-atrisk").forEach(r => {
+        const days = _daysDiff(r["Ready Date"]);
+        ordItems.push({
+            dotCls:"dot-risk", tagCls:"tag-risk",
+            tagLabel:`🟠 Dans ${days}j`,
+            title:`Livraison dans ${days} jour${days>1?"s":""} — surveiller`,
+            action:"Confirmer l'avancement de la commande avec le fournisseur",
+            style:r.Style||"—", client:r.Client||"",
+            meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Supplier?" · "+r.Supplier:""}`,
+            urgency:"mid", sheet:"ordering", rowIndex:r._rowIndex
+        });
+    });
+    ordRows.filter(r => !r.PO && r.Status !== "Cancelled").forEach(r => {
+        ordItems.push({
+            dotCls:"dot-nopo", tagCls:"tag-nopo",
+            tagLabel:"⚠ PO manquant",
+            title:"Commande sans PO — renseigner avant livraison",
+            action:"Renseigner le numéro de PO dès que disponible",
+            style:r.Style||"—", client:r.Client||"",
+            meta:`${r.Color?"Coloris : "+r.Color+" · ":""}Statut : ${r.Status||"—"}${r["Ready Date"]?" · Ready : "+_fmtDate(r["Ready Date"]):""}`,
+            urgency:"low", sheet:"ordering", rowIndex:r._rowIndex
+        });
+    });
+    if (ordItems.length) all["ordering"] = { label:"Ordering", items:ordItems };
+
+    // ─── SAMPLE (PSS) ─────────────────────────────────────────
+    // Règle clé : les 4 états sont MUTUELLEMENT EXCLUSIFS.
+    // L'état A (retard PSD) n'est déclenché QUE si Received Date est vide.
+    // Dès que le PSS est reçu (Received Date renseigné), on passe à l'état C ou D.
+    const samRows = state.data.sample || [];
+    const samItems = [];
+
+    samRows.forEach(r => {
+        const hasReceived = !!(r["Received Date"] && String(r["Received Date"]).trim());
+        const hasSending  = !!(r["Sending Date"]  && String(r["Sending Date"]).trim());
+        const isApproved  = r.Approval === "Approved";
+        const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
+
+        if (isApproved) return; // cycle terminé, aucune alerte
+
+        if (!hasReceived && !hasSending) {
+            // ── État A ou B : Sample pas encore reçue ───────────────
+            if (!hasReadyDate) return; // pas de date → pas d'alerte
+            const diff = _daysDiff(r["Ready Date"]);
+            if (diff < 0) {
+                // État A : Ready Date dépassée, sample toujours pas reçue
+                const days = Math.abs(diff);
+                samItems.push({
+                    dotCls:"dot-late", tagCls:"tag-late",
+                    tagLabel:`🔴 Sample non reçue — ${days}j de retard`,
+                    title:`Sample non reçue — Ready Date dépassée de ${days} jour${days>1?"s":""}`,
+                    action:"Relancer la factory pour confirmer l'avancement de la sample",
+                    style:r.Style||"—", client:r.Client||"",
+                    meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
+                    urgency:"high", sheet:"sample", rowIndex:r._rowIndex
+                });
+            } else if (diff === 0) {
+                // État B : Ready Date = aujourd'hui
+                samItems.push({
+                    dotCls:"dot-today", tagCls:"tag-today",
+                    tagLabel:"🟡 Sample attendue aujourd'hui",
+                    title:"Sample attendue aujourd'hui — prévoir la réception",
+                    action:"Confirmer la réception dès réception de la sample",
+                    style:r.Style||"—", client:r.Client||"",
+                    meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
+                    urgency:"low", sheet:"sample", rowIndex:r._rowIndex
+                });
+            }
+            // diff > 0 : Ready Date dans le futur → pas d'alerte
+
+        } else if (hasReceived && !hasSending) {
+            // ── État C : Sample reçue, pas encore envoyée ────────────
+            const days = Math.abs(_daysDiff(r["Received Date"]));
+            const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
+            samItems.push({
+                dotCls:"dot-send", tagCls:"tag-send",
+                tagLabel:`📦 À envoyer (${daysLabel})`,
+                title:"Sample reçue — à envoyer au client",
+                action:`Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date`,
+                style:r.Style||"—", client:r.Client||"",
+                meta:`Reçue le : ${_fmtDate(r["Received Date"])}${r.Type?" · "+r.Type:""}${r.Size?" · Taille "+r.Size:""}`,
+                urgency: days >= 3 ? "mid" : "low", sheet:"sample", rowIndex:r._rowIndex
+            });
+
+        } else if (hasSending) {
+            // ── État D : Sample envoyée, en attente d'approbation ────
+            const days = Math.abs(_daysDiff(r["Sending Date"]));
+            const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+            const urgencyLabel = urgency === "high" ? " 🚨 urgent" : urgency === "mid" ? " ⚡ à relancer" : "";
+            samItems.push({
+                dotCls:"dot-approve", tagCls:"tag-approve",
+                tagLabel:`⏳ Approval en attente — ${days}j${urgencyLabel}`,
+                title:`Sample envoyée — approbation en attente depuis ${days} jour${days>1?"s":""}`,
+                action: urgency === "high"
+                    ? "Plus de 2 semaines sans retour — relancer le client de toute urgence"
+                    : urgency === "mid"
+                    ? "1 semaine sans retour — envoyer un rappel au client"
+                    : "Attendre le retour du client ou envoyer un suivi",
+                style:r.Style||"—", client:r.Client||"",
+                meta:`Envoyée le : ${_fmtDate(r["Sending Date"])}${r.AWB?" · AWB : "+r.AWB:""}${r.Type?" · "+r.Type:""}`,
+                urgency, sheet:"sample", rowIndex:r._rowIndex
+            });
+        }
+    });
+
+    if (samItems.length) all["sample"] = { label:"Sample", items:samItems };
+
+    // ─── CUSTOM MENUS ─────────────────────────────────────────
+    Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
+        const cfg  = SHEET_CONFIG[key];
+        const rows = state.data[key] || [];
+        const det  = detectCustomCols(cfg.cols);
+        const items = [];
+
+        const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
+        const getClient = r => det.client ? (r[det.client] || "")  : "";
+
+        rows.forEach(r => {
+            const hasReceived = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
+            const hasSending  = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
+            const approved    = det.approval && isApproved(r[det.approval]);
+
+            if (approved) return;
+
+            // Si colonnes received/sending détectées → même logique que Sample
+            if (det.receivedDate || det.sendingDate) {
+                if (!hasReceived && !hasSending) {
+                    // Pas encore reçu → vérifier les colonnes date dépassées
+                } else if (hasReceived && !hasSending) {
+                    const days = Math.abs(_daysDiff(r[det.receivedDate]));
+                    const daysLabel = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days}j`;
+                    items.push({
+                        dotCls:"dot-send", tagCls:"tag-send",
+                        tagLabel:`📦 À envoyer (${daysLabel})`,
+                        title:"Reçu — à envoyer au client",
+                        action:`${daysLabel.charAt(0).toUpperCase()+daysLabel.slice(1)} — organiser l'envoi`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}`,
+                        urgency: days >= 3 ? "mid" : "low", sheet:key, rowIndex:r._rowIndex
+                    });
+                    return; // pas d'alerte date pour cette ligne, état géré
+                } else if (hasSending) {
+                    const days = Math.abs(_daysDiff(r[det.sendingDate]));
+                    const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                    const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    items.push({
+                        dotCls:"dot-approve", tagCls:"tag-approve",
+                        tagLabel:`⏳ Approval ${days}j${urgencyLabel}`,
+                        title:`Envoyé — approbation en attente depuis ${days}j`,
+                        action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}`,
+                        urgency, sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+            }
+
+            // Colonnes date dépassées (hors received/sending)
+            cfg.cols.filter(c => c.type === "date").forEach(col => {
+                const colLbl = col.label.toLowerCase();
+                if (colLbl.includes("receiv") || colLbl.includes("recep") || colLbl.includes("send") || colLbl.includes("envoi")) return;
+                const val = r[col.key]; if (!val) return;
+                const diff = _daysDiff(val);
+                if (diff < 0) {
+                    const days = Math.abs(diff);
+                    items.push({
+                        dotCls:"dot-late", tagCls:"tag-late",
+                        tagLabel:`🔴 ${col.label} — ${days}j`,
+                        title:`${col.label} dépassée de ${days} jour${days>1?"s":""}`,
+                        action:`Mettre à jour la colonne "${col.label}" ou replanifier`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`${col.label} : ${_fmtDate(val)}`,
+                        urgency:"high", sheet:key, rowIndex:r._rowIndex
+                    });
+                } else if (diff === 0) {
+                    items.push({
+                        dotCls:"dot-today", tagCls:"tag-today",
+                        tagLabel:`🟡 ${col.label} — aujourd'hui`,
+                        title:`${col.label} échoit aujourd'hui`,
+                        action:`Confirmer ou mettre à jour la colonne "${col.label}"`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`${col.label} : ${_fmtDate(val)}`,
+                        urgency:"low", sheet:key, rowIndex:r._rowIndex
+                    });
+                }
+            });
+        });
+
+        if (items.length) all[key] = { label:cfg.label, items };
+    });
+
+    return all;
+}
+
+// ── Navigation vers une ligne depuis une notif ───────────────
+function navigateToRow(sheetKey, rowIndex) {
+    // 1. Fermer le tiroir global
+    closeGlobalNotifDrawer();
+
+    // 2. Naviguer vers le bon menu (simuler un clic sur le nav-item)
+    const navBtn = document.querySelector(`.nav-item[data-sheet="${sheetKey}"]`) ||
+                   document.getElementById(`tab-custom-${sheetKey}`);
+
+    if (navBtn) {
+        // Réinitialiser les filtres et changer l'onglet actif
+        state.activeView  = "sheet";
+        state.activeSheet = sheetKey;
+        state.searchQuery = ""; state.filterDept = ""; state.filterClient = "";
+        state.sortCol = null; state.sortDir = 1;
+        searchInput.value = ""; deptFilter.value = "";
+        const cf = document.getElementById("client-filter"); if (cf) cf.value = "";
+        document.querySelectorAll(".nav-item").forEach(b => {
+            b.classList.remove("active"); b.setAttribute("aria-selected","false");
+        });
+        navBtn.classList.add("active"); navBtn.setAttribute("aria-selected","true");
+        const titles = { details:"Détails des Styles", sample:"Suivi des Samples", ordering:"Gestion des Commandes" };
+        const titleEl = document.getElementById("header-sheet-title");
+        if (titleEl) titleEl.textContent = titles[sheetKey] || (SHEET_CONFIG[sheetKey]?.label || sheetKey);
+        showTableView(); applyFilters(); renderKPIs();
+        populateDeptFilter(); populateClientFilter();
+        if (sheetKey === "ordering")                     { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+        else if (sheetKey === "sample")                  { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
+        else if (SHEET_CONFIG[sheetKey]?.custom)         { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
+        else                                             { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+        updateGlobalNotifBadge();
+    }
+
+    // 3. Attendre le rendu, puis scroll + surbrillance
+    setTimeout(() => {
+        // Chercher la ligne par data-rowindex ou en parcourant les tr
+        let targetRow = document.querySelector(`#table-body tr[data-rowindex="${rowIndex}"]`);
+
+        // Fallback : chercher dans les boutons d'action qui ont onclick="openEditModal(rowIndex)"
+        if (!targetRow) {
+            const allRows = document.querySelectorAll("#table-body tr");
+            for (const tr of allRows) {
+                const editBtn = tr.querySelector(`button[onclick="openEditModal(${rowIndex})"]`);
+                if (editBtn) { targetRow = tr; break; }
+            }
+        }
+
+        if (targetRow) {
+            // Scroll vers la ligne
+            targetRow.scrollIntoView({ behavior:"smooth", block:"center" });
+
+            // Surbrillance animée
+            targetRow.classList.add("row-highlight");
+            setTimeout(() => targetRow.classList.remove("row-highlight"), 3000);
+        }
+    }, 350); // laisser le temps au DOM de se rendre
+}
+
+// ── Badge cloche dans le header ───────────────────────────────
+function updateGlobalNotifBadge() {
+    const btn   = document.getElementById("btn-notif-global");
+    const badge = document.getElementById("notif-global-badge");
+    if (!btn || !badge) return;
+    const total = Object.values(collectAllAlerts()).reduce((s,v) => s+v.items.length, 0);
+    if (total === 0) {
+        btn.style.display = "none";
+        btn.classList.remove("has-alerts");
+    } else {
+        btn.style.display = "flex";
+        badge.textContent = total > 99 ? "99+" : total;
+        btn.classList.add("has-alerts");
+    }
+}
+
+// ── Tiroir global ─────────────────────────────────────────────
+let _gndActiveTab = "__all__";
+
+function openGlobalNotifDrawer() {
+    let drawer = document.getElementById("global-notif-drawer");
+    if (!drawer) {
+        drawer = document.createElement("div");
+        drawer.id = "global-notif-drawer";
+        drawer.innerHTML = `
+        <div class="gnd-backdrop" onclick="closeGlobalNotifDrawer()"></div>
+        <div class="gnd-panel">
+            <div class="gnd-header">
+                <div class="gnd-header-left">
+                    <div class="gnd-header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                    <div>
+                        <div class="gnd-header-title">Alertes Globales</div>
+                        <div class="gnd-header-sub" id="gnd-header-sub">Tous les menus</div>
+                    </div>
+                </div>
+                <div class="gnd-header-actions">
+                    <button class="gnd-export-btn" onclick="exportGlobalNotifExcel()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export Excel
+                    </button>
+                    <button class="gnd-close-btn" onclick="closeGlobalNotifDrawer()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="gnd-tabs" id="gnd-tabs"></div>
+            <div class="gnd-body"  id="gnd-body"></div>
+        </div>`;
+        document.body.appendChild(drawer);
+    }
+    _renderGndFull();
+    requestAnimationFrame(() => drawer.classList.add("open"));
+}
+
+function closeGlobalNotifDrawer() {
+    const d = document.getElementById("global-notif-drawer");
+    if (d) d.classList.remove("open");
+}
+
+function gndSetTab(key) { _gndActiveTab = key; _renderGndFull(); }
+
+function _renderGndFull() {
+    const all   = collectAllAlerts();
+    const keys  = Object.keys(all);
+    const total = keys.reduce((s,k) => s + all[k].items.length, 0);
+
+    // Sub-header
+    const sub = document.getElementById("gnd-header-sub");
+    if (sub) sub.textContent = total
+        ? `${total} alerte${total>1?"s":""} · ${keys.length} menu${keys.length>1?"s":""}`
+        : "Aucune alerte active";
+
+    // Tabs
+    if (!all[_gndActiveTab] && _gndActiveTab !== "__all__") _gndActiveTab = "__all__";
+    const tabsEl = document.getElementById("gnd-tabs");
+    tabsEl.innerHTML =
+        `<button class="gnd-tab${_gndActiveTab==="__all__"?" active":""}" onclick="gndSetTab('__all__')">Tous <span class="gnd-tab-badge">${total}</span></button>` +
+        keys.map(k => `<button class="gnd-tab${_gndActiveTab===k?" active":""}" onclick="gndSetTab('${k}')">${esc(all[k].label)} <span class="gnd-tab-badge">${all[k].items.length}</span></button>`).join("");
+
+    // Body
+    const body = document.getElementById("gnd-body");
+    if (!keys.length) {
+        body.innerHTML = `<div class="gnd-ok"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Tout est à jour — aucune alerte active.</div>`;
+        return;
+    }
+
+    const renderRow = item => `
+    <div class="gnd-row${item.urgency==="high"?" gnd-row-high":item.urgency==="mid"?" gnd-row-mid":""}${item.rowIndex!=null?" gnd-row-clickable":""}"
+         ${item.rowIndex!=null?`onclick="navigateToRow('${item.sheet}',${item.rowIndex})" title="Cliquer pour voir la ligne"`:""}>
+        <span class="gnd-row-dot ${item.dotCls}"></span>
+        <div class="gnd-row-info">
+            <div class="gnd-row-top">
+                <span class="gnd-row-style">${esc(item.style)}</span>
+                ${item.client?`<span class="gnd-row-client">${esc(item.client)}</span>`:""}
+                <span class="gnd-row-tag ${item.tagCls}">${item.tagLabel}</span>
+            </div>
+            <div class="gnd-row-title">${esc(item.title)}</div>
+            <div class="gnd-row-action">→ ${esc(item.action)}</div>
+            <div class="gnd-row-meta">${item.meta||""}</div>
+        </div>
+        ${item.rowIndex!=null?`<span class="gnd-row-goto" title="Voir la ligne">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+        </span>`:""}
+    </div>`;
+
+    let html = "";
+    if (_gndActiveTab === "__all__") {
+        keys.forEach(k => {
+            html += `<div class="gnd-section-title">${esc(all[k].label)} <span style="font-weight:400;color:var(--text-muted)">(${all[k].items.length})</span></div>`;
+            html += all[k].items.map(renderRow).join("");
+        });
+    } else {
+        html = (all[_gndActiveTab]?.items || []).map(renderRow).join("");
+    }
+    body.innerHTML = html || `<div class="gnd-empty">Aucune alerte pour ce menu.</div>`;
+}
+
+// ── Export Excel global ───────────────────────────────────────
+function exportGlobalNotifExcel() {
+    _waitForXLSX(function(XL) {
+        if (!XL) { showToast("Bibliothèque Excel non chargée — vérifiez votre connexion", "error"); return; }
+        const all  = collectAllAlerts();
+        const keys = Object.keys(all);
+        if (!keys.length) { showToast("Aucune alerte à exporter", "info"); return; }
+
+        const wb = XL.utils.book_new();
+
+        // Feuille résumé global
+        const summaryRows = [];
+        keys.forEach(k => all[k].items.forEach(item => summaryRows.push({
+            "Menu": all[k].label, "Style": item.style, "Client": item.client,
+            "Alerte": item.title, "Action requise": item.action, "Détail": item.meta
+        })));
+        XL.utils.book_append_sheet(wb, XL.utils.json_to_sheet(summaryRows), "Résumé Global");
+
+        // Une feuille par menu
+        keys.forEach(k => {
+            const rows = all[k].items.map(i => ({
+                "Style": i.style, "Client": i.client,
+                "Alerte": i.title, "Action requise": i.action, "Détail": i.meta
+            }));
+            XL.utils.book_append_sheet(wb, XL.utils.json_to_sheet(rows), all[k].label.slice(0, 31));
+        });
+
+        const total = keys.reduce((s, k) => s + all[k].items.length, 0);
+        XL.writeFile(wb, `AW27_Alertes_Globales_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast(`Export — ${total} alerte${total > 1 ? "s" : ""} · ${keys.length} menu${keys.length > 1 ? "s" : ""}`, "success");
+    });
 }
 
 document.addEventListener("DOMContentLoaded", init);

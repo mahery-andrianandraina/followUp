@@ -130,6 +130,12 @@
             </div>
             <div class="header-right">
                 <span class="status-badge">Live</span>
+                <button class="btn-notif-global" id="btn-notif-global" onclick="openGlobalNotifDrawer()" title="Alertes globales" style="display:none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notif-global-badge" id="notif-global-badge">0</span>
+                </button>
                 <button class="btn-header" onclick="openAddModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         width="14" height="14">
@@ -291,7 +297,28 @@
     <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
     <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script>
+    // Charge SheetJS avec fallback sur un second CDN si le premier échoue
+    (function() {
+        function loadXLSX(url, onDone) {
+            var s = document.createElement('script');
+            s.src = url;
+            s.onload  = function() { onDone(true); };
+            s.onerror = function() { onDone(false); };
+            document.head.appendChild(s);
+        }
+        var primary   = 'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js';
+        var fallback1 = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+        var fallback2 = 'https://unpkg.com/xlsx/dist/xlsx.full.min.js';
+        loadXLSX(primary, function(ok) {
+            if (ok) return;
+            loadXLSX(fallback1, function(ok2) {
+                if (ok2) return;
+                loadXLSX(fallback2, function() {});
+            });
+        });
+    })();
+    </script>
     <script src="app.js"></script>
 
 
