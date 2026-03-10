@@ -2,7 +2,7 @@
 // AW27 CHECKERS – Dashboard JavaScript
 // ============================================================
 
-const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwsHN5hY9va4k5JOU2GFfUrtQ0-WjI2Tb5LyK6daFmHmWCg4aELgAYOg8NizrtY4VwJ/exec";
+const GOOGLE_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx3QYiaHORxHxYa4gaddAWiJFYweOVQuKdrQVXhiAkG8E8ykgY8xNuRducnc1ty8OsX/exec";
 
 // ─── Delivery Track Logic ────────────────────────────────────
 function computeDeliveryTrack(row) {
@@ -53,6 +53,9 @@ const SHEET_CONFIG = {
             { key: "Size", label: "Size", type: "text" },
             { key: "SRS Date", label: "SRS Date", type: "date" },
             { key: "Ready Date", label: "Ready Date", type: "date" },
+            { key: "Received Date", label: "Received Date", type: "date" },
+            { key: "Sending Date", label: "Sending Date", type: "date" },
+            { key: "AWB", label: "AWB", type: "text" },
             { key: "Approval", label: "Approval", type: "select", options: ["", "Approved", "Pending", "Rejected"] },
             { key: "Remarks", label: "Remarks", type: "textarea", full: true }
         ],
@@ -119,6 +122,7 @@ const toastContainer = $("toast-container");
 
 // ─── Init ─────────────────────────────────────────────────────
 async function init() {
+    loadCustomMenus();
     setupTabListeners();
     setupSearchAndFilter();
     showDashboard();
@@ -179,9 +183,10 @@ function setupTabListeners() {
             renderKPIs();
             populateDeptFilter();
             populateClientFilter();
-            if (btn.dataset.sheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); }
-            else if (btn.dataset.sheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); }
-            else { hideAlertsPanel(); hideSampleAlertsPanel(); }
+            if (btn.dataset.sheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+            else if (btn.dataset.sheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
+            else if (SHEET_CONFIG[btn.dataset.sheet]?.custom) { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
+            else { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
         });
     });
 }
@@ -189,6 +194,10 @@ function setupTabListeners() {
 
 // ─── Fetch ────────────────────────────────────────────────────
 async function fetchAllData() {
+    // Update refresh badge
+    const refreshDot = document.getElementById("refresh-dot");
+    if (refreshDot) refreshDot.style.display = "none";
+    state._lastFetch = Date.now();
     showTableSpinner();
     try {
         const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
@@ -205,6 +214,15 @@ async function fetchAllData() {
         state.data.sample = fixRows(json.data.sample?.rows);
         state.data.ordering = fixRows(json.data.ordering?.rows);
         state.data.style = fixRows(json.data.style?.rows);
+        // Load custom menu data — cherche par vrai nom de feuille dans la réponse GAS
+        Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => {
+            const realName = SHEET_CONFIG[k].sheetName || SHEET_CONFIG[k].label;
+            // Le GAS retourne les feuilles custom avec leur vrai nom comme clé
+            const fromGAS = Object.entries(json.data).find(([gasKey, _]) => {
+                return gasKey === realName || gasKey.toLowerCase() === realName.toLowerCase();
+            });
+            state.data[k] = fixRows(fromGAS ? fromGAS[1].rows : []);
+        });
         state.loading = false;
         renderAll();
     } catch (err) {
@@ -305,9 +323,10 @@ function renderAll() {
     renderKPIs();
     populateDeptFilter();
     populateClientFilter();
-    if (state.activeSheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); }
-    else if (state.activeSheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); }
-    else { hideAlertsPanel(); hideSampleAlertsPanel(); }
+    if (state.activeSheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+    else if (state.activeSheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
+    else if (SHEET_CONFIG[state.activeSheet]?.custom) { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
+    else { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
 }
 
 // ─── Dashboard Render ──────────────────────────────────────────
@@ -315,158 +334,78 @@ function renderDashboard() {
     const el = document.getElementById("dashboard-screen");
     if (!el) return;
 
-    const details = state.data.details;
-    const sample = state.data.sample;
-    const ordering = state.data.ordering;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const details  = state.data.details;
+    const today    = new Date(); today.setHours(0,0,0,0);
 
-    // ── Global KPIs
-    const totalStyles = details.length;
-    const totalQty = details.reduce((s, r) => s + (+r.OrderQty || 0), 0);
-    const totalOrders = ordering.filter(r => r.Status !== "Cancelled").length;
-    const approvedSamp = sample.filter(r => r.Approval === "Approved").length;
-    const pendingSamp = sample.filter(r => r.Approval === "Pending").length;
-    const lateOrders = ordering.filter(r => computeDeliveryTrack(r).cls === "track-late").length;
+    // ── Clients list
+    const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
 
-    const stat = (icon, colorCls, value, label) => `
-    <div class="db-stat-card">
-        <div class="db-stat-icon ${colorCls}">${icon}</div>
-        <div class="db-stat-body">
-            <div class="db-stat-value">${value}</div>
-            <div class="db-stat-label">${label}</div>
-        </div>
-    </div>`;
+    const ACCENT = ["#6366f1","#14b8a6","#f59e0b","#ef4444","#3b82f6","#ec4899","#8b5cf6","#10b981"];
 
-    const statsHtml = `<div class="db-stats-grid">
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`, "teal", totalStyles, "Styles")}
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, "blue", totalQty.toLocaleString(), "Qtés commandées")}
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>`, "purple", totalOrders, "Commandes actives")}
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`, "green", approvedSamp, "Samples approv\u00e9es")}
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`, "amber", pendingSamp, "Samples en attente")}
-        ${stat(`<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`, "red", lateOrders, "Commandes en retard")}
-    </div>`;
+    const clientCards = clients.map((client, ci) => {
+        const accent = ACCENT[ci % ACCENT.length];
+        const dRows  = details.filter(r => r.Client === client);
 
-    // ── Per-client cards
-    const clients = [...new Set([
-        ...details.map(r => r.Client),
-        ...ordering.map(r => r.Client),
-        ...sample.map(r => r.Client)
-    ].filter(Boolean))].sort();
+        const totalQty  = dRows.reduce((s,r) => s+(+r.OrderQty||0), 0);
+        const initials  = client.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 
-    const clientData = clients.map(client => ({
-        name: client,
-        styles: details.filter(r => r.Client === client).length,
-        orders: ordering.filter(r => r.Client === client && r.Status !== "Cancelled").length,
-        samples: sample.filter(r => r.Client === client).length,
-        approved: sample.filter(r => r.Client === client && r.Approval === "Approved").length,
-        late: ordering.filter(r => r.Client === client && computeDeliveryTrack(r).cls === "track-late").length,
-    }));
+        // Group by dept
+        const depts = [...new Set(dRows.map(r=>r.Dept).filter(Boolean))].sort();
 
-    const maxVal = Math.max(1, ...clientData.flatMap(c => [c.styles, c.orders, c.samples]));
-
-    const SERIES = [
-        { key: "styles",  label: "Styles",    color: "#14b8a6" },
-        { key: "orders",  label: "Commandes", color: "#6366f1" },
-        { key: "samples", label: "Samples",   color: "#f59e0b" },
-    ];
-
-    const BAR_H = 11;
-    const GAP   = 5;
-    const GROUP = SERIES.length * BAR_H + (SERIES.length - 1) * GAP;
-    const ROW_H = GROUP + 32;
-    const LABEL_W = 140;
-    const CHART_H = clientData.length * ROW_H + 10;
-
-    const svgRows = clientData.map((c, i) => {
-        const y0 = i * ROW_H + 18;
-        const avatarColors = ["#14b8a6","#6366f1","#f59e0b","#ef4444","#3b82f6","#ec4899"];
-        const ac = avatarColors[i % avatarColors.length];
-
-        const bars = SERIES.map((s, si) => {
-            const pct = maxVal > 0 ? c[s.key] / maxVal : 0;
-            const bw = Math.round(pct * (500 - LABEL_W - 20));
-            const by = y0 + si * (BAR_H + GAP);
-            const lateTag = (s.key === "orders" && c.late) ? " ⚠" + c.late : "";
-            const apprTag = (s.key === "samples" && c.approved) ? " ✓" + c.approved : "";
-            const barW = Math.max(bw, c[s.key] > 0 ? 18 : 0);
-            return (
-                '<rect x="' + LABEL_W + '" y="' + by + '" rx="4" ry="4"' +
-                ' width="' + barW + '" height="' + BAR_H + '"' +
-                ' fill="' + s.color + '" opacity="0.88"/>' +
-                '<text x="' + (LABEL_W + barW + 6) + '" y="' + (by + BAR_H - 2) + '"' +
-                ' font-size="9" font-weight="600" fill="var(--text-secondary)" opacity="0.8">' +
-                c[s.key] + lateTag + apprTag +
-                '</text>'
-            );
+        const deptRows = depts.map(dept => {
+            const deptR = dRows.filter(r => r.Dept === dept);
+            const deptQty = deptR.reduce((s,r) => s+(+r.OrderQty||0), 0);
+            const deptStyles = deptR.length;
+            return '<div class="dbc-dept-row">' +
+                '<span class="dbc-dept-name">' + esc(dept) + '</span>' +
+                '<span class="dbc-dept-styles">' + deptStyles + ' style' + (deptStyles > 1 ? 's' : '') + '</span>' +
+                '<span class="dbc-dept-qty">' + deptQty.toLocaleString("fr-FR") + ' u.</span>' +
+            '</div>';
         }).join("");
 
-        return (
-            '<g>' +
-            '<rect x="0" y="' + (y0 - 8) + '" width="500" height="' + (GROUP + 16) + '"' +
-            ' rx="7" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>' +
-            '<circle cx="12" cy="' + (y0 + GROUP/2 - 1) + '" r="11" fill="' + ac + '" opacity="0.18"/>' +
-            '<text x="12" y="' + (y0 + GROUP/2 + 4) + '" text-anchor="middle"' +
-            ' font-size="9" font-weight="800" fill="' + ac + '">' + esc(c.name.slice(0,2).toUpperCase()) + '</text>' +
-            '<text x="30" y="' + (y0 + GROUP/2 + 4) + '" font-size="11.5" font-weight="600"' +
-            ' fill="var(--text-primary)">' + esc(c.name) + '</text>' +
-            bars +
-            '</g>'
-        );
-    }).join("");
+        return '<div class="dbc-card">' +
 
-    const gridLines = [0, 25, 50, 75, 100].map(pct => {
-        const x = LABEL_W + Math.round(pct / 100 * (500 - LABEL_W - 20));
-        const val = Math.round(pct / 100 * maxVal);
-        return (
-            '<line x1="' + x + '" y1="-10" x2="' + x + '" y2="' + CHART_H + '"' +
-            ' stroke="rgba(150,150,180,0.1)" stroke-width="1" stroke-dasharray="3,3"/>' +
-            '<text x="' + x + '" y="-16" text-anchor="middle" font-size="8.5"' +
-            ' fill="rgba(150,150,180,0.45)">' + val + '</text>'
-        );
-    }).join("");
+            // Header
+            '<div class="dbc-head" style="border-top:3px solid ' + accent + '">' +
+                '<div class="dbc-avatar" style="background:' + accent + '1a;color:' + accent + '">' + initials + '</div>' +
+                '<div class="dbc-head-info">' +
+                    '<div class="dbc-client-name">' + esc(client) + '</div>' +
+                    '<div class="dbc-total-qty-lbl">Total &mdash; <strong>' + totalQty.toLocaleString("fr-FR") + '</strong> u.</div>' +
+                '</div>' +
+            '</div>' +
 
-    const legend = SERIES.map(s =>
-        '<span class="db-chart-legend-item">' +
-        '<span class="db-chart-legend-dot" style="background:' + s.color + '"></span>' +
-        s.label + '</span>'
-    ).join("");
+            // Dept breakdown
+            '<div class="dbc-dept-table">' +
+                '<div class="dbc-dept-header">' +
+                    '<span>Dept</span><span>Styles</span><span>Qté</span>' +
+                '</div>' +
+                deptRows +
+            '</div>' +
 
-    const clientChart =
-        '<div class="db-chart-card">' +
-        '<div class="db-chart-header">' +
-        '<div>' +
-        '<div class="db-section-title" style="margin:0 0 2px">Répartition par Client</div>' +
-        '<p class="db-chart-subtitle">Styles · Commandes actives · Samples</p>' +
-        '</div>' +
-        '<div class="db-chart-legend">' + legend + '</div>' +
-        '</div>' +
-        '<div class="db-chart-wrap">' +
-        '<svg width="100%" height="' + (CHART_H + 30) + '" viewBox="0 -28 500 ' + (CHART_H + 30) + '"' +
-        ' preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">' +
-        gridLines + svgRows +
-        '</svg>' +
-        '</div>' +
+            // Total footer
+            '<div class="dbc-footer" style="border-top:2px solid ' + accent + '1a">' +
+                '<span class="dbc-footer-lbl">Total Quantit\u00e9</span>' +
+                '<span class="dbc-footer-val" style="color:' + accent + '">' + totalQty.toLocaleString("fr-FR") + ' u.</span>' +
+            '</div>' +
+
         '</div>';
+    }).join("");
 
-    // ── Date string
-    const dateStr = today.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+    // ── Date
+    const dateStr = today.toLocaleDateString("fr-FR", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
     const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
-    el.innerHTML = `
-    <div class="db-welcome">
-        <div class="db-welcome-text">
-            <h2>Bonjour — AW27 Checkers 👋</h2>
-            <p>Vue d'ensemble de vos styles, samples et commandes</p>
-        </div>
-        <span class="db-welcome-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            ${dateCapitalized}
-        </span>
-    </div>
-
-    ${statsHtml}
-
-    ${clientChart}`;
+    el.innerHTML =
+        '<div class="db-welcome">' +
+            '<div class="db-welcome-text"><h2>AW27 Checkers \ud83d\udc4b</h2><p>R\u00e9partition des styles et quantit\u00e9s par client</p></div>' +
+            '<span class="db-welcome-badge">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
+                dateCapitalized +
+            '</span>' +
+        '</div>' +
+        '<div class="dbc-grid">' +
+            (clientCards || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>') +
+        '</div>';
 }
 
 // ─── KPIs ─────────────────────────────────────────────────────
@@ -551,19 +490,27 @@ function renderSampleAlertsPanel() {
     }
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const rows = state.data.sample;
+    const rows  = state.data.sample;
 
+    // Bucket 1 : Ready Date alerte — pas reçu, pas envoyé, date dépassée/aujourd'hui
     const overdue = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved") return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0, 0, 0, 0);
+        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
+        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
         return rd < today;
     });
     const todaySamples = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved") return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0, 0, 0, 0);
+        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
+        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
         return rd.getTime() === today.getTime();
     });
-    const total = overdue.length + todaySamples.length;
+
+    // Bucket 2 : Reçu mais pas encore envoyé
+    const toSend = rows.filter(r => r["Received Date"] && !r["Sending Date"] && r.Approval !== "Approved");
+
+    // Bucket 3 : Envoyé mais pas encore approuvé — compteur depuis Sending Date
+    const sentPending = rows.filter(r => r["Sending Date"] && r.Approval !== "Approved");
+
+    const total = overdue.length + todaySamples.length + toSend.length + sentPending.length;
 
     if (!total) {
         panel.innerHTML = `<div class="alerts-bar alerts-ok">
@@ -574,8 +521,10 @@ function renderSampleAlertsPanel() {
     }
 
     const pills = [
-        overdue.length ? `<span class="alert-pill pill-late">🔴 ${overdue.length} En retard</span>` : "",
-        todaySamples.length ? `<span class="alert-pill pill-risk">🟡 ${todaySamples.length} Aujourd'hui</span>` : ""
+        overdue.length      ? `<span class="alert-pill pill-late">🔴 ${overdue.length} En retard</span>`            : "",
+        todaySamples.length ? `<span class="alert-pill pill-risk">🟡 ${todaySamples.length} Aujourd'hui</span>`    : "",
+        toSend.length       ? `<span class="alert-pill pill-nopo">📦 ${toSend.length} À envoyer</span>`            : "",
+        sentPending.length  ? `<span class="alert-pill pill-recv">⏳ ${sentPending.length} En attente approval</span>` : ""
     ].filter(Boolean).join("");
 
     panel.innerHTML = `
@@ -632,30 +581,40 @@ function closeSampleAlertsDrawer() {
 
 function renderSampleAlertsDrawerBody() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const rows = state.data.sample;
+    const rows  = state.data.sample;
 
+    // Bucket 1a : Ready Date dépassée — pas reçu, pas envoyé, pas approuvé
     const overdue = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved") return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0, 0, 0, 0);
+        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
+        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
         return rd < today;
-    }).sort((a, b) => new Date(a["Ready Date"]) - new Date(b["Ready Date"]));
+    }).sort((a,b) => new Date(a["Ready Date"]) - new Date(b["Ready Date"]));
 
+    // Bucket 1b : Ready Date aujourd'hui
     const todaySamples = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved") return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0, 0, 0, 0);
+        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
+        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
         return rd.getTime() === today.getTime();
     });
 
-    const approvalCls = v => ({ Approved: "sal-appr", Pending: "sal-pend", Rejected: "sal-rej" }[v] || "sal-none");
+    // Bucket 2 : Reçu mais pas encore envoyé
+    const toSend = rows.filter(r => r["Received Date"] && !r["Sending Date"] && r.Approval !== "Approved")
+        .sort((a,b) => new Date(a["Received Date"]) - new Date(b["Received Date"]));
 
-    const cardSample = (r, isToday) => {
-        const rd = new Date(r["Ready Date"]);
-        const rdFmt = rd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-        const days = Math.abs(Math.round((rd - today) / 86400000));
+    // Bucket 3 : Envoyé, en attente d'approval — compteur depuis Sending Date
+    const sentPending = rows.filter(r => r["Sending Date"] && r.Approval !== "Approved")
+        .sort((a,b) => new Date(a["Sending Date"]) - new Date(b["Sending Date"]));
+
+    const approvalCls = v => ({ Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[v] || "sal-none");
+
+    // ── Card Ready Date (inchangée) ───────────────────────────
+    const cardReadyDate = (r, isToday) => {
+        const rd    = new Date(r["Ready Date"]);
+        const rdFmt = rd.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const days  = Math.abs(Math.round((rd - today) / 86400000));
         const statusDot = isToday
-            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Aujourd\'hui</span>`
+            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Aujourd'hui</span>`
             : `<span class="sal-dot sal-dot-late"></span><span class="sal-status-txt sal-txt-late">${days}j de retard</span>`;
-
         return `<div class="sal-card ${isToday ? "sal-card-today" : "sal-card-late"}">
             <div class="sal-card-head">
                 <div class="sal-card-left">
@@ -666,32 +625,116 @@ function renderSampleAlertsDrawerBody() {
                 <div class="sal-card-right">${statusDot}</div>
             </div>
             <div class="sal-card-body">
-                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription) || "—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept) || "—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric) || "—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size) || "—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Ready Date</span><span class="sal-val ${isToday ? "sal-date-today" : "sal-date-late"}">${rdFmt}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval) || "—"}</span></span></div>
+                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Ready Date</span><span class="sal-val ${isToday?"sal-date-today":"sal-date-late"}">${rdFmt}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval)||"—"}</span></span></div>
                 ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
             </div>
         </div>`;
     };
 
-    const section = (title, accentCls, items, isToday) => {
+    // ── Card À envoyer (reçu, sending manquant) ───────────────
+    const cardToSend = r => {
+        const recvD   = new Date(r["Received Date"]);
+        const recvFmt = recvD.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const days    = Math.floor((today - recvD) / 86400000);
+        const agoTxt  = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days} jour(s)`;
+        return `<div class="sal-card sal-card-tosend">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${esc(r.Style)}</span>
+                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
+                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
+                </div>
+                <div class="sal-card-right">
+                    <span class="sal-dot sal-dot-tosend"></span>
+                    <span class="sal-status-txt sal-txt-tosend">📦 À envoyer</span>
+                </div>
+            </div>
+            <div class="sal-card-body">
+                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
+                <div class="sal-field sal-field-highlight-orange">
+                    <span class="sal-lbl">Received Date</span>
+                    <span class="sal-val"><strong>${recvFmt}</strong> <span class="sal-ago">(${agoTxt})</span></span>
+                </div>
+                <div class="sal-field sal-field-missing">
+                    <span class="sal-lbl">Sending Date</span>
+                    <span class="sal-val sal-missing">⚠ Non renseigné — envoi requis</span>
+                </div>
+                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    // ── Card Envoyé en attente d'approval ─────────────────────
+    const cardSentPending = r => {
+        const sendD   = new Date(r["Sending Date"]);
+        const sendFmt = sendD.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const days    = Math.floor((today - sendD) / 86400000);
+        let daysTxt;
+        if (days === 0)      daysTxt = "envoyé aujourd'hui";
+        else if (days === 1) daysTxt = "envoyé hier";
+        else                 daysTxt = `envoyé il y a ${days} jour(s)`;
+
+        // Urgence selon nb de jours
+        const urgency = days >= 14 ? "sal-urgency-high" : days >= 7 ? "sal-urgency-mid" : "";
+
+        const awb = r["AWB"] ? `<div class="sal-field sal-field-awb">
+                    <span class="sal-lbl">AWB</span>
+                    <span class="sal-val sal-awb-val">${esc(r["AWB"])}</span>
+                </div>` : "";
+
+        return `<div class="sal-card sal-card-recv ${urgency}">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${esc(r.Style)}</span>
+                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
+                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
+                </div>
+                <div class="sal-card-right">
+                    <span class="sal-dot sal-dot-recv"></span>
+                    <span class="sal-status-txt sal-txt-recv">⏳ ${days}j — approval requis</span>
+                </div>
+            </div>
+            <div class="sal-card-body">
+                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
+                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
+                <div class="sal-field sal-field-recv-highlight">
+                    <span class="sal-lbl">Sending Date</span>
+                    <span class="sal-val"><strong>${sendFmt}</strong> <span class="sal-ago">(${daysTxt})</span></span>
+                </div>
+                ${awb}
+                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval)||"—"}</span></span></div>
+                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    const section = (title, accentCls, items, renderFn) => {
         if (!items.length) return "";
         return `<div class="sal-section">
             <div class="sal-section-hd ${accentCls}">
                 <span class="sal-section-title">${title}</span>
                 <span class="sal-section-count">${items.length}</span>
             </div>
-            ${items.map(r => cardSample(r, isToday)).join("")}
+            ${items.map(renderFn).join("")}
         </div>`;
     };
 
     const body = document.getElementById("sample-alerts-drawer-body");
     const html =
-        section("Ready Date aujourd\'hui", "sal-hd-today", todaySamples, true) +
-        section("Ready Date dépassée", "sal-hd-late", overdue, false);
+        section("Ready Date aujourd'hui",                  "sal-hd-today",  todaySamples, r => cardReadyDate(r, true))  +
+        section("Ready Date dépassée",                     "sal-hd-late",   overdue,      r => cardReadyDate(r, false)) +
+        section("📦 À envoyer — sample reçu, envoi manquant", "sal-hd-tosend", toSend,   cardToSend)                   +
+        section("⏳ Envoyé — en attente d'approval",        "sal-hd-recv",   sentPending, cardSentPending);
 
     body.innerHTML = html || `<p class="sal-empty">Aucune alerte sample.</p>`;
 }
@@ -1041,15 +1084,33 @@ function renderTable() {
             if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
             if (c.key === "Approval") {
                 const cls = (val || "").toLowerCase() || "unknown";
-                return `<td><span class="approval-badge ${cls}">${esc(val) || "—"}</span></td>`;
+                const opts = ["","Approved","Pending","Rejected"].map(o =>
+                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                ).join("");
+                return `<td><div class="quick-sel-wrap">
+                    <span class="approval-badge ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Approval',this.value,'sample')">${opts}</select>
+                </div></td>`;
             }
             if (c.key === "Status") {
                 const cls = { "Confirmed": "status-confirmed", "Pending": "status-pending", "Cancelled": "status-cancelled" }[val] || "";
-                return `<td><span class="status-badge-order ${cls}">${esc(val) || "—"}</span></td>`;
+                const opts = ["","Confirmed","Pending","Cancelled"].map(o =>
+                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                ).join("");
+                return `<td><div class="quick-sel-wrap">
+                    <span class="status-badge-order ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Status',this.value,'ordering')">${opts}</select>
+                </div></td>`;
             }
             if (c.key === "Delivery Status") {
                 const cls = { "Not Shipped": "del-notshipped", "In Transit": "del-transit", "Delivered": "del-delivered" }[val] || "";
-                return `<td><span class="delivery-badge ${cls}">${esc(val) || "—"}</span></td>`;
+                const opts = ["","Not Shipped","In Transit","Delivered"].map(o =>
+                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                ).join("");
+                return `<td><div class="quick-sel-wrap">
+                    <span class="delivery-badge ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
+                </div></td>`;
             }
             if (c.key === "PO" && !val) return `<td><span class="missing-po-badge">Missing PO</span></td>`;
 
@@ -1168,9 +1229,578 @@ async function executeDelete() {
     finally { btn.disabled = false; btn.textContent = "Supprimer"; }
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+// ─── MENU BUILDER ─────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+const CUSTOM_MENUS_KEY = "aw27_custom_menus";
+let mbColumns = []; // working columns while builder is open
+let mbEditingKey = null; // null = new, string = editing existing
+
+// ── Load saved menus on startup ───────────────────────────────
+function loadCustomMenus() {
+    const saved = localStorage.getItem(CUSTOM_MENUS_KEY);
+    if (!saved) return;
+    try {
+        const menus = JSON.parse(saved);
+        // Migration : corriger les anciennes clés "GMT_Color" → "GMT Color"
+        const migrated = menus.map(m => ({
+            ...m,
+            cols: m.cols.map(c => ({
+                ...c,
+                key: c.label  // toujours utiliser le label exact comme clé
+            }))
+        }));
+        migrated.forEach(m => registerCustomMenu(m, false));
+        // Re-sauvegarder avec les clés corrigées
+        localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+    } catch(e) {}
+}
+
+// ── Register a custom menu into SHEET_CONFIG + nav + state ────
+function registerCustomMenu(menuDef, save = true) {
+    const key = menuDef.key;
+
+    // Add to SHEET_CONFIG
+    SHEET_CONFIG[key] = {
+        label: menuDef.label,
+        sheetName: menuDef.label,  // vrai nom de la feuille Google Sheet
+        custom: true,
+        cols: menuDef.cols,
+        kpis: [
+            { label: "Total lignes", colorClass: "teal",
+              icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>',
+              compute: rows => rows.length }
+        ]
+    };
+
+    // Add to state.data
+    if (!state.data[key]) state.data[key] = [];
+
+    // Add nav item
+    const nav = document.getElementById("custom-nav-items");
+    if (nav && !document.getElementById("tab-custom-" + key)) {
+        const btn = document.createElement("button");
+        btn.className = "nav-item";
+        btn.dataset.sheet = key;
+        btn.dataset.custom = "1";
+        btn.role = "tab";
+        btn.setAttribute("aria-selected", "false");
+        btn.id = "tab-custom-" + key;
+        btn.innerHTML =
+            '<span class="nav-icon">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>' +
+            '</span>' +
+            '<span class="nav-label">' + esc(menuDef.label) + '</span>' +
+            '<button class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit(\'' + key + '\')" title="Modifier">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>' +
+            '</button>';
+
+        // Click handler — navigate to this sheet
+        btn.addEventListener("click", () => {
+            state.activeView = "sheet";
+            state.activeSheet = key;
+            state.searchQuery = ""; state.filterDept = ""; state.filterClient = "";
+            state.sortCol = null; state.sortDir = 1;
+            searchInput.value = ""; deptFilter.value = "";
+            const cf = document.getElementById("client-filter"); if (cf) cf.value = "";
+            document.querySelectorAll(".nav-item").forEach(b => {
+                b.classList.remove("active"); b.setAttribute("aria-selected","false");
+            });
+            btn.classList.add("active"); btn.setAttribute("aria-selected","true");
+            const el = document.getElementById("header-sheet-title");
+            if (el) el.textContent = menuDef.label;
+            showTableView(); applyFilters(); renderKPIs();
+            populateDeptFilter(); populateClientFilter();
+            hideAlertsPanel(); hideSampleAlertsPanel();
+        });
+
+        nav.appendChild(btn);
+    }
+
+    // Persist
+    if (save) persistCustomMenus();
+}
+
+// ── Persist all custom menus to localStorage ──────────────────
+function persistCustomMenus() {
+    const menus = Object.entries(SHEET_CONFIG)
+        .filter(([, v]) => v.custom)
+        .map(([key, v]) => ({ key, label: v.label, cols: v.cols }));
+    localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(menus));
+}
+
+// ── Open builder (new) ────────────────────────────────────────
+function openMenuBuilder() {
+    mbEditingKey = null;
+    mbColumns = [
+        { label: "", type: "text", required: false }
+    ];
+    document.getElementById("mb-menu-name").value = "";
+    document.getElementById("menu-builder-title").textContent = "Créer un menu";
+    document.getElementById("mb-save-btn").textContent = "Créer le menu";
+    renderMbColumns();
+    document.getElementById("menu-builder-overlay").classList.add("open");
+}
+
+// ── Open builder (edit existing) ─────────────────────────────
+function openMenuEdit(key) {
+    const cfg = SHEET_CONFIG[key];
+    if (!cfg || !cfg.custom) return;
+    mbEditingKey = key;
+    mbColumns = cfg.cols.map(c => ({ ...c }));
+    document.getElementById("mb-menu-name").value = cfg.label;
+    document.getElementById("menu-builder-title").textContent = "Modifier : " + cfg.label;
+    document.getElementById("mb-save-btn").textContent = "Enregistrer";
+    renderMbColumns();
+    document.getElementById("menu-builder-overlay").classList.add("open");
+}
+
+function closeMenuBuilder() {
+    document.getElementById("menu-builder-overlay").classList.remove("open");
+    mbColumns = []; mbEditingKey = null;
+}
+
+// ── Add a column row in the builder ──────────────────────────
+function mbAddColumn() {
+    mbColumns.push({ label: "", type: "text", required: false });
+    renderMbColumns();
+    // Focus the new input
+    const inputs = document.querySelectorAll(".mb-col-label-input");
+    if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function mbRemoveColumn(idx) {
+    mbColumns.splice(idx, 1);
+    renderMbColumns();
+}
+
+function mbMoveColumn(idx, dir) {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= mbColumns.length) return;
+    [mbColumns[idx], mbColumns[newIdx]] = [mbColumns[newIdx], mbColumns[idx]];
+    renderMbColumns();
+}
+
+function mbSyncColumn(idx, field, value) {
+    mbColumns[idx][field] = field === "required" ? value : value;
+}
+
+// ── Render column builder rows ────────────────────────────────
+function renderMbColumns() {
+    const list = document.getElementById("mb-cols-list");
+    if (!list) return;
+
+    const typeOptions = ["text","number","date","select","textarea"].map(t =>
+        '<option value="' + t + '">' +
+        { text:"Texte", number:"Nombre", date:"Date", select:"Liste", textarea:"Bloc texte" }[t] +
+        '</option>'
+    ).join("");
+
+    list.innerHTML = mbColumns.map((col, i) => {
+        const selOpts = ["text","number","date","select","textarea"].map(t =>
+            '<option value="' + t + '" ' + (col.type === t ? "selected" : "") + '>' +
+            { text:"Texte", number:"Nombre", date:"Date", select:"Liste (options)", textarea:"Bloc texte" }[t] +
+            '</option>'
+        ).join("");
+
+        const isSelect = col.type === "select";
+
+        return '<div class="mb-col-row" id="mb-col-' + i + '">' +
+            '<div class="mb-col-drag">' + (i+1) + '</div>' +
+            '<div class="mb-col-fields">' +
+                '<div class="mb-col-top">' +
+                    '<input class="form-input mb-col-label-input" placeholder="Nom de colonne *" ' +
+                    'value="' + esc(col.label) + '" ' +
+                    'oninput="mbSyncColumn(' + i + ','+"'label',this.value"+')" />' +
+                    '<select class="form-select mb-col-type" onchange="mbSyncColumn(' + i + ','+"'type',this.value"+'); mbColumns[' + i + '].type=this.value; renderMbColumns()">' +
+                    selOpts +
+                    '</select>' +
+                    '<label class="mb-col-req" title="Champ obligatoire">' +
+                    '<input type="checkbox" ' + (col.required ? "checked" : "") + ' onchange="mbSyncColumn(' + i + ','+"'required',this.checked"+')">' +
+                    '<span>Requis</span></label>' +
+                '</div>' +
+                (isSelect ? '<div class="mb-col-opts-row"><input class="form-input mb-col-opts-input" placeholder="Options séparées par virgule : Ex, Aaa, Bbb" ' +
+                    'value="' + esc((col.options||[]).filter(o=>o).join(", ")) + '" ' +
+                    'oninput="mbSyncColumn(' + i + ','+"'options',this.value.split(',').map(s=>s.trim()).filter(Boolean)"+')"/></div>' : "") +
+            '</div>' +
+            '<div class="mb-col-actions">' +
+                (i > 0 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',-1)" title="Monter">↑</button>' : '<span></span>') +
+                (i < mbColumns.length-1 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',1)" title="Descendre">↓</button>' : '<span></span>') +
+                (mbColumns.length > 1 ? '<button class="mb-act-btn mb-act-del" onclick="mbRemoveColumn(' + i + ')" title="Supprimer">✕</button>' : "") +
+            '</div>' +
+        '</div>';
+    }).join("");
+}
+
+// ── Save the menu ─────────────────────────────────────────────
+async function saveMenuBuilder() {
+    const nameRaw = document.getElementById("mb-menu-name").value.trim();
+    if (!nameRaw) { showToast("Nom du menu requis", "error"); return; }
+
+    // Sync any unsaved label inputs
+    document.querySelectorAll(".mb-col-label-input").forEach((inp, i) => {
+        if (mbColumns[i]) mbColumns[i].label = inp.value.trim();
+    });
+    document.querySelectorAll(".mb-col-opts-input").forEach((inp, i) => {
+        const colIdx = parseInt(inp.closest(".mb-col-row").id.replace("mb-col-",""));
+        if (mbColumns[colIdx]) {
+            mbColumns[colIdx].options = ["", ...inp.value.split(",").map(s=>s.trim()).filter(Boolean)];
+        }
+    });
+
+    const validCols = mbColumns.filter(c => c.label);
+    if (!validCols.length) { showToast("Ajoutez au moins une colonne", "error"); return; }
+
+    // Build key from name
+    const key = mbEditingKey || "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g,"_").slice(0,20) + "_" + Date.now().toString(36);
+
+    const menuDef = {
+        key,
+        label: nameRaw,
+        cols: validCols.map(c => ({
+            key: c.label,
+            label: c.label,
+            type: c.type,
+            required: !!c.required,
+            ...(c.type === "select" ? { options: c.options || [""] } : {}),
+            ...(c.type === "textarea" || c.label.length > 15 ? { full: true } : {})
+        }))
+    };
+
+    const btn = document.getElementById("mb-save-btn");
+    btn.disabled = true; btn.textContent = "Enregistrement…";
+
+    try {
+        if (mbEditingKey) {
+            await sendRequest("UPDATE_SHEET_HEADERS", { sheetName: nameRaw, columns: menuDef.cols.map(c=>c.label) });
+            showToast("Colonnes mises à jour dans Google Sheet \u2713", "success", 3000);
+        } else {
+            await sendRequest("CREATE_SHEET", { sheetName: nameRaw, columns: menuDef.cols.map(c=>c.label) });
+            showToast("Menu cr\u00e9\u00e9 dans Google Sheet \u2713", "success", 3000);
+        }
+    } catch(e) {
+        showToast("Menu sauvegard\u00e9 localement (GS non connect\u00e9)", "info", 3000);
+    }
+
+    if (mbEditingKey) {
+        // Update SHEET_CONFIG
+        SHEET_CONFIG[key].label     = menuDef.label;
+        SHEET_CONFIG[key].sheetName = menuDef.label;
+        SHEET_CONFIG[key].cols      = menuDef.cols;
+        persistCustomMenus();
+
+        // Mettre à jour le label dans la nav
+        const navBtn = document.getElementById("tab-custom-" + key);
+        if (navBtn) navBtn.querySelector(".nav-label").textContent = menuDef.label;
+
+        // Si on est sur ce menu, rafraîchir l'affichage (KPIs + tableau)
+        if (state.activeSheet === key) {
+            const titleEl = document.getElementById("header-sheet-title");
+            if (titleEl) titleEl.textContent = menuDef.label;
+            renderKPIs();
+            applyFilters();
+            renderTable();
+        }
+
+        // Recharger les données depuis GS pour refléter les nouvelles colonnes
+        fetchAllData();
+    } else {
+        registerCustomMenu(menuDef, true);
+        // Auto-navigate to new menu
+        const navBtn = document.getElementById("tab-custom-" + key);
+        if (navBtn) navBtn.click();
+    }
+
+    btn.disabled = false;
+    closeMenuBuilder();
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ─── CUSTOM MENU – SMART ALERTS (drawer style) ────────────────
+// ═══════════════════════════════════════════════════════════════
+
+// ── Détection intelligente des colonnes ──────────────────────
+function detectCustomCols(cols) {
+    const find = patterns => {
+        const c = cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
+        return c ? c.key : null;
+    };
+    return {
+        approval:    find(["approval","approv","approved","validation","statut appr"]),
+        sendingDate: find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
+        receivedDate:find(["received date","receipt date","date recep","date recu","reception","received"]),
+        style:       find(["style","ref","reference","article"]),
+        client:      find(["client","buyer","brand","marque"]),
+        description: find(["description","desc","name","nom"]),
+        comments:    find(["comment","remarks","note","observation"]),
+    };
+}
+
+function timeAgo(dateVal) {
+    if (!dateVal) return null;
+    const d = new Date(dateVal);
+    if (isNaN(d)) return null;
+    const diffDays = Math.floor((new Date() - d) / 86400000);
+    if (diffDays === 0) return "aujourd'hui";
+    if (diffDays === 1) return "hier";
+    if (diffDays < 7)  return "il y a " + diffDays + " jour(s)";
+    if (diffDays < 30) return "il y a " + Math.floor(diffDays/7) + " semaine(s)";
+    if (diffDays < 365)return "il y a " + Math.floor(diffDays/30) + " mois";
+    return "il y a " + Math.floor(diffDays/365) + " an(s)";
+}
+
+function isApproved(val) {
+    return (val || "").toLowerCase() === "approved";
+}
+function isSent(val) {
+    return !!(val && String(val).trim() !== "");
+}
+
+// ── Hide panel ────────────────────────────────────────────────
+function hideCustomAlertsPanel() {
+    const p = document.getElementById("custom-alerts-panel");
+    if (p) p.remove();
+}
+
+// ── Compact bar (like Sample) ─────────────────────────────────
+function renderCustomAlertsPanel() {
+    hideCustomAlertsPanel();
+    const key = state.activeSheet;
+    const cfg = SHEET_CONFIG[key];
+    if (!cfg || !cfg.custom) return;
+
+    const rows = state.data[key] || [];
+    const det  = detectCustomCols(cfg.cols);
+    if (!det.approval && !det.sendingDate && !det.receivedDate) return;
+
+    const toSend    = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate]));
+    const toApprove = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.sendingDate]));
+    const total     = toSend.length + toApprove.length;
+
+    let panel = document.getElementById("custom-alerts-panel");
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "custom-alerts-panel";
+        const tableCard = document.querySelector(".table-card");
+        if (tableCard) tableCard.parentNode.insertBefore(panel, tableCard);
+    }
+
+    if (!total) {
+        panel.innerHTML = `<div class="alerts-bar alerts-ok">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Tout est approuvé — aucune action requise.
+        </div>`;
+        return;
+    }
+
+    const pills = [
+        toSend.length    ? `<span class="alert-pill pill-risk">📤 ${toSend.length} À envoyer</span>`          : "",
+        toApprove.length ? `<span class="alert-pill pill-late">⏳ ${toApprove.length} En attente d'approval</span>` : ""
+    ].filter(Boolean).join("");
+
+    panel.innerHTML = `
+    <div class="alerts-bar-compact">
+        <span class="alerts-bar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        </span>
+        <span class="alerts-bar-label">${total} alerte(s)</span>
+        <div class="alerts-pills">${pills}</div>
+        <div class="alerts-bar-actions">
+            <button class="alerts-see-all-btn" onclick="openCustomAlertsDrawer('${key}')">
+                Voir tout
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </div>`;
+}
+
+// ── Drawer (identique Sample) ─────────────────────────────────
+function openCustomAlertsDrawer(key) {
+    let drawer = document.getElementById("custom-alerts-drawer");
+    if (!drawer) {
+        drawer = document.createElement("div");
+        drawer.id = "custom-alerts-drawer";
+        drawer.innerHTML = `
+        <div class="alerts-drawer-backdrop" onclick="closeCustomAlertsDrawer()"></div>
+        <div class="alerts-drawer-panel">
+            <div class="alerts-drawer-header">
+                <div class="alerts-drawer-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    <span id="custom-drawer-title">Alertes</span>
+                </div>
+                <button class="alerts-drawer-close" onclick="closeCustomAlertsDrawer()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="alerts-drawer-body" id="custom-alerts-drawer-body"></div>
+        </div>`;
+        document.body.appendChild(drawer);
+    }
+    const cfg = SHEET_CONFIG[key];
+    const titleEl = document.getElementById("custom-drawer-title");
+    if (titleEl) titleEl.textContent = "Alertes – " + (cfg ? cfg.label : key);
+    renderCustomAlertsDrawerBody(key);
+    requestAnimationFrame(() => drawer.classList.add("open"));
+}
+
+function closeCustomAlertsDrawer() {
+    const d = document.getElementById("custom-alerts-drawer");
+    if (d) d.classList.remove("open");
+}
+
+function renderCustomAlertsDrawerBody(key) {
+    const cfg  = SHEET_CONFIG[key];
+    const rows = state.data[key] || [];
+    const det  = detectCustomCols(cfg.cols);
+
+    const toSend    = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate]));
+    const toApprove = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.sendingDate]));
+
+    // ── Card builder ──────────────────────────────────────────
+    const buildCard = (r, mode) => {
+        const style    = det.style       ? esc(r[det.style] || "—")  : "—";
+        const client   = det.client      ? esc(r[det.client] || "—") : "";
+        const desc     = det.description ? esc(r[det.description] || "") : "";
+        const comments = det.comments    ? esc(r[det.comments] || "") : "";
+        const approval = det.approval    ? esc(r[det.approval] || "—") : "—";
+
+        let dateBlock = "";
+        let statusDot = "";
+
+        if (mode === "tosend") {
+            // Reçu mais pas envoyé
+            const recVal = det.receivedDate ? r[det.receivedDate] : null;
+            const recFmt = recVal ? new Date(recVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
+            const ago    = timeAgo(recVal);
+            statusDot = `<span class="sal-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #fde68a"></span>
+                         <span class="sal-status-txt" style="color:#d97706">À envoyer</span>`;
+            dateBlock = recFmt
+                ? `<div class="sal-field sal-field-full">
+                     <span class="sal-lbl">Reçu le</span>
+                     <span class="sal-val" style="color:#d97706;font-weight:600">${recFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${ago})</span></span>
+                   </div>`
+                : "";
+        } else {
+            // Envoyé mais pas approuvé
+            const sendVal = det.sendingDate ? r[det.sendingDate] : null;
+            const sendFmt = sendVal ? new Date(sendVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
+            const ago     = timeAgo(sendVal);
+            statusDot = `<span class="sal-dot sal-dot-late"></span>
+                         <span class="sal-status-txt sal-txt-late">En attente approval</span>`;
+            dateBlock = sendFmt
+                ? `<div class="sal-field sal-field-full">
+                     <span class="sal-lbl">Envoyé le</span>
+                     <span class="sal-val" style="color:#dc2626;font-weight:600">${sendFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${ago})</span></span>
+                   </div>`
+                : "";
+        }
+
+        // Afficher toutes les colonnes de la ligne dynamiquement
+        const extraFields = cfg.cols
+            .filter(c => c.key !== det.style && c.key !== det.client && c.key !== det.description
+                      && c.key !== det.approval && c.key !== det.sendingDate && c.key !== det.receivedDate && c.key !== det.comments)
+            .map(c => {
+                const v = r[c.key];
+                if (!v && v !== 0) return "";
+                let display = esc(String(v));
+                if (c.type === "date" && v) {
+                    try { display = new Date(v).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e) {}
+                }
+                return `<div class="sal-field"><span class="sal-lbl">${esc(c.label)}</span><span class="sal-val">${display}</span></div>`;
+            }).join("");
+
+        const approvalCls = { Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[r[det.approval]] || "sal-none";
+
+        return `<div class="sal-card ${mode === "tosend" ? "sal-card-today" : "sal-card-late"}">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${style}</span>
+                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
+                </div>
+                <div class="sal-card-right">${statusDot}</div>
+            </div>
+            <div class="sal-card-body">
+                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
+                ${dateBlock}
+                ${extraFields}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${comments ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${comments}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    const section = (title, accentCls, items, mode) => {
+        if (!items.length) return "";
+        return `<div class="sal-section">
+            <div class="sal-section-hd ${accentCls}">
+                <span class="sal-section-title">${title}</span>
+                <span class="sal-section-count">${items.length}</span>
+            </div>
+            ${items.map(r => buildCard(r, mode)).join("")}
+        </div>`;
+    };
+
+    const body = document.getElementById("custom-alerts-drawer-body");
+    const html =
+        section("📤 À envoyer — sample reçu, envoi en attente", "sal-hd-today", toSend, "tosend") +
+        section("⏳ En attente d'approval — envoyé, pas encore approuvé", "sal-hd-late", toApprove, "toapprove");
+
+    body.innerHTML = html || `<p class="sal-empty">Aucune alerte — tout est à jour ✓</p>`;
+}
+
+// ─── Auto-Refresh ─────────────────────────────────────────────
+(function startAutoRefresh() {
+    const INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const WARN_AT  = 4 * 60 * 1000; // show badge after 4 min
+    setInterval(() => {
+        const elapsed = Date.now() - (state._lastFetch || 0);
+        if (elapsed >= INTERVAL) {
+            // Silent background refresh
+            fetchAllData().then(() => {
+                showToast("Données actualisées automatiquement", "info", 2500);
+            });
+        } else if (elapsed >= WARN_AT) {
+            // Show stale badge on refresh button
+            const dot = document.getElementById("refresh-dot");
+            if (dot) dot.style.display = "block";
+        }
+    }, 30 * 1000); // check every 30s
+})();
+
+// ─── Quick-Update (inline status change) ──────────────────────
+async function quickUpdate(rowIndex, field, value, sheet) {
+    const sheetRows = state.data[sheet];
+    const row = sheetRows.find(r => r._rowIndex === rowIndex);
+    if (!row) return;
+
+    // Optimistic UI update
+    row[field] = value;
+    applyFilters();
+    if (state.activeView === "sheet") renderTable();
+
+    try {
+        const data = { ...row };
+        delete data._rowIndex;
+        data[field] = value;
+        await sendRequest("UPDATE", { data, rowIndex }, sheet);
+        showToast("Mis à jour : " + field, "success", 2000);
+    } catch (err) {
+        // Rollback
+        showToast("Erreur : " + err.message, "error");
+        await fetchAllData();
+    }
+}
+
 async function sendRequest(action, payload, sheetOverride = null) {
     if (GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") { await new Promise(r => setTimeout(r, 500)); return { status: "ok" }; }
-    const sheet = sheetOverride || state.activeSheet;
+    // Pour les feuilles custom, envoyer le vrai nom au lieu de la clé interne
+    const rawKey = sheetOverride || state.activeSheet;
+    const cfg = SHEET_CONFIG[rawKey];
+    const sheet = (cfg && cfg.sheetName) ? cfg.sheetName : rawKey;
     const res = await fetch(GOOGLE_APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ action, sheet, ...payload }) });
     const json = await res.json();
     if (json.status !== "ok") throw new Error(json.message);
