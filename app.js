@@ -1115,6 +1115,7 @@ function detectCustomCols(cols) {
         fsrDate:         find(["fsr date","launch date","date lancement","date launch","request date","date request"]),
         fsrNumber:       find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
         launchDate:      find(["launched on","launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date","date analyse","analysis date"]),
+        efaRef:          find(["efa","fabric ref","fabric no","fabric num","lot","batch","test ref","test no","test num","test id","analyse ref","analyse no","ref test"]),
         isFabricAnalysis,
         style:           find(["style","ref","reference","article"]),
         client:          find(["client","buyer","brand","marque"]),
@@ -1534,19 +1535,26 @@ function collectAllAlerts() {
 
                 if (launchDateVal && !hasReadyDate) {
                     const launchDays    = Math.abs(_daysDiff(launchDateVal));
-                    const launchDaysTxt = launchDays === 0 ? "lancé aujourd'hui"
-                                       : launchDays === 1 ? "lancé hier"
-                                       : `lancé il y a ${launchDays} jour${launchDays > 1 ? "s" : ""}`;
+                    const launchDaysTxt = launchDays === 0 ? "aujourd'hui"
+                                       : launchDays === 1 ? "hier"
+                                       : `il y a ${launchDays} jour${launchDays > 1 ? "s" : ""}`;
                     const launchFmt = _fmtDate(launchDateVal);
+                    const urgency   = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
+                    const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+
+                    // Valeur réelle de la ref EFA dans la ligne
+                    const efaVal = det.efaRef && r[det.efaRef] && String(r[det.efaRef]).trim()
+                                 ? String(r[det.efaRef]).trim()
+                                 : (getStyle(r) !== "—" ? getStyle(r) : "Test");
 
                     items.push({
                         dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`🧪 Attente Ready Date — ${launchDaysTxt}`,
-                        title:`Analyse lancée ${launchDaysTxt} — Ready Date non reçue`,
+                        tagLabel:`🧪 ${efaVal} — résultat attendu (${launchDays}j)${urgencyBadge}`,
+                        title:`${efaVal} en attente du résultat du test — lancé ${launchDaysTxt}`,
                         action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Lancé le : ${launchFmt}${getFsr(r)}`,
-                        urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
+                        meta:`Ref : ${efaVal} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}${getFsr(r)}`,
+                        urgency,
                         sheet:key, rowIndex:r._rowIndex
                     });
                 }
@@ -1636,34 +1644,129 @@ function collectAllAlerts() {
                     });
                 }
             } else {
-                // Colonnes date dépassées (hors received/sending/ready/fsr)
+                // ── Système intelligent : toute colonne de type "date" génère
+                //    une alerte contextuelle selon la nature sémantique de la colonne.
+                //
+                //  • Colonne "action passée" (send, envoi, submit, launch, reçu…) :
+                //    La date est un événement déjà posé → on attend quelque chose après.
+                //    Si renseignée → alerte "en attente depuis Xj" (peu importe si passée ou future).
+                //
+                //  • Colonne "deadline / échéance" (due, deadline, expected, expiry, date…) :
+                //    La date est une échéance → alerte si passée (retard) ou proche (≤7j).
+                //
+                //  • Colonne "date neutre" (tout le reste) :
+                //    Alerte si date passée (retard) ou dans les 7 prochains jours (rappel).
+                // ────────────────────────────────────────────────────────────────────────
+
+                // Labels à exclure (déjà gérés par des blocs dédiés)
+                const EXCLUDED = ["receiv","recep","send","envoi","ready","fsr","launch","lanc","approv"];
+                const isExcluded = lbl => EXCLUDED.some(p => lbl.includes(p));
+
+                // Patterns sémantiques
+                const ACTION_PAST_PATTERNS  = ["sent","submit","soumis","expedit","ship","dispatch","depart","envoy","départ","livr"];
+                const DEADLINE_PATTERNS     = ["due","deadline","expir","limit","échéan","delai","délai","cutoff","cut-off","target"];
+                const WAITING_PATTERNS      = ["date","on","le","at"];  // fallback large
+
                 cfg.cols.filter(c => c.type === "date").forEach(col => {
                     const colLbl = col.label.toLowerCase();
-                    if (colLbl.includes("receiv") || colLbl.includes("recep") || colLbl.includes("send") || colLbl.includes("envoi")
-                        || colLbl.includes("ready") || colLbl.includes("fsr")) return;
-                    const val = r[col.key]; if (!val) return;
-                    const diff = _daysDiff(val);
-                    if (diff < 0) {
-                        const days = Math.abs(diff);
+                    if (isExcluded(colLbl)) return;
+                    const val = r[col.key];
+                    if (!val || !String(val).trim()) return;
+
+                    const diff  = _daysDiff(val);  // positif = futur, négatif = passé
+                    const days  = Math.abs(diff);
+                    const fmt   = _fmtDate(val);
+
+                    const isActionPast = ACTION_PAST_PATTERNS.some(p => colLbl.includes(p));
+                    const isDeadline   = DEADLINE_PATTERNS.some(p => colLbl.includes(p));
+
+                    if (isActionPast) {
+                        // Colonne "action passée" : la date indique qu'une action a eu lieu
+                        // → on attend un retour/résultat depuis ce moment.
+                        const agoTxt = days === 0 ? "aujourd'hui"
+                                     : days === 1 ? "hier"
+                                     : `il y a ${days} jour${days > 1 ? "s" : ""}`;
+                        const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                        const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                         items.push({
-                            dotCls:"dot-late", tagCls:"tag-late",
-                            tagLabel:`🔴 ${col.label} — ${days}j`,
-                            title:`${col.label} dépassée de ${days} jour${days>1?"s":""}`,
-                            action:`Mettre à jour la colonne "${col.label}" ou replanifier`,
+                            dotCls: urgency === "high" ? "dot-late" : urgency === "mid" ? "dot-risk" : "dot-send",
+                            tagCls: urgency === "high" ? "tag-late" : urgency === "mid" ? "tag-risk" : "tag-send",
+                            tagLabel:`⏳ ${col.label} — en attente (${days}j)${urgencyBadge}`,
+                            title:`${col.label} renseigné ${agoTxt} — en attente d'un retour`,
+                            action:`Vérifier si une action est requise suite à "${col.label}" du ${fmt}`,
                             style:getStyle(r), client:getClient(r),
-                            meta:`${col.label} : ${_fmtDate(val)}`,
-                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                            meta:`${col.label} : ${fmt}`,
+                            urgency, sheet:key, rowIndex:r._rowIndex
                         });
-                    } else if (diff === 0) {
-                        items.push({
-                            dotCls:"dot-today", tagCls:"tag-today",
-                            tagLabel:`🟡 ${col.label} — aujourd'hui`,
-                            title:`${col.label} échoit aujourd'hui`,
-                            action:`Confirmer ou mettre à jour la colonne "${col.label}"`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`${col.label} : ${_fmtDate(val)}`,
-                            urgency:"low", sheet:key, rowIndex:r._rowIndex
-                        });
+
+                    } else if (isDeadline) {
+                        // Colonne "échéance" : alerte si passée ou proche (≤7j)
+                        if (diff < 0) {
+                            items.push({
+                                dotCls:"dot-late", tagCls:"tag-late",
+                                tagLabel:`🔴 ${col.label} — dépassée de ${days}j`,
+                                title:`Échéance "${col.label}" dépassée de ${days} jour${days>1?"s":""}`,
+                                action:`Traiter ou replanifier la date "${col.label}"`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency:"high", sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else if (diff === 0) {
+                            items.push({
+                                dotCls:"dot-today", tagCls:"tag-today",
+                                tagLabel:`🟡 ${col.label} — aujourd'hui`,
+                                title:`Échéance "${col.label}" arrive aujourd'hui`,
+                                action:`Traiter "${col.label}" avant la fin de journée`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else if (diff <= 7) {
+                            items.push({
+                                dotCls:"dot-risk", tagCls:"tag-risk",
+                                tagLabel:`🕐 ${col.label} — dans ${diff}j`,
+                                title:`Échéance "${col.label}" dans ${diff} jour${diff>1?"s":""}`,
+                                action:`Préparer l'action requise avant le ${fmt}`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            });
+                        }
+
+                    } else {
+                        // Colonne date neutre : alerte si passée (retard) ou dans les 7j (rappel)
+                        if (diff < 0) {
+                            const urgency = days >= 14 ? "high" : "mid";
+                            items.push({
+                                dotCls:"dot-late", tagCls:"tag-late",
+                                tagLabel:`🔴 ${col.label} — ${days}j de retard`,
+                                title:`"${col.label}" était le ${fmt} — aucune suite renseignée`,
+                                action:`Vérifier si une action est requise ou mettre à jour la date`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency, sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else if (diff === 0) {
+                            items.push({
+                                dotCls:"dot-today", tagCls:"tag-today",
+                                tagLabel:`🟡 ${col.label} — aujourd'hui`,
+                                title:`"${col.label}" est aujourd'hui`,
+                                action:`Confirmer ou mettre à jour "${col.label}"`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else if (diff <= 7) {
+                            items.push({
+                                dotCls:"dot-risk", tagCls:"tag-risk",
+                                tagLabel:`🕐 ${col.label} — dans ${diff}j`,
+                                title:`"${col.label}" prévu dans ${diff} jour${diff>1?"s":""} — à surveiller`,
+                                action:`Préparer ce qui est nécessaire avant le ${fmt}`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`${col.label} : ${fmt}`,
+                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            });
+                        }
                     }
                 });
             }
