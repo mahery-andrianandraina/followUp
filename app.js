@@ -1102,7 +1102,7 @@ function detectCustomCols(cols) {
         readyDate:       find(["ready date","ready","date pret","date pr\u00eat","due date","expected date","result date","date result"]),
         fsrDate:         find(["fsr date","launch date","date lancement","date launch","request date","date request"]),
         fsrNumber:       find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
-        launchDate:      find(["launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date"]),
+        launchDate:      find(["launched on","launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date","date analyse","analysis date"]),
         isFabricAnalysis,
         style:           find(["style","ref","reference","article"]),
         client:          find(["client","buyer","brand","marque"]),
@@ -1462,70 +1462,90 @@ function collectAllAlerts() {
             if (approved) return;
 
             // ── FABRIC ANALYSIS : logique spécifique ─────────────────
-            // Dès qu'une ligne est lancée (launchDate ou fsrDate renseigné)
-            // l'alerte principale = "en attente des résultats"
             if (det.isFabricAnalysis) {
+                const hasSwatch  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
                 const isLaunched = hasLaunch || hasFsr;
-                if (!isLaunched) return; // pas encore lancé → pas d'alerte
+                const fsrSuffix  = getFsr(r);
 
-                const launchDateVal = (det.launchDate && r[det.launchDate]) ? r[det.launchDate]
-                                    : (det.fsrDate   && r[det.fsrDate])    ? r[det.fsrDate]
-                                    : null;
-                const launchDays  = launchDateVal ? Math.abs(_daysDiff(launchDateVal)) : null;
-                const launchDaysTxt = launchDays === null ? ""
-                                    : launchDays === 0    ? "lancé aujourd'hui"
-                                    : launchDays === 1    ? "lancé hier"
-                                    : `lancé il y a ${launchDays} jour${launchDays>1?"s":""}`;
-                const launchFmt   = _fmtDate(launchDateVal);
-                const fsrSuffix   = getFsr(r);
-
-                if (!hasReadyDate) {
-                    // Cas principal : lancé, on attend encore la Ready Date (date de sortie résultat)
+                // ── État 0 : Swatch reçu mais analyse pas encore lancée ──
+                if (hasSwatch && !isLaunched && !hasReadyDate) {
+                    const swatchDays = Math.abs(_daysDiff(r[det.receivedDate]));
+                    const swatchAgo  = swatchDays === 0 ? "reçu aujourd'hui"
+                                     : swatchDays === 1 ? "reçu hier"
+                                     : `reçu il y a ${swatchDays} jour${swatchDays>1?"s":""}`;
                     items.push({
-                        dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`🧪 En attente résultats${launchDays !== null ? ` — ${launchDaysTxt}` : ""}`,
-                        title:`Test lancé${launchDaysTxt ? " ("+launchDaysTxt+")" : ""} — en attente des résultats`,
-                        action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
+                        dotCls:"dot-send", tagCls:"tag-send",
+                        tagLabel:`⚗️ Swatch reçu — analyse à lancer`,
+                        title:`Swatch reçu (${swatchAgo}) — analyse non lancée`,
+                        action:`Lancer l'analyse et renseigner la date de lancement`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Lancé le : ${launchFmt}${fsrSuffix}`,
-                        urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
+                        meta:`Swatch reçu le : ${_fmtDate(r[det.receivedDate])}${fsrSuffix}`,
+                        urgency: swatchDays >= 3 ? "mid" : "low",
                         sheet:key, rowIndex:r._rowIndex
                     });
-                } else {
-                    // Ready Date renseignée : afficher le statut par rapport à aujourd'hui
-                    const diff = _daysDiff(r[det.readyDate]);
-                    const rdFmt = _fmtDate(r[det.readyDate]);
-                    if (diff < 0) {
-                        const overdueDays = Math.abs(diff);
+                    return;
+                }
+
+                // ── État 1 : Analyse lancée, en attente des résultats ────
+                if (isLaunched) {
+                    const launchDateVal = (det.launchDate && r[det.launchDate]) ? r[det.launchDate]
+                                        : (det.fsrDate   && r[det.fsrDate])    ? r[det.fsrDate]
+                                        : null;
+                    const launchDays    = launchDateVal ? Math.abs(_daysDiff(launchDateVal)) : null;
+                    const launchDaysTxt = launchDays === null  ? ""
+                                        : launchDays === 0     ? "lancé aujourd'hui"
+                                        : launchDays === 1     ? "lancé hier"
+                                        : `lancé il y a ${launchDays} jour${launchDays>1?"s":""}`;
+                    const launchFmt     = _fmtDate(launchDateVal);
+
+                    if (!hasReadyDate) {
+                        // Pas encore de date de résultat
                         items.push({
-                            dotCls:"dot-late", tagCls:"tag-late",
-                            tagLabel:`🔴 Résultats en retard — ${overdueDays}j`,
-                            title:`Résultats attendus le ${rdFmt} — en retard de ${overdueDays} jour${overdueDays>1?"s":""}`,
-                            action:`Test ${launchDaysTxt} — relancer le laboratoire`,
+                            dotCls:"dot-nopo", tagCls:"tag-nopo",
+                            tagLabel:`🧪 En attente résultats — ${launchDaysTxt}`,
+                            title:`Analyse lancée (${launchDaysTxt}) — résultats non reçus`,
+                            action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
                             style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                            urgency:"high", sheet:key, rowIndex:r._rowIndex
-                        });
-                    } else if (diff === 0) {
-                        items.push({
-                            dotCls:"dot-today", tagCls:"tag-today",
-                            tagLabel:`🟡 Résultats attendus aujourd'hui`,
-                            title:`Résultats d'analyse attendus aujourd'hui`,
-                            action:`Test ${launchDaysTxt} — vérifier la réception des résultats`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            meta:`Lancé le : ${launchFmt}${hasSwatch ? " · Swatch reçu le : "+_fmtDate(r[det.receivedDate]) : ""}${fsrSuffix}`,
+                            urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
+                            sheet:key, rowIndex:r._rowIndex
                         });
                     } else {
-                        items.push({
-                            dotCls:"dot-risk", tagCls:"tag-risk",
-                            tagLabel:`🕐 Résultats dans ${diff}j`,
-                            title:`En attente résultats — prévus dans ${diff} jour${diff>1?"s":""}`,
-                            action:`Test ${launchDaysTxt} — résultats prévus le ${rdFmt}`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                            urgency:"low", sheet:key, rowIndex:r._rowIndex
-                        });
+                        // Ready Date renseignée : statut par rapport à aujourd'hui
+                        const diff  = _daysDiff(r[det.readyDate]);
+                        const rdFmt = _fmtDate(r[det.readyDate]);
+                        if (diff < 0) {
+                            const od = Math.abs(diff);
+                            items.push({
+                                dotCls:"dot-late", tagCls:"tag-late",
+                                tagLabel:`🔴 Résultats en retard — ${od}j`,
+                                title:`Résultats attendus le ${rdFmt} — en retard de ${od}j`,
+                                action:`${launchDaysTxt} — relancer le laboratoire`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
+                                urgency:"high", sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else if (diff === 0) {
+                            items.push({
+                                dotCls:"dot-today", tagCls:"tag-today",
+                                tagLabel:`🟡 Résultats attendus aujourd'hui`,
+                                title:`Résultats d'analyse attendus aujourd'hui`,
+                                action:`${launchDaysTxt} — vérifier la réception des résultats`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
+                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            });
+                        } else {
+                            items.push({
+                                dotCls:"dot-risk", tagCls:"tag-risk",
+                                tagLabel:`🕐 Résultats dans ${diff}j`,
+                                title:`En attente résultats — prévus dans ${diff}j`,
+                                action:`${launchDaysTxt} — résultats prévus le ${rdFmt}`,
+                                style:getStyle(r), client:getClient(r),
+                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
+                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            });
+                        }
                     }
                 }
                 return; // Fabric Analysis : ne pas tomber dans la logique générique
