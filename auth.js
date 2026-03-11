@@ -37,12 +37,6 @@ async function signInWithGoogle() {
     }
 }
 
-// ─── Gérer retour redirection ─────────────────────────────────
-auth.getRedirectResult().catch((err) => {
-    console.error("Redirect error:", err);
-    showAuthError("Erreur de connexion. Réessayez.");
-});
-
 // ─── Déconnexion ──────────────────────────────────────────────
 async function signOut() {
     await auth.signOut();
@@ -51,7 +45,33 @@ async function signOut() {
 }
 
 // ─── Observer état authentification ──────────────────────────
+// On attend d'abord que getRedirectResult() soit résolu
+// pour éviter la boucle login pendant le retour OAuth
+let _redirectHandled = false;
+
+auth.getRedirectResult().then((result) => {
+    _redirectHandled = true;
+    // onAuthStateChanged prend le relais automatiquement
+}).catch((err) => {
+    _redirectHandled = true;
+    if (err.code !== "auth/no-auth-event") {
+        console.error("Redirect error:", err);
+        if (typeof showAuthError === "function") {
+            showAuthError("Erreur de connexion. Réessayez.");
+        }
+    }
+});
+
 auth.onAuthStateChanged(async (firebaseUser) => {
+    // Attendre que getRedirectResult soit terminé
+    if (!_redirectHandled) {
+        await new Promise(resolve => {
+            const interval = setInterval(() => {
+                if (_redirectHandled) { clearInterval(interval); resolve(); }
+            }, 50);
+        });
+    }
+
     if (!firebaseUser) {
         if (!window.location.pathname.endsWith("login.html")) {
             window.location.href = "login.html";
