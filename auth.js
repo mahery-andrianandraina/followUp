@@ -1,14 +1,9 @@
 // ============================================================
 // AW27 CHECKERS – Authentication & User Config (Firebase)
 // ============================================================
-//
-// SETUP : Remplacez firebaseConfig avec vos propres clés Firebase.
-// Firebase Console → Project Settings → Your apps → SDK setup
-// Activez : Authentication > Sign-in method > Google
-// Activez : Firestore Database (mode production)
-// ============================================================
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const ADMIN_EMAIL = "mcformation1@gmail.com";
+
 const firebaseConfig = {
   apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
   authDomain: "aw27-checkers.firebaseapp.com",
@@ -27,23 +22,26 @@ const provider  = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 // ─── État auth global ─────────────────────────────────────────
-window.currentUser = null; // { uid, email, displayName, photoURL, gasUrl }
+window.currentUser = null;
 
 // ─── Connexion Google OAuth ───────────────────────────────────
 async function signInWithGoogle() {
     const btn = document.getElementById("btn-google-signin");
     if (btn) { btn.disabled = true; btn.classList.add("loading"); }
     try {
-        const result = await auth.signInWithPopup(provider);
-        // onAuthStateChanged prend le relais
+        await auth.signInWithRedirect(provider);
     } catch (err) {
         console.error("Auth error:", err);
-        showAuthError(err.code === "auth/popup-closed-by-user"
-            ? "Connexion annulée."
-            : "Erreur de connexion. Réessayez.");
+        showAuthError("Erreur de connexion. Réessayez.");
         if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
     }
 }
+
+// ─── Gérer retour redirection ─────────────────────────────────
+auth.getRedirectResult().catch((err) => {
+    console.error("Redirect error:", err);
+    showAuthError("Erreur de connexion. Réessayez.");
+});
 
 // ─── Déconnexion ──────────────────────────────────────────────
 async function signOut() {
@@ -53,22 +51,31 @@ async function signOut() {
 }
 
 // ─── Observer état authentification ──────────────────────────
-// Déclenché à chaque changement (connexion, déconnexion, refresh page)
 auth.onAuthStateChanged(async (firebaseUser) => {
     if (!firebaseUser) {
-        // Non connecté → rediriger vers login si on est sur index.html
         if (!window.location.pathname.endsWith("login.html")) {
             window.location.href = "login.html";
         }
         return;
     }
 
-    // Connecté → charger profil depuis Firestore
+    const email = firebaseUser.email;
+
     try {
+        // ── 1. Vérifier si l'email est dans la whitelist ──────
+        const whitelistDoc = await db.collection("whitelist").doc(email).get();
+
+        if (!whitelistDoc.exists || whitelistDoc.data().status !== "approved") {
+            // Pas autorisé → page demande d'accès
+            await auth.signOut();
+            window.location.href = `access-request.html?email=${encodeURIComponent(email)}&name=${encodeURIComponent(firebaseUser.displayName || "")}&photo=${encodeURIComponent(firebaseUser.photoURL || "")}`;
+            return;
+        }
+
+        // ── 2. Email autorisé → charger profil Firestore ──────
         const doc = await db.collection("users").doc(firebaseUser.uid).get();
 
         if (doc.exists && doc.data().gasUrl) {
-            // Profil complet → accès direct au dashboard
             window.currentUser = {
                 uid:         firebaseUser.uid,
                 email:       firebaseUser.email,
@@ -80,16 +87,12 @@ auth.onAuthStateChanged(async (firebaseUser) => {
             if (window.location.pathname.endsWith("login.html")) {
                 window.location.href = "index.html";
             } else {
-                // On est sur index.html → initialiser l'app
                 onAuthReady();
             }
         } else {
-            // Première connexion ou GAS URL manquant → configurer
             if (window.location.pathname.endsWith("login.html")) {
-                // Afficher l'étape de configuration du GAS URL
                 showGasSetupStep(firebaseUser);
             } else {
-                // Si on arrive directement sur index.html sans GAS URL
                 window.location.href = "login.html?setup=1";
             }
         }
@@ -137,7 +140,7 @@ async function saveGasUrl(firebaseUser, gasUrl) {
     }
 }
 
-// ─── Mettre à jour le GAS URL (depuis le dashboard) ──────────
+// ─── Mettre à jour le GAS URL ─────────────────────────────────
 async function updateGasUrl(newUrl) {
     if (!window.currentUser) return;
     if (!newUrl || !newUrl.startsWith("https://script.google.com/")) {
@@ -151,7 +154,6 @@ async function updateGasUrl(newUrl) {
         });
         window.currentUser.gasUrl = newUrl;
         showToast("URL Google Sheet mise à jour ✓", "success");
-        // Recharger les données avec la nouvelle URL
         await fetchAllData();
     } catch (err) {
         console.error(err);
@@ -159,15 +161,12 @@ async function updateGasUrl(newUrl) {
     }
 }
 
-// ─── Callback appelé quand auth est prête dans index.html ─────
-// Défini dans app.js, appelé ici une fois currentUser chargé
+// ─── Callback app prête ───────────────────────────────────────
 function onAuthReady() {
-    if (typeof initApp === "function") {
-        initApp();
-    }
+    if (typeof initApp === "function") initApp();
 }
 
-// ─── Helpers UI (login.html) ──────────────────────────────────
+// ─── Helpers UI ───────────────────────────────────────────────
 function showAuthError(msg) {
     const el = document.getElementById("auth-error");
     if (el) { el.textContent = msg; el.style.display = "block"; }
