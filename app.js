@@ -1099,14 +1099,18 @@ async function saveMenuBuilder() {
 // ═══════════════════════════════════════════════════════════════
 
 // ── Détection intelligente des colonnes ──────────────────────
-function detectCustomCols(cols) {
+function detectCustomCols(cols, menuLabel) {
     const find = patterns => {
         const c = cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
         return c ? c.key : null;
     };
     // Detect if this sheet is a Fabric Analysis sheet
+    // On cherche dans le NOM DU MENU (cfg.label) ET dans les labels de colonnes
     const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
-    const isFabricAnalysis = sheetNameHints.includes("fabric") || sheetNameHints.includes("analyse") || sheetNameHints.includes("analysis");
+    const menuHint = (menuLabel || "").toLowerCase();
+    const FABRIC_PATTERNS = ["fabric","analyse","analysis","efa","test labo","lab","fiber","fibre","composition","matiere","mati\u00e8re"];
+    const isFabricAnalysis = FABRIC_PATTERNS.some(p => menuHint.includes(p))
+                          || FABRIC_PATTERNS.some(p => sheetNameHints.includes(p));
     return {
         approval:        find(["approval","approv","approved","validation","statut appr"]),
         sendingDate:     find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
@@ -1457,7 +1461,7 @@ function collectAllAlerts() {
     Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
         const cfg  = SHEET_CONFIG[key];
         const rows = state.data[key] || [];
-        const det  = detectCustomCols(cfg.cols);
+        const det  = detectCustomCols(cfg.cols, cfg.label);
         const items = [];
 
         const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
