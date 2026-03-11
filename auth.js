@@ -2,8 +2,6 @@
 // AW27 CHECKERS – Authentication & User Config (Firebase)
 // ============================================================
 
-const ADMIN_EMAIL = "mcformation1@gmail.com";
-
 const firebaseConfig = {
   apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
   authDomain: "aw27-checkers.firebaseapp.com",
@@ -29,15 +27,26 @@ function isPage(name) {
     return window.location.pathname.endsWith(name);
 }
 
-// ─── Connexion Google OAuth (redirection) ─────────────────────
+// ─── Connexion Google via POPUP ───────────────────────────────
+// signInWithPopup est la méthode correcte pour GitHub Pages
+// (signInWithRedirect nécessite Firebase Hosting)
 async function signInWithGoogle() {
     const btn = document.getElementById("btn-google-signin");
     if (btn) { btn.disabled = true; btn.classList.add("loading"); }
+
     try {
-        await auth.signInWithRedirect(provider);
+        const result = await auth.signInWithPopup(provider);
+        // Popup réussie → traiter l'utilisateur immédiatement
+        await handleUser(result.user);
     } catch (err) {
         console.error("Auth error:", err);
-        showAuthError("Erreur de connexion. Réessayez.");
+        if (err.code === "auth/popup-closed-by-user" || err.code === "auth/cancelled-popup-request") {
+            showAuthError("Connexion annulée. Réessayez.");
+        } else if (err.code === "auth/popup-blocked") {
+            showAuthError("Popup bloquée par le navigateur. Autorisez les popups pour ce site.");
+        } else {
+            showAuthError("Erreur de connexion. Réessayez.");
+        }
         if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
     }
 }
@@ -49,39 +58,9 @@ async function signOut() {
     window.location.href = "login.html";
 }
 
-// ══════════════════════════════════════════════════════════════
-// ARCHITECTURE :
-//
-// login.html  → géré UNIQUEMENT par getRedirectResult()
-//               onAuthStateChanged ignoré sur cette page
-//
-// index.html  → géré par onAuthStateChanged
-//               (vérifie que la session est toujours active)
-// ══════════════════════════════════════════════════════════════
-
-if (isPage("login.html")) {
-
-    // ── Page Login : traiter le retour OAuth ──────────────────
-    auth.getRedirectResult().then(async (result) => {
-
-        if (!result || !result.user) {
-            // Pas de redirection en cours → rien à faire
-            // L'user voit simplement le bouton de connexion
-            return;
-        }
-
-        await handleUser(result.user);
-
-    }).catch((err) => {
-        console.error("Redirect error:", err);
-        if (err.code !== "auth/no-auth-event") {
-            showAuthError("Erreur de connexion Google. Réessayez.");
-        }
-    });
-
-} else if (!isPage("access-request.html")) {
-
-    // ── Pages protégées : vérifier la session ─────────────────
+// ─── Protection des pages autres que login ────────────────────
+// Sur index.html : vérifier que la session est active
+if (!isPage("login.html") && !isPage("access-request.html")) {
     auth.onAuthStateChanged(async (firebaseUser) => {
         if (!firebaseUser) {
             window.location.href = "login.html";
@@ -92,7 +71,7 @@ if (isPage("login.html")) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// LOGIQUE CENTRALE
+// LOGIQUE CENTRALE : handleUser
 // ══════════════════════════════════════════════════════════════
 async function handleUser(firebaseUser) {
     const email = firebaseUser.email;
@@ -103,15 +82,14 @@ async function handleUser(firebaseUser) {
         const isApproved   = whitelistDoc.exists && whitelistDoc.data().status === "approved";
 
         if (!isApproved) {
-            // Non autorisé → déconnecter silencieusement puis rediriger
+            // Non autorisé → déconnecter puis rediriger
             const url = "access-request.html"
                 + "?email=" + encodeURIComponent(email)
                 + "&name="  + encodeURIComponent(firebaseUser.displayName || "")
                 + "&photo=" + encodeURIComponent(firebaseUser.photoURL || "");
 
-            auth.signOut().finally(() => {
-                window.location.replace(url);
-            });
+            await auth.signOut();
+            window.location.replace(url);
             return;
         }
 
@@ -119,7 +97,6 @@ async function handleUser(firebaseUser) {
         const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
 
         if (userDoc.exists && userDoc.data().gasUrl) {
-            // Profil complet → dashboard
             window.currentUser = {
                 uid:         firebaseUser.uid,
                 email:       firebaseUser.email,
@@ -135,7 +112,7 @@ async function handleUser(firebaseUser) {
             }
 
         } else {
-            // Pas de gasUrl → step configuration
+            // Pas de gasUrl → étape configuration
             if (isPage("login.html")) {
                 showGasSetupStep(firebaseUser);
             } else {
