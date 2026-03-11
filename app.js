@@ -1451,6 +1451,9 @@ function collectAllAlerts() {
         const getClient = r => det.client ? (r[det.client] || "")  : "";
         const getFsr    = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
 
+        // ── Détection Bulk A4 ────────────────────────────────────
+        const isBulkA4 = cfg.label.toLowerCase().includes("bulk");
+
         rows.forEach(r => {
             const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
             const hasSending   = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
@@ -1460,6 +1463,50 @@ function collectAllAlerts() {
             const approved     = det.approval && isApproved(r[det.approval]);
 
             if (approved) return;
+
+            // ── BULK A4 : alertes spécifiques Type / Sending / Approval ──
+            if (isBulkA4) {
+                // Détecter colonne "Type" (reçu = présence d'une valeur)
+                const typeCol = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase().includes("type"));
+                const hasType = typeCol && !!(r[typeCol.key] && String(r[typeCol.key]).trim());
+
+                // Alerte 1 : Type renseigné mais Sending Date absent
+                if (hasType && !hasSending) {
+                    const typeVal = typeCol ? String(r[typeCol.key]).trim() : "—";
+                    items.push({
+                        dotCls:"dot-send", tagCls:"tag-send",
+                        tagLabel:`📬 Type reçu — Sending Date manquant`,
+                        title:`Type "${typeVal}" reçu — Sending Date non renseignée`,
+                        action:`Renseigner la Sending Date pour ce bulk`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Type : ${typeVal}${det.receivedDate && r[det.receivedDate] ? " · Reçu le : "+_fmtDate(r[det.receivedDate]) : ""}`,
+                        urgency: hasReceived ? "mid" : "low",
+                        sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+
+                // Alerte 2 : Sending Date renseigné mais pas encore d'Approval
+                if (hasSending && det.approval && !approved) {
+                    const days = Math.abs(_daysDiff(r[det.sendingDate]));
+                    const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                    const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    items.push({
+                        dotCls:"dot-approve", tagCls:"tag-approve",
+                        tagLabel:`⏳ Approval en attente — ${days}j${urgencyLabel}`,
+                        title:`Bulk envoyé — approbation en attente depuis ${days} jour${days>1?"s":""}`,
+                        action: urgency === "high"
+                            ? "Plus de 2 semaines sans retour — relancer le client de toute urgence"
+                            : urgency === "mid"
+                            ? "1 semaine sans retour — envoyer un rappel au client"
+                            : "Attendre le retour du client ou envoyer un suivi",
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
+                        urgency, sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+            }
 
             // ── FABRIC ANALYSIS : logique spécifique ─────────────────
             if (det.isFabricAnalysis) {
@@ -1481,6 +1528,29 @@ function collectAllAlerts() {
                         style:getStyle(r), client:getClient(r),
                         meta:`Swatch reçu le : ${_fmtDate(r[det.receivedDate])}${fsrSuffix}`,
                         urgency: swatchDays >= 3 ? "mid" : "low",
+                        sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+
+                // ── État 0b : Swatch reçu ET analyse lancée — attente résultats ──
+                if (hasSwatch && isLaunched && !hasReadyDate) {
+                    const launchDateVal = (det.launchDate && r[det.launchDate]) ? r[det.launchDate]
+                                        : (det.fsrDate   && r[det.fsrDate])    ? r[det.fsrDate]
+                                        : null;
+                    const launchDays    = launchDateVal ? Math.abs(_daysDiff(launchDateVal)) : null;
+                    const launchDaysTxt = launchDays === null  ? ""
+                                        : launchDays === 0     ? "lancé aujourd'hui"
+                                        : launchDays === 1     ? "lancé hier"
+                                        : `lancé il y a ${launchDays} jour${launchDays>1?"s":""}`;
+                    items.push({
+                        dotCls:"dot-nopo", tagCls:"tag-nopo",
+                        tagLabel:`🧪 Test en cours — ${launchDaysTxt}`,
+                        title:`Swatch reçu — test lancé ${launchDaysTxt}, résultats attendus`,
+                        action:`Attendre les résultats du laboratoire (test lancé ${launchDaysTxt})`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Swatch reçu le : ${_fmtDate(r[det.receivedDate])} · Lancé le : ${_fmtDate(launchDateVal)}${fsrSuffix}`,
+                        urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
                         sheet:key, rowIndex:r._rowIndex
                     });
                     return;
@@ -1774,7 +1844,7 @@ function openGlobalNotifDrawer() {
                     </button>
                 </div>
             </div>
-            <div class="gnd-tabs" id="gnd-tabs"></div>
+            <div class="gnd-tabs" id="gnd-tabs" style="display:flex;flex-wrap:wrap;gap:4px;padding:10px 16px 6px;border-bottom:1px solid var(--border);"></div>
             <div class="gnd-body"  id="gnd-body"></div>
         </div>`;
         document.body.appendChild(drawer);
