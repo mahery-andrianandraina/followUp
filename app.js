@@ -1109,13 +1109,18 @@ function detectCustomCols(cols, menuLabel) {
     const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
     const menuHint = (menuLabel || "").toLowerCase();
     // Patterns qui identifient un menu Fabric Analysis
-    const FABRIC_PATTERNS = ["fabric analysis","fabric test","fabric analys","fabric compo","fabric devo","fabric dev","efa","test labo","fiber test","fibre test","lab analysis","lab test","composition test"];
-    // Patterns qui identifient explicitement un menu NON-Fabric (Lab Dip, etc.)
-    const NON_FABRIC_PATTERNS = ["lab dip","labdip","dip","strike off","strikeoff","print strike","color strike"];
+    // FABRIC_MENU_WORDS : mots isolés testés un par un dans le nom du menu
+    // (ex: "Fabric Analysis" → mot "analysis" → match)
+    const FABRIC_MENU_WORDS  = ["analysis","analyse","analys","fiber","fibre","efa"];
+    const FABRIC_COL_PHRASES = ["fabric analysis","fabric test","efa","test labo","fiber test","fibre test","lab analysis","composition test"];
+    // Patterns NON-Fabric explicites
+    const NON_FABRIC_PATTERNS = ["lab dip","labdip","strike off","strikeoff","print strike","color strike"];
     const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
+    // Tester chaque MOT du nom du menu individuellement
+    const menuWords = menuHint.trim().split(/\s+/);
     const isFabricAnalysis = !isNonFabric && (
-        FABRIC_PATTERNS.some(p => menuHint.includes(p))
-        || FABRIC_PATTERNS.some(p => sheetNameHints.includes(p))
+        menuWords.some(w => FABRIC_MENU_WORDS.some(p => w === p || w.startsWith(p)))
+        || FABRIC_COL_PHRASES.some(p => sheetNameHints.includes(p))
     );
     return {
         approval:        find(["approval","approv","approved","validation","statut appr"]),
@@ -1589,10 +1594,11 @@ function collectAllAlerts() {
                 if (hasReceived && !hasSending) {
                     const days = Math.abs(_daysDiff(r[det.receivedDate]));
                     const daysLabel = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days}j`;
+                    const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     items.push({
                         dotCls:"dot-send", tagCls:"tag-send",
                         tagLabel:`📦 À envoyer (${daysLabel})`,
-                        title:"Reçu — à envoyer au client",
+                        title:`Reçu — à envoyer au client${fsrStr ? " · FSR "+fsrStr : ""}`,
                         action:`${daysLabel.charAt(0).toUpperCase()+daysLabel.slice(1)} — organiser l'envoi`,
                         style:getStyle(r), client:getClient(r),
                         meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
@@ -1602,10 +1608,11 @@ function collectAllAlerts() {
                     const days = Math.abs(_daysDiff(r[det.sendingDate]));
                     const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
                     const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     items.push({
                         dotCls:"dot-approve", tagCls:"tag-approve",
                         tagLabel:`⏳ Approval ${days}j${urgencyLabel}`,
-                        title:`Envoyé — approbation en attente depuis ${days}j`,
+                        title:`Envoyé — approbation en attente depuis ${days}j${fsrStr ? " · FSR "+fsrStr : ""}`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
                         style:getStyle(r), client:getClient(r),
                         meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
