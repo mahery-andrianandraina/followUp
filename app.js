@@ -765,9 +765,21 @@ async function saveForm() {
     formSave.disabled = true; formSave.textContent = "Enregistrement…";
     try {
         if (state.editingRow) {
-            await sendRequest("UPDATE", { data, rowIndex: state.editingRow });
+            // ── Construire un objet ordonné selon les colonnes du SHEET_CONFIG ──
+            // Garantit que le GAS reçoit les données dans le bon ordre de colonnes,
+            // et supprime les anciennes clés renommées.
+            const orderedData = {};
+            cfg.cols.forEach(col => { orderedData[col.key] = data[col.key] ?? ""; });
+            await sendRequest("UPDATE", { data: orderedData, rowIndex: state.editingRow });
             const idx = state.data[state.activeSheet].findIndex(r => r._rowIndex === state.editingRow);
-            if (idx !== -1) state.data[state.activeSheet][idx] = { ...state.data[state.activeSheet][idx], ...data };
+            if (idx !== -1) {
+                // Nettoyer les anciennes clés hors-schéma avant le merge
+                const existing = state.data[state.activeSheet][idx];
+                const knownKeys = new Set(cfg.cols.map(c => c.key));
+                const cleaned = { _rowIndex: existing._rowIndex };
+                Object.keys(existing).forEach(k => { if (knownKeys.has(k)) cleaned[k] = existing[k]; });
+                state.data[state.activeSheet][idx] = { ...cleaned, ...orderedData };
+            }
             showToast("Ligne mise à jour avec succès", "success");
         } else { await sendRequest("CREATE", { data }); await fetchAllData(); }
         closeModal(); renderAll();
@@ -1451,8 +1463,11 @@ function collectAllAlerts() {
         const getClient = r => det.client ? (r[det.client] || "")  : "";
         const getFsr    = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
 
-        // ── Détection Bulk A4 ────────────────────────────────────
-        const isBulkA4 = cfg.label.toLowerCase().includes("bulk");
+        // ── Détection Bulk (A4, Shade Band, etc.) ────────────────
+        const menuLabelLower = cfg.label.toLowerCase();
+        const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
+        // Label court pour les notifications (ex: "Bulk A4", "Shade Band")
+        const bulkShortLabel = cfg.label;
 
         rows.forEach(r => {
             const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
@@ -1464,8 +1479,8 @@ function collectAllAlerts() {
 
             if (approved) return;
 
-            // ── BULK A4 : alertes spécifiques Type / Sending / Approval ──
-            if (isBulkA4) {
+            // ── BULK A4 / SHADE BAND : alertes spécifiques Type / Sending / Approval ──
+            if (isBulk) {
                 // Détecter colonne "Type" (reçu = présence d'une valeur)
                 const typeCol = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase().includes("type"));
                 const hasType = typeCol && !!(r[typeCol.key] && String(r[typeCol.key]).trim());
@@ -1475,9 +1490,9 @@ function collectAllAlerts() {
                     const typeVal = typeCol ? String(r[typeCol.key]).trim() : "—";
                     items.push({
                         dotCls:"dot-send", tagCls:"tag-send",
-                        tagLabel:`📬 Type reçu — Sending Date manquant`,
-                        title:`Type "${typeVal}" reçu — Sending Date non renseignée`,
-                        action:`Renseigner la Sending Date pour ce bulk`,
+                        tagLabel:`📬 [${bulkShortLabel}] Type reçu — Sending Date manquant`,
+                        title:`[${bulkShortLabel}] Type "${typeVal}" reçu — Sending Date non renseignée`,
+                        action:`Renseigner la Sending Date pour ce ${bulkShortLabel}`,
                         style:getStyle(r), client:getClient(r),
                         meta:`Type : ${typeVal}${det.receivedDate && r[det.receivedDate] ? " · Reçu le : "+_fmtDate(r[det.receivedDate]) : ""}`,
                         urgency: hasReceived ? "mid" : "low",
@@ -1493,13 +1508,13 @@ function collectAllAlerts() {
                     const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ Approval en attente — ${days}j${urgencyLabel}`,
-                        title:`Bulk envoyé — approbation en attente depuis ${days} jour${days>1?"s":""}`,
+                        tagLabel:`⏳ [${bulkShortLabel}] Approval en attente — ${days}j${urgencyLabel}`,
+                        title:`[${bulkShortLabel}] Envoyé — approbation en attente depuis ${days} jour${days>1?"s":""}`,
                         action: urgency === "high"
-                            ? "Plus de 2 semaines sans retour — relancer le client de toute urgence"
+                            ? `Plus de 2 semaines sans retour — relancer le client (${bulkShortLabel})`
                             : urgency === "mid"
-                            ? "1 semaine sans retour — envoyer un rappel au client"
-                            : "Attendre le retour du client ou envoyer un suivi",
+                            ? `1 semaine sans retour — envoyer un rappel (${bulkShortLabel})`
+                            : `Attendre le retour du client ou envoyer un suivi`,
                         style:getStyle(r), client:getClient(r),
                         meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
                         urgency, sheet:key, rowIndex:r._rowIndex
@@ -1514,49 +1529,9 @@ function collectAllAlerts() {
                 const isLaunched = hasLaunch || hasFsr;
                 const fsrSuffix  = getFsr(r);
 
-                // ── État 0 : Swatch reçu mais analyse pas encore lancée ──
-                if (hasSwatch && !isLaunched && !hasReadyDate) {
-                    const swatchDays = Math.abs(_daysDiff(r[det.receivedDate]));
-                    const swatchAgo  = swatchDays === 0 ? "reçu aujourd'hui"
-                                     : swatchDays === 1 ? "reçu hier"
-                                     : `reçu il y a ${swatchDays} jour${swatchDays>1?"s":""}`;
-                    items.push({
-                        dotCls:"dot-send", tagCls:"tag-send",
-                        tagLabel:`⚗️ Swatch reçu — analyse à lancer`,
-                        title:`Swatch reçu (${swatchAgo}) — analyse non lancée`,
-                        action:`Lancer l'analyse et renseigner la date de lancement`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Swatch reçu le : ${_fmtDate(r[det.receivedDate])}${fsrSuffix}`,
-                        urgency: swatchDays >= 3 ? "mid" : "low",
-                        sheet:key, rowIndex:r._rowIndex
-                    });
-                    return;
-                }
-
-                // ── État 0b : Swatch reçu ET analyse lancée — attente résultats ──
-                if (hasSwatch && isLaunched && !hasReadyDate) {
-                    const launchDateVal = (det.launchDate && r[det.launchDate]) ? r[det.launchDate]
-                                        : (det.fsrDate   && r[det.fsrDate])    ? r[det.fsrDate]
-                                        : null;
-                    const launchDays    = launchDateVal ? Math.abs(_daysDiff(launchDateVal)) : null;
-                    const launchDaysTxt = launchDays === null  ? ""
-                                        : launchDays === 0     ? "lancé aujourd'hui"
-                                        : launchDays === 1     ? "lancé hier"
-                                        : `lancé il y a ${launchDays} jour${launchDays>1?"s":""}`;
-                    items.push({
-                        dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`🧪 Test en cours — ${launchDaysTxt}`,
-                        title:`Swatch reçu — test lancé ${launchDaysTxt}, résultats attendus`,
-                        action:`Attendre les résultats du laboratoire (test lancé ${launchDaysTxt})`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Swatch reçu le : ${_fmtDate(r[det.receivedDate])} · Lancé le : ${_fmtDate(launchDateVal)}${fsrSuffix}`,
-                        urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
-                        sheet:key, rowIndex:r._rowIndex
-                    });
-                    return;
-                }
-
-                // ── État 1 : Analyse lancée, en attente des résultats ────
+                // ── Fabric Analysis : seul déclencheur = "Launched on" renseigné ──
+                // Dès que la date de lancement est présente et qu'il n'y a pas encore
+                // de Ready Date (résultats), on alerte avec le nb de jours depuis lancement.
                 if (isLaunched) {
                     const launchDateVal = (det.launchDate && r[det.launchDate]) ? r[det.launchDate]
                                         : (det.fsrDate   && r[det.fsrDate])    ? r[det.fsrDate]
@@ -1568,55 +1543,20 @@ function collectAllAlerts() {
                                         : `lancé il y a ${launchDays} jour${launchDays>1?"s":""}`;
                     const launchFmt     = _fmtDate(launchDateVal);
 
+                    // Alerte uniquement si la Ready Date n'est pas encore renseignée
                     if (!hasReadyDate) {
-                        // Pas encore de date de résultat
                         items.push({
                             dotCls:"dot-nopo", tagCls:"tag-nopo",
-                            tagLabel:`🧪 En attente résultats — ${launchDaysTxt}`,
-                            title:`Analyse lancée (${launchDaysTxt}) — résultats non reçus`,
+                            tagLabel:`🧪 En attente Ready Date — ${launchDaysTxt}`,
+                            title:`Analyse lancée ${launchDaysTxt} — en attente de la Ready Date`,
                             action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
                             style:getStyle(r), client:getClient(r),
-                            meta:`Lancé le : ${launchFmt}${hasSwatch ? " · Swatch reçu le : "+_fmtDate(r[det.receivedDate]) : ""}${fsrSuffix}`,
+                            meta:`Lancé le : ${launchFmt}${fsrSuffix}`,
                             urgency: launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low",
                             sheet:key, rowIndex:r._rowIndex
                         });
-                    } else {
-                        // Ready Date renseignée : statut par rapport à aujourd'hui
-                        const diff  = _daysDiff(r[det.readyDate]);
-                        const rdFmt = _fmtDate(r[det.readyDate]);
-                        if (diff < 0) {
-                            const od = Math.abs(diff);
-                            items.push({
-                                dotCls:"dot-late", tagCls:"tag-late",
-                                tagLabel:`🔴 Résultats en retard — ${od}j`,
-                                title:`Résultats attendus le ${rdFmt} — en retard de ${od}j`,
-                                action:`${launchDaysTxt} — relancer le laboratoire`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                                urgency:"high", sheet:key, rowIndex:r._rowIndex
-                            });
-                        } else if (diff === 0) {
-                            items.push({
-                                dotCls:"dot-today", tagCls:"tag-today",
-                                tagLabel:`🟡 Résultats attendus aujourd'hui`,
-                                title:`Résultats d'analyse attendus aujourd'hui`,
-                                action:`${launchDaysTxt} — vérifier la réception des résultats`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                                urgency:"low", sheet:key, rowIndex:r._rowIndex
-                            });
-                        } else {
-                            items.push({
-                                dotCls:"dot-risk", tagCls:"tag-risk",
-                                tagLabel:`🕐 Résultats dans ${diff}j`,
-                                title:`En attente résultats — prévus dans ${diff}j`,
-                                action:`${launchDaysTxt} — résultats prévus le ${rdFmt}`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`Ready Date : ${rdFmt} · Lancé le : ${launchFmt}${fsrSuffix}`,
-                                urgency:"low", sheet:key, rowIndex:r._rowIndex
-                            });
-                        }
                     }
+                    // Ready Date déjà renseignée → analyse terminée, pas d'alerte
                 }
                 return; // Fabric Analysis : ne pas tomber dans la logique générique
             }
