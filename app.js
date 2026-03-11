@@ -1581,7 +1581,10 @@ function timeAgo(dateVal) {
     if (!dateVal) return null;
     const d = new Date(dateVal);
     if (isNaN(d)) return null;
-    const diffDays = Math.floor((new Date() - d) / 86400000);
+    // Normaliser les deux dates à minuit pour comparer des jours calendaires
+    d.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((today - d) / 86400000);
     if (diffDays === 0) return "aujourd'hui";
     if (diffDays === 1) return "hier";
     if (diffDays < 7)  return "il y a " + diffDays + " jour(s)";
