@@ -2145,3 +2145,494 @@ async function saveNewGasUrl() {
     await updateGasUrl(input.value.trim());
     closeUserSettings();
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ─── FEATURE 1 : DÉTECTION DOUBLONS (même Style+Color dans même menu) ──
+// ═══════════════════════════════════════════════════════════════
+
+function collectDuplicates() {
+    const duplicates = [];
+
+    // Menus à scanner : tous sauf ordering (color normale = plusieurs lignes)
+    const sheetsToScan = Object.keys(SHEET_CONFIG).filter(k => k !== "ordering");
+
+    sheetsToScan.forEach(sheetKey => {
+        const cfg  = SHEET_CONFIG[sheetKey];
+        const rows = state.data[sheetKey] || [];
+        if (!rows.length) return;
+
+        // Détecter les colonnes Style et Color dans ce menu
+        const styleCols  = ["Style","style","ref","Ref","reference","Reference","article","Article"];
+        const colorCols  = ["Color","color","Colour","colour","GMT Color","gmt color","coloris","Coloris","shade","Shade"];
+
+        const getVal = (r, candidates) => {
+            for (const c of candidates) { if (r[c] && String(r[c]).trim()) return String(r[c]).trim(); }
+            // Also check SHEET_CONFIG cols
+            if (cfg.cols) {
+                const col = cfg.cols.find(c => candidates.map(x=>x.toLowerCase()).includes(c.label.toLowerCase()));
+                if (col && r[col.key] && String(r[col.key]).trim()) return String(r[col.key]).trim();
+            }
+            return null;
+        };
+
+        const seen = {};
+        rows.forEach(r => {
+            const style = getVal(r, styleCols);
+            const color = getVal(r, colorCols);
+            if (!style) return;
+            const key = color ? `${style}||${color}` : style;
+            if (!seen[key]) { seen[key] = []; }
+            seen[key].push(r);
+        });
+
+        Object.entries(seen).forEach(([key, dupes]) => {
+            if (dupes.length < 2) return;
+            const [style, color] = key.split("||");
+            duplicates.push({
+                sheet: sheetKey,
+                sheetLabel: cfg.label || sheetKey,
+                style, color: color || null,
+                count: dupes.length,
+                rows: dupes
+            });
+        });
+    });
+
+    return duplicates;
+}
+
+function openDuplicatesPanel() {
+    let overlay = document.getElementById("duplicates-overlay");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "duplicates-overlay";
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+        <div class="modal" style="max-width:680px">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">🔍 Détection de Doublons</div>
+                    <div class="modal-subtitle" id="dup-subtitle">Même Style + Color dans le même menu</div>
+                </div>
+                <button class="btn-close" onclick="closeDuplicatesPanel()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="dup-body" style="max-height:60vh;overflow-y:auto;padding:1rem 1.5rem;"></div>
+        </div>`;
+        document.body.appendChild(overlay);
+    }
+    renderDuplicatesBody();
+    overlay.classList.add("open");
+}
+
+function closeDuplicatesPanel() {
+    const o = document.getElementById("duplicates-overlay");
+    if (o) o.classList.remove("open");
+}
+
+function renderDuplicatesBody() {
+    const dupes = collectDuplicates();
+    const subtitle = document.getElementById("dup-subtitle");
+    const body = document.getElementById("dup-body");
+    if (!dupes.length) {
+        if (subtitle) subtitle.textContent = "Aucun doublon détecté ✓";
+        body.innerHTML = `<div style="text-align:center;padding:2.5rem;color:var(--text-muted);">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="36" height="36" style="margin:0 auto 1rem;display:block;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <p>Aucun doublon détecté — tous les styles sont uniques.</p></div>`;
+        return;
+    }
+    if (subtitle) subtitle.textContent = `${dupes.length} doublon${dupes.length>1?"s":""} détecté${dupes.length>1?"s":""}`;
+
+    body.innerHTML = dupes.map(d => `
+    <div style="background:var(--surface-2,#f8f9fa);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;margin-bottom:.8rem;">
+        <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.6rem;">
+            <span style="background:#ef44441a;color:#ef4444;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:20px;">DOUBLON ×${d.count}</span>
+            <strong style="font-size:.9rem;">${esc(d.style)}${d.color ? " — " + esc(d.color) : ""}</strong>
+            <span style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">📂 ${esc(d.sheetLabel)}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:.3rem;">
+            ${d.rows.map((r,i) => {
+                const cols = (SHEET_CONFIG[d.sheet]?.cols || []).filter(c => !["Style","Color","Colour","style","color"].includes(c.key));
+                const preview = cols.slice(0,4).map(c => r[c.key] ? `<span style="color:var(--text-muted);font-size:.73rem;">${esc(c.label)}: <strong style="color:var(--text-primary,#1a1a2e)">${esc(String(r[c.key]).slice(0,20))}</strong></span>` : "").filter(Boolean).join(" · ");
+                return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;font-size:.8rem;">
+                    <span style="color:var(--text-muted);font-size:.7rem;">Ligne ${r._rowIndex}</span>
+                    ${preview ? " · " + preview : ""}
+                    <button onclick="closeDuplicatesPanel();navigateToRow('${d.sheet}',${r._rowIndex})" style="float:right;background:none;border:none;cursor:pointer;color:var(--primary,#6366f1);font-size:.72rem;font-weight:600;">Voir →</button>
+                </div>`;
+            }).join("")}
+        </div>
+    </div>`).join("");
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ─── FEATURE 2 : BLOCAGES EN CASCADE ──────────────────────────
+// ═══════════════════════════════════════════════════════════════
+
+function collectCascadeBlocks() {
+    const blocks = [];
+    const allStyles = [...new Set([
+        ...(state.data.details||[]).map(r=>r.Style),
+        ...(state.data.sample||[]).map(r=>r.Style),
+        ...(state.data.ordering||[]).map(r=>r.Style),
+    ].filter(Boolean))];
+
+    allStyles.forEach(style => {
+        const issues = [];
+
+        // Ordering confirmée pour ce style ?
+        const orders = (state.data.ordering||[]).filter(r => r.Style===style && r.Status==="Confirmed");
+        const hasActiveOrder = orders.length > 0;
+
+        // Sample rejetée ou non approuvée + ordering active
+        const samplesNotApproved = (state.data.sample||[]).filter(r =>
+            r.Style===style && r.Approval !== "Approved"
+            && (r["Sending Date"] && String(r["Sending Date"]).trim())
+        );
+        if (hasActiveOrder && samplesNotApproved.length) {
+            issues.push({
+                type: "sample_block",
+                icon: "🧵",
+                label: "Sample non approuvée",
+                detail: `${samplesNotApproved.length} sample(s) envoyée(s) sans approval — commande(s) confirmée(s) en attente`,
+                urgency: "high"
+            });
+        }
+
+        // Custom menus : fabric/lab en attente + ordering active
+        Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
+            const cfg = SHEET_CONFIG[key];
+            const det = detectCustomCols(cfg.cols, cfg.label);
+            const menuRows = (state.data[key]||[]).filter(r => {
+                const styleVal = det.style ? r[det.style] : (r.Style || r.style || r.Ref || r.ref);
+                return styleVal && String(styleVal).trim() === style;
+            });
+
+            menuRows.forEach(r => {
+                const approved = det.approval && isApproved(r[det.approval]);
+                const hasSending = det.sendingDate && !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
+                const hasLaunch = det.launchDate && !!(r[det.launchDate] && String(r[det.launchDate]).trim());
+                const hasReadyDate = det.readyDate && !!(r[det.readyDate] && String(r[det.readyDate]).trim());
+
+                if (!approved && hasActiveOrder) {
+                    const pending = hasSending ? "envoyé sans approval"
+                                  : hasLaunch && !hasReadyDate ? "test en cours sans résultat"
+                                  : "en cours sans clôture";
+                    issues.push({
+                        type: "custom_block",
+                        icon: "⚗️",
+                        label: `${cfg.label} — ${pending}`,
+                        detail: `${cfg.label} non clôturé — commande confirmée bloquée potentiellement`,
+                        urgency: "mid",
+                        sheet: key, rowIndex: r._rowIndex
+                    });
+                }
+            });
+        });
+
+        // Ordering late/at-risk + sample pas encore approuvée
+        const lateOrders = orders.filter(r => {
+            const t = computeDeliveryTrack(r);
+            return t.cls === "track-late" || t.cls === "track-atrisk";
+        });
+        const pendingSamples = (state.data.sample||[]).filter(r =>
+            r.Style===style && r.Approval !== "Approved"
+        );
+        if (lateOrders.length && pendingSamples.length) {
+            issues.push({
+                type: "timing_risk",
+                icon: "⏰",
+                label: "Timing critique",
+                detail: `${lateOrders.length} commande(s) en retard/risque + ${pendingSamples.length} sample(s) pas encore approuvée(s)`,
+                urgency: "high"
+            });
+        }
+
+        if (issues.length) {
+            const orderInfo = orders[0] || {};
+            blocks.push({
+                style,
+                client: orderInfo.Client || (state.data.details||[]).find(r=>r.Style===style)?.Client || "",
+                issues,
+                maxUrgency: issues.some(i=>i.urgency==="high") ? "high" : "mid"
+            });
+        }
+    });
+
+    return blocks;
+}
+
+// Injection dans collectAllAlerts pour les notifs globales
+const _origCollectAllAlerts = collectAllAlerts;
+function collectAllAlerts() {
+    const all = _origCollectAllAlerts();
+
+    // Ajouter les blocages cascade
+    const blocks = collectCascadeBlocks();
+    if (blocks.length) {
+        const cascadeItems = blocks.map(b => ({
+            dotCls: b.maxUrgency === "high" ? "dot-late" : "dot-risk",
+            tagCls: b.maxUrgency === "high" ? "tag-late" : "tag-risk",
+            tagLabel: `${b.maxUrgency==="high"?"🔴":"🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length>1?"s":""}`,
+            title: `Style ${b.style} — blocage en cascade détecté`,
+            action: b.issues.map(i => `${i.icon} ${i.label}`).join(" · "),
+            style: b.style, client: b.client || "",
+            meta: b.issues.map(i => i.detail).join(" | "),
+            urgency: b.maxUrgency,
+            sheet: "ordering", rowIndex: null
+        }));
+        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: cascadeItems };
+    }
+
+    return all;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// ─── FEATURE 3 : TIMELINE MULTI-MENUS PAR STYLE (Dashboard) ───
+// ═══════════════════════════════════════════════════════════════
+
+function buildStyleTimeline() {
+    // Collecter tous les styles connus
+    const allStyles = [...new Set([
+        ...(state.data.details||[]).map(r=>r.Style),
+        ...(state.data.sample||[]).map(r=>r.Style),
+        ...(state.data.ordering||[]).map(r=>r.Style),
+        ...Object.keys(SHEET_CONFIG).filter(k=>SHEET_CONFIG[k].custom).flatMap(k => {
+            const det = detectCustomCols(SHEET_CONFIG[k].cols, SHEET_CONFIG[k].label);
+            return (state.data[k]||[]).map(r => det.style ? r[det.style] : r.Style).filter(Boolean);
+        })
+    ].filter(Boolean))].sort();
+
+    return allStyles.map(style => {
+        const detail  = (state.data.details||[]).find(r=>r.Style===style);
+        const client  = detail?.Client || "";
+        const desc    = detail?.StyleDescription || "";
+        const stages  = [];
+
+        // ── Sample
+        const samples = (state.data.sample||[]).filter(r=>r.Style===style);
+        if (samples.length) {
+            const allApproved = samples.every(r=>r.Approval==="Approved");
+            const anyRejected = samples.some(r=>r.Approval==="Rejected");
+            const anySent     = samples.some(r=>r["Sending Date"] && String(r["Sending Date"]).trim());
+            const status = allApproved ? "done" : anyRejected ? "blocked" : anySent ? "waiting" : "inprogress";
+            stages.push({ label:"Sample", icon:"🧵", status, count:samples.length,
+                detail: allApproved ? `${samples.length} approuvée(s)` : anyRejected ? "Rejetée" : anySent ? "En attente approval" : "En cours" });
+        }
+
+        // ── Custom menus
+        Object.keys(SHEET_CONFIG).filter(k=>SHEET_CONFIG[k].custom).forEach(key => {
+            const cfg = SHEET_CONFIG[key];
+            const det = detectCustomCols(cfg.cols, cfg.label);
+            const rows = (state.data[key]||[]).filter(r => {
+                const sv = det.style ? r[det.style] : (r.Style||r.style||r.Ref||r.ref);
+                return sv && String(sv).trim()===style;
+            });
+            if (!rows.length) return;
+            const allApproved = rows.every(r => det.approval && isApproved(r[det.approval]));
+            const anySent     = rows.some(r => det.sendingDate && r[det.sendingDate] && String(r[det.sendingDate]).trim());
+            const anyLaunched = rows.some(r => det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim());
+            const anyReady    = rows.some(r => det.readyDate && r[det.readyDate] && String(r[det.readyDate]).trim());
+            const status = allApproved ? "done"
+                         : (anySent || anyLaunched) && !anyReady ? "waiting"
+                         : anySent || anyLaunched ? "inprogress" : "pending";
+            const icon = det.isFabricAnalysis ? "🧪" : "🎨";
+            stages.push({ label: cfg.label, icon, status,
+                detail: allApproved ? "Approuvé" : anySent||anyLaunched ? anyReady ? "Résultat reçu" : "En attente résultat" : "En cours" });
+        });
+
+        // ── Ordering
+        const orders = (state.data.ordering||[]).filter(r=>r.Style===style && r.Status!=="Cancelled");
+        if (orders.length) {
+            const allDelivered = orders.every(r=>r["Delivery Status"]==="Delivered");
+            const anyLate      = orders.some(r=>computeDeliveryTrack(r).cls==="track-late");
+            const anyRisk      = orders.some(r=>computeDeliveryTrack(r).cls==="track-atrisk");
+            const status = allDelivered ? "done" : anyLate ? "blocked" : anyRisk ? "waiting" : "inprogress";
+            stages.push({ label:"Ordering", icon:"📦", status, count:orders.length,
+                detail: allDelivered ? "Livré" : anyLate ? "En retard" : anyRisk ? "À risque" : `${orders.length} commande(s)` });
+        }
+
+        return { style, client, desc, stages };
+    }).filter(s => s.stages.length > 0);
+}
+
+function renderStyleTimelineSection() {
+    const data = buildStyleTimeline();
+    if (!data.length) return '<p style="color:var(--text-muted);padding:1rem 0;">Aucune donnée de style disponible.</p>';
+
+    const STATUS_CFG = {
+        done:       { color:"#10b981", bg:"#10b9811a", label:"✓" },
+        waiting:    { color:"#f59e0b", bg:"#f59e0b1a", label:"⏳" },
+        inprogress: { color:"#6366f1", bg:"#6366f11a", label:"◉" },
+        blocked:    { color:"#ef4444", bg:"#ef44441a", label:"✗" },
+        pending:    { color:"#94a3b8", bg:"#94a3b81a", label:"○" },
+    };
+
+    return data.map(s => {
+        const stagesHtml = s.stages.map((stage, i) => {
+            const cfg = STATUS_CFG[stage.status] || STATUS_CFG.pending;
+            const connector = i < s.stages.length-1
+                ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${cfg.color}66,${STATUS_CFG[s.stages[i+1]?.status||'pending'].color}33);margin:0 2px;align-self:center;min-width:12px;"></div>`
+                : "";
+            return `<div style="display:flex;align-items:center;">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;max-width:80px;">
+                    <div style="width:32px;height:32px;border-radius:50%;background:${cfg.bg};border:2px solid ${cfg.color};display:flex;align-items:center;justify-content:center;font-size:.85rem;cursor:default;" title="${esc(stage.label)} — ${esc(stage.detail)}">${stage.icon}</div>
+                    <span style="font-size:.62rem;font-weight:600;color:${cfg.color};text-transform:uppercase;letter-spacing:.3px;text-align:center;line-height:1.2;">${esc(stage.label)}</span>
+                    <span style="font-size:.6rem;color:var(--text-muted);text-align:center;line-height:1.2;">${esc(stage.detail)}</span>
+                </div>
+                ${connector}
+            </div>`;
+        }).join("");
+
+        // Statut global
+        const hasBlocked = s.stages.some(st=>st.status==="blocked");
+        const hasWaiting = s.stages.some(st=>st.status==="waiting");
+        const allDone    = s.stages.every(st=>st.status==="done");
+        const globalColor = allDone ? "#10b981" : hasBlocked ? "#ef4444" : hasWaiting ? "#f59e0b" : "#6366f1";
+        const globalLabel = allDone ? "Complet" : hasBlocked ? "Bloqué" : hasWaiting ? "En attente" : "En cours";
+
+        return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.7rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.8rem;">
+                <strong style="font-size:.88rem;">${esc(s.style)}</strong>
+                ${s.client ? `<span class="client-badge" style="font-size:.65rem;">${esc(s.client)}</span>` : ""}
+                ${s.desc ? `<span style="font-size:.75rem;color:var(--text-muted);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.desc)}</span>` : ""}
+                <span style="margin-left:auto;font-size:.68rem;font-weight:700;color:${globalColor};background:${globalColor}1a;padding:2px 8px;border-radius:20px;white-space:nowrap;">${globalLabel}</span>
+            </div>
+            <div style="display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:4px;">${stagesHtml}</div>
+        </div>`;
+    }).join("");
+}
+
+// ── Panneau dashboard Blocages ────────────────────────────────
+function renderCascadeBlocksSection() {
+    const blocks = collectCascadeBlocks();
+    if (!blocks.length) return `<div style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.8rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20" style="display:block;margin:0 auto .4rem;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Aucun blocage détecté</div>`;
+
+    return blocks.map(b => {
+        const urgColor = b.maxUrgency==="high" ? "#ef4444" : "#f59e0b";
+        return `<div style="border-left:3px solid ${urgColor};background:${urgColor}08;border-radius:0 8px 8px 0;padding:.7rem 1rem;margin-bottom:.5rem;">
+            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
+                <strong style="font-size:.85rem;">${esc(b.style)}</strong>
+                ${b.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(b.client)}</span>` : ""}
+                <span style="margin-left:auto;font-size:.68rem;color:${urgColor};font-weight:700;">${b.issues.length} problème${b.issues.length>1?"s":""}</span>
+            </div>
+            ${b.issues.map(i=>`<div style="font-size:.75rem;color:var(--text-secondary,#64748b);line-height:1.5;">${i.icon} ${esc(i.label)}</div>`).join("")}
+        </div>`;
+    }).join("");
+}
+
+// ── Injection dans renderDashboard ───────────────────────────
+const _origRenderDashboard = renderDashboard;
+function renderDashboard() {
+    _origRenderDashboard();
+    const el = document.getElementById("dashboard-screen");
+    if (!el) return;
+
+    // Ajouter les sections intelligentes après le dbc-grid
+    const extraHtml = `
+    <div style="margin-top:2rem;">
+
+        <!-- Timeline multi-menus -->
+        <div style="margin-bottom:2rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Progression des Styles</h3>
+                <span id="timeline-style-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
+                <button onclick="toggleStyleTimeline()" id="btn-toggle-timeline" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">Voir tout</button>
+            </div>
+            <div id="style-timeline-body"></div>
+        </div>
+
+        <!-- Blocages en cascade -->
+        <div>
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Blocages en Cascade</h3>
+                <span id="cascade-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
+                <button onclick="openDuplicatesPanel()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">🔍 Doublons</button>
+            </div>
+            <div id="cascade-blocks-body"></div>
+        </div>
+
+    </div>`;
+
+    el.insertAdjacentHTML("beforeend", extraHtml);
+
+    // Rendre les sections
+    _refreshDashboardIntelligence();
+}
+
+let _timelineShowAll = false;
+function toggleStyleTimeline() {
+    _timelineShowAll = !_timelineShowAll;
+    const btn = document.getElementById("btn-toggle-timeline");
+    if (btn) btn.textContent = _timelineShowAll ? "Réduire" : "Voir tout";
+    _refreshDashboardIntelligence();
+}
+
+function _refreshDashboardIntelligence() {
+    const tlBody = document.getElementById("style-timeline-body");
+    const cbBody = document.getElementById("cascade-blocks-body");
+    const tlCount = document.getElementById("timeline-style-count");
+    const ccCount = document.getElementById("cascade-count");
+
+    if (tlBody) {
+        const allData = buildStyleTimeline();
+        if (tlCount) tlCount.textContent = `${allData.length} style${allData.length>1?"s":""}`;
+        const toShow = _timelineShowAll ? allData : allData.slice(0, 5);
+        const full = buildStyleTimeline; // re-use but limit
+        const html = toShow.length ? toShow.map(s => {
+            const STATUS_CFG = {
+                done:       { color:"#10b981", bg:"#10b9811a" },
+                waiting:    { color:"#f59e0b", bg:"#f59e0b1a" },
+                inprogress: { color:"#6366f1", bg:"#6366f11a" },
+                blocked:    { color:"#ef4444", bg:"#ef44441a" },
+                pending:    { color:"#94a3b8", bg:"#94a3b81a" },
+            };
+            const stagesHtml = s.stages.map((stage, i) => {
+                const cfg = STATUS_CFG[stage.status] || STATUS_CFG.pending;
+                const nextCfg = STATUS_CFG[s.stages[i+1]?.status||"pending"] || STATUS_CFG.pending;
+                const connector = i < s.stages.length-1
+                    ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${cfg.color}88,${nextCfg.color}44);margin:0 2px;align-self:20px;min-width:10px;margin-top:15px;"></div>`
+                    : "";
+                return `<div style="display:flex;align-items:flex-start;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;max-width:76px;">
+                        <div style="width:30px;height:30px;border-radius:50%;background:${cfg.bg};border:2px solid ${cfg.color};display:flex;align-items:center;justify-content:center;font-size:.8rem;" title="${esc(stage.label)} — ${esc(stage.detail)}">${stage.icon}</div>
+                        <span style="font-size:.6rem;font-weight:600;color:${cfg.color};text-align:center;line-height:1.2;">${esc(stage.label)}</span>
+                        <span style="font-size:.58rem;color:var(--text-muted);text-align:center;line-height:1.2;">${esc(stage.detail)}</span>
+                    </div>${connector}
+                </div>`;
+            }).join("");
+
+            const hasBlocked = s.stages.some(st=>st.status==="blocked");
+            const hasWaiting = s.stages.some(st=>st.status==="waiting");
+            const allDone    = s.stages.every(st=>st.status==="done");
+            const gc = allDone?"#10b981":hasBlocked?"#ef4444":hasWaiting?"#f59e0b":"#6366f1";
+            const gl = allDone?"Complet":hasBlocked?"Bloqué":hasWaiting?"En attente":"En cours";
+
+            return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;">
+                <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap;">
+                    <strong style="font-size:.85rem;">${esc(s.style)}</strong>
+                    ${s.client?`<span class="client-badge" style="font-size:.62rem;">${esc(s.client)}</span>`:""}
+                    ${s.desc?`<span style="font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${esc(s.desc)}</span>`:""}
+                    <span style="margin-left:auto;font-size:.65rem;font-weight:700;color:${gc};background:${gc}1a;padding:2px 8px;border-radius:20px;">${gl}</span>
+                </div>
+                <div style="display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:2px;">${stagesHtml}</div>
+            </div>`;
+        }).join("") : `<p style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0;">Aucun style avec données multi-menus.</p>`;
+        tlBody.innerHTML = html;
+        if (!_timelineShowAll && allData.length > 5) {
+            tlBody.insertAdjacentHTML("beforeend", `<p style="text-align:center;font-size:.75rem;color:var(--text-muted);margin-top:.4rem;">+${allData.length-5} styles — cliquez "Voir tout"</p>`);
+        }
+    }
+
+    if (cbBody) {
+        const blocks = collectCascadeBlocks();
+        if (ccCount) ccCount.textContent = blocks.length ? `${blocks.length} blocage${blocks.length>1?"s":""}` : "Aucun";
+        cbBody.innerHTML = renderCascadeBlocksSection();
+    }
+}
