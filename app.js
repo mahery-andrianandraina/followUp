@@ -1108,9 +1108,15 @@ function detectCustomCols(cols, menuLabel) {
     // On cherche dans le NOM DU MENU (cfg.label) ET dans les labels de colonnes
     const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
     const menuHint = (menuLabel || "").toLowerCase();
-    const FABRIC_PATTERNS = ["fabric","analyse","analysis","efa","test labo","lab","fiber","fibre","composition","matiere","mati\u00e8re"];
-    const isFabricAnalysis = FABRIC_PATTERNS.some(p => menuHint.includes(p))
-                          || FABRIC_PATTERNS.some(p => sheetNameHints.includes(p));
+    // Patterns qui identifient un menu Fabric Analysis
+    const FABRIC_PATTERNS = ["fabric analysis","fabric test","fabric analys","fabric compo","efa","test labo","fiber test","fibre test","lab analysis","lab test","composition test"];
+    // Patterns qui identifient explicitement un menu NON-Fabric (Lab Dip, etc.)
+    const NON_FABRIC_PATTERNS = ["lab dip","labdip","dip","strike off","strikeoff","print strike","color strike"];
+    const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
+    const isFabricAnalysis = !isNonFabric && (
+        FABRIC_PATTERNS.some(p => menuHint.includes(p))
+        || FABRIC_PATTERNS.some(p => sheetNameHints.includes(p))
+    );
     return {
         approval:        find(["approval","approv","approved","validation","statut appr"]),
         sendingDate:     find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
