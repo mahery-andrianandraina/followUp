@@ -1109,7 +1109,7 @@ function detectCustomCols(cols, menuLabel) {
     const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
     const menuHint = (menuLabel || "").toLowerCase();
     // Patterns qui identifient un menu Fabric Analysis
-    const FABRIC_PATTERNS = ["fabric analysis","fabric test","fabric analys","fabric compo","efa","test labo","fiber test","fibre test","lab analysis","lab test","composition test"];
+    const FABRIC_PATTERNS = ["fabric analysis","fabric test","fabric analys","fabric compo","fabric devo","fabric dev","efa","test labo","fiber test","fibre test","lab analysis","lab test","composition test"];
     // Patterns qui identifient explicitement un menu NON-Fabric (Lab Dip, etc.)
     const NON_FABRIC_PATTERNS = ["lab dip","labdip","dip","strike off","strikeoff","print strike","color strike"];
     const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
@@ -1127,6 +1127,7 @@ function detectCustomCols(cols, menuLabel) {
         launchDate:      find(["launched on","launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date","date analyse","analysis date"]),
         efaRef:          find(["efa","fabric ref","fabric no","fabric num","lot","batch","test ref","test no","test num","test id","analyse ref","analyse no","ref test"]),
         isFabricAnalysis,
+        color:           find(["color","colour","coloris","couleur","gmt color","shade","teinte"]),
         style:           find(["style","ref","reference","article"]),
         client:          find(["client","buyer","brand","marque"]),
         description:     find(["description","desc","name","nom","fabric","tissu","mati\u00e8re"]),
@@ -1557,13 +1558,22 @@ function collectAllAlerts() {
                                  ? String(r[det.efaRef]).trim()
                                  : (getStyle(r) !== "—" ? getStyle(r) : "Test");
 
+                    // FSR Number et Color extraits directement des cellules
+                    const fsrVal   = det.fsrNumber && r[det.fsrNumber] && String(r[det.fsrNumber]).trim()
+                                   ? String(r[det.fsrNumber]).trim() : null;
+                    const colorVal = det.color && r[det.color] && String(r[det.color]).trim()
+                                   ? String(r[det.color]).trim() : null;
+
+                    const fsrPart   = fsrVal   ? ` · FSR : ${fsrVal}`     : "";
+                    const colorPart = colorVal ? ` · Color : ${colorVal}` : "";
+
                     items.push({
                         dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`🧪 ${efaVal} — résultat attendu (${launchDays}j)${urgencyBadge}`,
-                        title:`${efaVal} en attente du résultat du test — lancé ${launchDaysTxt}`,
+                        tagLabel:`🧪 ${efaVal}${colorVal ? " — "+colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
+                        title:`${efaVal}${colorVal ? " ["+colorVal+"]" : ""} en attente du résultat du test — lancé ${launchDaysTxt}`,
                         action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Ref : ${efaVal} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}${getFsr(r)}`,
+                        meta:`Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
                         urgency,
                         sheet:key, rowIndex:r._rowIndex
                     });
