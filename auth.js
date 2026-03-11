@@ -16,15 +16,20 @@ const firebaseConfig = {
 
 // ─── Initialisation Firebase ──────────────────────────────────
 firebase.initializeApp(firebaseConfig);
-const auth      = firebase.auth();
-const db        = firebase.firestore();
-const provider  = new firebase.auth.GoogleAuthProvider();
+const auth     = firebase.auth();
+const db       = firebase.firestore();
+const provider = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 // ─── État auth global ─────────────────────────────────────────
 window.currentUser = null;
 
-// ─── Connexion Google OAuth ───────────────────────────────────
+// ─── Helper : page courante ───────────────────────────────────
+function isPage(name) {
+    return window.location.pathname.endsWith(name);
+}
+
+// ─── Connexion Google OAuth (redirection) ─────────────────────
 async function signInWithGoogle() {
     const btn = document.getElementById("btn-google-signin");
     if (btn) { btn.disabled = true; btn.classList.add("loading"); }
@@ -44,84 +49,105 @@ async function signOut() {
     window.location.href = "login.html";
 }
 
-// ─── Observer état authentification ──────────────────────────
-// On attend d'abord que getRedirectResult() soit résolu
-// pour éviter la boucle login pendant le retour OAuth
-let _redirectHandled = false;
+// ══════════════════════════════════════════════════════════════
+// ARCHITECTURE :
+//
+// login.html  → géré UNIQUEMENT par getRedirectResult()
+//               onAuthStateChanged ignoré sur cette page
+//
+// index.html  → géré par onAuthStateChanged
+//               (vérifie que la session est toujours active)
+// ══════════════════════════════════════════════════════════════
 
-auth.getRedirectResult().then((result) => {
-    _redirectHandled = true;
-    // onAuthStateChanged prend le relais automatiquement
-}).catch((err) => {
-    _redirectHandled = true;
-    if (err.code !== "auth/no-auth-event") {
-        console.error("Redirect error:", err);
-        if (typeof showAuthError === "function") {
-            showAuthError("Erreur de connexion. Réessayez.");
-        }
-    }
-});
+if (isPage("login.html")) {
 
-auth.onAuthStateChanged(async (firebaseUser) => {
-    // Attendre que getRedirectResult soit terminé
-    if (!_redirectHandled) {
-        await new Promise(resolve => {
-            const interval = setInterval(() => {
-                if (_redirectHandled) { clearInterval(interval); resolve(); }
-            }, 50);
-        });
-    }
+    // ── Page Login : traiter le retour OAuth ──────────────────
+    auth.getRedirectResult().then(async (result) => {
 
-    if (!firebaseUser) {
-        if (!window.location.pathname.endsWith("login.html")) {
-            window.location.href = "login.html";
-        }
-        return;
-    }
-
-    const email = firebaseUser.email;
-
-    try {
-        // ── 1. Vérifier si l'email est dans la whitelist ──────
-        const whitelistDoc = await db.collection("whitelist").doc(email).get();
-
-        if (!whitelistDoc.exists || whitelistDoc.data().status !== "approved") {
-            // Pas autorisé → page demande d'accès
-            await auth.signOut();
-            window.location.href = `access-request.html?email=${encodeURIComponent(email)}&name=${encodeURIComponent(firebaseUser.displayName || "")}&photo=${encodeURIComponent(firebaseUser.photoURL || "")}`;
+        if (!result || !result.user) {
+            // Pas de redirection en cours → rien à faire
+            // L'user voit simplement le bouton de connexion
             return;
         }
 
-        // ── 2. Email autorisé → charger profil Firestore ──────
-        const doc = await db.collection("users").doc(firebaseUser.uid).get();
+        await handleUser(result.user);
 
-        if (doc.exists && doc.data().gasUrl) {
+    }).catch((err) => {
+        console.error("Redirect error:", err);
+        if (err.code !== "auth/no-auth-event") {
+            showAuthError("Erreur de connexion Google. Réessayez.");
+        }
+    });
+
+} else if (!isPage("access-request.html")) {
+
+    // ── Pages protégées : vérifier la session ─────────────────
+    auth.onAuthStateChanged(async (firebaseUser) => {
+        if (!firebaseUser) {
+            window.location.href = "login.html";
+            return;
+        }
+        await handleUser(firebaseUser);
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
+// LOGIQUE CENTRALE
+// ══════════════════════════════════════════════════════════════
+async function handleUser(firebaseUser) {
+    const email = firebaseUser.email;
+
+    try {
+        // ── Étape 1 : Vérifier whitelist ──────────────────────
+        const whitelistDoc = await db.collection("whitelist").doc(email).get();
+        const isApproved   = whitelistDoc.exists && whitelistDoc.data().status === "approved";
+
+        if (!isApproved) {
+            // Non autorisé → déconnecter silencieusement puis rediriger
+            const url = "access-request.html"
+                + "?email=" + encodeURIComponent(email)
+                + "&name="  + encodeURIComponent(firebaseUser.displayName || "")
+                + "&photo=" + encodeURIComponent(firebaseUser.photoURL || "");
+
+            auth.signOut().finally(() => {
+                window.location.replace(url);
+            });
+            return;
+        }
+
+        // ── Étape 2 : Charger profil Firestore ────────────────
+        const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
+
+        if (userDoc.exists && userDoc.data().gasUrl) {
+            // Profil complet → dashboard
             window.currentUser = {
                 uid:         firebaseUser.uid,
                 email:       firebaseUser.email,
                 displayName: firebaseUser.displayName,
                 photoURL:    firebaseUser.photoURL,
-                gasUrl:      doc.data().gasUrl
+                gasUrl:      userDoc.data().gasUrl
             };
 
-            if (window.location.pathname.endsWith("login.html")) {
+            if (isPage("login.html")) {
                 window.location.href = "index.html";
             } else {
                 onAuthReady();
             }
+
         } else {
-            if (window.location.pathname.endsWith("login.html")) {
+            // Pas de gasUrl → step configuration
+            if (isPage("login.html")) {
                 showGasSetupStep(firebaseUser);
             } else {
                 window.location.href = "login.html?setup=1";
             }
         }
+
     } catch (err) {
         console.error("Firestore error:", err);
         showAuthError("Erreur de chargement du profil. Réessayez.");
-        await auth.signOut();
     }
-});
+}
 
 // ─── Sauvegarder le GAS URL dans Firestore ────────────────────
 async function saveGasUrl(firebaseUser, gasUrl) {
@@ -153,6 +179,7 @@ async function saveGasUrl(firebaseUser, gasUrl) {
         };
 
         window.location.href = "index.html";
+
     } catch (err) {
         console.error("Firestore save error:", err);
         showGasError("Erreur d'enregistrement. Vérifiez vos droits Firestore.");
@@ -181,7 +208,7 @@ async function updateGasUrl(newUrl) {
     }
 }
 
-// ─── Callback app prête ───────────────────────────────────────
+// ─── Callback app prête (index.html) ──────────────────────────
 function onAuthReady() {
     if (typeof initApp === "function") initApp();
 }
