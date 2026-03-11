@@ -196,10 +196,7 @@ function setupTabListeners() {
             renderKPIs();
             populateDeptFilter();
             populateClientFilter();
-            if (btn.dataset.sheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
-            else if (btn.dataset.sheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
-            else if (SHEET_CONFIG[btn.dataset.sheet]?.custom) { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
-            else { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+
         });
     });
 }
@@ -355,10 +352,7 @@ function renderAll() {
     renderKPIs();
     populateDeptFilter();
     populateClientFilter();
-    if (state.activeSheet === "ordering") { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
-    else if (state.activeSheet === "sample") { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
-    else if (SHEET_CONFIG[state.activeSheet]?.custom) { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
-    else { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+
     updateGlobalNotifBadge();
 }
 
@@ -455,473 +449,6 @@ function renderKPIs() {
     </div>`).join("");
 }
 
-// ─── Alerts Panel (compact bar) ───────────────────────────────
-function renderAlertsPanel() {
-    // Toujours supprimer et recréer pour éviter les panneaux fantômes
-    hideAlertsPanel();
-    const panel = document.createElement("div");
-    panel.id = "alerts-panel";
-    const tableCard = document.querySelector(".table-card");
-    if (!tableCard) return;
-    tableCard.parentNode.insertBefore(panel, tableCard);
-
-    const rows = state.data.ordering;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const late = rows.filter(r => computeDeliveryTrack(r).cls === "track-late");
-    const atrisk = rows.filter(r => computeDeliveryTrack(r).cls === "track-atrisk");
-    const nopo = rows.filter(r => !r.PO && r.Status !== "Cancelled");
-    const total = late.length + atrisk.length + nopo.length;
-
-    if (!total) {
-        panel.innerHTML = `<div class="alerts-bar alerts-ok">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Toutes les commandes sont à jour — aucune alerte active.
-        </div>`;
-        return;
-    }
-
-    // Compact pill-bar: counters + one "Voir tout" button
-    const pills = [
-        late.length ? `<span class="alert-pill pill-late">🔴 ${late.length} Late</span>` : "",
-        atrisk.length ? `<span class="alert-pill pill-risk">🟠 ${atrisk.length} At Risk</span>` : "",
-        nopo.length ? `<span class="alert-pill pill-nopo">⚠️ ${nopo.length} Missing PO</span>` : ""
-    ].filter(Boolean).join("");
-
-    panel.innerHTML = `
-    <div class="alerts-bar-compact">
-        <span class="alerts-bar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-        </span>
-        <span class="alerts-bar-label">${total} alerte(s)</span>
-        <div class="alerts-pills">${pills}</div>
-        <div class="alerts-bar-actions">
-            <button class="alerts-see-all-btn" onclick="openAlertsDrawer()">
-                Voir tout
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-            </button>
-            <button class="alerts-timeline-btn" onclick="openTimeline()">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                Timeline
-            </button>
-        </div>
-    </div>`;
-}
-
-function hideAlertsPanel() {
-    const p = document.getElementById("alerts-panel");
-    if (p) p.remove();
-}
-
-// ─── Sample Alerts Panel ──────────────────────────────────────
-function renderSampleAlertsPanel() {
-    // Toujours supprimer et recréer pour éviter les panneaux fantômes
-    hideSampleAlertsPanel();
-    const panel = document.createElement("div");
-    panel.id = "sample-alerts-panel";
-    const tableCard = document.querySelector(".table-card");
-    if (!tableCard) return;
-    tableCard.parentNode.insertBefore(panel, tableCard);
-
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const rows  = state.data.sample;
-
-    // Bucket 1 : Ready Date alerte — pas reçu, pas envoyé, date dépassée/aujourd'hui
-    const overdue = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
-        return rd < today;
-    });
-    const todaySamples = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
-        return rd.getTime() === today.getTime();
-    });
-
-    // Bucket 2 : Reçu mais pas encore envoyé
-    const toSend = rows.filter(r => r["Received Date"] && !r["Sending Date"] && r.Approval !== "Approved");
-
-    // Bucket 3 : Envoyé mais pas encore approuvé — compteur depuis Sending Date
-    const sentPending = rows.filter(r => r["Sending Date"] && r.Approval !== "Approved");
-
-    const total = overdue.length + todaySamples.length + toSend.length + sentPending.length;
-
-    if (!total) {
-        panel.innerHTML = `<div class="alerts-bar alerts-ok">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Toutes les samples sont à jour — aucune alerte active.
-        </div>`;
-        return;
-    }
-
-    const pills = [
-        overdue.length      ? `<span class="alert-pill pill-late">🔴 ${overdue.length} En retard</span>`            : "",
-        todaySamples.length ? `<span class="alert-pill pill-risk">🟡 ${todaySamples.length} Aujourd'hui</span>`    : "",
-        toSend.length       ? `<span class="alert-pill pill-nopo">📦 ${toSend.length} À envoyer</span>`            : "",
-        sentPending.length  ? `<span class="alert-pill pill-recv">⏳ ${sentPending.length} En attente approval</span>` : ""
-    ].filter(Boolean).join("");
-
-    panel.innerHTML = `
-    <div class="alerts-bar-compact">
-        <span class="alerts-bar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-        </span>
-        <span class="alerts-bar-label">${total} alerte(s) sample</span>
-        <div class="alerts-pills">${pills}</div>
-        <div class="alerts-bar-actions">
-            <button class="alerts-see-all-btn" onclick="openSampleAlertsDrawer()">
-                Voir tout
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-            </button>
-        </div>
-    </div>`;
-}
-
-function hideSampleAlertsPanel() {
-    const p = document.getElementById("sample-alerts-panel");
-    if (p) p.remove();
-}
-
-// ─── Sample Alerts Drawer ──────────────────────────────────────
-function openSampleAlertsDrawer() {
-    let drawer = document.getElementById("sample-alerts-drawer");
-    if (!drawer) {
-        drawer = document.createElement("div");
-        drawer.id = "sample-alerts-drawer";
-        drawer.innerHTML = `
-        <div class="alerts-drawer-backdrop" onclick="closeSampleAlertsDrawer()"></div>
-        <div class="alerts-drawer-panel">
-            <div class="alerts-drawer-header">
-                <div class="alerts-drawer-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
-                    Alertes Sample – Ready Date
-                </div>
-                <button class="alerts-drawer-close" onclick="closeSampleAlertsDrawer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <div class="alerts-drawer-body" id="sample-alerts-drawer-body"></div>
-        </div>`;
-        document.body.appendChild(drawer);
-    }
-    renderSampleAlertsDrawerBody();
-    requestAnimationFrame(() => drawer.classList.add("open"));
-}
-
-function closeSampleAlertsDrawer() {
-    const drawer = document.getElementById("sample-alerts-drawer");
-    if (drawer) drawer.classList.remove("open");
-}
-
-function renderSampleAlertsDrawerBody() {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const rows  = state.data.sample;
-
-    // Bucket 1a : Ready Date dépassée — pas reçu, pas envoyé, pas approuvé
-    const overdue = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
-        return rd < today;
-    }).sort((a,b) => new Date(a["Ready Date"]) - new Date(b["Ready Date"]));
-
-    // Bucket 1b : Ready Date aujourd'hui
-    const todaySamples = rows.filter(r => {
-        if (!r["Ready Date"] || r.Approval === "Approved" || r["Received Date"] || r["Sending Date"]) return false;
-        const rd = new Date(r["Ready Date"]); rd.setHours(0,0,0,0);
-        return rd.getTime() === today.getTime();
-    });
-
-    // Bucket 2 : Reçu mais pas encore envoyé
-    const toSend = rows.filter(r => r["Received Date"] && !r["Sending Date"] && r.Approval !== "Approved")
-        .sort((a,b) => new Date(a["Received Date"]) - new Date(b["Received Date"]));
-
-    // Bucket 3 : Envoyé, en attente d'approval — compteur depuis Sending Date
-    const sentPending = rows.filter(r => r["Sending Date"] && r.Approval !== "Approved")
-        .sort((a,b) => new Date(a["Sending Date"]) - new Date(b["Sending Date"]));
-
-    const approvalCls = v => ({ Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[v] || "sal-none");
-
-    // ── Card Ready Date (inchangée) ───────────────────────────
-    const cardReadyDate = (r, isToday) => {
-        const rd    = new Date(r["Ready Date"]);
-        const rdFmt = rd.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const days  = Math.abs(Math.round((rd - today) / 86400000));
-        const statusDot = isToday
-            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Aujourd'hui</span>`
-            : `<span class="sal-dot sal-dot-late"></span><span class="sal-status-txt sal-txt-late">${days}j de retard</span>`;
-        return `<div class="sal-card ${isToday ? "sal-card-today" : "sal-card-late"}">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${esc(r.Style)}</span>
-                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
-                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
-                </div>
-                <div class="sal-card-right">${statusDot}</div>
-            </div>
-            <div class="sal-card-body">
-                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Ready Date</span><span class="sal-val ${isToday?"sal-date-today":"sal-date-late"}">${rdFmt}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval)||"—"}</span></span></div>
-                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card À envoyer (reçu, sending manquant) ───────────────
-    const cardToSend = r => {
-        const recvD   = new Date(r["Received Date"]);
-        const recvFmt = recvD.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const days    = Math.floor((today - recvD) / 86400000);
-        const agoTxt  = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days} jour(s)`;
-        return `<div class="sal-card sal-card-tosend">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${esc(r.Style)}</span>
-                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
-                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot sal-dot-tosend"></span>
-                    <span class="sal-status-txt sal-txt-tosend">📦 À envoyer</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
-                <div class="sal-field sal-field-highlight-orange">
-                    <span class="sal-lbl">Received Date</span>
-                    <span class="sal-val"><strong>${recvFmt}</strong> <span class="sal-ago">(${agoTxt})</span></span>
-                </div>
-                <div class="sal-field sal-field-missing">
-                    <span class="sal-lbl">Sending Date</span>
-                    <span class="sal-val sal-missing">⚠ Non renseigné — envoi requis</span>
-                </div>
-                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card Envoyé en attente d'approval ─────────────────────
-    const cardSentPending = r => {
-        const sendD   = new Date(r["Sending Date"]);
-        const sendFmt = sendD.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const days    = Math.floor((today - sendD) / 86400000);
-        let daysTxt;
-        if (days === 0)      daysTxt = "envoyé aujourd'hui";
-        else if (days === 1) daysTxt = "envoyé hier";
-        else                 daysTxt = `envoyé il y a ${days} jour(s)`;
-
-        // Urgence selon nb de jours
-        const urgency = days >= 14 ? "sal-urgency-high" : days >= 7 ? "sal-urgency-mid" : "";
-
-        const awb = r["AWB"] ? `<div class="sal-field sal-field-awb">
-                    <span class="sal-lbl">AWB</span>
-                    <span class="sal-val sal-awb-val">${esc(r["AWB"])}</span>
-                </div>` : "";
-
-        return `<div class="sal-card sal-card-recv ${urgency}">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${esc(r.Style)}</span>
-                    ${r.Type ? `<span class="sal-tag">${esc(r.Type)}</span>` : ""}
-                    <span class="sal-tag sal-tag-client">${esc(r.Client)}</span>
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot sal-dot-recv"></span>
-                    <span class="sal-status-txt sal-txt-recv">⏳ ${days}j — approval requis</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                <div class="sal-field"><span class="sal-lbl">Description</span><span class="sal-val">${esc(r.StyleDescription)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Dept</span><span class="sal-val">${esc(r.Dept)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Fabric</span><span class="sal-val">${esc(r.Fabric)||"—"}</span></div>
-                <div class="sal-field"><span class="sal-lbl">Size</span><span class="sal-val">${esc(r.Size)||"—"}</span></div>
-                <div class="sal-field sal-field-recv-highlight">
-                    <span class="sal-lbl">Sending Date</span>
-                    <span class="sal-val"><strong>${sendFmt}</strong> <span class="sal-ago">(${daysTxt})</span></span>
-                </div>
-                ${awb}
-                <div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls(r.Approval)}">${esc(r.Approval)||"—"}</span></span></div>
-                ${r.Remarks ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Remarks</span><span class="sal-val">${esc(r.Remarks)}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    const section = (title, accentCls, items, renderFn) => {
-        if (!items.length) return "";
-        return `<div class="sal-section">
-            <div class="sal-section-hd ${accentCls}">
-                <span class="sal-section-title">${title}</span>
-                <span class="sal-section-count">${items.length}</span>
-            </div>
-            ${items.map(renderFn).join("")}
-        </div>`;
-    };
-
-    const body = document.getElementById("sample-alerts-drawer-body");
-    const html =
-        section("Ready Date aujourd'hui",                  "sal-hd-today",  todaySamples, r => cardReadyDate(r, true))  +
-        section("Ready Date dépassée",                     "sal-hd-late",   overdue,      r => cardReadyDate(r, false)) +
-        section("📦 À envoyer — sample reçu, envoi manquant", "sal-hd-tosend", toSend,   cardToSend)                   +
-        section("⏳ Envoyé — en attente d'approval",        "sal-hd-recv",   sentPending, cardSentPending);
-
-    body.innerHTML = html || `<p class="sal-empty">Aucune alerte sample.</p>`;
-}
-
-
-// ─── Alerts Drawer ─────────────────────────────────────────────
-function openAlertsDrawer() {
-    let drawer = document.getElementById("alerts-drawer");
-    if (!drawer) {
-        drawer = document.createElement("div");
-        drawer.id = "alerts-drawer";
-        drawer.innerHTML = `
-        <div class="alerts-drawer-backdrop" onclick="closeAlertsDrawer()"></div>
-        <div class="alerts-drawer-panel">
-            <div class="alerts-drawer-header">
-                <div class="alerts-drawer-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                    Alertes Ordering
-                </div>
-                <button class="alerts-drawer-close" onclick="closeAlertsDrawer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <div class="alerts-drawer-body" id="alerts-drawer-body"></div>
-            <div class="alerts-drawer-footer">
-                <button class="alerts-timeline-btn" style="width:100%;justify-content:center;" onclick="closeAlertsDrawer();openTimeline()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    Ouvrir la Vue Timeline
-                </button>
-            </div>
-        </div>`;
-        document.body.appendChild(drawer);
-    }
-    renderAlertsDrawerBody();
-    requestAnimationFrame(() => drawer.classList.add("open"));
-}
-
-function closeAlertsDrawer() {
-    const drawer = document.getElementById("alerts-drawer");
-    if (drawer) drawer.classList.remove("open");
-}
-
-function renderAlertsDrawerBody() {
-    const rows = state.data.ordering;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const late = rows.filter(r => computeDeliveryTrack(r).cls === "track-late").sort((a, b) => new Date(a["Ready Date"]) - new Date(b["Ready Date"]));
-    const atrisk = rows.filter(r => computeDeliveryTrack(r).cls === "track-atrisk").sort((a, b) => new Date(a["Ready Date"]) - new Date(b["Ready Date"]));
-    const nopo = rows.filter(r => !r.PO && r.Status !== "Cancelled");
-
-    const section = (title, color, icon, items, renderFn) => {
-        if (!items.length) return "";
-        return `
-        <div class="drawer-section">
-            <div class="drawer-section-header" style="color:${color}">
-                ${icon} ${title} <span class="drawer-section-count">${items.length}</span>
-            </div>
-            ${items.map(renderFn).join("")}
-        </div>`;
-    };
-
-    const cardLate = r => {
-        const days = Math.abs(Math.round((new Date(r["Ready Date"]) - today) / 86400000));
-        const rdFmt = new Date(r["Ready Date"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-        const poFmt = r["PO Date"] ? new Date(r["PO Date"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-        return `<div class="drawer-alert-card card-late">
-            <div class="dac-top">
-                <span class="dac-card-icon icon-late">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01"/></svg>
-                </span>
-                <div class="dac-top-info">
-                    <div class="dac-top-row1">
-                        <span class="dac-style">${esc(r.Style)}</span>
-                        ${r.Color ? `<span class="dac-color">${esc(r.Color)}</span>` : ""}
-                        <span class="dac-client">${esc(r.Client)}</span>
-                    </div>
-                    <span class="track-badge track-late dac-track-pill">${days} jour(s) de retard</span>
-                </div>
-            </div>
-            <div class="dac-info-grid">
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Trims</span>
-                    <span class="dac-info-val">${esc(r.Trims) || "—"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">PO #</span>
-                    <span class="dac-info-val ${r.PO ? "" : "dac-nopo"}">${esc(r.PO) || "⚠️ manquant"}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">PO Date</span>
-                    <span class="dac-info-val">${poFmt}</span>
-                </div>
-                <div class="dac-info-row">
-                    <span class="dac-info-label">Ready Date</span>
-                    <span class="dac-info-val text-danger-bold">${rdFmt}</span>
-                </div>
-            </div>
-        </div>`;
-    };
-
-    const cardRisk = r => {
-        const days = Math.round((new Date(r["Ready Date"]) - today) / 86400000);
-        const rdFmt = new Date(r["Ready Date"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-        return `<div class="drawer-alert-card card-risk">
-            <div class="dac-top">
-                <span class="dac-card-icon icon-risk">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                </span>
-                <div class="dac-top-info">
-                    <div class="dac-top-row1">
-                        <span class="dac-style">${esc(r.Style)}</span>
-                        ${r.Color ? `<span class="dac-color">${esc(r.Color)}</span>` : ""}
-                        <span class="dac-client">${esc(r.Client)}</span>
-                    </div>
-                    <span class="track-badge track-atrisk dac-track-pill">Dans ${days} jour(s)</span>
-                </div>
-            </div>
-            <div class="dac-meta">
-                ${r.Supplier ? `<span>🏭 ${esc(r.Supplier)}</span>` : ""}
-                ${r.PO ? `<span>📄 ${esc(r.PO)}</span>` : `<span class="dac-nopo">⚠️ PO manquant</span>`}
-                <span>📅 Ready: <strong>${rdFmt}</strong></span>
-            </div>
-        </div>`;
-    };
-
-    const cardNoPO = r => `<div class="drawer-alert-card card-nopo">
-        <div class="dac-top">
-            <span class="dac-card-icon icon-nopo">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 6L6 18"/></svg>
-            </span>
-            <div class="dac-top-info">
-                <div class="dac-top-row1">
-                    <span class="dac-style">${esc(r.Style)}</span>
-                    ${r.Color ? `<span class="dac-color">${esc(r.Color)}</span>` : ""}
-                    <span class="dac-client">${esc(r.Client)}</span>
-                </div>
-                <span class="missing-po-badge dac-track-pill">Missing PO</span>
-            </div>
-        </div>
-        <div class="dac-meta">
-            ${r.Supplier ? `<span>🏭 ${esc(r.Supplier)}</span>` : ""}
-            ${r["Ready Date"] ? `<span>📅 Ready: <strong>${new Date(r["Ready Date"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}</strong></span>` : ""}
-        </div>
-    </div>`;
-
-    const body = document.getElementById("alerts-drawer-body");
-    const html =
-        section("Commandes en retard", "#ff4d6d", "🔴", late, cardLate) +
-        section("À risque (≤14 jours)", "#f59e0b", "🟠", atrisk, cardRisk) +
-        section("PO manquant", "#3b82f6", "⚠️", nopo, cardNoPO);
-
-    body.innerHTML = html || `<p style="color:var(--text-muted);padding:2rem;text-align:center;">Aucune alerte.</p>`;
-}
-
-// ─── Timeline Modal ───────────────────────────────────────────
 function openTimeline() {
     let overlay = document.getElementById("timeline-overlay");
     if (!overlay) {
@@ -1347,8 +874,7 @@ function registerCustomMenu(menuDef, save = true) {
             if (el) el.textContent = menuDef.label;
             showTableView(); applyFilters(); renderKPIs();
             populateDeptFilter(); populateClientFilter();
-            hideAlertsPanel(); hideSampleAlertsPanel();
-        });
+                    });
 
         nav.appendChild(btn);
     }
@@ -1566,17 +1092,22 @@ function detectCustomCols(cols) {
         const c = cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
         return c ? c.key : null;
     };
+    // Detect if this sheet is a Fabric Analysis sheet
+    const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
+    const isFabricAnalysis = sheetNameHints.includes("fabric") || sheetNameHints.includes("analyse") || sheetNameHints.includes("analysis");
     return {
-        approval:    find(["approval","approv","approved","validation","statut appr"]),
-        sendingDate: find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
-        receivedDate:find(["received date","receipt date","date recep","date recu","reception","received"]),
-        readyDate:   find(["ready date","ready","date pret","date pr\u00eat","due date","expected date"]),
-        fsrDate:     find(["fsr date","fsr date","launch date","date lancement","date launch","request date","date request"]),
-        fsrNumber:   find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
-        style:       find(["style","ref","reference","article"]),
-        client:      find(["client","buyer","brand","marque"]),
-        description: find(["description","desc","name","nom"]),
-        comments:    find(["comment","remarks","note","observation"]),
+        approval:        find(["approval","approv","approved","validation","statut appr"]),
+        sendingDate:     find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
+        receivedDate:    find(["received date","receipt date","date recep","date recu","reception","received"]),
+        readyDate:       find(["ready date","ready","date pret","date pr\u00eat","due date","expected date","result date","date result"]),
+        fsrDate:         find(["fsr date","launch date","date lancement","date launch","request date","date request"]),
+        fsrNumber:       find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
+        launchDate:      find(["launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date"]),
+        isFabricAnalysis,
+        style:           find(["style","ref","reference","article"]),
+        client:          find(["client","buyer","brand","marque"]),
+        description:     find(["description","desc","name","nom","fabric","tissu","mati\u00e8re"]),
+        comments:        find(["comment","remarks","note","observation"]),
     };
 }
 
@@ -1601,414 +1132,6 @@ function isApproved(val) {
 }
 function isSent(val) {
     return !!(val && String(val).trim() !== "");
-}
-
-// ── Hide panel ────────────────────────────────────────────────
-function hideCustomAlertsPanel() {
-    const p = document.getElementById("custom-alerts-panel");
-    if (p) p.remove();
-}
-
-// ── Compact bar (like Sample) ─────────────────────────────────
-function renderCustomAlertsPanel() {
-    hideCustomAlertsPanel();
-    const key = state.activeSheet;
-    const cfg = SHEET_CONFIG[key];
-    if (!cfg || !cfg.custom) return;
-
-    const rows = state.data[key] || [];
-    const det  = detectCustomCols(cfg.cols);
-    if (!det.approval && !det.sendingDate && !det.receivedDate && !det.readyDate && !det.fsrDate) return;
-
-    const today = new Date(); today.setHours(0,0,0,0);
-
-    // Bucket 0 : FSR lancé mais Ready Date absente → relancer mail
-    const noReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        const hasFsr = det.fsrDate && isSent(r[det.fsrDate]);
-        if (!hasFsr) return false;
-        return !det.readyDate || !isSent(r[det.readyDate]);
-    });
-
-    // Bucket 1 : Ready Date présente, pas encore reçu — afficher nb jours restants
-    const waitingReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
-        const diff = _daysDiff(r[det.readyDate]);
-        return diff >= 0; // dans le futur ou aujourd'hui
-    });
-    const overdueReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
-        return _daysDiff(r[det.readyDate]) < 0; // dépassée
-    });
-
-    // Bucket 2 : Reçu mais pas encore envoyé
-    const toSend = rows.filter(r =>
-        !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate])
-    );
-
-    // Bucket 3 : Envoyé mais pas encore approuvé
-    const toApprove = rows.filter(r =>
-        !isApproved(r[det.approval]) && isSent(r[det.sendingDate])
-    );
-
-    const total = noReadyDate.length + waitingReadyDate.length + overdueReadyDate.length + toSend.length + toApprove.length;
-
-    let panel = document.getElementById("custom-alerts-panel");
-    if (!panel) {
-        panel = document.createElement("div");
-        panel.id = "custom-alerts-panel";
-        const tableCard = document.querySelector(".table-card");
-        if (tableCard) tableCard.parentNode.insertBefore(panel, tableCard);
-    }
-
-    if (!total) {
-        panel.innerHTML = `<div class="alerts-bar alerts-ok">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Tout est approuvé — aucune action requise.
-        </div>`;
-        return;
-    }
-
-    const pills = [
-        noReadyDate.length      ? `<span class="alert-pill pill-late">📧 ${noReadyDate.length} Ready Date manquante</span>` : "",
-        overdueReadyDate.length ? `<span class="alert-pill pill-late">🔴 ${overdueReadyDate.length} En retard</span>` : "",
-        waitingReadyDate.length ? `<span class="alert-pill pill-risk">🕐 ${waitingReadyDate.length} En attente</span>` : "",
-        toSend.length           ? `<span class="alert-pill pill-nopo">📦 ${toSend.length} À envoyer</span>` : "",
-        toApprove.length        ? `<span class="alert-pill pill-recv">⏳ ${toApprove.length} Approval en attente</span>` : ""
-    ].filter(Boolean).join("");
-
-    panel.innerHTML = `
-    <div class="alerts-bar-compact">
-        <span class="alerts-bar-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-        </span>
-        <span class="alerts-bar-label">${total} alerte(s)</span>
-        <div class="alerts-pills">${pills}</div>
-        <div class="alerts-bar-actions">
-            <button class="alerts-see-all-btn" onclick="openCustomAlertsDrawer('${key}')">
-                Voir tout
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-            </button>
-        </div>
-    </div>`;
-}
-
-// ── Drawer (identique Sample) ─────────────────────────────────
-function openCustomAlertsDrawer(key) {
-    let drawer = document.getElementById("custom-alerts-drawer");
-    if (!drawer) {
-        drawer = document.createElement("div");
-        drawer.id = "custom-alerts-drawer";
-        drawer.innerHTML = `
-        <div class="alerts-drawer-backdrop" onclick="closeCustomAlertsDrawer()"></div>
-        <div class="alerts-drawer-panel">
-            <div class="alerts-drawer-header">
-                <div class="alerts-drawer-title">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="17" height="17"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                    <span id="custom-drawer-title">Alertes</span>
-                </div>
-                <button class="alerts-drawer-close" onclick="closeCustomAlertsDrawer()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-            </div>
-            <div class="alerts-drawer-body" id="custom-alerts-drawer-body"></div>
-        </div>`;
-        document.body.appendChild(drawer);
-    }
-    const cfg = SHEET_CONFIG[key];
-    const titleEl = document.getElementById("custom-drawer-title");
-    if (titleEl) titleEl.textContent = "Alertes – " + (cfg ? cfg.label : key);
-    renderCustomAlertsDrawerBody(key);
-    requestAnimationFrame(() => drawer.classList.add("open"));
-}
-
-function closeCustomAlertsDrawer() {
-    const d = document.getElementById("custom-alerts-drawer");
-    if (d) d.classList.remove("open");
-}
-
-function renderCustomAlertsDrawerBody(key) {
-    const cfg  = SHEET_CONFIG[key];
-    const rows = state.data[key] || [];
-    const det  = detectCustomCols(cfg.cols);
-
-    // ── Bucket 0 : FSR lancé mais Ready Date absente → relancer mail ──
-    const noReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        const hasFsr = det.fsrDate && isSent(r[det.fsrDate]);
-        if (!hasFsr) return false;
-        return !det.readyDate || !isSent(r[det.readyDate]);
-    }).sort((a,b) => {
-        const fa = det.fsrDate ? new Date(a[det.fsrDate]||0) : 0;
-        const fb = det.fsrDate ? new Date(b[det.fsrDate]||0) : 0;
-        return fa - fb;
-    });
-
-    // ── Bucket 1a : Ready Date présente, dans le futur ou aujourd'hui ──
-    const waitingReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
-        return _daysDiff(r[det.readyDate]) >= 0;
-    }).sort((a,b) => new Date(a[det.readyDate]) - new Date(b[det.readyDate]));
-
-    // ── Bucket 1b : Ready Date dépassée, pas encore reçu ──────────────
-    const overdueReadyDate = rows.filter(r => {
-        if (isApproved(r[det.approval])) return false;
-        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
-        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
-        return _daysDiff(r[det.readyDate]) < 0;
-    }).sort((a,b) => new Date(a[det.readyDate]) - new Date(b[det.readyDate]));
-
-    // ── Bucket 2 : Reçu mais pas encore envoyé ────────────────────────
-    const toSend = rows.filter(r =>
-        !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate])
-    ).sort((a,b) => new Date(a[det.receivedDate]) - new Date(b[det.receivedDate]));
-
-    // ── Bucket 3 : Envoyé mais pas encore approuvé ────────────────────
-    const toApprove = rows.filter(r =>
-        !isApproved(r[det.approval]) && isSent(r[det.sendingDate])
-    ).sort((a,b) => new Date(a[det.sendingDate]) - new Date(b[det.sendingDate]));
-
-    // ── Helpers ───────────────────────────────────────────────────────
-    const approvalCls = v => ({ Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[v] || "sal-none");
-
-    // Badge FSR Number affiché en tête de chaque carte
-    const fsrBadge = r => {
-        if (!det.fsrNumber) return "";
-        const num = r[det.fsrNumber];
-        if (!num) return "";
-        return `<span class="sal-tag" style="background:#ede9fe;color:#7c3aed;font-weight:700;letter-spacing:.3px;">FSR ${esc(String(num))}</span>`;
-    };
-
-    const extraFields = (r, excludeKeys) => cfg.cols
-        .filter(c => !excludeKeys.includes(c.key) && (r[c.key] || r[c.key] === 0))
-        .map(c => {
-            let display = esc(String(r[c.key]));
-            if (c.type === "date" && r[c.key]) {
-                try { display = new Date(r[c.key]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e) {}
-            }
-            return `<div class="sal-field"><span class="sal-lbl">${esc(c.label)}</span><span class="sal-val">${display}</span></div>`;
-        }).join("");
-
-    const baseHead = (r, statusDot) => {
-        const style  = det.style  ? esc(r[det.style]  || "—") : "—";
-        const client = det.client ? esc(r[det.client] || "")  : "";
-        const desc   = det.description ? esc(r[det.description] || "") : "";
-        return { style, client, desc };
-    };
-
-    // Clés à exclure des extra fields (déjà affichées explicitement)
-    const baseExclude = () => [det.style,det.client,det.description,det.approval,det.fsrDate,det.fsrNumber,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
-
-    // ── Card : FSR sans Ready Date ────────────────────────────────────
-    const cardNoReady = r => {
-        const { style, client, desc } = baseHead(r);
-        const fsrVal = det.fsrDate ? r[det.fsrDate] : null;
-        const fsrFmt = fsrVal ? new Date(fsrVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
-        const fsrAgo = timeAgo(fsrVal);
-        const exclude = baseExclude();
-        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
-        return `<div class="sal-card" style="border-left:3px solid #6366f1;">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${style}</span>
-                    ${fsrBadge(r)}
-                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot" style="background:#6366f1;box-shadow:0 0 0 2px #c7d2fe"></span>
-                    <span class="sal-status-txt" style="color:#6366f1">📧 Relancer — Ready Date manquante</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                ${fsrFmt ? `<div class="sal-field sal-field-full">
-                    <span class="sal-lbl">FSR lancé le</span>
-                    <span class="sal-val" style="color:#6366f1;font-weight:600">${fsrFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${fsrAgo})</span></span>
-                </div>` : ""}
-                <div class="sal-field sal-field-missing sal-field-full">
-                    <span class="sal-lbl">Ready Date</span>
-                    <span class="sal-val sal-missing">⚠ Non renseignée — relancer un mail pour obtenir la date</span>
-                </div>
-                ${extraFields(r, exclude)}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card : Ready Date présente, en attente de réception ──────────
-    const cardWaitingReady = r => {
-        const { style, client, desc } = baseHead(r);
-        const rdVal  = r[det.readyDate];
-        const rdFmt  = new Date(rdVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const diff   = _daysDiff(rdVal);
-        const isToday = diff === 0;
-        const statusTxt = isToday
-            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Attendu aujourd'hui</span>`
-            : `<span class="sal-dot" style="background:#14b8a6;box-shadow:0 0 0 2px #99f6e4"></span><span class="sal-status-txt" style="color:#0d9488">Pr\u00eat dans ${diff} jour${diff>1?"s":""}</span>`;
-        const exclude = baseExclude();
-        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
-        return `<div class="sal-card" style="border-left:3px solid #14b8a6;">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${style}</span>
-                    ${fsrBadge(r)}
-                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
-                </div>
-                <div class="sal-card-right">${statusTxt}</div>
-            </div>
-            <div class="sal-card-body">
-                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                <div class="sal-field sal-field-full" style="background:rgba(20,184,166,.07);border-radius:6px;padding:6px 8px;">
-                    <span class="sal-lbl">Ready Date</span>
-                    <span class="sal-val" style="color:#0d9488;font-weight:700">${rdFmt}
-                        ${!isToday ? `<span style="background:#ccfbf1;color:#0d9488;font-size:10px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;">dans ${diff}j</span>` : ""}
-                    </span>
-                </div>
-                ${det.fsrDate && r[det.fsrDate] ? `<div class="sal-field"><span class="sal-lbl">FSR Date</span><span class="sal-val">${new Date(r[det.fsrDate]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</span></div>` : ""}
-                ${extraFields(r, exclude)}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card : Ready Date dépassée, pas encore reçu ───────────────────
-    const cardOverdueReady = r => {
-        const { style, client, desc } = baseHead(r);
-        const rdVal  = r[det.readyDate];
-        const rdFmt  = new Date(rdVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const days   = Math.abs(_daysDiff(rdVal));
-        const exclude = baseExclude();
-        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
-        return `<div class="sal-card sal-card-late">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${style}</span>
-                    ${fsrBadge(r)}
-                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot sal-dot-late"></span>
-                    <span class="sal-status-txt sal-txt-late">🔴 ${days}j de retard</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                <div class="sal-field sal-field-full" style="background:rgba(239,68,68,.06);border-radius:6px;padding:6px 8px;">
-                    <span class="sal-lbl">Ready Date</span>
-                    <span class="sal-val sal-date-late" style="font-weight:700">${rdFmt}
-                        <span style="background:#fee2e2;color:#dc2626;font-size:10px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;">retard ${days}j</span>
-                    </span>
-                </div>
-                ${det.fsrDate && r[det.fsrDate] ? `<div class="sal-field"><span class="sal-lbl">FSR Date</span><span class="sal-val">${new Date(r[det.fsrDate]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</span></div>` : ""}
-                ${extraFields(r, exclude)}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card : Reçu, pas encore envoyé ───────────────────────────────
-    const cardToSend = r => {
-        const { style, client, desc } = baseHead(r);
-        const recVal = r[det.receivedDate];
-        const recFmt = new Date(recVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const ago    = timeAgo(recVal);
-        const exclude = baseExclude();
-        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
-        return `<div class="sal-card sal-card-tosend">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${style}</span>
-                    ${fsrBadge(r)}
-                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot sal-dot-tosend"></span>
-                    <span class="sal-status-txt sal-txt-tosend">📦 À envoyer</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                <div class="sal-field sal-field-highlight-orange sal-field-full">
-                    <span class="sal-lbl">Received Date</span>
-                    <span class="sal-val"><strong>${recFmt}</strong> <span class="sal-ago">(${ago})</span></span>
-                </div>
-                <div class="sal-field sal-field-missing sal-field-full">
-                    <span class="sal-lbl">Sending Date</span>
-                    <span class="sal-val sal-missing">⚠ Non renseignée — envoi requis</span>
-                </div>
-                ${extraFields(r, exclude)}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    // ── Card : Envoyé, en attente d'approval ──────────────────────────
-    const cardToApprove = r => {
-        const { style, client, desc } = baseHead(r);
-        const sendVal  = r[det.sendingDate];
-        const sendFmt  = new Date(sendVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
-        const days     = Math.abs(_daysDiff(sendVal));
-        const urgency  = days >= 14 ? "sal-urgency-high" : days >= 7 ? "sal-urgency-mid" : "";
-        const ago      = timeAgo(sendVal);
-        const exclude  = baseExclude();
-        const appCls   = approvalCls(det.approval ? r[det.approval] : "");
-        return `<div class="sal-card sal-card-recv ${urgency}">
-            <div class="sal-card-head">
-                <div class="sal-card-left">
-                    <span class="sal-style">${style}</span>
-                    ${fsrBadge(r)}
-                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
-                </div>
-                <div class="sal-card-right">
-                    <span class="sal-dot sal-dot-recv"></span>
-                    <span class="sal-status-txt sal-txt-recv">⏳ ${days}j — approval requis</span>
-                </div>
-            </div>
-            <div class="sal-card-body">
-                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                <div class="sal-field sal-field-recv-highlight sal-field-full">
-                    <span class="sal-lbl">Sending Date</span>
-                    <span class="sal-val"><strong>${sendFmt}</strong> <span class="sal-ago">(${ago})</span></span>
-                </div>
-                ${extraFields(r, exclude)}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
-            </div>
-        </div>`;
-    };
-
-    const section = (title, accentCls, items, renderFn) => {
-        if (!items.length) return "";
-        return `<div class="sal-section">
-            <div class="sal-section-hd ${accentCls}">
-                <span class="sal-section-title">${title}</span>
-                <span class="sal-section-count">${items.length}</span>
-            </div>
-            ${items.map(renderFn).join("")}
-        </div>`;
-    };
-
-    const body = document.getElementById("custom-alerts-drawer-body");
-    const html =
-        section("📧 Relancer — Ready Date non renseignée",       "sal-hd-late",   noReadyDate,      cardNoReady)    +
-        section("🔴 En retard — Ready Date dépassée, non reçu",  "sal-hd-late",   overdueReadyDate, cardOverdueReady) +
-        section("🕐 En attente de réception",                     "sal-hd-today",  waitingReadyDate, cardWaitingReady) +
-        section("📦 À envoyer — reçu, envoi manquant",           "sal-hd-tosend", toSend,           cardToSend)     +
-        section("⏳ En attente d'approval — envoyé",              "sal-hd-recv",   toApprove,        cardToApprove);
-
-    body.innerHTML = html || `<p class="sal-empty">Aucune alerte — tout est à jour ✓</p>`;
 }
 
 // ─── Auto-Refresh ─────────────────────────────────────────────
@@ -2333,9 +1456,73 @@ function collectAllAlerts() {
             const hasSending   = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
             const hasReadyDate = det.readyDate    && !!(r[det.readyDate]    && String(r[det.readyDate]).trim());
             const hasFsr       = det.fsrDate      && !!(r[det.fsrDate]      && String(r[det.fsrDate]).trim());
+            const hasLaunch    = det.launchDate   && !!(r[det.launchDate]   && String(r[det.launchDate]).trim());
             const approved     = det.approval && isApproved(r[det.approval]);
 
             if (approved) return;
+
+            // ── FABRIC ANALYSIS : logique spécifique ─────────────────
+            // Dès qu'une ligne est lancée (launchDate ou fsrDate renseigné)
+            // mais que la Ready Date (= date résultat) est absente → alerte
+            if (det.isFabricAnalysis) {
+                const isLaunched = hasLaunch || hasFsr;
+                if (!isLaunched) return; // pas encore lancé → pas d'alerte
+                if (hasReadyDate) {
+                    // Résultat attendu : afficher le nb de jours restants
+                    const diff = _daysDiff(r[det.readyDate]);
+                    const launchDateVal = det.launchDate ? r[det.launchDate] : (det.fsrDate ? r[det.fsrDate] : null);
+                    if (diff < 0) {
+                        const days = Math.abs(diff);
+                        items.push({
+                            dotCls:"dot-late", tagCls:"tag-late",
+                            tagLabel:`🔴 Résultat en retard — ${days}j`,
+                            title:`Résultat d'analyse en retard de ${days} jour${days>1?"s":""}`,
+                            action:"Relancer le laboratoire pour obtenir les résultats",
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${launchDateVal?" · Lancé le : "+_fmtDate(launchDateVal):""}`,
+                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                        });
+                    } else if (diff === 0) {
+                        const launchDateVal = det.launchDate ? r[det.launchDate] : (det.fsrDate ? r[det.fsrDate] : null);
+                        items.push({
+                            dotCls:"dot-today", tagCls:"tag-today",
+                            tagLabel:`🟡 Résultat attendu aujourd'hui`,
+                            title:`Résultat d'analyse attendu aujourd'hui`,
+                            action:"Vérifier la réception des résultats du laboratoire",
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${launchDateVal?" · Lancé le : "+_fmtDate(launchDateVal):""}`,
+                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        });
+                    } else {
+                        const launchDateVal = det.launchDate ? r[det.launchDate] : (det.fsrDate ? r[det.fsrDate] : null);
+                        items.push({
+                            dotCls:"dot-risk", tagCls:"tag-risk",
+                            tagLabel:`🕐 Résultat dans ${diff}j`,
+                            title:`Analyse lancée — résultat attendu dans ${diff} jour${diff>1?"s":""}`,
+                            action:`Résultats prévus le ${_fmtDate(r[det.readyDate])}`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${launchDateVal?" · Lancé le : "+_fmtDate(launchDateVal):""}`,
+                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        });
+                    }
+                } else {
+                    // Lancé mais pas de Ready Date → on attend la date de résultat
+                    const launchDateVal = det.launchDate ? r[det.launchDate] : (det.fsrDate ? r[det.fsrDate] : null);
+                    const launchAgo = timeAgo(launchDateVal);
+                    items.push({
+                        dotCls:"dot-nopo", tagCls:"tag-nopo",
+                        tagLabel:`📋 En attente Ready Date analyse`,
+                        title:`Analyse lancée — Ready Date non renseignée`,
+                        action:`Renseigner la Ready Date de l'analyse${launchAgo ? " (lancé "+launchAgo+")" : ""}`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Lancé le : ${_fmtDate(launchDateVal)}${getFsr(r)}`,
+                        urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                    });
+                }
+                return; // Fabric Analysis : ne pas tomber dans la logique générique
+            }
+            // ── FIN logique Fabric Analysis ──────────────────────────
+
 
             if (hasReceived || hasSending) {
                 // ── États C / D : received ou sending renseigné ──────
@@ -2482,10 +1669,7 @@ function navigateToRow(sheetKey, rowIndex) {
         if (titleEl) titleEl.textContent = titles[sheetKey] || (SHEET_CONFIG[sheetKey]?.label || sheetKey);
         showTableView(); applyFilters(); renderKPIs();
         populateDeptFilter(); populateClientFilter();
-        if (sheetKey === "ordering")                     { renderAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
-        else if (sheetKey === "sample")                  { hideAlertsPanel(); renderSampleAlertsPanel(); hideCustomAlertsPanel(); }
-        else if (SHEET_CONFIG[sheetKey]?.custom)         { hideAlertsPanel(); hideSampleAlertsPanel(); renderCustomAlertsPanel(); }
-        else                                             { hideAlertsPanel(); hideSampleAlertsPanel(); hideCustomAlertsPanel(); }
+
         updateGlobalNotifBadge();
     }
 
