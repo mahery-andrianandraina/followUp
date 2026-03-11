@@ -1,0 +1,1 @@
+https://console.firebase.google.com/u/0/project/aw27-checkers/firestore/databases/-default-/data/~2Fwhitelist~2Fmcformation1@gmail.com
