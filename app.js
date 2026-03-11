@@ -457,13 +457,13 @@ function renderKPIs() {
 
 // ─── Alerts Panel (compact bar) ───────────────────────────────
 function renderAlertsPanel() {
-    let panel = document.getElementById("alerts-panel");
-    if (!panel) {
-        panel = document.createElement("div");
-        panel.id = "alerts-panel";
-        const tableCard = document.querySelector(".table-card");
-        tableCard.parentNode.insertBefore(panel, tableCard);
-    }
+    // Toujours supprimer et recréer pour éviter les panneaux fantômes
+    hideAlertsPanel();
+    const panel = document.createElement("div");
+    panel.id = "alerts-panel";
+    const tableCard = document.querySelector(".table-card");
+    if (!tableCard) return;
+    tableCard.parentNode.insertBefore(panel, tableCard);
 
     const rows = state.data.ordering;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -509,18 +509,18 @@ function renderAlertsPanel() {
 
 function hideAlertsPanel() {
     const p = document.getElementById("alerts-panel");
-    if (p) p.innerHTML = "";
+    if (p) p.remove();
 }
 
 // ─── Sample Alerts Panel ──────────────────────────────────────
 function renderSampleAlertsPanel() {
-    let panel = document.getElementById("sample-alerts-panel");
-    if (!panel) {
-        panel = document.createElement("div");
-        panel.id = "sample-alerts-panel";
-        const tableCard = document.querySelector(".table-card");
-        tableCard.parentNode.insertBefore(panel, tableCard);
-    }
+    // Toujours supprimer et recréer pour éviter les panneaux fantômes
+    hideSampleAlertsPanel();
+    const panel = document.createElement("div");
+    panel.id = "sample-alerts-panel";
+    const tableCard = document.querySelector(".table-card");
+    if (!tableCard) return;
+    tableCard.parentNode.insertBefore(panel, tableCard);
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const rows  = state.data.sample;
@@ -578,7 +578,7 @@ function renderSampleAlertsPanel() {
 
 function hideSampleAlertsPanel() {
     const p = document.getElementById("sample-alerts-panel");
-    if (p) p.innerHTML = "";
+    if (p) p.remove();
 }
 
 // ─── Sample Alerts Drawer ──────────────────────────────────────
@@ -1571,7 +1571,8 @@ function detectCustomCols(cols) {
         sendingDate: find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
         receivedDate:find(["received date","receipt date","date recep","date recu","reception","received"]),
         readyDate:   find(["ready date","ready","date pret","date pr\u00eat","due date","expected date"]),
-        fsrDate:     find(["fsr date","fsr","launch date","date lancement","date launch","request date","date request"]),
+        fsrDate:     find(["fsr date","fsr date","launch date","date lancement","date launch","request date","date request"]),
+        fsrNumber:   find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
         style:       find(["style","ref","reference","article"]),
         client:      find(["client","buyer","brand","marque"]),
         description: find(["description","desc","name","nom"]),
@@ -1778,6 +1779,14 @@ function renderCustomAlertsDrawerBody(key) {
     // ── Helpers ───────────────────────────────────────────────────────
     const approvalCls = v => ({ Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[v] || "sal-none");
 
+    // Badge FSR Number affiché en tête de chaque carte
+    const fsrBadge = r => {
+        if (!det.fsrNumber) return "";
+        const num = r[det.fsrNumber];
+        if (!num) return "";
+        return `<span class="sal-tag" style="background:#ede9fe;color:#7c3aed;font-weight:700;letter-spacing:.3px;">FSR ${esc(String(num))}</span>`;
+    };
+
     const extraFields = (r, excludeKeys) => cfg.cols
         .filter(c => !excludeKeys.includes(c.key) && (r[c.key] || r[c.key] === 0))
         .map(c => {
@@ -1795,18 +1804,22 @@ function renderCustomAlertsDrawerBody(key) {
         return { style, client, desc };
     };
 
+    // Clés à exclure des extra fields (déjà affichées explicitement)
+    const baseExclude = () => [det.style,det.client,det.description,det.approval,det.fsrDate,det.fsrNumber,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+
     // ── Card : FSR sans Ready Date ────────────────────────────────────
     const cardNoReady = r => {
         const { style, client, desc } = baseHead(r);
         const fsrVal = det.fsrDate ? r[det.fsrDate] : null;
         const fsrFmt = fsrVal ? new Date(fsrVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
         const fsrAgo = timeAgo(fsrVal);
-        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const exclude = baseExclude();
         const appCls  = approvalCls(det.approval ? r[det.approval] : "");
         return `<div class="sal-card" style="border-left:3px solid #6366f1;">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
+                    ${fsrBadge(r)}
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
                 <div class="sal-card-right">
@@ -1840,13 +1853,14 @@ function renderCustomAlertsDrawerBody(key) {
         const isToday = diff === 0;
         const statusTxt = isToday
             ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Attendu aujourd'hui</span>`
-            : `<span class="sal-dot" style="background:#14b8a6;box-shadow:0 0 0 2px #99f6e4"></span><span class="sal-status-txt" style="color:#0d9488">Prêt dans ${diff} jour${diff>1?"s":""}</span>`;
-        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+            : `<span class="sal-dot" style="background:#14b8a6;box-shadow:0 0 0 2px #99f6e4"></span><span class="sal-status-txt" style="color:#0d9488">Pr\u00eat dans ${diff} jour${diff>1?"s":""}</span>`;
+        const exclude = baseExclude();
         const appCls  = approvalCls(det.approval ? r[det.approval] : "");
         return `<div class="sal-card" style="border-left:3px solid #14b8a6;">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
+                    ${fsrBadge(r)}
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
                 <div class="sal-card-right">${statusTxt}</div>
@@ -1873,12 +1887,13 @@ function renderCustomAlertsDrawerBody(key) {
         const rdVal  = r[det.readyDate];
         const rdFmt  = new Date(rdVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
         const days   = Math.abs(_daysDiff(rdVal));
-        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const exclude = baseExclude();
         const appCls  = approvalCls(det.approval ? r[det.approval] : "");
         return `<div class="sal-card sal-card-late">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
+                    ${fsrBadge(r)}
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
                 <div class="sal-card-right">
@@ -1908,12 +1923,13 @@ function renderCustomAlertsDrawerBody(key) {
         const recVal = r[det.receivedDate];
         const recFmt = new Date(recVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
         const ago    = timeAgo(recVal);
-        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const exclude = baseExclude();
         const appCls  = approvalCls(det.approval ? r[det.approval] : "");
         return `<div class="sal-card sal-card-tosend">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
+                    ${fsrBadge(r)}
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
                 <div class="sal-card-right">
@@ -1946,12 +1962,13 @@ function renderCustomAlertsDrawerBody(key) {
         const days     = Math.abs(_daysDiff(sendVal));
         const urgency  = days >= 14 ? "sal-urgency-high" : days >= 7 ? "sal-urgency-mid" : "";
         const ago      = timeAgo(sendVal);
-        const exclude  = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const exclude  = baseExclude();
         const appCls   = approvalCls(det.approval ? r[det.approval] : "");
         return `<div class="sal-card sal-card-recv ${urgency}">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
+                    ${fsrBadge(r)}
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
                 <div class="sal-card-right">
@@ -2309,6 +2326,7 @@ function collectAllAlerts() {
 
         const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
         const getClient = r => det.client ? (r[det.client] || "")  : "";
+        const getFsr    = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
 
         rows.forEach(r => {
             const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
@@ -2330,7 +2348,7 @@ function collectAllAlerts() {
                         title:"Reçu — à envoyer au client",
                         action:`${daysLabel.charAt(0).toUpperCase()+daysLabel.slice(1)} — organiser l'envoi`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}`,
+                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
                         urgency: days >= 3 ? "mid" : "low", sheet:key, rowIndex:r._rowIndex
                     });
                 } else if (hasSending) {
@@ -2343,7 +2361,7 @@ function collectAllAlerts() {
                         title:`Envoyé — approbation en attente depuis ${days}j`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
                         style:getStyle(r), client:getClient(r),
-                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}`,
+                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
                         urgency, sheet:key, rowIndex:r._rowIndex
                     });
                 }
@@ -2360,7 +2378,7 @@ function collectAllAlerts() {
                     title:`FSR lancé — Ready Date non renseignée`,
                     action:`Relancer un mail pour obtenir la Ready Date${fsrAgo ? " (FSR "+fsrAgo+")" : ""}`,
                     style:getStyle(r), client:getClient(r),
-                    meta:`FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}`,
+                    meta:`FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}${getFsr(r)}`,
                     urgency:"mid", sheet:key, rowIndex:r._rowIndex
                 });
             } else if (hasReadyDate) {
@@ -2374,7 +2392,7 @@ function collectAllAlerts() {
                         title:`Ready Date dépassée de ${days}j — non reçu`,
                         action:"Relancer la factory pour confirmer l'avancement",
                         style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
                         urgency:"high", sheet:key, rowIndex:r._rowIndex
                     });
                 } else if (diff === 0) {
@@ -2384,7 +2402,7 @@ function collectAllAlerts() {
                         title:`Ready Date aujourd'hui — prévoir la réception`,
                         action:"Confirmer la réception dès réception",
                         style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
                         urgency:"low", sheet:key, rowIndex:r._rowIndex
                     });
                 } else {
@@ -2394,7 +2412,7 @@ function collectAllAlerts() {
                         title:`En attente de réception — prêt dans ${diff} jour${diff>1?"s":""}`,
                         action:`Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
                         urgency:"low", sheet:key, rowIndex:r._rowIndex
                     });
                 }
