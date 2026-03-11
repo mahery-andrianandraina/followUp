@@ -60,13 +60,34 @@ async function signOut() {
 
 // ─── Protection des pages autres que login ────────────────────
 // Sur index.html : vérifier que la session est active
+let _whitelistUnsubscribe = null;
+
 if (!isPage("login.html") && !isPage("access-request.html")) {
     auth.onAuthStateChanged(async (firebaseUser) => {
         if (!firebaseUser) {
+            if (_whitelistUnsubscribe) { _whitelistUnsubscribe(); _whitelistUnsubscribe = null; }
             window.location.href = "login.html";
             return;
         }
+
         await handleUser(firebaseUser);
+
+        // ── Listener temps réel whitelist ─────────────────────
+        // Déconnecte l'user immédiatement si l'admin révoque son accès
+        if (_whitelistUnsubscribe) _whitelistUnsubscribe();
+        _whitelistUnsubscribe = db.collection("whitelist")
+            .doc(firebaseUser.email)
+            .onSnapshot((doc) => {
+                const isApproved = doc.exists && doc.data().status === "approved";
+                if (!isApproved) {
+                    auth.signOut().then(() => {
+                        window.location.href = "login.html";
+                    });
+                }
+            }, (err) => {
+                console.error("Whitelist listener error:", err);
+                auth.signOut().then(() => { window.location.href = "login.html"; });
+            });
     });
 }
 
