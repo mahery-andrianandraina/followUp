@@ -1570,6 +1570,8 @@ function detectCustomCols(cols) {
         approval:    find(["approval","approv","approved","validation","statut appr"]),
         sendingDate: find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
         receivedDate:find(["received date","receipt date","date recep","date recu","reception","received"]),
+        readyDate:   find(["ready date","ready","date pret","date pr\u00eat","due date","expected date"]),
+        fsrDate:     find(["fsr date","fsr","launch date","date lancement","date launch","request date","date request"]),
         style:       find(["style","ref","reference","article"]),
         client:      find(["client","buyer","brand","marque"]),
         description: find(["description","desc","name","nom"]),
@@ -1615,11 +1617,45 @@ function renderCustomAlertsPanel() {
 
     const rows = state.data[key] || [];
     const det  = detectCustomCols(cfg.cols);
-    if (!det.approval && !det.sendingDate && !det.receivedDate) return;
+    if (!det.approval && !det.sendingDate && !det.receivedDate && !det.readyDate && !det.fsrDate) return;
 
-    const toSend    = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate]));
-    const toApprove = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.sendingDate]));
-    const total     = toSend.length + toApprove.length;
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Bucket 0 : FSR lancé mais Ready Date absente → relancer mail
+    const noReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        const hasFsr = det.fsrDate && isSent(r[det.fsrDate]);
+        if (!hasFsr) return false;
+        return !det.readyDate || !isSent(r[det.readyDate]);
+    });
+
+    // Bucket 1 : Ready Date présente, pas encore reçu — afficher nb jours restants
+    const waitingReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
+        const diff = _daysDiff(r[det.readyDate]);
+        return diff >= 0; // dans le futur ou aujourd'hui
+    });
+    const overdueReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
+        return _daysDiff(r[det.readyDate]) < 0; // dépassée
+    });
+
+    // Bucket 2 : Reçu mais pas encore envoyé
+    const toSend = rows.filter(r =>
+        !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate])
+    );
+
+    // Bucket 3 : Envoyé mais pas encore approuvé
+    const toApprove = rows.filter(r =>
+        !isApproved(r[det.approval]) && isSent(r[det.sendingDate])
+    );
+
+    const total = noReadyDate.length + waitingReadyDate.length + overdueReadyDate.length + toSend.length + toApprove.length;
 
     let panel = document.getElementById("custom-alerts-panel");
     if (!panel) {
@@ -1638,8 +1674,11 @@ function renderCustomAlertsPanel() {
     }
 
     const pills = [
-        toSend.length    ? `<span class="alert-pill pill-risk">📤 ${toSend.length} À envoyer</span>`          : "",
-        toApprove.length ? `<span class="alert-pill pill-late">⏳ ${toApprove.length} En attente d'approval</span>` : ""
+        noReadyDate.length      ? `<span class="alert-pill pill-late">📧 ${noReadyDate.length} Ready Date manquante</span>` : "",
+        overdueReadyDate.length ? `<span class="alert-pill pill-late">🔴 ${overdueReadyDate.length} En retard</span>` : "",
+        waitingReadyDate.length ? `<span class="alert-pill pill-risk">🕐 ${waitingReadyDate.length} En attente</span>` : "",
+        toSend.length           ? `<span class="alert-pill pill-nopo">📦 ${toSend.length} À envoyer</span>` : "",
+        toApprove.length        ? `<span class="alert-pill pill-recv">⏳ ${toApprove.length} Approval en attente</span>` : ""
     ].filter(Boolean).join("");
 
     panel.innerHTML = `
@@ -1697,97 +1736,260 @@ function renderCustomAlertsDrawerBody(key) {
     const rows = state.data[key] || [];
     const det  = detectCustomCols(cfg.cols);
 
-    const toSend    = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate]));
-    const toApprove = rows.filter(r => !isApproved(r[det.approval]) && isSent(r[det.sendingDate]));
+    // ── Bucket 0 : FSR lancé mais Ready Date absente → relancer mail ──
+    const noReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        const hasFsr = det.fsrDate && isSent(r[det.fsrDate]);
+        if (!hasFsr) return false;
+        return !det.readyDate || !isSent(r[det.readyDate]);
+    }).sort((a,b) => {
+        const fa = det.fsrDate ? new Date(a[det.fsrDate]||0) : 0;
+        const fb = det.fsrDate ? new Date(b[det.fsrDate]||0) : 0;
+        return fa - fb;
+    });
 
-    // ── Card builder ──────────────────────────────────────────
-    const buildCard = (r, mode) => {
-        const style    = det.style       ? esc(r[det.style] || "—")  : "—";
-        const client   = det.client      ? esc(r[det.client] || "—") : "";
-        const desc     = det.description ? esc(r[det.description] || "") : "";
-        const comments = det.comments    ? esc(r[det.comments] || "") : "";
-        const approval = det.approval    ? esc(r[det.approval] || "—") : "—";
+    // ── Bucket 1a : Ready Date présente, dans le futur ou aujourd'hui ──
+    const waitingReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
+        return _daysDiff(r[det.readyDate]) >= 0;
+    }).sort((a,b) => new Date(a[det.readyDate]) - new Date(b[det.readyDate]));
 
-        let dateBlock = "";
-        let statusDot = "";
+    // ── Bucket 1b : Ready Date dépassée, pas encore reçu ──────────────
+    const overdueReadyDate = rows.filter(r => {
+        if (isApproved(r[det.approval])) return false;
+        if (isSent(r[det.receivedDate]) || isSent(r[det.sendingDate])) return false;
+        if (!det.readyDate || !isSent(r[det.readyDate])) return false;
+        return _daysDiff(r[det.readyDate]) < 0;
+    }).sort((a,b) => new Date(a[det.readyDate]) - new Date(b[det.readyDate]));
 
-        if (mode === "tosend") {
-            // Reçu mais pas envoyé
-            const recVal = det.receivedDate ? r[det.receivedDate] : null;
-            const recFmt = recVal ? new Date(recVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
-            const ago    = timeAgo(recVal);
-            statusDot = `<span class="sal-dot" style="background:#f59e0b;box-shadow:0 0 0 2px #fde68a"></span>
-                         <span class="sal-status-txt" style="color:#d97706">À envoyer</span>`;
-            dateBlock = recFmt
-                ? `<div class="sal-field sal-field-full">
-                     <span class="sal-lbl">Reçu le</span>
-                     <span class="sal-val" style="color:#d97706;font-weight:600">${recFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${ago})</span></span>
-                   </div>`
-                : "";
-        } else {
-            // Envoyé mais pas approuvé
-            const sendVal = det.sendingDate ? r[det.sendingDate] : null;
-            const sendFmt = sendVal ? new Date(sendVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
-            const ago     = timeAgo(sendVal);
-            statusDot = `<span class="sal-dot sal-dot-late"></span>
-                         <span class="sal-status-txt sal-txt-late">En attente approval</span>`;
-            dateBlock = sendFmt
-                ? `<div class="sal-field sal-field-full">
-                     <span class="sal-lbl">Envoyé le</span>
-                     <span class="sal-val" style="color:#dc2626;font-weight:600">${sendFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${ago})</span></span>
-                   </div>`
-                : "";
-        }
+    // ── Bucket 2 : Reçu mais pas encore envoyé ────────────────────────
+    const toSend = rows.filter(r =>
+        !isApproved(r[det.approval]) && isSent(r[det.receivedDate]) && !isSent(r[det.sendingDate])
+    ).sort((a,b) => new Date(a[det.receivedDate]) - new Date(b[det.receivedDate]));
 
-        // Afficher toutes les colonnes de la ligne dynamiquement
-        const extraFields = cfg.cols
-            .filter(c => c.key !== det.style && c.key !== det.client && c.key !== det.description
-                      && c.key !== det.approval && c.key !== det.sendingDate && c.key !== det.receivedDate && c.key !== det.comments)
-            .map(c => {
-                const v = r[c.key];
-                if (!v && v !== 0) return "";
-                let display = esc(String(v));
-                if (c.type === "date" && v) {
-                    try { display = new Date(v).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e) {}
-                }
-                return `<div class="sal-field"><span class="sal-lbl">${esc(c.label)}</span><span class="sal-val">${display}</span></div>`;
-            }).join("");
+    // ── Bucket 3 : Envoyé mais pas encore approuvé ────────────────────
+    const toApprove = rows.filter(r =>
+        !isApproved(r[det.approval]) && isSent(r[det.sendingDate])
+    ).sort((a,b) => new Date(a[det.sendingDate]) - new Date(b[det.sendingDate]));
 
-        const approvalCls = { Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[r[det.approval]] || "sal-none";
+    // ── Helpers ───────────────────────────────────────────────────────
+    const approvalCls = v => ({ Approved:"sal-appr", Pending:"sal-pend", Rejected:"sal-rej" }[v] || "sal-none");
 
-        return `<div class="sal-card ${mode === "tosend" ? "sal-card-today" : "sal-card-late"}">
+    const extraFields = (r, excludeKeys) => cfg.cols
+        .filter(c => !excludeKeys.includes(c.key) && (r[c.key] || r[c.key] === 0))
+        .map(c => {
+            let display = esc(String(r[c.key]));
+            if (c.type === "date" && r[c.key]) {
+                try { display = new Date(r[c.key]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e) {}
+            }
+            return `<div class="sal-field"><span class="sal-lbl">${esc(c.label)}</span><span class="sal-val">${display}</span></div>`;
+        }).join("");
+
+    const baseHead = (r, statusDot) => {
+        const style  = det.style  ? esc(r[det.style]  || "—") : "—";
+        const client = det.client ? esc(r[det.client] || "")  : "";
+        const desc   = det.description ? esc(r[det.description] || "") : "";
+        return { style, client, desc };
+    };
+
+    // ── Card : FSR sans Ready Date ────────────────────────────────────
+    const cardNoReady = r => {
+        const { style, client, desc } = baseHead(r);
+        const fsrVal = det.fsrDate ? r[det.fsrDate] : null;
+        const fsrFmt = fsrVal ? new Date(fsrVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : null;
+        const fsrAgo = timeAgo(fsrVal);
+        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
+        return `<div class="sal-card" style="border-left:3px solid #6366f1;">
             <div class="sal-card-head">
                 <div class="sal-card-left">
                     <span class="sal-style">${style}</span>
                     ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
                 </div>
-                <div class="sal-card-right">${statusDot}</div>
+                <div class="sal-card-right">
+                    <span class="sal-dot" style="background:#6366f1;box-shadow:0 0 0 2px #c7d2fe"></span>
+                    <span class="sal-status-txt" style="color:#6366f1">📧 Relancer — Ready Date manquante</span>
+                </div>
             </div>
             <div class="sal-card-body">
                 ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
-                ${dateBlock}
-                ${extraFields}
-                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${approvalCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
-                ${comments ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${comments}</span></div>` : ""}
+                ${fsrFmt ? `<div class="sal-field sal-field-full">
+                    <span class="sal-lbl">FSR lancé le</span>
+                    <span class="sal-val" style="color:#6366f1;font-weight:600">${fsrFmt} <span style="color:#9ca3af;font-weight:400;font-style:italic">(${fsrAgo})</span></span>
+                </div>` : ""}
+                <div class="sal-field sal-field-missing sal-field-full">
+                    <span class="sal-lbl">Ready Date</span>
+                    <span class="sal-val sal-missing">⚠ Non renseignée — relancer un mail pour obtenir la date</span>
+                </div>
+                ${extraFields(r, exclude)}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
             </div>
         </div>`;
     };
 
-    const section = (title, accentCls, items, mode) => {
+    // ── Card : Ready Date présente, en attente de réception ──────────
+    const cardWaitingReady = r => {
+        const { style, client, desc } = baseHead(r);
+        const rdVal  = r[det.readyDate];
+        const rdFmt  = new Date(rdVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const diff   = _daysDiff(rdVal);
+        const isToday = diff === 0;
+        const statusTxt = isToday
+            ? `<span class="sal-dot sal-dot-today"></span><span class="sal-status-txt sal-txt-today">Attendu aujourd'hui</span>`
+            : `<span class="sal-dot" style="background:#14b8a6;box-shadow:0 0 0 2px #99f6e4"></span><span class="sal-status-txt" style="color:#0d9488">Prêt dans ${diff} jour${diff>1?"s":""}</span>`;
+        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
+        return `<div class="sal-card" style="border-left:3px solid #14b8a6;">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${style}</span>
+                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
+                </div>
+                <div class="sal-card-right">${statusTxt}</div>
+            </div>
+            <div class="sal-card-body">
+                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
+                <div class="sal-field sal-field-full" style="background:rgba(20,184,166,.07);border-radius:6px;padding:6px 8px;">
+                    <span class="sal-lbl">Ready Date</span>
+                    <span class="sal-val" style="color:#0d9488;font-weight:700">${rdFmt}
+                        ${!isToday ? `<span style="background:#ccfbf1;color:#0d9488;font-size:10px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;">dans ${diff}j</span>` : ""}
+                    </span>
+                </div>
+                ${det.fsrDate && r[det.fsrDate] ? `<div class="sal-field"><span class="sal-lbl">FSR Date</span><span class="sal-val">${new Date(r[det.fsrDate]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</span></div>` : ""}
+                ${extraFields(r, exclude)}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    // ── Card : Ready Date dépassée, pas encore reçu ───────────────────
+    const cardOverdueReady = r => {
+        const { style, client, desc } = baseHead(r);
+        const rdVal  = r[det.readyDate];
+        const rdFmt  = new Date(rdVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const days   = Math.abs(_daysDiff(rdVal));
+        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
+        return `<div class="sal-card sal-card-late">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${style}</span>
+                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
+                </div>
+                <div class="sal-card-right">
+                    <span class="sal-dot sal-dot-late"></span>
+                    <span class="sal-status-txt sal-txt-late">🔴 ${days}j de retard</span>
+                </div>
+            </div>
+            <div class="sal-card-body">
+                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
+                <div class="sal-field sal-field-full" style="background:rgba(239,68,68,.06);border-radius:6px;padding:6px 8px;">
+                    <span class="sal-lbl">Ready Date</span>
+                    <span class="sal-val sal-date-late" style="font-weight:700">${rdFmt}
+                        <span style="background:#fee2e2;color:#dc2626;font-size:10px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;">retard ${days}j</span>
+                    </span>
+                </div>
+                ${det.fsrDate && r[det.fsrDate] ? `<div class="sal-field"><span class="sal-lbl">FSR Date</span><span class="sal-val">${new Date(r[det.fsrDate]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"})}</span></div>` : ""}
+                ${extraFields(r, exclude)}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    // ── Card : Reçu, pas encore envoyé ───────────────────────────────
+    const cardToSend = r => {
+        const { style, client, desc } = baseHead(r);
+        const recVal = r[det.receivedDate];
+        const recFmt = new Date(recVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const ago    = timeAgo(recVal);
+        const exclude = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const appCls  = approvalCls(det.approval ? r[det.approval] : "");
+        return `<div class="sal-card sal-card-tosend">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${style}</span>
+                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
+                </div>
+                <div class="sal-card-right">
+                    <span class="sal-dot sal-dot-tosend"></span>
+                    <span class="sal-status-txt sal-txt-tosend">📦 À envoyer</span>
+                </div>
+            </div>
+            <div class="sal-card-body">
+                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
+                <div class="sal-field sal-field-highlight-orange sal-field-full">
+                    <span class="sal-lbl">Received Date</span>
+                    <span class="sal-val"><strong>${recFmt}</strong> <span class="sal-ago">(${ago})</span></span>
+                </div>
+                <div class="sal-field sal-field-missing sal-field-full">
+                    <span class="sal-lbl">Sending Date</span>
+                    <span class="sal-val sal-missing">⚠ Non renseignée — envoi requis</span>
+                </div>
+                ${extraFields(r, exclude)}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    // ── Card : Envoyé, en attente d'approval ──────────────────────────
+    const cardToApprove = r => {
+        const { style, client, desc } = baseHead(r);
+        const sendVal  = r[det.sendingDate];
+        const sendFmt  = new Date(sendVal).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+        const days     = Math.abs(_daysDiff(sendVal));
+        const urgency  = days >= 14 ? "sal-urgency-high" : days >= 7 ? "sal-urgency-mid" : "";
+        const ago      = timeAgo(sendVal);
+        const exclude  = [det.style,det.client,det.description,det.approval,det.fsrDate,det.sendingDate,det.receivedDate,det.readyDate,det.comments].filter(Boolean);
+        const appCls   = approvalCls(det.approval ? r[det.approval] : "");
+        return `<div class="sal-card sal-card-recv ${urgency}">
+            <div class="sal-card-head">
+                <div class="sal-card-left">
+                    <span class="sal-style">${style}</span>
+                    ${client ? `<span class="sal-tag sal-tag-client">${client}</span>` : ""}
+                </div>
+                <div class="sal-card-right">
+                    <span class="sal-dot sal-dot-recv"></span>
+                    <span class="sal-status-txt sal-txt-recv">⏳ ${days}j — approval requis</span>
+                </div>
+            </div>
+            <div class="sal-card-body">
+                ${desc ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Description</span><span class="sal-val">${desc}</span></div>` : ""}
+                <div class="sal-field sal-field-recv-highlight sal-field-full">
+                    <span class="sal-lbl">Sending Date</span>
+                    <span class="sal-val"><strong>${sendFmt}</strong> <span class="sal-ago">(${ago})</span></span>
+                </div>
+                ${extraFields(r, exclude)}
+                ${det.approval ? `<div class="sal-field"><span class="sal-lbl">Approval</span><span class="sal-val"><span class="sal-appr-badge ${appCls}">${esc(r[det.approval]) || "—"}</span></span></div>` : ""}
+                ${det.comments && r[det.comments] ? `<div class="sal-field sal-field-full"><span class="sal-lbl">Comments</span><span class="sal-val" style="color:#6366f1">${esc(r[det.comments])}</span></div>` : ""}
+            </div>
+        </div>`;
+    };
+
+    const section = (title, accentCls, items, renderFn) => {
         if (!items.length) return "";
         return `<div class="sal-section">
             <div class="sal-section-hd ${accentCls}">
                 <span class="sal-section-title">${title}</span>
                 <span class="sal-section-count">${items.length}</span>
             </div>
-            ${items.map(r => buildCard(r, mode)).join("")}
+            ${items.map(renderFn).join("")}
         </div>`;
     };
 
     const body = document.getElementById("custom-alerts-drawer-body");
     const html =
-        section("📤 À envoyer — sample reçu, envoi en attente", "sal-hd-today", toSend, "tosend") +
-        section("⏳ En attente d'approval — envoyé, pas encore approuvé", "sal-hd-late", toApprove, "toapprove");
+        section("📧 Relancer — Ready Date non renseignée",       "sal-hd-late",   noReadyDate,      cardNoReady)    +
+        section("🔴 En retard — Ready Date dépassée, non reçu",  "sal-hd-late",   overdueReadyDate, cardOverdueReady) +
+        section("🕐 En attente de réception",                     "sal-hd-today",  waitingReadyDate, cardWaitingReady) +
+        section("📦 À envoyer — reçu, envoi manquant",           "sal-hd-tosend", toSend,           cardToSend)     +
+        section("⏳ En attente d'approval — envoyé",              "sal-hd-recv",   toApprove,        cardToApprove);
 
     body.innerHTML = html || `<p class="sal-empty">Aucune alerte — tout est à jour ✓</p>`;
 }
@@ -2109,17 +2311,17 @@ function collectAllAlerts() {
         const getClient = r => det.client ? (r[det.client] || "")  : "";
 
         rows.forEach(r => {
-            const hasReceived = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
-            const hasSending  = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
-            const approved    = det.approval && isApproved(r[det.approval]);
+            const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
+            const hasSending   = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
+            const hasReadyDate = det.readyDate    && !!(r[det.readyDate]    && String(r[det.readyDate]).trim());
+            const hasFsr       = det.fsrDate      && !!(r[det.fsrDate]      && String(r[det.fsrDate]).trim());
+            const approved     = det.approval && isApproved(r[det.approval]);
 
             if (approved) return;
 
-            // Si colonnes received/sending détectées → même logique que Sample
-            if (det.receivedDate || det.sendingDate) {
-                if (!hasReceived && !hasSending) {
-                    // Pas encore reçu → vérifier les colonnes date dépassées
-                } else if (hasReceived && !hasSending) {
+            if (hasReceived || hasSending) {
+                // ── États C / D : received ou sending renseigné ──────
+                if (hasReceived && !hasSending) {
                     const days = Math.abs(_daysDiff(r[det.receivedDate]));
                     const daysLabel = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days}j`;
                     items.push({
@@ -2131,7 +2333,6 @@ function collectAllAlerts() {
                         meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}`,
                         urgency: days >= 3 ? "mid" : "low", sheet:key, rowIndex:r._rowIndex
                     });
-                    return; // pas d'alerte date pour cette ligne, état géré
                 } else if (hasSending) {
                     const days = Math.abs(_daysDiff(r[det.sendingDate]));
                     const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
@@ -2145,39 +2346,90 @@ function collectAllAlerts() {
                         meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}`,
                         urgency, sheet:key, rowIndex:r._rowIndex
                     });
-                    return;
                 }
+                return;
             }
 
-            // Colonnes date dépassées (hors received/sending)
-            cfg.cols.filter(c => c.type === "date").forEach(col => {
-                const colLbl = col.label.toLowerCase();
-                if (colLbl.includes("receiv") || colLbl.includes("recep") || colLbl.includes("send") || colLbl.includes("envoi")) return;
-                const val = r[col.key]; if (!val) return;
-                const diff = _daysDiff(val);
+            // ── États A / B : pas encore reçu ──────────────────────
+            if (hasFsr && !hasReadyDate) {
+                // État A : FSR lancé mais Ready Date absente → relancer mail
+                const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : "";
+                items.push({
+                    dotCls:"dot-nopo", tagCls:"tag-nopo",
+                    tagLabel:`📧 Ready Date manquante`,
+                    title:`FSR lancé — Ready Date non renseignée`,
+                    action:`Relancer un mail pour obtenir la Ready Date${fsrAgo ? " (FSR "+fsrAgo+")" : ""}`,
+                    style:getStyle(r), client:getClient(r),
+                    meta:`FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}`,
+                    urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                });
+            } else if (hasReadyDate) {
+                // État B : Ready Date présente, attente réception
+                const diff = _daysDiff(r[det.readyDate]);
                 if (diff < 0) {
                     const days = Math.abs(diff);
                     items.push({
                         dotCls:"dot-late", tagCls:"tag-late",
-                        tagLabel:`🔴 ${col.label} — ${days}j`,
-                        title:`${col.label} dépassée de ${days} jour${days>1?"s":""}`,
-                        action:`Mettre à jour la colonne "${col.label}" ou replanifier`,
+                        tagLabel:`🔴 En retard — ${days}j`,
+                        title:`Ready Date dépassée de ${days}j — non reçu`,
+                        action:"Relancer la factory pour confirmer l'avancement",
                         style:getStyle(r), client:getClient(r),
-                        meta:`${col.label} : ${_fmtDate(val)}`,
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
                         urgency:"high", sheet:key, rowIndex:r._rowIndex
                     });
                 } else if (diff === 0) {
                     items.push({
                         dotCls:"dot-today", tagCls:"tag-today",
-                        tagLabel:`🟡 ${col.label} — aujourd'hui`,
-                        title:`${col.label} échoit aujourd'hui`,
-                        action:`Confirmer ou mettre à jour la colonne "${col.label}"`,
+                        tagLabel:`🟡 Attendu aujourd'hui`,
+                        title:`Ready Date aujourd'hui — prévoir la réception`,
+                        action:"Confirmer la réception dès réception",
                         style:getStyle(r), client:getClient(r),
-                        meta:`${col.label} : ${_fmtDate(val)}`,
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        urgency:"low", sheet:key, rowIndex:r._rowIndex
+                    });
+                } else {
+                    items.push({
+                        dotCls:"dot-risk", tagCls:"tag-risk",
+                        tagLabel:`🕐 Dans ${diff}j`,
+                        title:`En attente de réception — prêt dans ${diff} jour${diff>1?"s":""}`,
+                        action:`Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}`,
                         urgency:"low", sheet:key, rowIndex:r._rowIndex
                     });
                 }
-            });
+            } else {
+                // Colonnes date dépassées (hors received/sending/ready/fsr)
+                cfg.cols.filter(c => c.type === "date").forEach(col => {
+                    const colLbl = col.label.toLowerCase();
+                    if (colLbl.includes("receiv") || colLbl.includes("recep") || colLbl.includes("send") || colLbl.includes("envoi")
+                        || colLbl.includes("ready") || colLbl.includes("fsr")) return;
+                    const val = r[col.key]; if (!val) return;
+                    const diff = _daysDiff(val);
+                    if (diff < 0) {
+                        const days = Math.abs(diff);
+                        items.push({
+                            dotCls:"dot-late", tagCls:"tag-late",
+                            tagLabel:`🔴 ${col.label} — ${days}j`,
+                            title:`${col.label} dépassée de ${days} jour${days>1?"s":""}`,
+                            action:`Mettre à jour la colonne "${col.label}" ou replanifier`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`${col.label} : ${_fmtDate(val)}`,
+                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                        });
+                    } else if (diff === 0) {
+                        items.push({
+                            dotCls:"dot-today", tagCls:"tag-today",
+                            tagLabel:`🟡 ${col.label} — aujourd'hui`,
+                            title:`${col.label} échoit aujourd'hui`,
+                            action:`Confirmer ou mettre à jour la colonne "${col.label}"`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`${col.label} : ${_fmtDate(val)}`,
+                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        });
+                    }
+                });
+            }
         });
 
         if (items.length) all[key] = { label:cfg.label, items };
