@@ -2270,6 +2270,21 @@ function closeGlobalNotifDrawer() {
 
 function gndSetTab(key) { _gndActiveTab = key; _renderGndFull(); }
 
+// État ouvert/fermé des accordéons (persiste pendant la session)
+const _gndOpenSections = new Set(["__all__"]);
+
+function gndToggleSection(key) {
+    if (_gndOpenSections.has(key)) _gndOpenSections.delete(key);
+    else _gndOpenSections.add(key);
+    const body  = document.getElementById(`gnd-acc-body-${key}`);
+    const arrow = document.getElementById(`gnd-acc-arrow-${key}`);
+    if (!body || !arrow) return;
+    const isOpen = _gndOpenSections.has(key);
+    body.style.maxHeight  = isOpen ? body.scrollHeight + "px" : "0";
+    body.style.opacity    = isOpen ? "1" : "0";
+    arrow.style.transform = isOpen ? "rotate(90deg)" : "rotate(0deg)";
+}
+
 function _renderGndFull() {
     const all   = collectAllAlerts();
     const keys  = Object.keys(all);
@@ -2281,19 +2296,17 @@ function _renderGndFull() {
         ? `${total} alerte${total>1?"s":""} · ${keys.length} menu${keys.length>1?"s":""}`
         : "Aucune alerte active";
 
-    // Tabs
-    if (!all[_gndActiveTab] && _gndActiveTab !== "__all__") _gndActiveTab = "__all__";
+    // Cacher les tabs — on utilise les accordéons à la place
     const tabsEl = document.getElementById("gnd-tabs");
-    tabsEl.innerHTML =
-        `<button class="gnd-tab${_gndActiveTab==="__all__"?" active":""}" onclick="gndSetTab('__all__')">Tous <span class="gnd-tab-badge">${total}</span></button>` +
-        keys.map(k => `<button class="gnd-tab${_gndActiveTab===k?" active":""}" onclick="gndSetTab('${k}')">${esc(all[k].label)} <span class="gnd-tab-badge">${all[k].items.length}</span></button>`).join("");
+    if (tabsEl) tabsEl.style.display = "none";
 
-    // Body
     const body = document.getElementById("gnd-body");
     if (!keys.length) {
         body.innerHTML = `<div class="gnd-ok"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Tout est à jour — aucune alerte active.</div>`;
         return;
     }
+
+    const urgencyOrder = { high: 0, mid: 1, low: 2 };
 
     const renderRow = item => `
     <div class="gnd-row${item.urgency==="high"?" gnd-row-high":item.urgency==="mid"?" gnd-row-mid":""}${item.rowIndex!=null?" gnd-row-clickable":""}"
@@ -2314,16 +2327,63 @@ function _renderGndFull() {
         </span>`:""}
     </div>`;
 
-    let html = "";
-    if (_gndActiveTab === "__all__") {
-        keys.forEach(k => {
-            html += `<div class="gnd-section-title">${esc(all[k].label)} <span style="font-weight:400;color:var(--text-muted)">(${all[k].items.length})</span></div>`;
-            html += all[k].items.map(renderRow).join("");
-        });
-    } else {
-        html = (all[_gndActiveTab]?.items || []).map(renderRow).join("");
+    // Ouvrir par défaut tous les menus s'ils sont nouveaux
+    keys.forEach(k => { if (!_gndOpenSections.has("__visited__" + k)) { _gndOpenSections.add(k); _gndOpenSections.add("__visited__" + k); } });
+
+    let html = `<style>
+    .gnd-acc { border-bottom: 1px solid var(--border, #e5e7eb); }
+    .gnd-acc-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 11px 16px; cursor: pointer; user-select: none;
+        background: var(--surface-1, #fff);
+        transition: background 0.15s;
     }
-    body.innerHTML = html || `<div class="gnd-empty">Aucune alerte pour ce menu.</div>`;
+    .gnd-acc-header:hover { background: var(--surface-2, #f9fafb); }
+    .gnd-acc-arrow {
+        flex-shrink: 0; color: var(--text-muted, #9ca3af);
+        transition: transform 0.2s ease;
+    }
+    .gnd-acc-label { font-size: 12px; font-weight: 600; color: var(--text-1, #111827); flex: 1; }
+    .gnd-acc-count {
+        font-size: 11px; font-weight: 600; padding: 1px 7px;
+        border-radius: 10px; background: var(--surface-3, #f3f4f6);
+        color: var(--text-2, #6b7280);
+    }
+    .gnd-acc-count.has-high { background: #fee2e2; color: #b91c1c; }
+    .gnd-acc-count.has-mid  { background: #fef3c7; color: #92400e; }
+    .gnd-acc-body {
+        overflow: hidden;
+        transition: max-height 0.25s ease, opacity 0.2s ease;
+        opacity: 1;
+    }
+    </style>`;
+
+    keys.forEach(k => {
+        const items   = [...all[k].items].sort((a,b) => (urgencyOrder[a.urgency]??9) - (urgencyOrder[b.urgency]??9));
+        const isOpen  = _gndOpenSections.has(k);
+        const hasHigh = items.some(i => i.urgency === "high");
+        const hasMid  = !hasHigh && items.some(i => i.urgency === "mid");
+        const countCls = hasHigh ? "has-high" : hasMid ? "has-mid" : "";
+        const safeKey  = k.replace(/[^a-zA-Z0-9_]/g, "_");
+
+        html += `
+        <div class="gnd-acc" id="gnd-acc-${safeKey}">
+            <div class="gnd-acc-header" onclick="gndToggleSection('${safeKey}')">
+                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="transform:${isOpen?"rotate(90deg)":"rotate(0deg)"}">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                </svg>
+                <span class="gnd-acc-label">${esc(all[k].label)}</span>
+                <span class="gnd-acc-count ${countCls}">${items.length}</span>
+            </div>
+            <div class="gnd-acc-body" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen?"9999px":"0"};opacity:${isOpen?"1":"0"}">
+                ${items.map(renderRow).join("")}
+            </div>
+        </div>`;
+        // Sync key en safeKey dans _gndOpenSections
+        if (_gndOpenSections.has(k) && k !== safeKey) { _gndOpenSections.add(safeKey); }
+    });
+
+    body.innerHTML = html;
 }
 
 // ── Export Excel global ───────────────────────────────────────
