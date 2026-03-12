@@ -1,25 +1,32 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AW27 CHECKERS — Connexion</title>
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         :root {
-            --accent:       #0284c7;
-            --accent-dim:   #e0f2fe;
-            --bg:           #f0f4f8;
-            --bg-card:      #ffffff;
+            --accent: #0284c7;
+            --accent-dim: #e0f2fe;
+            --bg: #f0f4f8;
+            --bg-card: #ffffff;
             --text-primary: #0f172a;
-            --text-muted:   #64748b;
-            --border:       #e2e8f0;
-            --danger:       #dc2626;
-            --danger-dim:   #fef2f2;
-            --success:      #16a34a;
-            --radius:       14px;
-            --shadow:       0 8px 32px rgba(15,23,42,0.10);
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --danger: #dc2626;
+            --danger-dim: #fef2f2;
+            --success: #16a34a;
+            --radius: 14px;
+            --shadow: 0 8px 32px rgba(15, 23, 42, 0.10);
         }
 
         body {
@@ -35,16 +42,20 @@
         /* ── Fond décoratif ── */
         body::before {
             content: "";
-            position: fixed; inset: 0; z-index: 0;
+            position: fixed;
+            inset: 0;
+            z-index: 0;
             background:
-                radial-gradient(ellipse 80% 60% at 20% 0%, rgba(2,132,199,0.10) 0%, transparent 60%),
-                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99,102,241,0.08) 0%, transparent 60%);
+                radial-gradient(ellipse 80% 60% at 20% 0%, rgba(2, 132, 199, 0.10) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
             pointer-events: none;
         }
 
         .login-wrap {
-            position: relative; z-index: 1;
-            width: 100%; max-width: 440px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 440px;
         }
 
         /* ── Card ── */
@@ -58,150 +69,267 @@
 
         /* ── Logo / Brand ── */
         .brand {
-            display: flex; align-items: center; gap: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             margin-bottom: 2rem;
         }
+
         .brand-logo {
-            width: 44px; height: 44px;
+            width: 44px;
+            height: 44px;
             background: linear-gradient(135deg, #0284c7, #6366f1);
             border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            color: #fff; font-size: 1rem; font-weight: 800; letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
             flex-shrink: 0;
         }
-        .brand-name  { font-size: 1.15rem; font-weight: 800; color: var(--text-primary); letter-spacing: -0.3px; }
-        .brand-sub   { font-size: 0.7rem; color: var(--text-muted); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+
+        .brand-name {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
+        }
+
+        .brand-sub {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
 
         /* ── Step ── */
-        .step { display: none; flex-direction: column; gap: 1.2rem; }
-        .step.active { display: flex; }
+        .step {
+            display: none;
+            flex-direction: column;
+            gap: 1.2rem;
+        }
+
+        .step.active {
+            display: flex;
+        }
 
         .step-title {
-            font-size: 1.25rem; font-weight: 700;
-            color: var(--text-primary); letter-spacing: -0.3px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.3px;
         }
+
         .step-desc {
-            font-size: 0.84rem; color: var(--text-muted); line-height: 1.55;
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            line-height: 1.55;
         }
 
         /* ── Bouton Google ── */
         .btn-google {
-            display: flex; align-items: center; justify-content: center; gap: 0.65rem;
-            width: 100%; padding: 0.8rem 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.65rem;
+            width: 100%;
+            padding: 0.8rem 1.2rem;
             border-radius: 10px;
             border: 1.5px solid var(--border);
             background: #fff;
             color: var(--text-primary);
-            font-size: 0.9rem; font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.18s ease;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
         }
+
         .btn-google:hover:not(:disabled) {
             border-color: var(--accent);
-            box-shadow: 0 4px 12px rgba(2,132,199,0.15);
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
             transform: translateY(-1px);
         }
-        .btn-google:disabled, .btn-google.loading {
-            opacity: 0.65; cursor: not-allowed; transform: none;
+
+        .btn-google:disabled,
+        .btn-google.loading {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
         }
+
         .btn-google.loading::after {
             content: "";
             display: inline-block;
-            width: 14px; height: 14px;
+            width: 14px;
+            height: 14px;
             border: 2px solid var(--border);
             border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 0.7s linear infinite;
             margin-left: 0.4rem;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         /* Google logo SVG */
-        .google-logo { width: 20px; height: 20px; flex-shrink: 0; }
+        .google-logo {
+            width: 20px;
+            height: 20px;
+            flex-shrink: 0;
+        }
 
         /* ── Séparateur ── */
         .divider {
-            display: flex; align-items: center; gap: 0.75rem;
-            font-size: 0.75rem; color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
         }
-        .divider::before, .divider::after {
-            content: ""; flex: 1; height: 1px; background: var(--border);
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
         }
 
         /* ── Profil user (step 2) ── */
         .user-profile {
-            display: flex; align-items: center; gap: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             padding: 0.75rem 1rem;
             border-radius: 10px;
             background: var(--accent-dim);
-            border: 1px solid rgba(2,132,199,0.2);
+            border: 1px solid rgba(2, 132, 199, 0.2);
         }
+
         .user-photo {
-            width: 36px; height: 36px; border-radius: 50%;
-            border: 2px solid rgba(2,132,199,0.3);
-            display: none; object-fit: cover;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid rgba(2, 132, 199, 0.3);
+            display: none;
+            object-fit: cover;
         }
+
         .user-photo-placeholder {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: var(--accent); color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 700;
+            flex-shrink: 0;
         }
-        .user-name  { font-size: 0.84rem; font-weight: 600; color: var(--text-primary); }
-        .user-email { font-size: 0.72rem; color: var(--text-muted); }
+
+        .user-name {
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-email {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
 
         /* ── Input GAS URL ── */
         .field-label {
-            font-size: 0.78rem; font-weight: 600;
-            color: var(--text-primary); margin-bottom: 0.35rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
         }
+
         .field-hint {
-            font-size: 0.71rem; color: var(--text-muted);
-            margin-bottom: 0.5rem; line-height: 1.5;
+            font-size: 0.71rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
         }
+
         .gas-input {
-            width: 100%; padding: 0.65rem 0.85rem;
+            width: 100%;
+            padding: 0.65rem 0.85rem;
             border-radius: 8px;
             border: 1.5px solid var(--border);
-            font-size: 0.82rem; color: var(--text-primary);
+            font-size: 0.82rem;
+            color: var(--text-primary);
             font-family: "SFMono-Regular", Consolas, monospace;
             background: #f8fafc;
             transition: border-color 0.18s;
             outline: none;
         }
+
         .gas-input:focus {
             border-color: var(--accent);
             background: #fff;
-            box-shadow: 0 0 0 3px rgba(2,132,199,0.1);
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.1);
         }
-        .gas-input::placeholder { color: #b0bec5; font-family: inherit; }
+
+        .gas-input::placeholder {
+            color: #b0bec5;
+            font-family: inherit;
+        }
 
         /* ── Bouton primaire ── */
         .btn-primary {
-            display: flex; align-items: center; justify-content: center; gap: 0.45rem;
-            width: 100%; padding: 0.78rem;
-            border-radius: 10px; border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            width: 100%;
+            padding: 0.78rem;
+            border-radius: 10px;
+            border: none;
             background: linear-gradient(135deg, #0284c7, #0369a1);
-            color: #fff; font-size: 0.88rem; font-weight: 600;
-            cursor: pointer; transition: all 0.18s ease;
-            box-shadow: 0 2px 8px rgba(2,132,199,0.35);
+            color: #fff;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
         }
+
         .btn-primary:hover:not(:disabled) {
             transform: translateY(-1px);
-            box-shadow: 0 4px 16px rgba(2,132,199,0.4);
+            box-shadow: 0 4px 16px rgba(2, 132, 199, 0.4);
         }
+
         .btn-primary:disabled {
-            opacity: 0.65; cursor: not-allowed; transform: none;
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none;
         }
 
         /* ── Lien retour ── */
         .back-link {
-            font-size: 0.78rem; color: var(--text-muted);
-            text-align: center; cursor: pointer;
-            text-decoration: underline; text-underline-offset: 3px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            text-align: center;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
         }
-        .back-link:hover { color: var(--accent); }
+
+        .back-link:hover {
+            color: var(--accent);
+        }
 
         /* ── Messages d'erreur ── */
         .error-msg {
@@ -210,7 +338,8 @@
             border-radius: 8px;
             background: var(--danger-dim);
             color: var(--danger);
-            font-size: 0.78rem; font-weight: 500;
+            font-size: 0.78rem;
+            font-weight: 500;
             border: 1px solid #fecaca;
         }
 
@@ -224,9 +353,18 @@
             color: var(--text-muted);
             line-height: 1.7;
         }
-        .gas-guide strong { color: var(--text-primary); }
-        .gas-guide ol { padding-left: 1.2rem; }
-        .gas-guide li { margin-bottom: 0.2rem; }
+
+        .gas-guide strong {
+            color: var(--text-primary);
+        }
+
+        .gas-guide ol {
+            padding-left: 1.2rem;
+        }
+
+        .gas-guide li {
+            margin-bottom: 0.2rem;
+        }
 
         /* ── Footer ── */
         .login-footer {
@@ -237,162 +375,171 @@
         }
     </style>
 </head>
+
 <body>
 
-<div class="login-wrap">
-    <div class="card">
+    <div class="login-wrap">
+        <div class="card">
 
-        <!-- Brand -->
-        <div class="brand">
-            <div class="brand-logo">AW</div>
-            <div>
-                <div class="brand-name">AW27 Checkers</div>
-                <div class="brand-sub">SOCOTA Dashboard</div>
-            </div>
-        </div>
-
-        <!-- ═══ STEP 1 : Connexion Google ═══ -->
-        <div class="step active" id="step-login">
-            <div>
-                <div class="step-title">Bienvenue 👋</div>
-                <div class="step-desc" style="margin-top:0.4rem">
-                    Connectez-vous avec votre compte Google pour accéder à votre dashboard personnel.
-                </div>
-            </div>
-
-            <div id="auth-error" class="error-msg"></div>
-
-            <button class="btn-google" id="btn-google-signin" onclick="signInWithGoogle()">
-                <!-- Google Logo -->
-                <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Se connecter avec Google
-            </button>
-
-            <div class="divider">Connexion sécurisée via Google OAuth</div>
-
-            <div style="font-size:0.74rem; color:var(--text-muted); line-height:1.6; text-align:center;">
-                Vos données restent dans votre propre Google Sheet.<br>
-                Aucun accès tiers à vos fichiers.
-            </div>
-        </div>
-
-        <!-- ═══ STEP 2 : Configuration GAS URL ═══ -->
-        <div class="step" id="step-gas">
-
-            <div>
-                <div class="step-title">Configuration initiale</div>
-                <div class="step-desc" style="margin-top:0.4rem">
-                    Première connexion détectée. Renseignez l'URL de votre Google Apps Script pour connecter votre Google Sheet.
-                </div>
-            </div>
-
-            <!-- Profil connecté -->
-            <div class="user-profile">
-                <img class="user-photo" id="setup-user-photo" src="" alt="Photo profil"/>
-                <div class="user-photo-placeholder" id="setup-user-initials">?</div>
+            <!-- Brand -->
+            <div class="brand">
+                <div class="brand-logo">AW</div>
                 <div>
-                    <div class="user-name"  id="setup-user-name">—</div>
-                    <div class="user-email" id="setup-user-email">—</div>
+                    <div class="brand-name">AW27 Checkers</div>
+                    <div class="brand-sub">SOCOTA Dashboard</div>
                 </div>
             </div>
 
-            <div id="gas-error" class="error-msg"></div>
-
-            <!-- Input URL -->
-            <div>
-                <div class="field-label">URL Google Apps Script <span style="color:var(--danger)">*</span></div>
-                <div class="field-hint">
-                    L'URL de déploiement de votre Apps Script (Web App). Elle commence toujours par <strong>https://script.google.com/macros/s/…</strong>
+            <!-- ═══ STEP 1 : Connexion Google ═══ -->
+            <div class="step active" id="step-login">
+                <div>
+                    <div class="step-title">Bienvenue 👋</div>
+                    <div class="step-desc" style="margin-top:0.4rem">
+                        Connectez-vous avec votre compte Google pour accéder à votre dashboard personnel.
+                    </div>
                 </div>
-                <input
-                    class="gas-input"
-                    id="gas-url-input"
-                    type="url"
-                    placeholder="https://script.google.com/macros/s/…/exec"
-                    onkeydown="if(event.key==='Enter') submitGasUrl()"
-                />
+
+                <div id="auth-error" class="error-msg"></div>
+
+                <button class="btn-google" id="btn-google-signin" onclick="signInWithGoogle()">
+                    <!-- Google Logo -->
+                    <svg class="google-logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                            fill="#4285F4" />
+                        <path
+                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            fill="#34A853" />
+                        <path
+                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                            fill="#FBBC05" />
+                        <path
+                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                            fill="#EA4335" />
+                    </svg>
+                    Se connecter avec Google
+                </button>
+
+                <div class="divider">Connexion sécurisée via Google OAuth</div>
+
+                <div style="font-size:0.74rem; color:var(--text-muted); line-height:1.6; text-align:center;">
+                    Vos données restent dans votre propre base de données.<br>
+                    Aucun accès tiers à vos fichiers.
+                </div>
             </div>
 
-            <!-- Guide -->
-            <div class="gas-guide">
-                <strong>Comment obtenir votre URL ?</strong>
-                <ol>
-                    <li>Ouvrez votre Google Sheet</li>
-                    <li>Extensions → Apps Script</li>
-                    <li>Déployer → Gérer les déploiements</li>
-                    <li>Copiez l'<strong>URL de l'application Web</strong></li>
-                </ol>
+            <!-- ═══ STEP 2 : Configuration GAS URL ═══ -->
+            <div class="step" id="step-gas">
+
+                <div>
+                    <div class="step-title">Configuration initiale</div>
+                    <div class="step-desc" style="margin-top:0.4rem">
+                        Première connexion détectée. Renseignez l'URL de votre connecteur pour lier votre base de
+                        données.
+                    </div>
+                </div>
+
+                <!-- Profil connecté -->
+                <div class="user-profile">
+                    <img class="user-photo" id="setup-user-photo" src="" alt="Photo profil" />
+                    <div class="user-photo-placeholder" id="setup-user-initials">?</div>
+                    <div>
+                        <div class="user-name" id="setup-user-name">—</div>
+                        <div class="user-email" id="setup-user-email">—</div>
+                    </div>
+                </div>
+
+                <div id="gas-error" class="error-msg"></div>
+
+                <!-- Input URL -->
+                <div>
+                    <div class="field-label">URL du connecteur <span style="color:var(--danger)">*</span></div>
+                    <div class="field-hint">
+                        L'URL de déploiement de votre Apps Script (Web App). Elle commence toujours par
+                        <strong>https://script.google.com/macros/s/…</strong>
+                    </div>
+                    <input class="gas-input" id="gas-url-input" type="url"
+                        placeholder="https://script.google.com/macros/s/…/exec"
+                        onkeydown="if(event.key==='Enter') submitGasUrl()" />
+                </div>
+
+                <!-- Guide -->
+                <div class="gas-guide">
+                    <strong>Comment obtenir votre URL ?</strong>
+                    <ol>
+                        <li>Ouvrez votre base de données</li>
+                        <li>Extensions → Apps Script</li>
+                        <li>Déployer → Gérer les déploiements</li>
+                        <li>Copiez l'<strong>URL de l'application Web</strong></li>
+                    </ol>
+                </div>
+
+                <button class="btn-primary" id="btn-save-gas" onclick="submitGasUrl()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="15" height="15">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Accéder au Dashboard
+                </button>
+
+                <div class="back-link" onclick="backToLogin()">← Se connecter avec un autre compte</div>
             </div>
 
-            <button class="btn-primary" id="btn-save-gas" onclick="submitGasUrl()">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-                </svg>
-                Accéder au Dashboard
-            </button>
-
-            <div class="back-link" onclick="backToLogin()">← Se connecter avec un autre compte</div>
         </div>
 
+        <div class="login-footer">
+            AW27 Checkers · SOCOTA &nbsp;·&nbsp; Données sécurisées Firebase
+        </div>
     </div>
 
-    <div class="login-footer">
-        AW27 Checkers · SOCOTA &nbsp;·&nbsp; Données sécurisées Firebase
-    </div>
-</div>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="auth.js"></script>
 
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="auth.js"></script>
+    <script>
+        // Initialiser les initiales dans le placeholder photo
+        function updateUserInitials(name) {
+            const el = document.getElementById("setup-user-initials");
+            if (!el) return;
+            const parts = (name || "?").trim().split(" ");
+            el.textContent = parts.length >= 2
+                ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+                : (name[0] || "?").toUpperCase();
+        }
 
-<script>
-// Initialiser les initiales dans le placeholder photo
-function updateUserInitials(name) {
-    const el = document.getElementById("setup-user-initials");
-    if (!el) return;
-    const parts = (name || "?").trim().split(" ");
-    el.textContent = parts.length >= 2
-        ? (parts[0][0] + parts[parts.length-1][0]).toUpperCase()
-        : (name[0] || "?").toUpperCase();
-}
+        // Surcharger showGasSetupStep pour gérer les initiales
+        const _origShowGasSetup = showGasSetupStep;
+        window.showGasSetupStep = function (firebaseUser) {
+            _origShowGasSetup(firebaseUser);
+            updateUserInitials(firebaseUser.displayName || firebaseUser.email);
+            const photo = document.getElementById("setup-user-photo");
+            const placeholder = document.getElementById("setup-user-initials");
+            if (photo && firebaseUser.photoURL) {
+                photo.style.display = "block";
+                if (placeholder) placeholder.style.display = "none";
+            }
+        };
 
-// Surcharger showGasSetupStep pour gérer les initiales
-const _origShowGasSetup = showGasSetupStep;
-window.showGasSetupStep = function(firebaseUser) {
-    _origShowGasSetup(firebaseUser);
-    updateUserInitials(firebaseUser.displayName || firebaseUser.email);
-    const photo = document.getElementById("setup-user-photo");
-    const placeholder = document.getElementById("setup-user-initials");
-    if (photo && firebaseUser.photoURL) {
-        photo.style.display = "block";
-        if (placeholder) placeholder.style.display = "none";
-    }
-};
+        function backToLogin() {
+            firebase.auth().signOut();
+            document.getElementById("step-gas").style.display = "none";
+            document.getElementById("step-login").style.display = "flex";
+            document.getElementById("gas-url-input").value = "";
+            document.getElementById("auth-error").style.display = "none";
+            document.getElementById("gas-error").style.display = "none";
+            const btn = document.getElementById("btn-google-signin");
+            if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
+        }
 
-function backToLogin() {
-    firebase.auth().signOut();
-    document.getElementById("step-gas").style.display   = "none";
-    document.getElementById("step-login").style.display = "flex";
-    document.getElementById("gas-url-input").value = "";
-    document.getElementById("auth-error").style.display = "none";
-    document.getElementById("gas-error").style.display  = "none";
-    const btn = document.getElementById("btn-google-signin");
-    if (btn) { btn.disabled = false; btn.classList.remove("loading"); }
-}
-
-// Si on arrive avec ?setup=1 (redirect depuis index.html), montrer directement step-gas
-const params = new URLSearchParams(window.location.search);
-if (params.get("setup") === "1") {
-    // onAuthStateChanged gérera la redirection vers step-gas
-}
-</script>
+        // Si on arrive avec ?setup=1 (redirect depuis index.html), montrer directement step-gas
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("setup") === "1") {
+            // onAuthStateChanged gérera la redirection vers step-gas
+        }
+    </script>
 
 </body>
+
 </html>

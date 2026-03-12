@@ -209,7 +209,9 @@ async function fetchAllData() {
     const refreshDot = document.getElementById("refresh-dot");
     if (refreshDot) refreshDot.style.display = "none";
     state._lastFetch = Date.now();
-    showTableSpinner();
+
+    showDashboardLoading();
+
     try {
         const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
         const json = await res.json();
@@ -228,22 +230,17 @@ async function fetchAllData() {
 
         // ── Charger les menus custom depuis GAS (priorité sur localStorage)
         if (json.menus && Array.isArray(json.menus)) {
-            // Supprimer les menus custom existants de la nav pour éviter les doublons
             const nav = document.getElementById("custom-nav-items");
             if (nav) nav.innerHTML = "";
-            // Réinitialiser les clés custom dans SHEET_CONFIG
             Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => delete SHEET_CONFIG[k]);
-            // Enregistrer les menus venant du GAS
             const migrated = json.menus.map(m => ({
                 ...m,
                 cols: m.cols.map(c => ({ ...c, key: c.label }))
             }));
             migrated.forEach(m => registerCustomMenu(m, false));
-            // Mettre à jour localStorage comme cache
             localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
         }
 
-        // ── Charger les données des feuilles custom
         Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => {
             const realName = SHEET_CONFIG[k].sheetName || SHEET_CONFIG[k].label;
             const fromGAS = Object.entries(json.data).find(([gasKey]) =>
@@ -258,13 +255,39 @@ async function fetchAllData() {
         console.error(err);
         state.loading = false;
         if (GOOGLE_APPS_SCRIPT_URL === "YOUR_WEB_APP_URL_HERE") {
-            showToast("Mode démo — Configurez GOOGLE_APPS_SCRIPT_URL.", "info", 6000);
+            showToast("Mode démo — Configurez l'URL du connecteur.", "info", 6000);
             state.data = getDemoData();
         } else {
-            showToast("Erreur de connexion au Google Sheet", "error");
+            showToast("Erreur de connexion à la base de données", "error");
         }
         renderAll();
+    } finally {
+        hideDashboardLoading();
     }
+}
+
+function showDashboardLoading() {
+    const main = document.querySelector("main.main");
+    if (!main) return;
+    main.classList.add("dashboard-loading");
+    // Only add if not already present
+    if (!document.getElementById("dashboard-spinner")) {
+        const container = document.createElement("div");
+        container.id = "dashboard-spinner";
+        container.className = "loading-spinner-container";
+        container.innerHTML = `
+            <div class="spinner-circle"></div>
+            <div class="loading-text-glow">Synchronisation des données</div>
+        `;
+        main.appendChild(container);
+    }
+}
+
+function hideDashboardLoading() {
+    const main = document.querySelector("main.main");
+    if (main) main.classList.remove("dashboard-loading");
+    const spinner = document.getElementById("dashboard-spinner");
+    if (spinner) spinner.remove();
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
@@ -666,14 +689,11 @@ function showTableSpinner() {
     tableHead.innerHTML = "";
     tableBody.innerHTML = `<tr><td colspan="99">
         <div class="loading-wrap">
-            <div class="loading-icon-wrap">
-                <svg class="loading-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="28" height="28">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
+            <div class="loading-icon-wrap" style="color:var(--accent);">
+                ${ICONS.clock}
             </div>
-            <div class="loading-text">Chargement des données…</div>
-            <div class="loading-sub">Connexion au Google Sheet en cours</div>
+            <div class="loading-text">Chargement en cours…</div>
+            <div class="loading-sub">Mise à jour du tableau de données</div>
         </div>
     </td></tr>`;
 }
@@ -1313,6 +1333,7 @@ function detectCustomCols(cols, menuLabel) {
         nlSubmission: find(["nl submission", "nl sub", "submission nl", "envoi nl", "send nl", "nl send", "nl date", "submission date"]),
         keepSample: find(["keep sample", "keep spl", "keep", "retain", "sample conserv", "echantillon conserv"]),
         trimsDetails: find(["trims detail", "trim detail", "trims details", "accessories detail", "detail trim"]),
+        awb: find(["awb", "tracking", "bordereau", "lta"]),
         fabric: find(["fabric", "tissu", "matière", "matiere", "material", "textile", "gmt fabric", "bulk fabric"]),
         color: find(["color", "colour", "coloris", "couleur", "gmt color", "shade", "teinte"]),
         style: find(["style", "ref", "reference", "article"]),
@@ -1347,16 +1368,10 @@ function isSent(val) {
 
 // ─── Auto-Refresh ─────────────────────────────────────────────
 (function startAutoRefresh() {
-    const INTERVAL = 5 * 60 * 1000; // 5 minutes
-    const WARN_AT = 4 * 60 * 1000; // show badge after 4 min
+    const WARN_AT = 5 * 60 * 1000; // show badge after 5 min
     setInterval(() => {
         const elapsed = Date.now() - (state._lastFetch || 0);
-        if (elapsed >= INTERVAL) {
-            // Silent background refresh
-            fetchAllData().then(() => {
-                showToast("Données actualisées automatiquement", "info", 2500);
-            });
-        } else if (elapsed >= WARN_AT) {
+        if (elapsed >= WARN_AT) {
             // Show stale badge on refresh button
             const dot = document.getElementById("refresh-dot");
             if (dot) dot.style.display = "block";
@@ -1525,6 +1540,16 @@ function _daysDiff(dateVal) {
     return Math.round((d - t) / 86400000);
 }
 
+// ── Icones SVG Professionnelles ────────────────────────────────
+const ICONS = {
+    clipboard: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>`,
+    alert: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>`,
+    clock: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
+    package: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`,
+    mail: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>`,
+    beaker: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>`
+};
+
 function collectAllAlerts() {
     const all = {};
 
@@ -1541,11 +1566,10 @@ function collectAllAlerts() {
         const supplierMeta = r.Supplier ? ` · ${r.Supplier}` : "";
         const poMeta = r.PO ? ` · PO : ${r.PO}` : " · ⚠ PO manquant";
 
-        // ── Situation 1 : Pas de Ready Date → relancer supplier ──────
         if (!hasReadyDate) {
             ordItems.push({
                 dotCls: "dot-nopo", tagCls: "tag-nopo",
-                tagLabel: `📋 ${poLabel} — Ready Date manquante`,
+                tagLabel: `${ICONS.clipboard} ${poLabel} — Ready Date manquante`,
                 title: `${styleMeta} — Ready Date non renseignée`,
                 action: `Relancer le supplier pour obtenir la Ready Date${supplierMeta}`,
                 style: r.Style || "—", client: r.Client || "",
@@ -1555,14 +1579,12 @@ function collectAllAlerts() {
             return;
         }
 
-        // ── Situation 2 : Ready Date dépassée + pas encore shipped → relancer supplier ──
         if (rdDiff < 0 && !isShipped) {
             const days = Math.abs(rdDiff);
             const urgency = days >= 14 ? "high" : "mid";
-            const urgBadge = urgency === "high" ? " 🚨" : " ⚡";
             ordItems.push({
                 dotCls: "dot-late", tagCls: "tag-late",
-                tagLabel: `🔴 ${poLabel} — Ready Date dépassée ${days}j${urgBadge}`,
+                tagLabel: `${ICONS.alert} ${poLabel} — Ready Date dépassée ${days}j`,
                 title: `${styleMeta} — Ready Date dépassée de ${days}j, non expédié`,
                 action: `Relancer le supplier : confirmer si prêt ou délai prévu${supplierMeta}`,
                 style: r.Style || "—", client: r.Client || "",
@@ -1572,15 +1594,14 @@ function collectAllAlerts() {
             return;
         }
 
-        // ── Situation 3 : Ready Date dans le futur → PO sera prêt dans Xj ──
         if (rdDiff >= 0 && !isShipped) {
             const urgency = rdDiff <= 7 ? "mid" : "low";
-            const tagPrefix = rdDiff === 0 ? "🟡" : rdDiff <= 7 ? "🟠" : "🕐";
+            const icon = rdDiff === 0 ? ICONS.alert : rdDiff <= 7 ? ICONS.clock : ICONS.clock;
             const daysTxt = rdDiff === 0 ? "aujourd'hui" : `dans ${rdDiff}j`;
             ordItems.push({
-                dotCls: rdDiff === 0 ? "dot-today" : rdDiff <= 7 ? "dot-risk" : "dot-risk",
-                tagCls: rdDiff === 0 ? "tag-today" : rdDiff <= 7 ? "tag-risk" : "tag-risk",
-                tagLabel: `${tagPrefix} ${poLabel} — prêt ${daysTxt}`,
+                dotCls: rdDiff === 0 ? "dot-today" : "dot-risk",
+                tagCls: rdDiff === 0 ? "tag-today" : "tag-risk",
+                tagLabel: `${icon} ${poLabel} — prêt ${daysTxt}`,
                 title: `${styleMeta} — prêt ${daysTxt}`,
                 action: rdDiff === 0
                     ? `Prévoir l'expédition aujourd'hui${supplierMeta}`
@@ -1592,15 +1613,11 @@ function collectAllAlerts() {
                 urgency, sheet: "ordering", rowIndex: r._rowIndex
             });
         }
-        // Shipped/Delivered → pas d'alerte
     });
 
     if (ordItems.length) all["ordering"] = { label: "Ordering", items: ordItems };
 
     // ─── SAMPLE (PSS) ─────────────────────────────────────────
-    // Règle clé : les 4 états sont MUTUELLEMENT EXCLUSIFS.
-    // L'état A (retard PSD) n'est déclenché QUE si Received Date est vide.
-    // Dès que le PSS est reçu (Received Date renseigné), on passe à l'état C ou D.
     const samRows = state.data.sample || [];
     const samItems = [];
 
@@ -1613,15 +1630,13 @@ function collectAllAlerts() {
 
         if (isApproved) return;
 
-        // ── Priorité absolue : Sending Date renseigné → sample déjà envoyée → approval en attente ──
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
             const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-            const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
             const awbPart = hasAwb ? ` under AWB ${r["AWB"]}` : "";
             samItems.push({
                 dotCls: "dot-approve", tagCls: "tag-approve",
-                tagLabel: `⏳ Envoyé au client — approval en attente ${days}j${urgencyLabel}`,
+                tagLabel: `${ICONS.clock} Envoyé au client — approval en attente ${days}j`,
                 title: `Sample envoyée au client${awbPart} — approval en attente depuis ${days}j`,
                 action: urgency === "high"
                     ? `Envoyé il y a ${days}j — relancer le client de toute urgence`
@@ -1635,13 +1650,12 @@ function collectAllAlerts() {
             return;
         }
 
-        // ── État C : Sample reçue, pas encore envoyée ────────────────
         if (hasReceived) {
             const days = Math.abs(_daysDiff(r["Received Date"]));
             const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
             samItems.push({
                 dotCls: "dot-send", tagCls: "tag-send",
-                tagLabel: `📦 À envoyer (${daysLabel})`,
+                tagLabel: `${ICONS.package} À envoyer (${daysLabel})`,
                 title: "Sample reçue — à envoyer au client",
                 action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date`,
                 style: r.Style || "—", client: r.Client || "",
@@ -1651,14 +1665,13 @@ function collectAllAlerts() {
             return;
         }
 
-        // ── États A/B : pas encore reçue, pas encore envoyée ─────────
         if (!hasReadyDate) return;
         const diff = _daysDiff(r["Ready Date"]);
         if (diff < 0) {
             const days = Math.abs(diff);
             samItems.push({
                 dotCls: "dot-late", tagCls: "tag-late",
-                tagLabel: `🔴 Sample non reçue — ${days}j de retard`,
+                tagLabel: `${ICONS.alert} Sample non reçue — ${days}j de retard`,
                 title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}`,
                 action: "Relancer la factory pour confirmer l'avancement de la sample",
                 style: r.Style || "—", client: r.Client || "",
@@ -1668,7 +1681,7 @@ function collectAllAlerts() {
         } else if (diff === 0) {
             samItems.push({
                 dotCls: "dot-today", tagCls: "tag-today",
-                tagLabel: "🟡 Sample attendue aujourd'hui",
+                tagLabel: `${ICONS.clock} Sample attendue aujourd'hui`,
                 title: "Sample attendue aujourd'hui — prévoir la réception",
                 action: "Confirmer la réception dès réception de la sample",
                 style: r.Style || "—", client: r.Client || "",
@@ -1676,12 +1689,13 @@ function collectAllAlerts() {
                 urgency: "low", sheet: "sample", rowIndex: r._rowIndex
             });
         }
-        // diff > 0 : Ready Date dans le futur → pas d'alerte
     });
 
     if (samItems.length) all["sample"] = { label: "Sample", items: samItems };
 
     // ─── CUSTOM MENUS ─────────────────────────────────────────
+    const _trimsDevoKeepAlerted = new Set();
+
     Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
         const cfg = SHEET_CONFIG[key];
         const rows = state.data[key] || [];
@@ -1692,139 +1706,49 @@ function collectAllAlerts() {
         const getClient = r => det.client ? (r[det.client] || "") : "";
         const getFsr = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
 
-        // ── Détection Bulk (A4, Shade Band, etc.) ────────────────
         const menuLabelLower = cfg.label.toLowerCase();
         const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
-        const bulkShortLabel = cfg.label;
+        const isTrimsDevo = menuLabelLower.includes("trims devo");
 
-        // Guard pour n'alerter qu'une seule fois par groupe rejeté (Trims Devo)
-        const _trimsDevoKeepAlerted = new Set();
+        const fabricGroups = {};
 
         rows.forEach(r => {
             const hasReceived = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
             const hasSending = det.sendingDate && !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
             const hasReadyDate = det.readyDate && !!(r[det.readyDate] && String(r[det.readyDate]).trim());
-            const hasFsr = det.fsrDate && !!(r[det.fsrDate] && String(r[det.fsrDate]).trim());
-            const hasLaunch = det.launchDate && !!(r[det.launchDate] && String(r[det.launchDate]).trim());
             const approved = det.approval && isApproved(r[det.approval]);
+            const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
+            const hasNlSub = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
+            const hasKeepSample = det.keepSample && !!(r[det.keepSample] && String(r[det.keepSample]).trim());
+            const hasFsr = det.fsrDate && !!(r[det.fsrDate] && String(r[det.fsrDate]).trim());
 
             if (approved) return;
 
-            // ── BULK A4 / SHADE BAND : alertes spécifiques ───────────
             if (isBulk) {
-                const typeCol = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase() === "bulk type" || c.label.toLowerCase().includes("type"));
-                const typeVal = typeCol && r[typeCol.key] ? String(r[typeCol.key]).trim() : "";
-                const typeLabel = typeVal || bulkShortLabel;
-                const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "";
-                const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
-
-                if (isRejected) return; // ligne rejetée → pas d'alerte (bouton duplication dans le tableau)
-
-                // Situation 1 : Ready Date présente mais pas encore reçu → sample sera prêt dans Xj
-                if (hasReadyDate && !hasReceived && !hasSending) {
-                    const diff = _daysDiff(r[det.readyDate]);
-                    if (diff > 0) {
-                        items.push({
-                            dotCls: "dot-risk", tagCls: "tag-risk",
-                            tagLabel: `🕐 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — prêt dans ${diff}j`,
-                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — sample prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
-                            action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
-                            style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
-                            urgency: "low", sheet: key, rowIndex: r._rowIndex
-                        });
-                        return;
-                    } else if (diff === 0) {
-                        items.push({
-                            dotCls: "dot-today", tagCls: "tag-today",
-                            tagLabel: `🟡 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — attendu aujourd'hui`,
-                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — attendu aujourd'hui`,
-                            action: `Confirmer la réception dès arrivée`,
-                            style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
-                            urgency: "low", sheet: key, rowIndex: r._rowIndex
-                        });
-                        return;
-                    } else {
-                        // Ready Date dépassée, toujours pas reçu
-                        const days = Math.abs(diff);
-                        items.push({
-                            dotCls: "dot-late", tagCls: "tag-late",
-                            tagLabel: `🔴 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — en retard ${days}j`,
-                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — non reçu, ${days}j de retard`,
-                            action: `Relancer le supplier pour confirmer l'envoi`,
-                            style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
-                            urgency: "high", sheet: key, rowIndex: r._rowIndex
-                        });
-                        return;
-                    }
-                }
-
-                // Situation 2 : Received Date renseigné mais pas de Sending Date → à envoyer
-                if (hasReceived && !hasSending) {
-                    items.push({
-                        dotCls: "dot-send", tagCls: "tag-send",
-                        tagLabel: `📬 Envoyer ${typeLabel}${fabricVal ? " · " + fabricVal : ""}`,
-                        title: `Envoyer le ${typeLabel}${fabricVal ? " du " + fabricVal : ""}`,
-                        action: `Organiser l'envoi du ${typeLabel}${fabricVal ? " (" + fabricVal + ")" : ""}`,
-                        style: getStyle(r), client: getClient(r),
-                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
-                        urgency: "mid", sheet: key, rowIndex: r._rowIndex
-                    });
-                    return;
-                }
-
-                // Situation 3 : Sending Date renseigné, pas d'Approval → en attente approval
-                if (hasSending && !approved) {
-                    const days = Math.abs(_daysDiff(r[det.sendingDate]));
-                    const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-                    const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
-                    items.push({
-                        dotCls: "dot-approve", tagCls: "tag-approve",
-                        tagLabel: `⏳ Approval ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — ${days}j${urgBadge}`,
-                        title: `Approval ${typeLabel}${fabricVal ? " du " + fabricVal : ""} — envoyé il y a ${days}j`,
-                        action: urgency === "high"
-                            ? `Relancer de toute urgence — plus de 2 semaines`
-                            : urgency === "mid"
-                                ? `Envoyer un rappel — 1 semaine sans retour`
-                                : `Attendre ou envoyer un suivi`,
-                        style: getStyle(r), client: getClient(r),
-                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
-                        urgency, sheet: key, rowIndex: r._rowIndex
-                    });
-                    return;
-                }
-
-                return; // Bulk : ne pas tomber dans la logique générique
+                const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "Default Fabric";
+                if (!fabricGroups[fabricVal]) fabricGroups[fabricVal] = { rows: [] };
+                fabricGroups[fabricVal].rows.push(r);
+                return;
             }
 
-            // ── TRIMS DEVO : logique spécifique ──────────────────────
-            if (det.isTrimsDevo) {
-                const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
-                const hasNlSub = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
-                const hasKeepSample = det.keepSample && !!(r[det.keepSample] && String(r[det.keepSample]).trim());
-                const descVal = det.description && r[det.description] ? String(r[det.description]).trim() : "";
+            if (isTrimsDevo) {
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                 const trimsVal = cfg.cols.find(c => c.label.toLowerCase() === "trims");
                 const trimsStr = trimsVal && r[trimsVal.key] ? String(r[trimsVal.key]).trim() : "";
+                const trimColor = [trimsStr, colorVal].filter(Boolean).join(" · ");
+                const descVal = det.description && r[det.description] ? String(r[det.description]).trim() : "";
                 const displayName = [descVal, colorVal, trimsStr].filter(Boolean).join(" · ") || getStyle(r);
 
-                // Détection AWB dans le menu custom
-                const awbCol = cfg.cols.find(c => c.label.toLowerCase() === "awb" || c.label.toLowerCase().includes("awb"));
-                const awbVal = awbCol && r[awbCol.key] ? String(r[awbCol.key]).trim() : "";
-                const awbPart = awbVal ? ` under AWB ${awbVal}` : "";
-
-                const trimColor = [trimsStr, colorVal].filter(Boolean).join(" · ");
-
-                // ── Priorité 1 : NL Submission renseigné → approval en attente (peu importe Ready Date) ──
-                if (hasNlSub && !isRejected && !approved) {
+                if (hasNlSub && !isRejected) {
                     const nlDays = Math.abs(_daysDiff(r[det.nlSubmission]));
                     const urgency = nlDays >= 14 ? "high" : nlDays >= 7 ? "mid" : "low";
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    const awbVal = det.awb && r[det.awb] ? String(r[det.awb]).trim() : "";
+                    const awbPart = awbVal ? ` (AWB ${awbVal})` : "";
+
                     items.push({
                         dotCls: "dot-approve", tagCls: "tag-approve",
-                        tagLabel: `⏳ ${trimColor} — approval en attente ${nlDays}j${awbVal ? " · AWB " + awbVal : ""}${urgBadge}`,
+                        tagLabel: `${ICONS.clock} ${trimColor} — approval en attente ${nlDays}j${awbVal ? " · AWB " + awbVal : ""}${urgBadge}`,
                         title: `${displayName} — envoyé à NL${awbPart}, approval en attente depuis ${nlDays}j`,
                         action: urgency === "high"
                             ? `Envoyé il y a ${nlDays}j — relancer de toute urgence`
@@ -1858,7 +1782,7 @@ function collectAllAlerts() {
                 }
 
                 // ── Alerte 3 : Pas de Ready Date → demander au supplier ──────
-                if (!hasNlSub && !isRejected && !approved && !hasReadyDate) {
+                if (!hasNlSub && !isRejected && !hasReadyDate) {
                     items.push({
                         dotCls: "dot-nopo", tagCls: "tag-nopo",
                         tagLabel: `📋 ${trimColor} — Ready Date manquante`,
@@ -1870,12 +1794,10 @@ function collectAllAlerts() {
                     });
                     return;
                 }
-
-                // ── Sinon (logique générique) : Ready Date présente, en attente réception ──
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
-            // ── FABRIC ANALYSIS
+            // ── FABRIC ANALYSIS ───────────────────────────────────────
             if (det.isFabricAnalysis) {
                 // Seul déclencheur : colonne "Launched on" renseignée
                 // Pas de received date — uniquement la date de lancement compte.
@@ -1966,7 +1888,7 @@ function collectAllAlerts() {
             // ── États A / B : pas encore reçu ──────────────────────
             if (hasFsr && !hasReadyDate) {
                 // État A : FSR lancé mais Ready Date absente → relancer mail
-                const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : "";
+                const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : ""; // Assuming timeAgo is defined
                 const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                 const styleVal = getStyle(r);
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
@@ -2051,102 +1973,69 @@ function collectAllAlerts() {
                     const val = r[col.key];
                     if (!val || !String(val).trim()) return;
 
-                    const diff = _daysDiff(val);  // positif = futur, négatif = passé
+                    const diff = _daysDiff(val);
+                    const isPast = diff < 0;
                     const days = Math.abs(diff);
-                    const fmt = _fmtDate(val);
 
+                    // Nature sémantique
                     const isActionPast = ACTION_PAST_PATTERNS.some(p => colLbl.includes(p));
                     const isDeadline = DEADLINE_PATTERNS.some(p => colLbl.includes(p));
 
                     if (isActionPast) {
-                        // Colonne "action passée" : la date indique qu'une action a eu lieu
-                        // → on attend un retour/résultat depuis ce moment.
-                        const agoTxt = days === 0 ? "aujourd'hui"
-                            : days === 1 ? "hier"
-                                : `il y a ${days} jour${days > 1 ? "s" : ""}`;
+                        // Action passée (ex: "Sent on") -> on attend le prochain événement
                         const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-                        const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
-                        const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
-                        const styleVal = getStyle(r);
-                        const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
-                        const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
-
                         items.push({
-                            dotCls: urgency === "high" ? "dot-late" : urgency === "mid" ? "dot-risk" : "dot-send",
-                            tagCls: urgency === "high" ? "tag-late" : urgency === "mid" ? "tag-risk" : "tag-send",
-                            tagLabel: `⏳ ${col.label} — en attente (${days}j)${urgencyBadge}`,
-                            title: `${fabricPrefix}${col.label} renseigné ${agoTxt} — en attente d'un retour`,
-                            action: `Vérifier si une action est requise suite à "${col.label}" du ${fmt}`,
-                            style: styleVal, client: getClient(r),
-                            meta: `${col.label} : ${fmt}`,
+                            dotCls: "dot-approve", tagCls: "tag-approve",
+                            tagLabel: `${ICONS.clock} ${col.label} — depuis ${days}j`,
+                            title: `${getStyle(r)} — ${col.label} renseigné, attente suite`,
+                            action: `Vérifier l'état d'avancement pour cette étape`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `${col.label} : ${_fmtDate(val)}${getFsr(r)}`,
                             urgency, sheet: key, rowIndex: r._rowIndex
                         });
-
                     } else if (isDeadline) {
-                        // Colonne "échéance" : alerte si passée ou proche (≤7j)
-                        if (diff < 0) {
+                        // Échéance (ex: "Due Date")
+                        if (isPast) {
                             items.push({
                                 dotCls: "dot-late", tagCls: "tag-late",
-                                tagLabel: `🔴 ${col.label} — dépassée de ${days}j`,
-                                title: `Échéance "${col.label}" dépassée de ${days} jour${days > 1 ? "s" : ""}`,
-                                action: `Traiter ou replanifier la date "${col.label}"`,
+                                tagLabel: `${ICONS.alert} ${col.label} dépassé ${days}j`,
+                                title: `${getStyle(r)} — Échéance dépassée (${col.label})`,
+                                action: `Relancer pour finaliser ou décaler la date`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
+                                meta: `${col.label} : ${_fmtDate(val)}${getFsr(r)}`,
                                 urgency: "high", sheet: key, rowIndex: r._rowIndex
                             });
-                        } else if (diff === 0) {
-                            items.push({
-                                dotCls: "dot-today", tagCls: "tag-today",
-                                tagLabel: `🟡 ${col.label} — aujourd'hui`,
-                                title: `Échéance "${col.label}" arrive aujourd'hui`,
-                                action: `Traiter "${col.label}" avant la fin de journée`,
-                                style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
-                                urgency: "mid", sheet: key, rowIndex: r._rowIndex
-                            });
-                        } else if (diff <= 7) {
+                        } else if (days <= 7) {
                             items.push({
                                 dotCls: "dot-risk", tagCls: "tag-risk",
-                                tagLabel: `🕐 ${col.label} — dans ${diff}j`,
-                                title: `Échéance "${col.label}" dans ${diff} jour${diff > 1 ? "s" : ""}`,
-                                action: `Préparer l'action requise avant le ${fmt}`,
+                                tagLabel: `${ICONS.clock} ${col.label} dans ${days}j`,
+                                title: `${getStyle(r)} — Échéance proche (${col.label})`,
+                                action: `Finaliser cette étape d'ici ${days}j`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
-                                urgency: "low", sheet: key, rowIndex: r._rowIndex
+                                meta: `${col.label} : ${_fmtDate(val)}${getFsr(r)}`,
+                                urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                         }
-
                     } else {
-                        // Colonne date neutre : alerte si passée (retard) ou dans les 7j (rappel)
-                        if (diff < 0) {
-                            const urgency = days >= 14 ? "high" : "mid";
+                        // Date neutre (Rappel si passé ou proche)
+                        if (isPast) {
                             items.push({
                                 dotCls: "dot-late", tagCls: "tag-late",
-                                tagLabel: `🔴 ${col.label} — ${days}j de retard`,
-                                title: `"${col.label}" était le ${fmt} — aucune suite renseignée`,
-                                action: `Vérifier si une action est requise ou mettre à jour la date`,
+                                tagLabel: `${ICONS.alert} ${col.label} passé ${days}j`,
+                                title: `${getStyle(r)} — Date passée (${col.label})`,
+                                action: `Régulariser cette information`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
-                                urgency, sheet: key, rowIndex: r._rowIndex
-                            });
-                        } else if (diff === 0) {
-                            items.push({
-                                dotCls: "dot-today", tagCls: "tag-today",
-                                tagLabel: `🟡 ${col.label} — aujourd'hui`,
-                                title: `"${col.label}" est aujourd'hui`,
-                                action: `Confirmer ou mettre à jour "${col.label}"`,
-                                style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
+                                meta: `${col.label} : ${_fmtDate(val)}${getFsr(r)}`,
                                 urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
-                        } else if (diff <= 7) {
+                        } else if (days <= 5) {
                             items.push({
-                                dotCls: "dot-risk", tagCls: "tag-risk",
-                                tagLabel: `🕐 ${col.label} — dans ${diff}j`,
-                                title: `"${col.label}" prévu dans ${diff} jour${diff > 1 ? "s" : ""} — à surveiller`,
-                                action: `Préparer ce qui est nécessaire avant le ${fmt}`,
+                                dotCls: "dot-today", tagCls: "tag-today",
+                                tagLabel: `${ICONS.clock} ${col.label} bientôt`,
+                                title: `${getStyle(r)} — Information à surveiller`,
+                                action: `Action requise d'ici peu`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `${col.label} : ${fmt}`,
+                                meta: `${col.label} : ${_fmtDate(val)}${getFsr(r)}`,
                                 urgency: "low", sheet: key, rowIndex: r._rowIndex
                             });
                         }
@@ -2155,26 +2044,39 @@ function collectAllAlerts() {
             }
         });
 
+        // Traitement des groupes Bulk (moved here to be after individual row processing)
+        if (isBulk) {
+            Object.keys(fabricGroups).forEach(f => {
+                const groupRows = fabricGroups[f];
+                const stats = { late: 0, today: 0, toSend: 0, pending: 0 };
+                groupRows.forEach(r => {
+                    const hasReceived = !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
+                    const hasSending = !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
+                    const hasReady = !!(r[det.readyDate] && String(r[det.readyDate]).trim());
+                    if (hasReady && !hasReceived && !hasSending) {
+                        const diff = _daysDiff(r[det.readyDate]);
+                        if (diff < 0) stats.late++;
+                        else if (diff === 0) stats.today++;
+                    } else if (hasReceived && !hasSending) {
+                        stats.toSend++;
+                    } else if (hasSending && !isApproved(r[det.approval])) {
+                        stats.pending++;
+                    }
+                });
+                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: "Multi", client: groupRows[0].Client || "" });
+                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: "Multi", client: groupRows[0].Client || "" });
+                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: "Multi", client: groupRows[0].Client || "" });
+                if (stats.pending > 0) items.push({ dotCls: "dot-approve", tagCls: "tag-approve", tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval`, urgency: "low", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Approbation client`, action: "Suivi approval", style: "Multi", client: groupRows[0].Client || "" });
+            });
+        }
+
         if (items.length) all[key] = { label: cfg.label, items };
     });
 
-    // ── Cascade blocks (merged from injection) ───────────────
-    const blocks = collectCascadeBlocks();
+    const blocks = collectCascadeBlocks(); // Assuming collectCascadeBlocks is defined elsewhere
     if (blocks.length) {
-        const cascadeItems = blocks.map(b => ({
-            dotCls: b.maxUrgency === "high" ? "dot-late" : "dot-risk",
-            tagCls: b.maxUrgency === "high" ? "tag-late" : "tag-risk",
-            tagLabel: `${b.maxUrgency === "high" ? "🔴" : "🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length > 1 ? "s" : ""}`,
-            title: `Style ${b.style} — blocage en cascade détecté`,
-            action: b.issues.map(i => `${i.icon} ${i.label}`).join(" · "),
-            style: b.style, client: b.client || "",
-            meta: b.issues.map(i => i.detail).join(" | "),
-            urgency: b.maxUrgency,
-            sheet: "ordering", rowIndex: null
-        }));
-        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: cascadeItems };
+        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: blocks.map(b => ({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} Cascade — ${b.issues.length} problèmes`, title: `Style ${b.style} — Blocage`, action: "Vérifier dépendances", style: b.style, urgency: "high", sheet: "ordering" })) };
     }
-
     return all;
 }
 
@@ -2533,7 +2435,7 @@ function openUserSettings() {
                 <!-- GAS URL -->
                 <div class="usm-section">
                     <div class="usm-section-title">Google Apps Script URL</div>
-                    <div class="usm-section-desc">Modifiez cette URL pour pointer vers un autre Google Sheet.</div>
+                    <div class="usm-section-desc">Modifiez cette URL pour connecter une autre source de données.</div>
                     <input class="usm-input" id="usm-gas-input" type="url"
                         placeholder="https://script.google.com/macros/s/…/exec"/>
                     <button class="usm-btn-save" onclick="saveNewGasUrl()">
