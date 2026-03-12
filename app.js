@@ -1696,10 +1696,10 @@ function collectAllAlerts() {
                     items.push({
                         dotCls:"dot-nopo", tagCls:"tag-nopo",
                         tagLabel:`📋 Ready Date manquante — relancer supplier`,
-                        title:`${displayName} — Ready Date non renseignée`,
-                        action:`Demander la Ready Date du sample au supplier`,
+                        title:`${trimsStr || "Trims"}${colorVal ? " · "+colorVal : ""} — Ready Date non renseignée`,
+                        action:`Demander la Ready Date au supplier pour ${trimsStr || "ce trims"}${colorVal ? " ("+colorVal+")" : ""}`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`${descVal?descVal+"":" "}${colorVal?" · "+colorVal:""}${trimsStr?" · "+trimsStr:""}`.trim() || "—",
+                        meta:`${trimsStr?trimsStr:""}${colorVal?" · Color : "+colorVal:""}${descVal?" · "+descVal:""}`.trim(),
                         urgency:"mid", sheet:key, rowIndex:r._rowIndex
                     });
                     return;
