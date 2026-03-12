@@ -723,9 +723,16 @@ function renderTable() {
 
         const trackCell = isOrdering ? (() => { const t = computeDeliveryTrack(row); return `<td><span class="track-badge ${t.cls}">${t.label}</span></td>`; })() : "";
 
+        const cfg = SHEET_CONFIG[state.activeSheet];
+        const isTrimsDevoSheet = cfg && cfg.custom && (cfg.label || "").toLowerCase().includes("trims");
+        const trimsDet = isTrimsDevoSheet ? detectCustomCols(cfg.cols, cfg.label) : null;
+
         return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
             <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+            ${isTrimsDevoSheet && trimsDet && String(row[trimsDet.approval] ?? "").trim().toLowerCase() === "rejected"
+                ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateTrimsDevoRejected(${rowIdx})" title="Créer nouvelle ligne Rejeté (Description/Color/Trims/Trims Details/Supplier)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
+                : ""}
             <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
         </div></td></tr>`;
     }).join("");
@@ -736,6 +743,49 @@ function sortBy(col) { if (state.sortCol === col) state.sortDir *= -1; else { st
 
 function openAddModal() { state.editingRow = null; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Ajouter – ${cfg.label}`; modalSubTitle.textContent = "Remplissez les champs ci-dessous"; buildForm(cfg.cols, {}); formSave.textContent = "Enregistrer"; openModal(); }
 function openEditModal(rowIndex) { const row = state.data[state.activeSheet].find(r => r._rowIndex === rowIndex); if (!row) return; state.editingRow = rowIndex; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Modifier – ${cfg.label}`; modalSubTitle.textContent = `Ligne ${rowIndex}`; buildForm(cfg.cols, row); formSave.textContent = "Mettre à jour"; openModal(); }
+
+async function duplicateTrimsDevoRejected(rowIndex) {
+    const sheetKey = state.activeSheet;
+    const cfg = SHEET_CONFIG[sheetKey];
+    if (!cfg) return;
+    const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
+    if (!row) return;
+
+    // Colonnes dont on GARDE les données (toutes les autres → vide)
+    const KEEP_PATTERNS = [
+        ["season","saison"],
+        ["client","buyer","brand","marque"],
+        ["dept","department","departement","département"],
+        ["style","ref","reference","article"],
+        ["description","desc","name","nom"],
+        ["color","colour","coloris","couleur","shade","teinte"],
+        ["trims details","trim details","accessories detail","detail trim","garniture detail"],
+        ["trims","trim","accessoire","garniture"],
+        ["supplier","fournisseur","vendor","mill","factory"],
+    ];
+
+    const keepKeys = new Set();
+    KEEP_PATTERNS.forEach(patterns => {
+        const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
+        if (c) keepKeys.add(c.key);
+    });
+
+    // Construire la nouvelle ligne : toutes les colonnes présentes, données seulement pour les 9
+    const newRow = {};
+    cfg.cols.forEach(c => {
+        newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
+    });
+
+    try {
+        showToast("Création de la nouvelle ligne…", "info");
+        await sendRequest("CREATE", { data: newRow });
+        await fetchAllData();
+        renderAll();
+        showToast("Nouvelle ligne créée — Season / Client / Dept / Style / Description / Color / Trims / Trims Details / Supplier ✓", "success");
+    } catch (err) {
+        showToast("Erreur lors de la duplication : " + err.message, "error");
+    }
+}
 
 function toISODateValue(val) {
     if (!val) return "";
@@ -1146,6 +1196,9 @@ function detectCustomCols(cols, menuLabel) {
     const FABRIC_COL_PHRASES = ["fabric analysis","fabric test","efa","test labo","fiber test","fibre test","lab analysis","composition test"];
     // Patterns NON-Fabric explicites
     const NON_FABRIC_PATTERNS = ["lab dip","labdip","strike off","strikeoff","print strike","color strike"];
+    // Detect Trims Devo
+    const TRIMS_DEVO_PATTERNS = ["trims devo","trim devo","trims dev","trim dev","trims development","trim development"];
+    const isTrimsDevo = TRIMS_DEVO_PATTERNS.some(p => menuHint.includes(p));
     const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
     // Tester chaque MOT du nom du menu individuellement
     const menuWords = menuHint.trim().split(/\s+/);
@@ -1163,6 +1216,10 @@ function detectCustomCols(cols, menuLabel) {
         launchDate:      find(["launched on","launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date","date analyse","analysis date"]),
         efaRef:          find(["efa","fabric ref","fabric no","fabric num","lot","batch","test ref","test no","test num","test id","analyse ref","analyse no","ref test"]),
         isFabricAnalysis,
+        isTrimsDevo,
+        nlSubmission:    find(["nl submission","nl sub","submission nl","envoi nl","send nl","nl send","nl date","submission date"]),
+        keepSample:      find(["keep sample","keep spl","keep","retain","sample conserv","echantillon conserv"]),
+        trimsDetails:    find(["trims detail","trim detail","trims details","accessories detail","detail trim"]),
         color:           find(["color","colour","coloris","couleur","gmt color","shade","teinte"]),
         style:           find(["style","ref","reference","article"]),
         client:          find(["client","buyer","brand","marque"]),
@@ -1188,7 +1245,7 @@ function timeAgo(dateVal) {
 }
 
 function isApproved(val) {
-    return (val || "").toLowerCase() === "approved";
+    return String(val ?? "").toLowerCase() === "approved";
 }
 function isSent(val) {
     return !!(val && String(val).trim() !== "");
@@ -1514,8 +1571,10 @@ function collectAllAlerts() {
         // ── Détection Bulk (A4, Shade Band, etc.) ────────────────
         const menuLabelLower = cfg.label.toLowerCase();
         const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
-        // Label court pour les notifications (ex: "Bulk A4", "Shade Band")
         const bulkShortLabel = cfg.label;
+
+        // Guard pour n'alerter qu'une seule fois par groupe rejeté (Trims Devo)
+        const _trimsDevoKeepAlerted = new Set();
 
         rows.forEach(r => {
             const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
@@ -1573,7 +1632,65 @@ function collectAllAlerts() {
                 }
             }
 
-            // ── FABRIC ANALYSIS : logique spécifique ─────────────────
+            // ── TRIMS DEVO : logique spécifique ──────────────────────
+            if (det.isTrimsDevo) {
+                const isRejected    = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
+                const hasNlSub      = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
+                const hasKeepSample = det.keepSample   && !!(r[det.keepSample]   && String(r[det.keepSample]).trim());
+                const rdOverdue     = hasReadyDate && _daysDiff(r[det.readyDate]) < 0;
+                const descVal       = det.description && r[det.description] ? String(r[det.description]).trim() : "";
+                const colorVal      = det.color       && r[det.color]       ? String(r[det.color]).trim()       : "";
+                const trimsVal      = cfg.cols.find(c => c.label.toLowerCase() === "trims");
+                const trimsStr      = trimsVal && r[trimsVal.key] ? String(r[trimsVal.key]).trim() : "";
+
+                const displayName   = [descVal, colorVal, trimsStr].filter(Boolean).join(" · ") || getStyle(r);
+
+                // ── Alerte 1 : Ready Date dépassée + NL Submission renseigné → en attente approval ──
+                if (rdOverdue && hasNlSub && !isRejected && !approved) {
+                    const nlDays = Math.abs(_daysDiff(r[det.nlSubmission]));
+                    const urgency = nlDays >= 14 ? "high" : nlDays >= 7 ? "mid" : "low";
+                    const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    items.push({
+                        dotCls:"dot-approve", tagCls:"tag-approve",
+                        tagLabel:`⏳ Approval en attente — ${nlDays}j${urgBadge}`,
+                        title:`${displayName} — envoyé à NL, en attente d'approval`,
+                        action: urgency === "high"
+                            ? `Envoyé à NL il y a ${nlDays}j — relancer de toute urgence`
+                            : urgency === "mid"
+                            ? `Envoyé à NL il y a ${nlDays}j — envoyer un rappel`
+                            : `Envoyé à NL il y a ${nlDays}j — suivre l'approval`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`NL Submission : ${_fmtDate(r[det.nlSubmission])} · Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        urgency, sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+
+                // ── Alerte 2 : Ligne rejetée → Keep Sample non reçu ──────────
+                if (isRejected && !hasKeepSample) {
+                    // Afficher seulement sur la 1ère ligne rejetée pour ce groupe (Description+Color)
+                    const groupKey = `${descVal}__${colorVal}__${trimsStr}`;
+                    if (!_trimsDevoKeepAlerted.has(groupKey)) {
+                        _trimsDevoKeepAlerted.add(groupKey);
+                        const rejDate = det.readyDate && r[det.readyDate] ? ` — Ready Date : ${_fmtDate(r[det.readyDate])}` : "";
+                        items.push({
+                            dotCls:"dot-late", tagCls:"tag-late",
+                            tagLabel:`🔴 Keep Sample non reçu — rejeté`,
+                            title:`${displayName} — sample rejeté, keep sample non réceptionné`,
+                            action:`Confirmer la réception du keep sample de ce trims rejeté`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Statut : Rejected${rejDate}${det.nlSubmission && r[det.nlSubmission] ? " · NL Sub : "+_fmtDate(r[det.nlSubmission]) : ""}`,
+                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                        });
+                    }
+                    return;
+                }
+
+                // Sinon : logique générique (Ready Date future, FSR, etc.)
+            }
+            // ── FIN logique Trims Devo ────────────────────────────────
+
+            // ── FABRIC ANALYSIS
             if (det.isFabricAnalysis) {
                 // Seul déclencheur : colonne "Launched on" renseignée
                 // Pas de received date — uniquement la date de lancement compte.
