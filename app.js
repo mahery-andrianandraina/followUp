@@ -433,6 +433,37 @@ function renderDashboard() {
         '<div class="dbc-grid">' +
             (clientCards || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>') +
         '</div>';
+
+    // ── Dashboard intelligence sections (merged from injection) ──
+    const _dsEl = document.getElementById("dashboard-screen");
+    if (_dsEl) {
+        // Avoid duplicate injection
+        if (!_dsEl.querySelector("#style-timeline-body")) {
+            const extraHtml = `
+    <div style="margin-top:2rem;">
+        <div style="margin-bottom:2rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Progression des Styles</h3>
+                <span id="timeline-style-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
+                <button onclick="toggleStyleTimeline()" id="btn-toggle-timeline" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">Voir tout</button>
+            </div>
+            <div id="style-timeline-body"></div>
+        </div>
+        <div>
+            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Blocages en Cascade</h3>
+                <span id="cascade-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
+                <button onclick="openDuplicatesPanel()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">🔍 Doublons</button>
+            </div>
+            <div id="cascade-blocks-body"></div>
+        </div>
+    </div>`;
+            _dsEl.insertAdjacentHTML("beforeend", extraHtml);
+        }
+        _refreshDashboardIntelligence();
+    }
 }
 
 // ─── KPIs ─────────────────────────────────────────────────────
@@ -1802,6 +1833,23 @@ function collectAllAlerts() {
         if (items.length) all[key] = { label:cfg.label, items };
     });
 
+    // ── Cascade blocks (merged from injection) ───────────────
+    const blocks = collectCascadeBlocks();
+    if (blocks.length) {
+        const cascadeItems = blocks.map(b => ({
+            dotCls: b.maxUrgency === "high" ? "dot-late" : "dot-risk",
+            tagCls: b.maxUrgency === "high" ? "tag-late" : "tag-risk",
+            tagLabel: `${b.maxUrgency==="high"?"🔴":"🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length>1?"s":""}`,
+            title: `Style ${b.style} — blocage en cascade détecté`,
+            action: b.issues.map(i => `${i.icon} ${i.label}`).join(" · "),
+            style: b.style, client: b.client || "",
+            meta: b.issues.map(i => i.detail).join(" | "),
+            urgency: b.maxUrgency,
+            sheet: "ordering", rowIndex: null
+        }));
+        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: cascadeItems };
+    }
+
     return all;
 }
 
@@ -2363,30 +2411,6 @@ function collectCascadeBlocks() {
     return blocks;
 }
 
-// Injection dans collectAllAlerts pour les notifs globales
-const _origCollectAllAlerts = collectAllAlerts;
-function collectAllAlerts() {
-    const all = _origCollectAllAlerts();
-
-    // Ajouter les blocages cascade
-    const blocks = collectCascadeBlocks();
-    if (blocks.length) {
-        const cascadeItems = blocks.map(b => ({
-            dotCls: b.maxUrgency === "high" ? "dot-late" : "dot-risk",
-            tagCls: b.maxUrgency === "high" ? "tag-late" : "tag-risk",
-            tagLabel: `${b.maxUrgency==="high"?"🔴":"🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length>1?"s":""}`,
-            title: `Style ${b.style} — blocage en cascade détecté`,
-            action: b.issues.map(i => `${i.icon} ${i.label}`).join(" · "),
-            style: b.style, client: b.client || "",
-            meta: b.issues.map(i => i.detail).join(" | "),
-            urgency: b.maxUrgency,
-            sheet: "ordering", rowIndex: null
-        }));
-        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: cascadeItems };
-    }
-
-    return all;
-}
 
 
 // ═══════════════════════════════════════════════════════════════
@@ -2525,46 +2549,6 @@ function renderCascadeBlocksSection() {
     }).join("");
 }
 
-// ── Injection dans renderDashboard ───────────────────────────
-const _origRenderDashboard = renderDashboard;
-function renderDashboard() {
-    _origRenderDashboard();
-    const el = document.getElementById("dashboard-screen");
-    if (!el) return;
-
-    // Ajouter les sections intelligentes après le dbc-grid
-    const extraHtml = `
-    <div style="margin-top:2rem;">
-
-        <!-- Timeline multi-menus -->
-        <div style="margin-bottom:2rem;">
-            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Progression des Styles</h3>
-                <span id="timeline-style-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
-                <button onclick="toggleStyleTimeline()" id="btn-toggle-timeline" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">Voir tout</button>
-            </div>
-            <div id="style-timeline-body"></div>
-        </div>
-
-        <!-- Blocages en cascade -->
-        <div>
-            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Blocages en Cascade</h3>
-                <span id="cascade-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
-                <button onclick="openDuplicatesPanel()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">🔍 Doublons</button>
-            </div>
-            <div id="cascade-blocks-body"></div>
-        </div>
-
-    </div>`;
-
-    el.insertAdjacentHTML("beforeend", extraHtml);
-
-    // Rendre les sections
-    _refreshDashboardIntelligence();
-}
 
 let _timelineShowAll = false;
 function toggleStyleTimeline() {
