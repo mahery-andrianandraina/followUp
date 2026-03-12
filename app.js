@@ -1483,18 +1483,17 @@ function collectAllAlerts() {
     const samItems = [];
 
     samRows.forEach(r => {
-        const hasReceived  = !!(r["Received Date"]   && String(r["Received Date"]).trim());
-        const hasSending   = !!(r["Sending Date"]    && String(r["Sending Date"]).trim());
-        const hasNlSub     = !!(r["NL Submission"]   && String(r["NL Submission"]).trim());
-        const hasAwb       = !!(r["AWB"]             && String(r["AWB"]).trim());
+        const hasReceived  = !!(r["Received Date"] && String(r["Received Date"]).trim());
+        const hasSending   = !!(r["Sending Date"]  && String(r["Sending Date"]).trim());
+        const hasAwb       = !!(r["AWB"]           && String(r["AWB"]).trim());
         const isApproved   = r.Approval === "Approved";
-        const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
+        const hasReadyDate = !!(r["Ready Date"]    && String(r["Ready Date"]).trim());
 
-        if (isApproved) return; // cycle terminé, aucune alerte
+        if (isApproved) return;
 
-        // ── Si NL Submission renseigné → sample déjà envoyée au client → approval en attente ──
-        if (hasNlSub) {
-            const days = Math.abs(_daysDiff(r["NL Submission"]));
+        // ── Priorité absolue : Sending Date renseigné → sample déjà envoyée → approval en attente ──
+        if (hasSending) {
+            const days = Math.abs(_daysDiff(r["Sending Date"]));
             const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
             const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
             const awbPart = hasAwb ? ` under AWB ${r["AWB"]}` : "";
@@ -1508,44 +1507,14 @@ function collectAllAlerts() {
                     ? `Envoyé il y a ${days}j — envoyer un rappel au client`
                     : `Envoyé il y a ${days}j — attendre ou envoyer un suivi`,
                 style:r.Style||"—", client:r.Client||"",
-                meta:`NL Submission : ${_fmtDate(r["NL Submission"])}${hasAwb?" · AWB : "+r["AWB"]:""}${r.Type?" · "+r.Type:""}`,
+                meta:`Envoyé le : ${_fmtDate(r["Sending Date"])}${hasAwb?" · AWB : "+r["AWB"]:""}${r.Type?" · "+r.Type:""}`,
                 urgency, sheet:"sample", rowIndex:r._rowIndex
             });
             return;
         }
 
-        if (!hasReceived && !hasSending) {
-            // ── État A ou B : Sample pas encore reçue ───────────────
-            if (!hasReadyDate) return; // pas de date → pas d'alerte
-            const diff = _daysDiff(r["Ready Date"]);
-            if (diff < 0) {
-                // État A : Ready Date dépassée, sample toujours pas reçue
-                const days = Math.abs(diff);
-                samItems.push({
-                    dotCls:"dot-late", tagCls:"tag-late",
-                    tagLabel:`🔴 Sample non reçue — ${days}j de retard`,
-                    title:`Sample non reçue — Ready Date dépassée de ${days} jour${days>1?"s":""}`,
-                    action:"Relancer la factory pour confirmer l'avancement de la sample",
-                    style:r.Style||"—", client:r.Client||"",
-                    meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
-                    urgency:"high", sheet:"sample", rowIndex:r._rowIndex
-                });
-            } else if (diff === 0) {
-                // État B : Ready Date = aujourd'hui
-                samItems.push({
-                    dotCls:"dot-today", tagCls:"tag-today",
-                    tagLabel:"🟡 Sample attendue aujourd'hui",
-                    title:"Sample attendue aujourd'hui — prévoir la réception",
-                    action:"Confirmer la réception dès réception de la sample",
-                    style:r.Style||"—", client:r.Client||"",
-                    meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
-                    urgency:"low", sheet:"sample", rowIndex:r._rowIndex
-                });
-            }
-            // diff > 0 : Ready Date dans le futur → pas d'alerte
-
-        } else if (hasReceived && !hasSending) {
-            // ── État C : Sample reçue, pas encore envoyée ────────────
+        // ── État C : Sample reçue, pas encore envoyée ────────────────
+        if (hasReceived) {
             const days = Math.abs(_daysDiff(r["Received Date"]));
             const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
             samItems.push({
@@ -1557,26 +1526,35 @@ function collectAllAlerts() {
                 meta:`Reçue le : ${_fmtDate(r["Received Date"])}${r.Type?" · "+r.Type:""}${r.Size?" · Taille "+r.Size:""}`,
                 urgency: days >= 3 ? "mid" : "low", sheet:"sample", rowIndex:r._rowIndex
             });
+            return;
+        }
 
-        } else if (hasSending) {
-            // ── État D : Sample envoyée via Sending Date, en attente d'approbation ──
-            const days = Math.abs(_daysDiff(r["Sending Date"]));
-            const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-            const urgencyLabel = urgency === "high" ? " 🚨 urgent" : urgency === "mid" ? " ⚡ à relancer" : "";
+        // ── États A/B : pas encore reçue, pas encore envoyée ─────────
+        if (!hasReadyDate) return;
+        const diff = _daysDiff(r["Ready Date"]);
+        if (diff < 0) {
+            const days = Math.abs(diff);
             samItems.push({
-                dotCls:"dot-approve", tagCls:"tag-approve",
-                tagLabel:`⏳ Approval en attente — ${days}j${urgencyLabel}`,
-                title:`Sample envoyée — approbation en attente depuis ${days} jour${days>1?"s":""}`,
-                action: urgency === "high"
-                    ? "Plus de 2 semaines sans retour — relancer le client de toute urgence"
-                    : urgency === "mid"
-                    ? "1 semaine sans retour — envoyer un rappel au client"
-                    : "Attendre le retour du client ou envoyer un suivi",
+                dotCls:"dot-late", tagCls:"tag-late",
+                tagLabel:`🔴 Sample non reçue — ${days}j de retard`,
+                title:`Sample non reçue — Ready Date dépassée de ${days} jour${days>1?"s":""}`,
+                action:"Relancer la factory pour confirmer l'avancement de la sample",
                 style:r.Style||"—", client:r.Client||"",
-                meta:`Envoyée le : ${_fmtDate(r["Sending Date"])}${r.AWB?" · AWB : "+r.AWB:""}${r.Type?" · "+r.Type:""}`,
-                urgency, sheet:"sample", rowIndex:r._rowIndex
+                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
+                urgency:"high", sheet:"sample", rowIndex:r._rowIndex
+            });
+        } else if (diff === 0) {
+            samItems.push({
+                dotCls:"dot-today", tagCls:"tag-today",
+                tagLabel:"🟡 Sample attendue aujourd'hui",
+                title:"Sample attendue aujourd'hui — prévoir la réception",
+                action:"Confirmer la réception dès réception de la sample",
+                style:r.Style||"—", client:r.Client||"",
+                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
+                urgency:"low", sheet:"sample", rowIndex:r._rowIndex
             });
         }
+        // diff > 0 : Ready Date dans le futur → pas d'alerte
     });
 
     if (samItems.length) all["sample"] = { label:"Sample", items:samItems };
@@ -1661,30 +1639,33 @@ function collectAllAlerts() {
                 const isRejected    = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
                 const hasNlSub      = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
                 const hasKeepSample = det.keepSample   && !!(r[det.keepSample]   && String(r[det.keepSample]).trim());
-                const rdOverdue     = hasReadyDate && _daysDiff(r[det.readyDate]) < 0;
                 const descVal       = det.description && r[det.description] ? String(r[det.description]).trim() : "";
                 const colorVal      = det.color       && r[det.color]       ? String(r[det.color]).trim()       : "";
                 const trimsVal      = cfg.cols.find(c => c.label.toLowerCase() === "trims");
                 const trimsStr      = trimsVal && r[trimsVal.key] ? String(r[trimsVal.key]).trim() : "";
-
                 const displayName   = [descVal, colorVal, trimsStr].filter(Boolean).join(" · ") || getStyle(r);
 
-                // ── Alerte 1 : Ready Date dépassée + NL Submission renseigné → en attente approval ──
-                if (rdOverdue && hasNlSub && !isRejected && !approved) {
+                // Détection AWB dans le menu custom
+                const awbCol = cfg.cols.find(c => c.label.toLowerCase() === "awb" || c.label.toLowerCase().includes("awb"));
+                const awbVal = awbCol && r[awbCol.key] ? String(r[awbCol.key]).trim() : "";
+                const awbPart = awbVal ? ` under AWB ${awbVal}` : "";
+
+                // ── Priorité 1 : NL Submission renseigné → approval en attente (peu importe Ready Date) ──
+                if (hasNlSub && !isRejected && !approved) {
                     const nlDays = Math.abs(_daysDiff(r[det.nlSubmission]));
                     const urgency = nlDays >= 14 ? "high" : nlDays >= 7 ? "mid" : "low";
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ Approval en attente — ${nlDays}j${urgBadge}`,
-                        title:`${displayName} — envoyé à NL, en attente d'approval`,
+                        tagLabel:`⏳ Envoyé à NL${awbVal?" · AWB "+awbVal:""} — approval en attente ${nlDays}j${urgBadge}`,
+                        title:`${displayName} — envoyé à NL${awbPart}, approval en attente depuis ${nlDays}j`,
                         action: urgency === "high"
-                            ? `Envoyé à NL il y a ${nlDays}j — relancer de toute urgence`
+                            ? `Envoyé il y a ${nlDays}j — relancer de toute urgence`
                             : urgency === "mid"
-                            ? `Envoyé à NL il y a ${nlDays}j — envoyer un rappel`
-                            : `Envoyé à NL il y a ${nlDays}j — suivre l'approval`,
+                            ? `Envoyé il y a ${nlDays}j — envoyer un rappel`
+                            : `Envoyé il y a ${nlDays}j — suivre l'approval`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`NL Submission : ${_fmtDate(r[det.nlSubmission])} · Ready Date : ${_fmtDate(r[det.readyDate])}`,
+                        meta:`NL Submission : ${_fmtDate(r[det.nlSubmission])}${awbVal?" · AWB : "+awbVal:""}${hasReadyDate?" · Ready Date : "+_fmtDate(r[det.readyDate]):""}`,
                         urgency, sheet:key, rowIndex:r._rowIndex
                     });
                     return;
