@@ -1305,22 +1305,31 @@ function detectCustomCols(cols, menuLabel) {
     const sheetNameHints = cols.map(c => c.label.toLowerCase()).join(" ");
     const menuHint = (menuLabel || "").toLowerCase();
     // Patterns qui identifient un menu Fabric Analysis
-    // FABRIC_MENU_WORDS : mots isolés testés un par un dans le nom du menu
-    // (ex: "Fabric Analysis" → mot "analysis" → match)
     const FABRIC_MENU_WORDS = ["analysis", "analyse", "analys", "fiber", "fibre", "efa", "labo"];
-    const FABRIC_COL_PHRASES = ["fabric analysis", "fabric test", "efa", "test labo", "fiber test", "fibre test", "lab analysis", "composition test", "fabric devo", "fabric dev"];
+    const FABRIC_COL_PHRASES = ["fabric analysis", "fabric test", "efa", "test labo", "fiber test", "fibre test", "lab analysis", "composition test"];
+    const FABRIC_DEVO_PHRASES = ["fabric devo", "fabric dev", "devo fabric"];
+
     // Patterns NON-Fabric explicites
     const NON_FABRIC_PATTERNS = ["lab dip", "labdip", "strike off", "strikeoff", "print strike", "color strike"];
+    const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
+
+    // Detect Fabric Devo
+    const isFabricDevo = !isNonFabric && (
+        FABRIC_DEVO_PHRASES.some(p => menuHint.includes(p)) ||
+        FABRIC_DEVO_PHRASES.some(p => sheetNameHints.includes(p))
+    );
+
     // Detect Trims Devo
     const TRIMS_DEVO_PATTERNS = ["trims devo", "trim devo", "trims dev", "trim dev", "trims development", "trim development"];
     const isTrimsDevo = TRIMS_DEVO_PATTERNS.some(p => menuHint.includes(p));
-    const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
-    // Tester chaque MOT du nom du menu individuellement
+
+    // Detect Fabric Analysis
     const menuWords = menuHint.trim().split(/\s+/);
-    const isFabricAnalysis = !isNonFabric && (
+    const isFabricAnalysis = !isNonFabric && !isFabricDevo && (
         menuWords.some(w => FABRIC_MENU_WORDS.some(p => w === p || w.startsWith(p)))
         || FABRIC_COL_PHRASES.some(p => sheetNameHints.includes(p))
     );
+
     return {
         approval: find(["approval", "approv", "approved", "validation", "statut appr"]),
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
@@ -1331,6 +1340,7 @@ function detectCustomCols(cols, menuLabel) {
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
         efaRef: find(["efa", "fabric ref", "fabric no", "fabric num", "lot", "batch", "test ref", "test no", "test num", "test id", "analyse ref", "analyse no", "ref test"]),
         isFabricAnalysis,
+        isFabricDevo, // Added
         isTrimsDevo,
         nlSubmission: find(["nl submission", "nl sub", "submission nl", "envoi nl", "send nl", "nl send", "nl date", "submission date"]),
         keepSample: find(["keep sample", "keep spl", "keep", "retain", "sample conserv", "echantillon conserv"]),
@@ -1710,7 +1720,8 @@ function collectAllAlerts() {
 
         const menuLabelLower = cfg.label.toLowerCase();
         const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
-        const isTrimsDevo = menuLabelLower.includes("trims devo");
+        const isTrimsDevo = det.isTrimsDevo;
+        const isFabricDevo = det.isFabricDevo;
 
         const fabricGroups = {};
 
@@ -1799,10 +1810,9 @@ function collectAllAlerts() {
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
-            // ── FABRIC ANALYSIS ───────────────────────────────────────
-            if (det.isFabricAnalysis) {
+            // ── FABRIC DEVO / ANALYSIS ──────────────────────────────
+            if (det.isFabricAnalysis || det.isFabricDevo) {
                 // Seul déclencheur : colonne "Launched on" renseignée
-                // Pas de received date — uniquement la date de lancement compte.
                 const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim()
                     ? r[det.launchDate] : null;
 
@@ -1829,10 +1839,13 @@ function collectAllAlerts() {
                     const fsrPart = fsrVal ? ` · FSR : ${fsrVal}` : "";
                     const colorPart = colorVal ? ` · Color : ${colorVal}` : "";
 
+                    // Distinction Fabric Devo (FSR visible) / Analysis (FSR masqué)
+                    const titlePrefix = det.isFabricDevo ? `FSR ${fsrVal || "—"} ` : "";
+
                     items.push({
                         dotCls: "dot-nopo", tagCls: "tag-nopo",
                         tagLabel: `🧪 ${efaVal}${colorVal ? " — " + colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
-                        title: `FSR ${fsrVal || "—"} ${efaVal} ${colorVal || ""} — en attente du résultat — lancé ${launchDaysTxt}`,
+                        title: `${titlePrefix}${efaVal} ${colorVal || ""} — en attente du résultat — lancé ${launchDaysTxt}`,
                         action: `Renseigner la Ready Date dès réception des résultats du laboratoire`,
                         style: getStyle(r), client: getClient(r),
                         meta: `Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
@@ -1840,8 +1853,7 @@ function collectAllAlerts() {
                         sheet: key, rowIndex: r._rowIndex
                     });
                 }
-                // Ready Date déjà renseignée ou pas encore lancé → pas d'alerte
-                return; // Fabric Analysis : ne pas tomber dans la logique générique
+                return; // Fabric Devo/Analysis : ne pas tomber dans la logique générique
             }
             // ── FIN logique Fabric Analysis ──────────────────────────
 
@@ -2050,7 +2062,7 @@ function collectAllAlerts() {
         if (isBulk) {
             Object.keys(fabricGroups).forEach(f => {
                 const groupData = fabricGroups[f];
-                const stats = { late: 0, today: 0, toSend: 0, pending: 0 };
+                const stats = { late: 0, today: 0, toSend: 0, pending: 0, oldestSendDays: 0 };
                 groupData.rows.forEach(r => {
                     const hasReceived = !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
                     const hasSending = !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
@@ -2063,12 +2075,23 @@ function collectAllAlerts() {
                         stats.toSend++;
                     } else if (hasSending && !isApproved(r[det.approval])) {
                         stats.pending++;
+                        const sendDays = Math.abs(_daysDiff(r[det.sendingDate]));
+                        if (sendDays > stats.oldestSendDays) stats.oldestSendDays = sendDays;
                     }
                 });
                 if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: "Multi", client: groupData.rows[0].Client || "" });
                 if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: "Multi", client: groupData.rows[0].Client || "" });
                 if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: "Multi", client: groupData.rows[0].Client || "" });
-                if (stats.pending > 0) items.push({ dotCls: "dot-approve", tagCls: "tag-approve", tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval`, urgency: "low", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Approbation client`, action: "Suivi approval", style: "Multi", client: groupData.rows[0].Client || "" });
+                if (stats.pending > 0) {
+                    const daysTxt = stats.oldestSendDays > 0 ? ` (envoyé il y a ${stats.oldestSendDays}j)` : "";
+                    items.push({
+                        dotCls: "dot-approve", tagCls: "tag-approve",
+                        tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval${daysTxt}`,
+                        urgency: "low", sheet: key, rowIndex: groupData.rows[0]._rowIndex,
+                        title: `${f} : Approbation client${daysTxt}`,
+                        action: "Suivi approval", style: "Multi", client: groupData.rows[0].Client || ""
+                    });
+                }
             });
         }
 
