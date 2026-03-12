@@ -723,9 +723,9 @@ function renderTable() {
 
         const trackCell = isOrdering ? (() => { const t = computeDeliveryTrack(row); return `<td><span class="track-badge ${t.cls}">${t.label}</span></td>`; })() : "";
 
-        const cfg = SHEET_CONFIG[state.activeSheet];
-        const isTrimsDevoSheet = cfg && cfg.custom && (cfg.label || "").toLowerCase().includes("trims");
-        const trimsDet = isTrimsDevoSheet ? detectCustomCols(cfg.cols, cfg.label) : null;
+        const _sheetCfg = SHEET_CONFIG[state.activeSheet];
+        const isTrimsDevoSheet = _sheetCfg && _sheetCfg.custom && (_sheetCfg.label || "").toLowerCase().includes("trims");
+        const trimsDet = isTrimsDevoSheet ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
 
         return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
