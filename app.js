@@ -1483,12 +1483,36 @@ function collectAllAlerts() {
     const samItems = [];
 
     samRows.forEach(r => {
-        const hasReceived = !!(r["Received Date"] && String(r["Received Date"]).trim());
-        const hasSending  = !!(r["Sending Date"]  && String(r["Sending Date"]).trim());
-        const isApproved  = r.Approval === "Approved";
+        const hasReceived  = !!(r["Received Date"]   && String(r["Received Date"]).trim());
+        const hasSending   = !!(r["Sending Date"]    && String(r["Sending Date"]).trim());
+        const hasNlSub     = !!(r["NL Submission"]   && String(r["NL Submission"]).trim());
+        const hasAwb       = !!(r["AWB"]             && String(r["AWB"]).trim());
+        const isApproved   = r.Approval === "Approved";
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
 
         if (isApproved) return; // cycle terminé, aucune alerte
+
+        // ── Si NL Submission renseigné → sample déjà envoyée au client → approval en attente ──
+        if (hasNlSub) {
+            const days = Math.abs(_daysDiff(r["NL Submission"]));
+            const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+            const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+            const awbPart = hasAwb ? ` under AWB ${r["AWB"]}` : "";
+            samItems.push({
+                dotCls:"dot-approve", tagCls:"tag-approve",
+                tagLabel:`⏳ Envoyé au client — approval en attente ${days}j${urgencyLabel}`,
+                title:`Sample envoyée au client${awbPart} — approval en attente depuis ${days}j`,
+                action: urgency === "high"
+                    ? `Envoyé il y a ${days}j — relancer le client de toute urgence`
+                    : urgency === "mid"
+                    ? `Envoyé il y a ${days}j — envoyer un rappel au client`
+                    : `Envoyé il y a ${days}j — attendre ou envoyer un suivi`,
+                style:r.Style||"—", client:r.Client||"",
+                meta:`NL Submission : ${_fmtDate(r["NL Submission"])}${hasAwb?" · AWB : "+r["AWB"]:""}${r.Type?" · "+r.Type:""}`,
+                urgency, sheet:"sample", rowIndex:r._rowIndex
+            });
+            return;
+        }
 
         if (!hasReceived && !hasSending) {
             // ── État A ou B : Sample pas encore reçue ───────────────
@@ -1535,7 +1559,7 @@ function collectAllAlerts() {
             });
 
         } else if (hasSending) {
-            // ── État D : Sample envoyée, en attente d'approbation ────
+            // ── État D : Sample envoyée via Sending Date, en attente d'approbation ──
             const days = Math.abs(_daysDiff(r["Sending Date"]));
             const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
             const urgencyLabel = urgency === "high" ? " 🚨 urgent" : urgency === "mid" ? " ⚡ à relancer" : "";
