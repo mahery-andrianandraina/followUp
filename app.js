@@ -251,6 +251,7 @@ async function fetchAllData() {
 
         state.loading = false;
         renderAll();
+        if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
     } catch (err) {
         console.error(err);
         state.loading = false;
@@ -258,9 +259,10 @@ async function fetchAllData() {
             showToast("Mode démo — Configurez l'URL du connecteur.", "info", 6000);
             state.data = getDemoData();
         } else {
-            showToast("Erreur de connexion à la base de données", "error");
+            console.warn("Erreur de connexion :", err.message);
         }
         renderAll();
+        if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
     } finally {
         hideDashboardLoading();
     }
