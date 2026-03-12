@@ -358,7 +358,7 @@ function renderAll() {
 
 function _injectEditColsBtn() {
     // Affiche le bouton ⚙ Colonnes uniquement pour sample et details (menus non-custom éditables)
-    const EDITABLE_SHEETS = ["sample","details"];
+    const EDITABLE_SHEETS = ["sample", "details"];
     const existing = document.getElementById("edit-cols-btn");
     if (existing) existing.remove();
     if (!EDITABLE_SHEETS.includes(state.activeSheet)) return;
@@ -378,77 +378,77 @@ function renderDashboard() {
     const el = document.getElementById("dashboard-screen");
     if (!el) return;
 
-    const details  = state.data.details;
-    const today    = new Date(); today.setHours(0,0,0,0);
+    const details = state.data.details;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
 
     // ── Clients list
     const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
 
-    const ACCENT = ["#6366f1","#14b8a6","#f59e0b","#ef4444","#3b82f6","#ec4899","#8b5cf6","#10b981"];
+    const ACCENT = ["#6366f1", "#14b8a6", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#8b5cf6", "#10b981"];
 
     const clientCards = clients.map((client, ci) => {
         const accent = ACCENT[ci % ACCENT.length];
-        const dRows  = details.filter(r => r.Client === client);
+        const dRows = details.filter(r => r.Client === client);
 
-        const totalQty  = dRows.reduce((s,r) => s+(+r.OrderQty||0), 0);
-        const initials  = client.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+        const totalQty = dRows.reduce((s, r) => s + (+r.OrderQty || 0), 0);
+        const initials = client.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
         // Group by dept
-        const depts = [...new Set(dRows.map(r=>r.Dept).filter(Boolean))].sort();
+        const depts = [...new Set(dRows.map(r => r.Dept).filter(Boolean))].sort();
 
         const deptRows = depts.map(dept => {
             const deptR = dRows.filter(r => r.Dept === dept);
-            const deptQty = deptR.reduce((s,r) => s+(+r.OrderQty||0), 0);
+            const deptQty = deptR.reduce((s, r) => s + (+r.OrderQty || 0), 0);
             const deptStyles = deptR.length;
             return '<div class="dbc-dept-row">' +
                 '<span class="dbc-dept-name">' + esc(dept) + '</span>' +
                 '<span class="dbc-dept-styles">' + deptStyles + ' style' + (deptStyles > 1 ? 's' : '') + '</span>' +
                 '<span class="dbc-dept-qty">' + deptQty.toLocaleString("fr-FR") + ' u.</span>' +
-            '</div>';
+                '</div>';
         }).join("");
 
         return '<div class="dbc-card">' +
 
             // Header
             '<div class="dbc-head" style="border-top:3px solid ' + accent + '">' +
-                '<div class="dbc-avatar" style="background:' + accent + '1a;color:' + accent + '">' + initials + '</div>' +
-                '<div class="dbc-head-info">' +
-                    '<div class="dbc-client-name">' + esc(client) + '</div>' +
-                    '<div class="dbc-total-qty-lbl">Total &mdash; <strong>' + totalQty.toLocaleString("fr-FR") + '</strong> u.</div>' +
-                '</div>' +
+            '<div class="dbc-avatar" style="background:' + accent + '1a;color:' + accent + '">' + initials + '</div>' +
+            '<div class="dbc-head-info">' +
+            '<div class="dbc-client-name">' + esc(client) + '</div>' +
+            '<div class="dbc-total-qty-lbl">Total &mdash; <strong>' + totalQty.toLocaleString("fr-FR") + '</strong> u.</div>' +
+            '</div>' +
             '</div>' +
 
             // Dept breakdown
             '<div class="dbc-dept-table">' +
-                '<div class="dbc-dept-header">' +
-                    '<span>Dept</span><span>Styles</span><span>Qté</span>' +
-                '</div>' +
-                deptRows +
+            '<div class="dbc-dept-header">' +
+            '<span>Dept</span><span>Styles</span><span>Qté</span>' +
+            '</div>' +
+            deptRows +
             '</div>' +
 
             // Total footer
             '<div class="dbc-footer" style="border-top:2px solid ' + accent + '1a">' +
-                '<span class="dbc-footer-lbl">Total Quantit\u00e9</span>' +
-                '<span class="dbc-footer-val" style="color:' + accent + '">' + totalQty.toLocaleString("fr-FR") + ' u.</span>' +
+            '<span class="dbc-footer-lbl">Total Quantit\u00e9</span>' +
+            '<span class="dbc-footer-val" style="color:' + accent + '">' + totalQty.toLocaleString("fr-FR") + ' u.</span>' +
             '</div>' +
 
-        '</div>';
+            '</div>';
     }).join("");
 
     // ── Date
-    const dateStr = today.toLocaleDateString("fr-FR", { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+    const dateStr = today.toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
     const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
     el.innerHTML =
         '<div class="db-welcome">' +
-            '<div class="db-welcome-text"><h2>AW27 Checkers \ud83d\udc4b</h2><p>R\u00e9partition des styles et quantit\u00e9s par client</p></div>' +
-            '<span class="db-welcome-badge">' +
-                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
-                dateCapitalized +
-            '</span>' +
+        '<div class="db-welcome-text"><h2>AW27 Checkers \ud83d\udc4b</h2><p>R\u00e9partition des styles et quantit\u00e9s par client</p></div>' +
+        '<span class="db-welcome-badge">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
+        dateCapitalized +
+        '</span>' +
         '</div>' +
         '<div class="dbc-grid">' +
-            (clientCards || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>') +
+        (clientCards || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>') +
         '</div>';
 
     // ── Dashboard intelligence sections (merged from injection) ──
@@ -705,31 +705,31 @@ function renderTable() {
             if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
             if (c.key === "Approval") {
                 const cls = (val || "").toLowerCase() || "unknown";
-                const opts = ["","Approved","Pending","Rejected"].map(o =>
-                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                const opts = ["", "Approved", "Pending", "Rejected"].map(o =>
+                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
                 ).join("");
                 return `<td><div class="quick-sel-wrap">
-                    <span class="approval-badge ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <span class="approval-badge ${cls} quick-badge">${esc(val) || "—"}</span>
                     <select class="quick-select" onchange="quickUpdate(${rowIdx},'Approval',this.value,'sample')">${opts}</select>
                 </div></td>`;
             }
             if (c.key === "Status") {
                 const cls = { "Confirmed": "status-confirmed", "Pending": "status-pending", "Cancelled": "status-cancelled" }[val] || "";
-                const opts = ["","Confirmed","Pending","Cancelled"].map(o =>
-                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                const opts = ["", "Confirmed", "Pending", "Cancelled"].map(o =>
+                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
                 ).join("");
                 return `<td><div class="quick-sel-wrap">
-                    <span class="status-badge-order ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <span class="status-badge-order ${cls} quick-badge">${esc(val) || "—"}</span>
                     <select class="quick-select" onchange="quickUpdate(${rowIdx},'Status',this.value,'ordering')">${opts}</select>
                 </div></td>`;
             }
             if (c.key === "Delivery Status") {
                 const cls = { "Not Shipped": "del-notshipped", "In Transit": "del-transit", "Delivered": "del-delivered" }[val] || "";
-                const opts = ["","Not Shipped","In Transit","Delivered"].map(o =>
-                    `<option value="${o}" ${o===val?"selected":""}>${o||"— Choisir —"}</option>`
+                const opts = ["", "Not Shipped", "In Transit", "Delivered"].map(o =>
+                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
                 ).join("");
                 return `<td><div class="quick-sel-wrap">
-                    <span class="delivery-badge ${cls} quick-badge">${esc(val)||"—"}</span>
+                    <span class="delivery-badge ${cls} quick-badge">${esc(val) || "—"}</span>
                     <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
                 </div></td>`;
             }
@@ -755,9 +755,9 @@ function renderTable() {
 
         const _sheetCfg = SHEET_CONFIG[state.activeSheet];
         const isTrimsDevoSheet = _sheetCfg && _sheetCfg.custom && (_sheetCfg.label || "").toLowerCase().includes("trims");
-        const isBulkSheet      = _sheetCfg && _sheetCfg.custom && ((_sheetCfg.label || "").toLowerCase().includes("bulk") || (_sheetCfg.label || "").toLowerCase().includes("shade"));
+        const isBulkSheet = _sheetCfg && _sheetCfg.custom && ((_sheetCfg.label || "").toLowerCase().includes("bulk") || (_sheetCfg.label || "").toLowerCase().includes("shade"));
         const trimsDet = isTrimsDevoSheet ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
-        const bulkDet  = isBulkSheet      ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
+        const bulkDet = isBulkSheet ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
         const isRowRejected = r => {
             const d = trimsDet || bulkDet;
             return d && String(r[d.approval] ?? "").trim().toLowerCase() === "rejected";
@@ -766,8 +766,8 @@ function renderTable() {
         const dupBtn = isTrimsDevoSheet && isRowRejected(row)
             ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateTrimsDevoRejected(${rowIdx})" title="Créer nouvelle ligne (Season/Client/Dept/Style/Description/Color/Trims/Trims Details/Supplier)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
             : isBulkSheet && isRowRejected(row)
-            ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
-            : "";
+                ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
+                : "";
 
         return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
@@ -793,15 +793,15 @@ async function duplicateTrimsDevoRejected(rowIndex) {
 
     // Colonnes dont on GARDE les données (toutes les autres → vide)
     const KEEP_PATTERNS = [
-        ["season","saison"],
-        ["client","buyer","brand","marque"],
-        ["dept","department","departement","département"],
-        ["style","ref","reference","article"],
-        ["description","desc","name","nom"],
-        ["color","colour","coloris","couleur","shade","teinte"],
-        ["trims details","trim details","accessories detail","detail trim","garniture detail"],
-        ["trims","trim","accessoire","garniture"],
-        ["supplier","fournisseur","vendor","mill","factory"],
+        ["season", "saison"],
+        ["client", "buyer", "brand", "marque"],
+        ["dept", "department", "departement", "département"],
+        ["style", "ref", "reference", "article"],
+        ["description", "desc", "name", "nom"],
+        ["color", "colour", "coloris", "couleur", "shade", "teinte"],
+        ["trims details", "trim details", "accessories detail", "detail trim", "garniture detail"],
+        ["trims", "trim", "accessoire", "garniture"],
+        ["supplier", "fournisseur", "vendor", "mill", "factory"],
     ];
 
     const keepKeys = new Set();
@@ -836,12 +836,12 @@ async function duplicateBulkRejected(rowIndex) {
 
     // Colonnes à garder : Client, Style, Description, GMT Color, Fabric, Type
     const KEEP_PATTERNS = [
-        ["client","buyer","brand","marque"],
-        ["style","ref","reference","article"],
-        ["description","desc","name","nom"],
-        ["gmt color","gmt colour","coloris","color","colour","shade","teinte"],
-        ["fabric","tissu","matière","matiere","material","textile"],
-        ["type","bulk type"],
+        ["client", "buyer", "brand", "marque"],
+        ["style", "ref", "reference", "article"],
+        ["description", "desc", "name", "nom"],
+        ["gmt color", "gmt colour", "coloris", "color", "colour", "shade", "teinte"],
+        ["fabric", "tissu", "matière", "matiere", "material", "textile"],
+        ["type", "bulk type"],
     ];
 
     const keepKeys = new Set();
@@ -874,7 +874,7 @@ function toISODateValue(val) {
     try {
         const d = new Date(val);
         if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
-    } catch (e) {}
+    } catch (e) { }
     return "";
 }
 
@@ -987,7 +987,7 @@ function loadCustomMenus() {
         migrated.forEach(m => registerCustomMenu(m, false));
         // Re-sauvegarder avec les clés corrigées
         localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
-    } catch(e) {}
+    } catch (e) { }
 }
 
 // ── Register a custom menu into SHEET_CONFIG + nav + state ────
@@ -1001,9 +1001,11 @@ function registerCustomMenu(menuDef, save = true) {
         custom: true,
         cols: menuDef.cols,
         kpis: [
-            { label: "Total lignes", colorClass: "teal",
-              icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>',
-              compute: rows => rows.length }
+            {
+                label: "Total lignes", colorClass: "teal",
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>',
+                compute: rows => rows.length
+            }
         ]
     };
 
@@ -1039,14 +1041,14 @@ function registerCustomMenu(menuDef, save = true) {
             searchInput.value = ""; deptFilter.value = "";
             const cf = document.getElementById("client-filter"); if (cf) cf.value = "";
             document.querySelectorAll(".nav-item").forEach(b => {
-                b.classList.remove("active"); b.setAttribute("aria-selected","false");
+                b.classList.remove("active"); b.setAttribute("aria-selected", "false");
             });
-            btn.classList.add("active"); btn.setAttribute("aria-selected","true");
+            btn.classList.add("active"); btn.setAttribute("aria-selected", "true");
             const el = document.getElementById("header-sheet-title");
             if (el) el.textContent = menuDef.label;
             showTableView(); applyFilters(); renderKPIs();
             populateDeptFilter(); populateClientFilter();
-                    });
+        });
 
         nav.appendChild(btn);
     }
@@ -1064,7 +1066,7 @@ function persistCustomMenus() {
     localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(menus));
     // Sauvegarder en GAS pour persistance cross-navigateur / GitHub Pages
     sendRequest("SAVE_MENUS", { menus })
-        .catch(() => {}); // silencieux si GAS non connecté
+        .catch(() => { }); // silencieux si GAS non connecté
 }
 
 // ── Open builder (new) ────────────────────────────────────────
@@ -1138,45 +1140,45 @@ function renderMbColumns() {
     const list = document.getElementById("mb-cols-list");
     if (!list) return;
 
-    const typeOptions = ["text","number","date","select","textarea"].map(t =>
+    const typeOptions = ["text", "number", "date", "select", "textarea"].map(t =>
         '<option value="' + t + '">' +
-        { text:"Texte", number:"Nombre", date:"Date", select:"Liste", textarea:"Bloc texte" }[t] +
+        { text: "Texte", number: "Nombre", date: "Date", select: "Liste", textarea: "Bloc texte" }[t] +
         '</option>'
     ).join("");
 
     list.innerHTML = mbColumns.map((col, i) => {
-        const selOpts = ["text","number","date","select","textarea"].map(t =>
+        const selOpts = ["text", "number", "date", "select", "textarea"].map(t =>
             '<option value="' + t + '" ' + (col.type === t ? "selected" : "") + '>' +
-            { text:"Texte", number:"Nombre", date:"Date", select:"Liste (options)", textarea:"Bloc texte" }[t] +
+            { text: "Texte", number: "Nombre", date: "Date", select: "Liste (options)", textarea: "Bloc texte" }[t] +
             '</option>'
         ).join("");
 
         const isSelect = col.type === "select";
 
         return '<div class="mb-col-row" id="mb-col-' + i + '">' +
-            '<div class="mb-col-drag">' + (i+1) + '</div>' +
+            '<div class="mb-col-drag">' + (i + 1) + '</div>' +
             '<div class="mb-col-fields">' +
-                '<div class="mb-col-top">' +
-                    '<input class="form-input mb-col-label-input" placeholder="Nom de colonne *" ' +
-                    'value="' + esc(col.label) + '" ' +
-                    'oninput="mbSyncColumn(' + i + ','+"'label',this.value"+')" />' +
-                    '<select class="form-select mb-col-type" onchange="mbSyncColumn(' + i + ','+"'type',this.value"+'); mbColumns[' + i + '].type=this.value; renderMbColumns()">' +
-                    selOpts +
-                    '</select>' +
-                    '<label class="mb-col-req" title="Champ obligatoire">' +
-                    '<input type="checkbox" ' + (col.required ? "checked" : "") + ' onchange="mbSyncColumn(' + i + ','+"'required',this.checked"+')">' +
-                    '<span>Requis</span></label>' +
-                '</div>' +
-                (isSelect ? '<div class="mb-col-opts-row"><input class="form-input mb-col-opts-input" placeholder="Options séparées par virgule : Ex, Aaa, Bbb" ' +
-                    'value="' + esc((col.options||[]).filter(o=>o).join(", ")) + '" ' +
-                    'oninput="mbSyncColumn(' + i + ','+"'options',this.value.split(',').map(s=>s.trim()).filter(Boolean)"+')"/></div>' : "") +
+            '<div class="mb-col-top">' +
+            '<input class="form-input mb-col-label-input" placeholder="Nom de colonne *" ' +
+            'value="' + esc(col.label) + '" ' +
+            'oninput="mbSyncColumn(' + i + ',' + "'label',this.value" + ')" />' +
+            '<select class="form-select mb-col-type" onchange="mbSyncColumn(' + i + ',' + "'type',this.value" + '); mbColumns[' + i + '].type=this.value; renderMbColumns()">' +
+            selOpts +
+            '</select>' +
+            '<label class="mb-col-req" title="Champ obligatoire">' +
+            '<input type="checkbox" ' + (col.required ? "checked" : "") + ' onchange="mbSyncColumn(' + i + ',' + "'required',this.checked" + ')">' +
+            '<span>Requis</span></label>' +
+            '</div>' +
+            (isSelect ? '<div class="mb-col-opts-row"><input class="form-input mb-col-opts-input" placeholder="Options séparées par virgule : Ex, Aaa, Bbb" ' +
+                'value="' + esc((col.options || []).filter(o => o).join(", ")) + '" ' +
+                'oninput="mbSyncColumn(' + i + ',' + "'options',this.value.split(',').map(s=>s.trim()).filter(Boolean)" + ')"/></div>' : "") +
             '</div>' +
             '<div class="mb-col-actions">' +
-                (i > 0 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',-1)" title="Monter">↑</button>' : '<span></span>') +
-                (i < mbColumns.length-1 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',1)" title="Descendre">↓</button>' : '<span></span>') +
-                (mbColumns.length > 1 ? '<button class="mb-act-btn mb-act-del" onclick="mbRemoveColumn(' + i + ')" title="Supprimer">✕</button>' : "") +
+            (i > 0 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',-1)" title="Monter">↑</button>' : '<span></span>') +
+            (i < mbColumns.length - 1 ? '<button class="mb-act-btn" onclick="mbMoveColumn(' + i + ',1)" title="Descendre">↓</button>' : '<span></span>') +
+            (mbColumns.length > 1 ? '<button class="mb-act-btn mb-act-del" onclick="mbRemoveColumn(' + i + ')" title="Supprimer">✕</button>' : "") +
             '</div>' +
-        '</div>';
+            '</div>';
     }).join("");
 }
 
@@ -1190,9 +1192,9 @@ async function saveMenuBuilder() {
         if (mbColumns[i]) mbColumns[i].label = inp.value.trim();
     });
     document.querySelectorAll(".mb-col-opts-input").forEach((inp, i) => {
-        const colIdx = parseInt(inp.closest(".mb-col-row").id.replace("mb-col-",""));
+        const colIdx = parseInt(inp.closest(".mb-col-row").id.replace("mb-col-", ""));
         if (mbColumns[colIdx]) {
-            mbColumns[colIdx].options = ["", ...inp.value.split(",").map(s=>s.trim()).filter(Boolean)];
+            mbColumns[colIdx].options = ["", ...inp.value.split(",").map(s => s.trim()).filter(Boolean)];
         }
     });
 
@@ -1200,7 +1202,7 @@ async function saveMenuBuilder() {
     if (!validCols.length) { showToast("Ajoutez au moins une colonne", "error"); return; }
 
     // Build key from name
-    const key = mbEditingKey || "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g,"_").slice(0,20) + "_" + Date.now().toString(36);
+    const key = mbEditingKey || "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20) + "_" + Date.now().toString(36);
 
     const menuDef = {
         key,
@@ -1220,13 +1222,13 @@ async function saveMenuBuilder() {
 
     try {
         if (mbEditingKey) {
-            await sendRequest("UPDATE_SHEET_HEADERS", { sheetName: nameRaw, columns: menuDef.cols.map(c=>c.label) });
+            await sendRequest("UPDATE_SHEET_HEADERS", { sheetName: nameRaw, columns: menuDef.cols.map(c => c.label) });
             showToast("Colonnes mises à jour dans Google Sheet \u2713", "success", 3000);
         } else {
-            await sendRequest("CREATE_SHEET", { sheetName: nameRaw, columns: menuDef.cols.map(c=>c.label) });
+            await sendRequest("CREATE_SHEET", { sheetName: nameRaw, columns: menuDef.cols.map(c => c.label) });
             showToast("Menu cr\u00e9\u00e9 dans Google Sheet \u2713", "success", 3000);
         }
-    } catch(e) {
+    } catch (e) {
         showToast("Menu sauvegard\u00e9 localement (GS non connect\u00e9)", "info", 3000);
     }
 
@@ -1235,7 +1237,7 @@ async function saveMenuBuilder() {
         // Pour sample/details : garder le label d'origine, ne pas appeler persistCustomMenus
         SHEET_CONFIG[key].cols = menuDef.cols;
         if (!isNonCustom) {
-            SHEET_CONFIG[key].label     = menuDef.label;
+            SHEET_CONFIG[key].label = menuDef.label;
             SHEET_CONFIG[key].sheetName = menuDef.label;
             persistCustomMenus();
             const navBtn = document.getElementById("tab-custom-" + key);
@@ -1282,12 +1284,12 @@ function detectCustomCols(cols, menuLabel) {
     // Patterns qui identifient un menu Fabric Analysis
     // FABRIC_MENU_WORDS : mots isolés testés un par un dans le nom du menu
     // (ex: "Fabric Analysis" → mot "analysis" → match)
-    const FABRIC_MENU_WORDS  = ["analysis","analyse","analys","fiber","fibre","efa"];
-    const FABRIC_COL_PHRASES = ["fabric analysis","fabric test","efa","test labo","fiber test","fibre test","lab analysis","composition test"];
+    const FABRIC_MENU_WORDS = ["analysis", "analyse", "analys", "fiber", "fibre", "efa"];
+    const FABRIC_COL_PHRASES = ["fabric analysis", "fabric test", "efa", "test labo", "fiber test", "fibre test", "lab analysis", "composition test"];
     // Patterns NON-Fabric explicites
-    const NON_FABRIC_PATTERNS = ["lab dip","labdip","strike off","strikeoff","print strike","color strike"];
+    const NON_FABRIC_PATTERNS = ["lab dip", "labdip", "strike off", "strikeoff", "print strike", "color strike"];
     // Detect Trims Devo
-    const TRIMS_DEVO_PATTERNS = ["trims devo","trim devo","trims dev","trim dev","trims development","trim development"];
+    const TRIMS_DEVO_PATTERNS = ["trims devo", "trim devo", "trims dev", "trim dev", "trims development", "trim development"];
     const isTrimsDevo = TRIMS_DEVO_PATTERNS.some(p => menuHint.includes(p));
     const isNonFabric = NON_FABRIC_PATTERNS.some(p => menuHint.includes(p));
     // Tester chaque MOT du nom du menu individuellement
@@ -1297,25 +1299,25 @@ function detectCustomCols(cols, menuLabel) {
         || FABRIC_COL_PHRASES.some(p => sheetNameHints.includes(p))
     );
     return {
-        approval:        find(["approval","approv","approved","validation","statut appr"]),
-        sendingDate:     find(["sending date","send date","sent date","date envoi","ship date","sending","date send"]),
-        receivedDate:    find(["received date","receipt date","date recep","date recu","reception","received"]),
-        readyDate:       find(["ready date","ready","date pret","date pr\u00eat","due date","expected date","result date","date result"]),
-        fsrDate:         find(["fsr date","launch date","date lancement","date launch","request date","date request"]),
-        fsrNumber:       find(["fsr number","fsr no","fsr num","fsr #","fsr ref","num\u00e9ro fsr","no fsr","reference fsr","fsr"]),
-        launchDate:      find(["launched on","launched","launch","lanc\u00e9","date lanc","sent to lab","submitted","submission date","date soumis","lab date","date analyse","analysis date"]),
-        efaRef:          find(["efa","fabric ref","fabric no","fabric num","lot","batch","test ref","test no","test num","test id","analyse ref","analyse no","ref test"]),
+        approval: find(["approval", "approv", "approved", "validation", "statut appr"]),
+        sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
+        receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
+        readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date", "result date", "date result"]),
+        fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
+        fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
+        launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
+        efaRef: find(["efa", "fabric ref", "fabric no", "fabric num", "lot", "batch", "test ref", "test no", "test num", "test id", "analyse ref", "analyse no", "ref test"]),
         isFabricAnalysis,
         isTrimsDevo,
-        nlSubmission:    find(["nl submission","nl sub","submission nl","envoi nl","send nl","nl send","nl date","submission date"]),
-        keepSample:      find(["keep sample","keep spl","keep","retain","sample conserv","echantillon conserv"]),
-        trimsDetails:    find(["trims detail","trim detail","trims details","accessories detail","detail trim"]),
-        fabric:          find(["fabric","tissu","matière","matiere","material","textile","gmt fabric","bulk fabric"]),
-        color:           find(["color","colour","coloris","couleur","gmt color","shade","teinte"]),
-        style:           find(["style","ref","reference","article"]),
-        client:          find(["client","buyer","brand","marque"]),
-        description:     find(["description","desc","name","nom","fabric","tissu","mati\u00e8re"]),
-        comments:        find(["comment","remarks","note","observation"]),
+        nlSubmission: find(["nl submission", "nl sub", "submission nl", "envoi nl", "send nl", "nl send", "nl date", "submission date"]),
+        keepSample: find(["keep sample", "keep spl", "keep", "retain", "sample conserv", "echantillon conserv"]),
+        trimsDetails: find(["trims detail", "trim detail", "trims details", "accessories detail", "detail trim"]),
+        fabric: find(["fabric", "tissu", "matière", "matiere", "material", "textile", "gmt fabric", "bulk fabric"]),
+        color: find(["color", "colour", "coloris", "couleur", "gmt color", "shade", "teinte"]),
+        style: find(["style", "ref", "reference", "article"]),
+        client: find(["client", "buyer", "brand", "marque"]),
+        description: find(["description", "desc", "name", "nom", "fabric", "tissu", "mati\u00e8re"]),
+        comments: find(["comment", "remarks", "note", "observation"]),
     };
 }
 
@@ -1329,10 +1331,10 @@ function timeAgo(dateVal) {
     const diffDays = Math.round((today - d) / 86400000);
     if (diffDays === 0) return "aujourd'hui";
     if (diffDays === 1) return "hier";
-    if (diffDays < 7)  return "il y a " + diffDays + " jour(s)";
-    if (diffDays < 30) return "il y a " + Math.floor(diffDays/7) + " semaine(s)";
-    if (diffDays < 365)return "il y a " + Math.floor(diffDays/30) + " mois";
-    return "il y a " + Math.floor(diffDays/365) + " an(s)";
+    if (diffDays < 7) return "il y a " + diffDays + " jour(s)";
+    if (diffDays < 30) return "il y a " + Math.floor(diffDays / 7) + " semaine(s)";
+    if (diffDays < 365) return "il y a " + Math.floor(diffDays / 30) + " mois";
+    return "il y a " + Math.floor(diffDays / 365) + " an(s)";
 }
 
 function isApproved(val) {
@@ -1345,7 +1347,7 @@ function isSent(val) {
 // ─── Auto-Refresh ─────────────────────────────────────────────
 (function startAutoRefresh() {
     const INTERVAL = 5 * 60 * 1000; // 5 minutes
-    const WARN_AT  = 4 * 60 * 1000; // show badge after 4 min
+    const WARN_AT = 4 * 60 * 1000; // show badge after 4 min
     setInterval(() => {
         const elapsed = Date.now() - (state._lastFetch || 0);
         if (elapsed >= INTERVAL) {
@@ -1451,7 +1453,7 @@ function _waitForXLSX(callback) {
 }
 
 function exportExcel() {
-    _waitForXLSX(function(XL) {
+    _waitForXLSX(function (XL) {
         if (!XL) { showToast("Bibliothèque Excel non chargée — vérifiez votre connexion", "error"); return; }
         const cfg = SHEET_CONFIG[state.activeSheet];
         const rows = state.filteredData.length ? state.filteredData : state.data[state.activeSheet];
@@ -1461,7 +1463,7 @@ function exportExcel() {
             const obj = {};
             cfg.cols.forEach(c => {
                 let v = row[c.key] ?? "";
-                if (c.type === "date" && v) try { v = new Date(v).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) {}
+                if (c.type === "date" && v) try { v = new Date(v).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch (e) { }
                 if (c.key === "Size" && typeof v === "string" && v.startsWith("'")) v = v.substring(1);
                 obj[c.label] = String(v);
             });
@@ -1512,13 +1514,13 @@ function exportExcel() {
 
 function _fmtDate(val) {
     if (!val) return "—";
-    try { return new Date(val).toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric" }); }
-    catch(e) { return String(val); }
+    try { return new Date(val).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); }
+    catch (e) { return String(val); }
 }
 function _daysDiff(dateVal) {
     // Retourne un entier : positif = dans le futur, négatif = passé
-    const d = new Date(dateVal); d.setHours(0,0,0,0);
-    const t = new Date(); t.setHours(0,0,0,0);
+    const d = new Date(dateVal); d.setHours(0, 0, 0, 0);
+    const t = new Date(); t.setHours(0, 0, 0, 0);
     return Math.round((d - t) / 86400000);
 }
 
@@ -1530,24 +1532,24 @@ function collectAllAlerts() {
     const ordItems = [];
 
     ordRows.filter(r => r.Status !== "Cancelled").forEach(r => {
-        const hasReadyDate   = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
-        const rdDiff         = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
-        const isShipped      = ["Shipped","In Transit","Delivered"].includes(r["Delivery Status"]);
-        const poLabel        = r.PO ? `PO ${r.PO}` : "PO manquant";
-        const styleMeta      = `${r.Style||"—"}${r.Color?" · "+r.Color:""}`;
-        const supplierMeta   = r.Supplier ? ` · ${r.Supplier}` : "";
-        const poMeta         = r.PO ? ` · PO : ${r.PO}` : " · ⚠ PO manquant";
+        const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
+        const rdDiff = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
+        const isShipped = ["Shipped", "In Transit", "Delivered"].includes(r["Delivery Status"]);
+        const poLabel = r.PO ? `PO ${r.PO}` : "PO manquant";
+        const styleMeta = `${r.Style || "—"}${r.Color ? " · " + r.Color : ""}${r.Trims ? " · " + r.Trims : ""}`;
+        const supplierMeta = r.Supplier ? ` · ${r.Supplier}` : "";
+        const poMeta = r.PO ? ` · PO : ${r.PO}` : " · ⚠ PO manquant";
 
         // ── Situation 1 : Pas de Ready Date → relancer supplier ──────
         if (!hasReadyDate) {
             ordItems.push({
-                dotCls:"dot-nopo", tagCls:"tag-nopo",
-                tagLabel:`📋 ${poLabel} — Ready Date manquante`,
-                title:`${styleMeta} — Ready Date non renseignée`,
-                action:`Relancer le supplier pour obtenir la Ready Date${supplierMeta}`,
-                style:r.Style||"—", client:r.Client||"",
-                meta:`${poLabel} · Statut : ${r.Status||"—"}${supplierMeta}`,
-                urgency:"mid", sheet:"ordering", rowIndex:r._rowIndex
+                dotCls: "dot-nopo", tagCls: "tag-nopo",
+                tagLabel: `📋 ${poLabel} — Ready Date manquante`,
+                title: `${styleMeta} — Ready Date non renseignée`,
+                action: `Relancer le supplier pour obtenir la Ready Date${supplierMeta}`,
+                style: r.Style || "—", client: r.Client || "",
+                meta: `${poLabel} · Statut : ${r.Status || "—"}${supplierMeta}`,
+                urgency: "mid", sheet: "ordering", rowIndex: r._rowIndex
             });
             return;
         }
@@ -1558,13 +1560,13 @@ function collectAllAlerts() {
             const urgency = days >= 14 ? "high" : "mid";
             const urgBadge = urgency === "high" ? " 🚨" : " ⚡";
             ordItems.push({
-                dotCls:"dot-late", tagCls:"tag-late",
-                tagLabel:`🔴 ${poLabel} — Ready Date dépassée ${days}j${urgBadge}`,
-                title:`${styleMeta} — Ready Date dépassée de ${days}j, non expédié`,
-                action:`Relancer le supplier : confirmer si prêt ou délai prévu${supplierMeta}`,
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta} · Statut : ${r["Delivery Status"]||"—"}`,
-                urgency, sheet:"ordering", rowIndex:r._rowIndex
+                dotCls: "dot-late", tagCls: "tag-late",
+                tagLabel: `🔴 ${poLabel} — Ready Date dépassée ${days}j${urgBadge}`,
+                title: `${styleMeta} — Ready Date dépassée de ${days}j, non expédié`,
+                action: `Relancer le supplier : confirmer si prêt ou délai prévu${supplierMeta}`,
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta} · Statut : ${r["Delivery Status"] || "—"}`,
+                urgency, sheet: "ordering", rowIndex: r._rowIndex
             });
             return;
         }
@@ -1577,22 +1579,22 @@ function collectAllAlerts() {
             ordItems.push({
                 dotCls: rdDiff === 0 ? "dot-today" : rdDiff <= 7 ? "dot-risk" : "dot-risk",
                 tagCls: rdDiff === 0 ? "tag-today" : rdDiff <= 7 ? "tag-risk" : "tag-risk",
-                tagLabel:`${tagPrefix} ${poLabel} — prêt ${daysTxt}`,
-                title:`${styleMeta} — prêt ${daysTxt}`,
+                tagLabel: `${tagPrefix} ${poLabel} — prêt ${daysTxt}`,
+                title: `${styleMeta} — prêt ${daysTxt}`,
                 action: rdDiff === 0
                     ? `Prévoir l'expédition aujourd'hui${supplierMeta}`
                     : rdDiff <= 7
-                    ? `Confirmer l'expédition imminente avec le supplier${supplierMeta}`
-                    : `Surveiller l'avancement — Ready Date le ${_fmtDate(r["Ready Date"])}`,
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta}`,
-                urgency, sheet:"ordering", rowIndex:r._rowIndex
+                        ? `Confirmer l'expédition imminente avec le supplier${supplierMeta}`
+                        : `Surveiller l'avancement — Ready Date le ${_fmtDate(r["Ready Date"])}`,
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta}`,
+                urgency, sheet: "ordering", rowIndex: r._rowIndex
             });
         }
         // Shipped/Delivered → pas d'alerte
     });
 
-    if (ordItems.length) all["ordering"] = { label:"Ordering", items:ordItems };
+    if (ordItems.length) all["ordering"] = { label: "Ordering", items: ordItems };
 
     // ─── SAMPLE (PSS) ─────────────────────────────────────────
     // Règle clé : les 4 états sont MUTUELLEMENT EXCLUSIFS.
@@ -1602,11 +1604,11 @@ function collectAllAlerts() {
     const samItems = [];
 
     samRows.forEach(r => {
-        const hasReceived  = !!(r["Received Date"] && String(r["Received Date"]).trim());
-        const hasSending   = !!(r["Sending Date"]  && String(r["Sending Date"]).trim());
-        const hasAwb       = !!(r["AWB"]           && String(r["AWB"]).trim());
-        const isApproved   = r.Approval === "Approved";
-        const hasReadyDate = !!(r["Ready Date"]    && String(r["Ready Date"]).trim());
+        const hasReceived = !!(r["Received Date"] && String(r["Received Date"]).trim());
+        const hasSending = !!(r["Sending Date"] && String(r["Sending Date"]).trim());
+        const hasAwb = !!(r["AWB"] && String(r["AWB"]).trim());
+        const isApproved = r.Approval === "Approved";
+        const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
 
         if (isApproved) return;
 
@@ -1617,17 +1619,17 @@ function collectAllAlerts() {
             const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
             const awbPart = hasAwb ? ` under AWB ${r["AWB"]}` : "";
             samItems.push({
-                dotCls:"dot-approve", tagCls:"tag-approve",
-                tagLabel:`⏳ Envoyé au client — approval en attente ${days}j${urgencyLabel}`,
-                title:`Sample envoyée au client${awbPart} — approval en attente depuis ${days}j`,
+                dotCls: "dot-approve", tagCls: "tag-approve",
+                tagLabel: `⏳ Envoyé au client — approval en attente ${days}j${urgencyLabel}`,
+                title: `Sample envoyée au client${awbPart} — approval en attente depuis ${days}j`,
                 action: urgency === "high"
                     ? `Envoyé il y a ${days}j — relancer le client de toute urgence`
                     : urgency === "mid"
-                    ? `Envoyé il y a ${days}j — envoyer un rappel au client`
-                    : `Envoyé il y a ${days}j — attendre ou envoyer un suivi`,
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Envoyé le : ${_fmtDate(r["Sending Date"])}${hasAwb?" · AWB : "+r["AWB"]:""}${r.Type?" · "+r.Type:""}`,
-                urgency, sheet:"sample", rowIndex:r._rowIndex
+                        ? `Envoyé il y a ${days}j — envoyer un rappel au client`
+                        : `Envoyé il y a ${days}j — attendre ou envoyer un suivi`,
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Envoyé le : ${_fmtDate(r["Sending Date"])}${hasAwb ? " · AWB : " + r["AWB"] : ""}${r.Type ? " · " + r.Type : ""}`,
+                urgency, sheet: "sample", rowIndex: r._rowIndex
             });
             return;
         }
@@ -1637,13 +1639,13 @@ function collectAllAlerts() {
             const days = Math.abs(_daysDiff(r["Received Date"]));
             const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
             samItems.push({
-                dotCls:"dot-send", tagCls:"tag-send",
-                tagLabel:`📦 À envoyer (${daysLabel})`,
-                title:"Sample reçue — à envoyer au client",
-                action:`Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date`,
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Reçue le : ${_fmtDate(r["Received Date"])}${r.Type?" · "+r.Type:""}${r.Size?" · Taille "+r.Size:""}`,
-                urgency: days >= 3 ? "mid" : "low", sheet:"sample", rowIndex:r._rowIndex
+                dotCls: "dot-send", tagCls: "tag-send",
+                tagLabel: `📦 À envoyer (${daysLabel})`,
+                title: "Sample reçue — à envoyer au client",
+                action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date`,
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Reçue le : ${_fmtDate(r["Received Date"])}${r.Type ? " · " + r.Type : ""}${r.Size ? " · Taille " + r.Size : ""}`,
+                urgency: days >= 3 ? "mid" : "low", sheet: "sample", rowIndex: r._rowIndex
             });
             return;
         }
@@ -1654,40 +1656,40 @@ function collectAllAlerts() {
         if (diff < 0) {
             const days = Math.abs(diff);
             samItems.push({
-                dotCls:"dot-late", tagCls:"tag-late",
-                tagLabel:`🔴 Sample non reçue — ${days}j de retard`,
-                title:`Sample non reçue — Ready Date dépassée de ${days} jour${days>1?"s":""}`,
-                action:"Relancer la factory pour confirmer l'avancement de la sample",
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
-                urgency:"high", sheet:"sample", rowIndex:r._rowIndex
+                dotCls: "dot-late", tagCls: "tag-late",
+                tagLabel: `🔴 Sample non reçue — ${days}j de retard`,
+                title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}`,
+                action: "Relancer la factory pour confirmer l'avancement de la sample",
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type ? " · " + r.Type : ""}${r.Fabric ? " · " + r.Fabric : ""}`,
+                urgency: "high", sheet: "sample", rowIndex: r._rowIndex
             });
         } else if (diff === 0) {
             samItems.push({
-                dotCls:"dot-today", tagCls:"tag-today",
-                tagLabel:"🟡 Sample attendue aujourd'hui",
-                title:"Sample attendue aujourd'hui — prévoir la réception",
-                action:"Confirmer la réception dès réception de la sample",
-                style:r.Style||"—", client:r.Client||"",
-                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type?" · "+r.Type:""}${r.Fabric?" · "+r.Fabric:""}`,
-                urgency:"low", sheet:"sample", rowIndex:r._rowIndex
+                dotCls: "dot-today", tagCls: "tag-today",
+                tagLabel: "🟡 Sample attendue aujourd'hui",
+                title: "Sample attendue aujourd'hui — prévoir la réception",
+                action: "Confirmer la réception dès réception de la sample",
+                style: r.Style || "—", client: r.Client || "",
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type ? " · " + r.Type : ""}${r.Fabric ? " · " + r.Fabric : ""}`,
+                urgency: "low", sheet: "sample", rowIndex: r._rowIndex
             });
         }
         // diff > 0 : Ready Date dans le futur → pas d'alerte
     });
 
-    if (samItems.length) all["sample"] = { label:"Sample", items:samItems };
+    if (samItems.length) all["sample"] = { label: "Sample", items: samItems };
 
     // ─── CUSTOM MENUS ─────────────────────────────────────────
     Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
-        const cfg  = SHEET_CONFIG[key];
+        const cfg = SHEET_CONFIG[key];
         const rows = state.data[key] || [];
-        const det  = detectCustomCols(cfg.cols, cfg.label);
+        const det = detectCustomCols(cfg.cols, cfg.label);
         const items = [];
 
-        const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
-        const getClient = r => det.client ? (r[det.client] || "")  : "";
-        const getFsr    = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
+        const getStyle = r => det.style ? (r[det.style] || "—") : "—";
+        const getClient = r => det.client ? (r[det.client] || "") : "";
+        const getFsr = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
 
         // ── Détection Bulk (A4, Shade Band, etc.) ────────────────
         const menuLabelLower = cfg.label.toLowerCase();
@@ -1698,19 +1700,19 @@ function collectAllAlerts() {
         const _trimsDevoKeepAlerted = new Set();
 
         rows.forEach(r => {
-            const hasReceived  = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
-            const hasSending   = det.sendingDate  && !!(r[det.sendingDate]  && String(r[det.sendingDate]).trim());
-            const hasReadyDate = det.readyDate    && !!(r[det.readyDate]    && String(r[det.readyDate]).trim());
-            const hasFsr       = det.fsrDate      && !!(r[det.fsrDate]      && String(r[det.fsrDate]).trim());
-            const hasLaunch    = det.launchDate   && !!(r[det.launchDate]   && String(r[det.launchDate]).trim());
-            const approved     = det.approval && isApproved(r[det.approval]);
+            const hasReceived = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
+            const hasSending = det.sendingDate && !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
+            const hasReadyDate = det.readyDate && !!(r[det.readyDate] && String(r[det.readyDate]).trim());
+            const hasFsr = det.fsrDate && !!(r[det.fsrDate] && String(r[det.fsrDate]).trim());
+            const hasLaunch = det.launchDate && !!(r[det.launchDate] && String(r[det.launchDate]).trim());
+            const approved = det.approval && isApproved(r[det.approval]);
 
             if (approved) return;
 
             // ── BULK A4 / SHADE BAND : alertes spécifiques ───────────
             if (isBulk) {
-                const typeCol   = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase() === "bulk type" || c.label.toLowerCase().includes("type"));
-                const typeVal   = typeCol && r[typeCol.key] ? String(r[typeCol.key]).trim() : "";
+                const typeCol = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase() === "bulk type" || c.label.toLowerCase().includes("type"));
+                const typeVal = typeCol && r[typeCol.key] ? String(r[typeCol.key]).trim() : "";
                 const typeLabel = typeVal || bulkShortLabel;
                 const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "";
                 const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
@@ -1722,37 +1724,37 @@ function collectAllAlerts() {
                     const diff = _daysDiff(r[det.readyDate]);
                     if (diff > 0) {
                         items.push({
-                            dotCls:"dot-risk", tagCls:"tag-risk",
-                            tagLabel:`🕐 ${typeLabel}${fabricVal?" · "+fabricVal:""} — prêt dans ${diff}j`,
-                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — sample prêt dans ${diff} jour${diff>1?"s":""}`,
-                            action:`Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
-                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            dotCls: "dot-risk", tagCls: "tag-risk",
+                            tagLabel: `🕐 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — prêt dans ${diff}j`,
+                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — sample prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
+                            action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
+                            urgency: "low", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     } else if (diff === 0) {
                         items.push({
-                            dotCls:"dot-today", tagCls:"tag-today",
-                            tagLabel:`🟡 ${typeLabel}${fabricVal?" · "+fabricVal:""} — attendu aujourd'hui`,
-                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — attendu aujourd'hui`,
-                            action:`Confirmer la réception dès arrivée`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
-                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                            dotCls: "dot-today", tagCls: "tag-today",
+                            tagLabel: `🟡 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — attendu aujourd'hui`,
+                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — attendu aujourd'hui`,
+                            action: `Confirmer la réception dès arrivée`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
+                            urgency: "low", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     } else {
                         // Ready Date dépassée, toujours pas reçu
                         const days = Math.abs(diff);
                         items.push({
-                            dotCls:"dot-late", tagCls:"tag-late",
-                            tagLabel:`🔴 ${typeLabel}${fabricVal?" · "+fabricVal:""} — en retard ${days}j`,
-                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — non reçu, ${days}j de retard`,
-                            action:`Relancer le supplier pour confirmer l'envoi`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
-                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                            dotCls: "dot-late", tagCls: "tag-late",
+                            tagLabel: `🔴 ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — en retard ${days}j`,
+                            title: `${typeLabel}${fabricVal ? " du " + fabricVal : ""} — non reçu, ${days}j de retard`,
+                            action: `Relancer le supplier pour confirmer l'envoi`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
+                            urgency: "high", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
@@ -1761,13 +1763,13 @@ function collectAllAlerts() {
                 // Situation 2 : Received Date renseigné mais pas de Sending Date → à envoyer
                 if (hasReceived && !hasSending) {
                     items.push({
-                        dotCls:"dot-send", tagCls:"tag-send",
-                        tagLabel:`📬 Envoyer ${typeLabel}${fabricVal?" · "+fabricVal:""}`,
-                        title:`Envoyer le ${typeLabel}${fabricVal?" du "+fabricVal:""}`,
-                        action:`Organiser l'envoi du ${typeLabel}${fabricVal?" ("+fabricVal+")":""}`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
-                        urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-send", tagCls: "tag-send",
+                        tagLabel: `📬 Envoyer ${typeLabel}${fabricVal ? " · " + fabricVal : ""}`,
+                        title: `Envoyer le ${typeLabel}${fabricVal ? " du " + fabricVal : ""}`,
+                        action: `Organiser l'envoi du ${typeLabel}${fabricVal ? " (" + fabricVal + ")" : ""}`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
+                        urgency: "mid", sheet: key, rowIndex: r._rowIndex
                     });
                     return;
                 }
@@ -1778,17 +1780,17 @@ function collectAllAlerts() {
                     const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
-                        dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ Approval ${typeLabel}${fabricVal?" · "+fabricVal:""} — ${days}j${urgBadge}`,
-                        title:`Approval ${typeLabel}${fabricVal?" du "+fabricVal:""} — envoyé il y a ${days}j`,
+                        dotCls: "dot-approve", tagCls: "tag-approve",
+                        tagLabel: `⏳ Approval ${typeLabel}${fabricVal ? " · " + fabricVal : ""} — ${days}j${urgBadge}`,
+                        title: `Approval ${typeLabel}${fabricVal ? " du " + fabricVal : ""} — envoyé il y a ${days}j`,
                         action: urgency === "high"
                             ? `Relancer de toute urgence — plus de 2 semaines`
                             : urgency === "mid"
-                            ? `Envoyer un rappel — 1 semaine sans retour`
-                            : `Attendre ou envoyer un suivi`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
-                        urgency, sheet:key, rowIndex:r._rowIndex
+                                ? `Envoyer un rappel — 1 semaine sans retour`
+                                : `Attendre ou envoyer un suivi`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${fabricVal ? " · Fabric : " + fabricVal : ""}${getFsr(r)}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
                     });
                     return;
                 }
@@ -1798,14 +1800,14 @@ function collectAllAlerts() {
 
             // ── TRIMS DEVO : logique spécifique ──────────────────────
             if (det.isTrimsDevo) {
-                const isRejected    = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
-                const hasNlSub      = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
-                const hasKeepSample = det.keepSample   && !!(r[det.keepSample]   && String(r[det.keepSample]).trim());
-                const descVal       = det.description && r[det.description] ? String(r[det.description]).trim() : "";
-                const colorVal      = det.color       && r[det.color]       ? String(r[det.color]).trim()       : "";
-                const trimsVal      = cfg.cols.find(c => c.label.toLowerCase() === "trims");
-                const trimsStr      = trimsVal && r[trimsVal.key] ? String(r[trimsVal.key]).trim() : "";
-                const displayName   = [descVal, colorVal, trimsStr].filter(Boolean).join(" · ") || getStyle(r);
+                const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
+                const hasNlSub = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
+                const hasKeepSample = det.keepSample && !!(r[det.keepSample] && String(r[det.keepSample]).trim());
+                const descVal = det.description && r[det.description] ? String(r[det.description]).trim() : "";
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                const trimsVal = cfg.cols.find(c => c.label.toLowerCase() === "trims");
+                const trimsStr = trimsVal && r[trimsVal.key] ? String(r[trimsVal.key]).trim() : "";
+                const displayName = [descVal, colorVal, trimsStr].filter(Boolean).join(" · ") || getStyle(r);
 
                 // Détection AWB dans le menu custom
                 const awbCol = cfg.cols.find(c => c.label.toLowerCase() === "awb" || c.label.toLowerCase().includes("awb"));
@@ -1820,17 +1822,17 @@ function collectAllAlerts() {
                     const urgency = nlDays >= 14 ? "high" : nlDays >= 7 ? "mid" : "low";
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
-                        dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ ${trimColor} — approval en attente ${nlDays}j${awbVal?" · AWB "+awbVal:""}${urgBadge}`,
-                        title:`${displayName} — envoyé à NL${awbPart}, approval en attente depuis ${nlDays}j`,
+                        dotCls: "dot-approve", tagCls: "tag-approve",
+                        tagLabel: `⏳ ${trimColor} — approval en attente ${nlDays}j${awbVal ? " · AWB " + awbVal : ""}${urgBadge}`,
+                        title: `${displayName} — envoyé à NL${awbPart}, approval en attente depuis ${nlDays}j`,
                         action: urgency === "high"
                             ? `Envoyé il y a ${nlDays}j — relancer de toute urgence`
                             : urgency === "mid"
-                            ? `Envoyé il y a ${nlDays}j — envoyer un rappel`
-                            : `Envoyé il y a ${nlDays}j — suivre l'approval`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`NL Submission : ${_fmtDate(r[det.nlSubmission])}${awbVal?" · AWB : "+awbVal:""}${hasReadyDate?" · Ready Date : "+_fmtDate(r[det.readyDate]):""}`,
-                        urgency, sheet:key, rowIndex:r._rowIndex
+                                ? `Envoyé il y a ${nlDays}j — envoyer un rappel`
+                                : `Envoyé il y a ${nlDays}j — suivre l'approval`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `NL Submission : ${_fmtDate(r[det.nlSubmission])}${awbVal ? " · AWB : " + awbVal : ""}${hasReadyDate ? " · Ready Date : " + _fmtDate(r[det.readyDate]) : ""}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
                     });
                     return;
                 }
@@ -1842,13 +1844,13 @@ function collectAllAlerts() {
                         _trimsDevoKeepAlerted.add(groupKey);
                         const rejDate = det.readyDate && r[det.readyDate] ? ` — Ready Date : ${_fmtDate(r[det.readyDate])}` : "";
                         items.push({
-                            dotCls:"dot-late", tagCls:"tag-late",
-                            tagLabel:`🔴 ${trimColor} — Keep Sample non reçu`,
-                            title:`${displayName} — sample rejeté, keep sample non réceptionné`,
-                            action:`Confirmer la réception du keep sample de ce trims rejeté`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`Statut : Rejected${rejDate}${det.nlSubmission && r[det.nlSubmission] ? " · NL Sub : "+_fmtDate(r[det.nlSubmission]) : ""}`,
-                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                            dotCls: "dot-late", tagCls: "tag-late",
+                            tagLabel: `🔴 ${trimColor} — Keep Sample non reçu`,
+                            title: `${displayName} — sample rejeté, keep sample non réceptionné`,
+                            action: `Confirmer la réception du keep sample de ce trims rejeté`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Statut : Rejected${rejDate}${det.nlSubmission && r[det.nlSubmission] ? " · NL Sub : " + _fmtDate(r[det.nlSubmission]) : ""}`,
+                            urgency: "high", sheet: key, rowIndex: r._rowIndex
                         });
                     }
                     return;
@@ -1857,13 +1859,13 @@ function collectAllAlerts() {
                 // ── Alerte 3 : Pas de Ready Date → demander au supplier ──────
                 if (!hasNlSub && !isRejected && !approved && !hasReadyDate) {
                     items.push({
-                        dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`📋 ${trimColor} — Ready Date manquante`,
-                        title:`${trimsStr || "Trims"}${colorVal ? " · "+colorVal : ""} — Ready Date non renseignée`,
-                        action:`Demander la Ready Date au supplier pour ${trimsStr || "ce trims"}${colorVal ? " ("+colorVal+")" : ""}`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`${trimsStr?trimsStr:""}${colorVal?" · Color : "+colorVal:""}${descVal?" · "+descVal:""}`.trim(),
-                        urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-nopo", tagCls: "tag-nopo",
+                        tagLabel: `📋 ${trimColor} — Ready Date manquante`,
+                        title: `${trimsStr || "Trims"}${colorVal ? " · " + colorVal : ""} — Ready Date non renseignée`,
+                        action: `Demander la Ready Date au supplier pour ${trimsStr || "ce trims"}${colorVal ? " (" + colorVal + ")" : ""}`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `${trimsStr ? trimsStr : ""}${colorVal ? " · Color : " + colorVal : ""}${descVal ? " · " + descVal : ""}`.trim(),
+                        urgency: "mid", sheet: key, rowIndex: r._rowIndex
                     });
                     return;
                 }
@@ -1877,40 +1879,40 @@ function collectAllAlerts() {
                 // Seul déclencheur : colonne "Launched on" renseignée
                 // Pas de received date — uniquement la date de lancement compte.
                 const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim()
-                                    ? r[det.launchDate] : null;
+                    ? r[det.launchDate] : null;
 
                 if (launchDateVal && !hasReadyDate) {
-                    const launchDays    = Math.abs(_daysDiff(launchDateVal));
+                    const launchDays = Math.abs(_daysDiff(launchDateVal));
                     const launchDaysTxt = launchDays === 0 ? "aujourd'hui"
-                                       : launchDays === 1 ? "hier"
-                                       : `il y a ${launchDays} jour${launchDays > 1 ? "s" : ""}`;
+                        : launchDays === 1 ? "hier"
+                            : `il y a ${launchDays} jour${launchDays > 1 ? "s" : ""}`;
                     const launchFmt = _fmtDate(launchDateVal);
-                    const urgency   = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
+                    const urgency = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
                     const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
 
                     // Valeur réelle de la ref EFA dans la ligne
                     const efaVal = det.efaRef && r[det.efaRef] && String(r[det.efaRef]).trim()
-                                 ? String(r[det.efaRef]).trim()
-                                 : (getStyle(r) !== "—" ? getStyle(r) : "Test");
+                        ? String(r[det.efaRef]).trim()
+                        : (getStyle(r) !== "—" ? getStyle(r) : "Test");
 
                     // FSR Number et Color extraits directement des cellules
-                    const fsrVal   = det.fsrNumber && r[det.fsrNumber] && String(r[det.fsrNumber]).trim()
-                                   ? String(r[det.fsrNumber]).trim() : null;
+                    const fsrVal = det.fsrNumber && r[det.fsrNumber] && String(r[det.fsrNumber]).trim()
+                        ? String(r[det.fsrNumber]).trim() : null;
                     const colorVal = det.color && r[det.color] && String(r[det.color]).trim()
-                                   ? String(r[det.color]).trim() : null;
+                        ? String(r[det.color]).trim() : null;
 
-                    const fsrPart   = fsrVal   ? ` · FSR : ${fsrVal}`     : "";
+                    const fsrPart = fsrVal ? ` · FSR : ${fsrVal}` : "";
                     const colorPart = colorVal ? ` · Color : ${colorVal}` : "";
 
                     items.push({
-                        dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`🧪 ${efaVal}${colorVal ? " — "+colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
-                        title:`${efaVal}${colorVal ? " ["+colorVal+"]" : ""} en attente du résultat du test — lancé ${launchDaysTxt}`,
-                        action:`Renseigner la Ready Date dès réception des résultats du laboratoire`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
+                        dotCls: "dot-nopo", tagCls: "tag-nopo",
+                        tagLabel: `🧪 ${efaVal}${colorVal ? " — " + colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
+                        title: `${efaVal}${colorVal ? " [" + colorVal + "]" : ""} en attente du résultat du test — lancé ${launchDaysTxt}`,
+                        action: `Renseigner la Ready Date dès réception des résultats du laboratoire`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
                         urgency,
-                        sheet:key, rowIndex:r._rowIndex
+                        sheet: key, rowIndex: r._rowIndex
                     });
                 }
                 // Ready Date déjà renseignée ou pas encore lancé → pas d'alerte
@@ -1926,13 +1928,13 @@ function collectAllAlerts() {
                     const daysLabel = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days}j`;
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     items.push({
-                        dotCls:"dot-send", tagCls:"tag-send",
-                        tagLabel:`📦 À envoyer (${daysLabel})`,
-                        title:`Reçu — à envoyer au client${fsrStr ? " · FSR "+fsrStr : ""}`,
-                        action:`${daysLabel.charAt(0).toUpperCase()+daysLabel.slice(1)} — organiser l'envoi`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
-                        urgency: days >= 3 ? "mid" : "low", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-send", tagCls: "tag-send",
+                        tagLabel: `📦 À envoyer (${daysLabel})`,
+                        title: `Reçu — à envoyer au client${fsrStr ? " · FSR " + fsrStr : ""}`,
+                        action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
+                        urgency: days >= 3 ? "mid" : "low", sheet: key, rowIndex: r._rowIndex
                     });
                 } else if (hasSending) {
                     const days = Math.abs(_daysDiff(r[det.sendingDate]));
@@ -1940,13 +1942,13 @@ function collectAllAlerts() {
                     const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     items.push({
-                        dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ Approval ${days}j${urgencyLabel}`,
-                        title:`Envoyé — approbation en attente depuis ${days}j${fsrStr ? " · FSR "+fsrStr : ""}`,
+                        dotCls: "dot-approve", tagCls: "tag-approve",
+                        tagLabel: `⏳ Approval ${days}j${urgencyLabel}`,
+                        title: `Envoyé — approbation en attente depuis ${days}j${fsrStr ? " · FSR " + fsrStr : ""}`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
-                        urgency, sheet:key, rowIndex:r._rowIndex
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
                     });
                 }
                 return;
@@ -1957,13 +1959,13 @@ function collectAllAlerts() {
                 // État A : FSR lancé mais Ready Date absente → relancer mail
                 const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : "";
                 items.push({
-                    dotCls:"dot-nopo", tagCls:"tag-nopo",
-                    tagLabel:`📧 Ready Date manquante`,
-                    title:`FSR lancé — Ready Date non renseignée`,
-                    action:`Relancer un mail pour obtenir la Ready Date${fsrAgo ? " (FSR "+fsrAgo+")" : ""}`,
-                    style:getStyle(r), client:getClient(r),
-                    meta:`FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}${getFsr(r)}`,
-                    urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                    dotCls: "dot-nopo", tagCls: "tag-nopo",
+                    tagLabel: `📧 Ready Date manquante`,
+                    title: `FSR lancé — Ready Date non renseignée`,
+                    action: `Relancer un mail pour obtenir la Ready Date${fsrAgo ? " (FSR " + fsrAgo + ")" : ""}`,
+                    style: getStyle(r), client: getClient(r),
+                    meta: `FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}${getFsr(r)}`,
+                    urgency: "mid", sheet: key, rowIndex: r._rowIndex
                 });
             } else if (hasReadyDate) {
                 // État B : Ready Date présente, attente réception
@@ -1971,33 +1973,33 @@ function collectAllAlerts() {
                 if (diff < 0) {
                     const days = Math.abs(diff);
                     items.push({
-                        dotCls:"dot-late", tagCls:"tag-late",
-                        tagLabel:`🔴 En retard — ${days}j`,
-                        title:`Ready Date dépassée de ${days}j — non reçu`,
-                        action:"Relancer la factory pour confirmer l'avancement",
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
-                        urgency:"high", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-late", tagCls: "tag-late",
+                        tagLabel: `🔴 En retard — ${days}j`,
+                        title: `Ready Date dépassée de ${days}j — non reçu`,
+                        action: "Relancer la factory pour confirmer l'avancement",
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        urgency: "high", sheet: key, rowIndex: r._rowIndex
                     });
                 } else if (diff === 0) {
                     items.push({
-                        dotCls:"dot-today", tagCls:"tag-today",
-                        tagLabel:`🟡 Attendu aujourd'hui`,
-                        title:`Ready Date aujourd'hui — prévoir la réception`,
-                        action:"Confirmer la réception dès réception",
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
-                        urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-today", tagCls: "tag-today",
+                        tagLabel: `🟡 Attendu aujourd'hui`,
+                        title: `Ready Date aujourd'hui — prévoir la réception`,
+                        action: "Confirmer la réception dès réception",
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        urgency: "low", sheet: key, rowIndex: r._rowIndex
                     });
                 } else {
                     items.push({
-                        dotCls:"dot-risk", tagCls:"tag-risk",
-                        tagLabel:`🕐 Dans ${diff}j`,
-                        title:`En attente de réception — prêt dans ${diff} jour${diff>1?"s":""}`,
-                        action:`Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
-                        style:getStyle(r), client:getClient(r),
-                        meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
-                        urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        dotCls: "dot-risk", tagCls: "tag-risk",
+                        tagLabel: `🕐 Dans ${diff}j`,
+                        title: `En attente de réception — prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
+                        action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                        style: getStyle(r), client: getClient(r),
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        urgency: "low", sheet: key, rowIndex: r._rowIndex
                     });
                 }
             } else {
@@ -2016,13 +2018,13 @@ function collectAllAlerts() {
                 // ────────────────────────────────────────────────────────────────────────
 
                 // Labels à exclure (déjà gérés par des blocs dédiés)
-                const EXCLUDED = ["receiv","recep","send","envoi","ready","fsr","launch","lanc","approv"];
+                const EXCLUDED = ["receiv", "recep", "send", "envoi", "ready", "fsr", "launch", "lanc", "approv"];
                 const isExcluded = lbl => EXCLUDED.some(p => lbl.includes(p));
 
                 // Patterns sémantiques
-                const ACTION_PAST_PATTERNS  = ["sent","submit","soumis","expedit","ship","dispatch","depart","envoy","départ","livr"];
-                const DEADLINE_PATTERNS     = ["due","deadline","expir","limit","échéan","delai","délai","cutoff","cut-off","target"];
-                const WAITING_PATTERNS      = ["date","on","le","at"];  // fallback large
+                const ACTION_PAST_PATTERNS = ["sent", "submit", "soumis", "expedit", "ship", "dispatch", "depart", "envoy", "départ", "livr"];
+                const DEADLINE_PATTERNS = ["due", "deadline", "expir", "limit", "échéan", "delai", "délai", "cutoff", "cut-off", "target"];
+                const WAITING_PATTERNS = ["date", "on", "le", "at"];  // fallback large
 
                 cfg.cols.filter(c => c.type === "date").forEach(col => {
                     const colLbl = col.label.toLowerCase();
@@ -2030,63 +2032,63 @@ function collectAllAlerts() {
                     const val = r[col.key];
                     if (!val || !String(val).trim()) return;
 
-                    const diff  = _daysDiff(val);  // positif = futur, négatif = passé
-                    const days  = Math.abs(diff);
-                    const fmt   = _fmtDate(val);
+                    const diff = _daysDiff(val);  // positif = futur, négatif = passé
+                    const days = Math.abs(diff);
+                    const fmt = _fmtDate(val);
 
                     const isActionPast = ACTION_PAST_PATTERNS.some(p => colLbl.includes(p));
-                    const isDeadline   = DEADLINE_PATTERNS.some(p => colLbl.includes(p));
+                    const isDeadline = DEADLINE_PATTERNS.some(p => colLbl.includes(p));
 
                     if (isActionPast) {
                         // Colonne "action passée" : la date indique qu'une action a eu lieu
                         // → on attend un retour/résultat depuis ce moment.
                         const agoTxt = days === 0 ? "aujourd'hui"
-                                     : days === 1 ? "hier"
-                                     : `il y a ${days} jour${days > 1 ? "s" : ""}`;
+                            : days === 1 ? "hier"
+                                : `il y a ${days} jour${days > 1 ? "s" : ""}`;
                         const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
                         const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                         items.push({
                             dotCls: urgency === "high" ? "dot-late" : urgency === "mid" ? "dot-risk" : "dot-send",
                             tagCls: urgency === "high" ? "tag-late" : urgency === "mid" ? "tag-risk" : "tag-send",
-                            tagLabel:`⏳ ${col.label} — en attente (${days}j)${urgencyBadge}`,
-                            title:`${col.label} renseigné ${agoTxt} — en attente d'un retour`,
-                            action:`Vérifier si une action est requise suite à "${col.label}" du ${fmt}`,
-                            style:getStyle(r), client:getClient(r),
-                            meta:`${col.label} : ${fmt}`,
-                            urgency, sheet:key, rowIndex:r._rowIndex
+                            tagLabel: `⏳ ${col.label} — en attente (${days}j)${urgencyBadge}`,
+                            title: `${col.label} renseigné ${agoTxt} — en attente d'un retour`,
+                            action: `Vérifier si une action est requise suite à "${col.label}" du ${fmt}`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `${col.label} : ${fmt}`,
+                            urgency, sheet: key, rowIndex: r._rowIndex
                         });
 
                     } else if (isDeadline) {
                         // Colonne "échéance" : alerte si passée ou proche (≤7j)
                         if (diff < 0) {
                             items.push({
-                                dotCls:"dot-late", tagCls:"tag-late",
-                                tagLabel:`🔴 ${col.label} — dépassée de ${days}j`,
-                                title:`Échéance "${col.label}" dépassée de ${days} jour${days>1?"s":""}`,
-                                action:`Traiter ou replanifier la date "${col.label}"`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency:"high", sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-late", tagCls: "tag-late",
+                                tagLabel: `🔴 ${col.label} — dépassée de ${days}j`,
+                                title: `Échéance "${col.label}" dépassée de ${days} jour${days > 1 ? "s" : ""}`,
+                                action: `Traiter ou replanifier la date "${col.label}"`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency: "high", sheet: key, rowIndex: r._rowIndex
                             });
                         } else if (diff === 0) {
                             items.push({
-                                dotCls:"dot-today", tagCls:"tag-today",
-                                tagLabel:`🟡 ${col.label} — aujourd'hui`,
-                                title:`Échéance "${col.label}" arrive aujourd'hui`,
-                                action:`Traiter "${col.label}" avant la fin de journée`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-today", tagCls: "tag-today",
+                                tagLabel: `🟡 ${col.label} — aujourd'hui`,
+                                title: `Échéance "${col.label}" arrive aujourd'hui`,
+                                action: `Traiter "${col.label}" avant la fin de journée`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                         } else if (diff <= 7) {
                             items.push({
-                                dotCls:"dot-risk", tagCls:"tag-risk",
-                                tagLabel:`🕐 ${col.label} — dans ${diff}j`,
-                                title:`Échéance "${col.label}" dans ${diff} jour${diff>1?"s":""}`,
-                                action:`Préparer l'action requise avant le ${fmt}`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-risk", tagCls: "tag-risk",
+                                tagLabel: `🕐 ${col.label} — dans ${diff}j`,
+                                title: `Échéance "${col.label}" dans ${diff} jour${diff > 1 ? "s" : ""}`,
+                                action: `Préparer l'action requise avant le ${fmt}`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency: "low", sheet: key, rowIndex: r._rowIndex
                             });
                         }
 
@@ -2095,33 +2097,33 @@ function collectAllAlerts() {
                         if (diff < 0) {
                             const urgency = days >= 14 ? "high" : "mid";
                             items.push({
-                                dotCls:"dot-late", tagCls:"tag-late",
-                                tagLabel:`🔴 ${col.label} — ${days}j de retard`,
-                                title:`"${col.label}" était le ${fmt} — aucune suite renseignée`,
-                                action:`Vérifier si une action est requise ou mettre à jour la date`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency, sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-late", tagCls: "tag-late",
+                                tagLabel: `🔴 ${col.label} — ${days}j de retard`,
+                                title: `"${col.label}" était le ${fmt} — aucune suite renseignée`,
+                                action: `Vérifier si une action est requise ou mettre à jour la date`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency, sheet: key, rowIndex: r._rowIndex
                             });
                         } else if (diff === 0) {
                             items.push({
-                                dotCls:"dot-today", tagCls:"tag-today",
-                                tagLabel:`🟡 ${col.label} — aujourd'hui`,
-                                title:`"${col.label}" est aujourd'hui`,
-                                action:`Confirmer ou mettre à jour "${col.label}"`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-today", tagCls: "tag-today",
+                                tagLabel: `🟡 ${col.label} — aujourd'hui`,
+                                title: `"${col.label}" est aujourd'hui`,
+                                action: `Confirmer ou mettre à jour "${col.label}"`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                         } else if (diff <= 7) {
                             items.push({
-                                dotCls:"dot-risk", tagCls:"tag-risk",
-                                tagLabel:`🕐 ${col.label} — dans ${diff}j`,
-                                title:`"${col.label}" prévu dans ${diff} jour${diff>1?"s":""} — à surveiller`,
-                                action:`Préparer ce qui est nécessaire avant le ${fmt}`,
-                                style:getStyle(r), client:getClient(r),
-                                meta:`${col.label} : ${fmt}`,
-                                urgency:"low", sheet:key, rowIndex:r._rowIndex
+                                dotCls: "dot-risk", tagCls: "tag-risk",
+                                tagLabel: `🕐 ${col.label} — dans ${diff}j`,
+                                title: `"${col.label}" prévu dans ${diff} jour${diff > 1 ? "s" : ""} — à surveiller`,
+                                action: `Préparer ce qui est nécessaire avant le ${fmt}`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `${col.label} : ${fmt}`,
+                                urgency: "low", sheet: key, rowIndex: r._rowIndex
                             });
                         }
                     }
@@ -2129,7 +2131,7 @@ function collectAllAlerts() {
             }
         });
 
-        if (items.length) all[key] = { label:cfg.label, items };
+        if (items.length) all[key] = { label: cfg.label, items };
     });
 
     // ── Cascade blocks (merged from injection) ───────────────
@@ -2138,7 +2140,7 @@ function collectAllAlerts() {
         const cascadeItems = blocks.map(b => ({
             dotCls: b.maxUrgency === "high" ? "dot-late" : "dot-risk",
             tagCls: b.maxUrgency === "high" ? "tag-late" : "tag-risk",
-            tagLabel: `${b.maxUrgency==="high"?"🔴":"🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length>1?"s":""}`,
+            tagLabel: `${b.maxUrgency === "high" ? "🔴" : "🟠"} Blocage cascade — ${b.issues.length} problème${b.issues.length > 1 ? "s" : ""}`,
             title: `Style ${b.style} — blocage en cascade détecté`,
             action: b.issues.map(i => `${i.icon} ${i.label}`).join(" · "),
             style: b.style, client: b.client || "",
@@ -2159,21 +2161,21 @@ function navigateToRow(sheetKey, rowIndex) {
 
     // 2. Naviguer vers le bon menu (simuler un clic sur le nav-item)
     const navBtn = document.querySelector(`.nav-item[data-sheet="${sheetKey}"]`) ||
-                   document.getElementById(`tab-custom-${sheetKey}`);
+        document.getElementById(`tab-custom-${sheetKey}`);
 
     if (navBtn) {
         // Réinitialiser les filtres et changer l'onglet actif
-        state.activeView  = "sheet";
+        state.activeView = "sheet";
         state.activeSheet = sheetKey;
         state.searchQuery = ""; state.filterDept = ""; state.filterClient = "";
         state.sortCol = null; state.sortDir = 1;
         searchInput.value = ""; deptFilter.value = "";
         const cf = document.getElementById("client-filter"); if (cf) cf.value = "";
         document.querySelectorAll(".nav-item").forEach(b => {
-            b.classList.remove("active"); b.setAttribute("aria-selected","false");
+            b.classList.remove("active"); b.setAttribute("aria-selected", "false");
         });
-        navBtn.classList.add("active"); navBtn.setAttribute("aria-selected","true");
-        const titles = { details:"Détails des Styles", sample:"Suivi des Samples", ordering:"Gestion des Commandes" };
+        navBtn.classList.add("active"); navBtn.setAttribute("aria-selected", "true");
+        const titles = { details: "Détails des Styles", sample: "Suivi des Samples", ordering: "Gestion des Commandes" };
         const titleEl = document.getElementById("header-sheet-title");
         if (titleEl) titleEl.textContent = titles[sheetKey] || (SHEET_CONFIG[sheetKey]?.label || sheetKey);
         showTableView(); applyFilters(); renderKPIs();
@@ -2198,7 +2200,7 @@ function navigateToRow(sheetKey, rowIndex) {
 
         if (targetRow) {
             // Scroll vers la ligne
-            targetRow.scrollIntoView({ behavior:"smooth", block:"center" });
+            targetRow.scrollIntoView({ behavior: "smooth", block: "center" });
 
             // Surbrillance animée
             targetRow.classList.add("row-highlight");
@@ -2209,10 +2211,10 @@ function navigateToRow(sheetKey, rowIndex) {
 
 // ── Badge cloche dans le header ───────────────────────────────
 function updateGlobalNotifBadge() {
-    const btn   = document.getElementById("btn-notif-global");
+    const btn = document.getElementById("btn-notif-global");
     const badge = document.getElementById("notif-global-badge");
     if (!btn || !badge) return;
-    const total = Object.values(collectAllAlerts()).reduce((s,v) => s+v.items.length, 0);
+    const total = Object.values(collectAllAlerts()).reduce((s, v) => s + v.items.length, 0);
     if (total === 0) {
         btn.style.display = "none";
         btn.classList.remove("has-alerts");
@@ -2276,24 +2278,24 @@ const _gndOpenSections = new Set(["__all__"]);
 function gndToggleSection(key) {
     if (_gndOpenSections.has(key)) _gndOpenSections.delete(key);
     else _gndOpenSections.add(key);
-    const body  = document.getElementById(`gnd-acc-body-${key}`);
+    const body = document.getElementById(`gnd-acc-body-${key}`);
     const arrow = document.getElementById(`gnd-acc-arrow-${key}`);
     if (!body || !arrow) return;
     const isOpen = _gndOpenSections.has(key);
-    body.style.maxHeight  = isOpen ? body.scrollHeight + "px" : "0";
-    body.style.opacity    = isOpen ? "1" : "0";
+    body.style.maxHeight = isOpen ? body.scrollHeight + "px" : "0";
+    body.style.opacity = isOpen ? "1" : "0";
     arrow.style.transform = isOpen ? "rotate(90deg)" : "rotate(0deg)";
 }
 
 function _renderGndFull() {
-    const all   = collectAllAlerts();
-    const keys  = Object.keys(all);
-    const total = keys.reduce((s,k) => s + all[k].items.length, 0);
+    const all = collectAllAlerts();
+    const keys = Object.keys(all);
+    const total = keys.reduce((s, k) => s + all[k].items.length, 0);
 
     // Sub-header
     const sub = document.getElementById("gnd-header-sub");
     if (sub) sub.textContent = total
-        ? `${total} alerte${total>1?"s":""} · ${keys.length} menu${keys.length>1?"s":""}`
+        ? `${total} alerte${total > 1 ? "s" : ""} · ${keys.length} menu${keys.length > 1 ? "s" : ""}`
         : "Aucune alerte active";
 
     // Cacher les tabs — on utilise les accordéons à la place
@@ -2309,22 +2311,22 @@ function _renderGndFull() {
     const urgencyOrder = { high: 0, mid: 1, low: 2 };
 
     const renderRow = item => `
-    <div class="gnd-row${item.urgency==="high"?" gnd-row-high":item.urgency==="mid"?" gnd-row-mid":""}${item.rowIndex!=null?" gnd-row-clickable":""}"
-         ${item.rowIndex!=null?`onclick="navigateToRow('${item.sheet}',${item.rowIndex})" title="Cliquer pour voir la ligne"`:""}>
+    <div class="gnd-row${item.urgency === "high" ? " gnd-row-high" : item.urgency === "mid" ? " gnd-row-mid" : ""}${item.rowIndex != null ? " gnd-row-clickable" : ""}"
+         ${item.rowIndex != null ? `onclick="navigateToRow('${item.sheet}',${item.rowIndex})" title="Cliquer pour voir la ligne"` : ""}>
         <span class="gnd-row-dot ${item.dotCls}"></span>
         <div class="gnd-row-info">
             <div class="gnd-row-top">
                 <span class="gnd-row-style">${esc(item.style)}</span>
-                ${item.client?`<span class="gnd-row-client">${esc(item.client)}</span>`:""}
+                ${item.client ? `<span class="gnd-row-client">${esc(item.client)}</span>` : ""}
                 <span class="gnd-row-tag ${item.tagCls}">${item.tagLabel}</span>
             </div>
             <div class="gnd-row-title">${esc(item.title)}</div>
             <div class="gnd-row-action">→ ${esc(item.action)}</div>
-            <div class="gnd-row-meta">${item.meta||""}</div>
+            <div class="gnd-row-meta">${item.meta || ""}</div>
         </div>
-        ${item.rowIndex!=null?`<span class="gnd-row-goto" title="Voir la ligne">
+        ${item.rowIndex != null ? `<span class="gnd-row-goto" title="Voir la ligne">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-        </span>`:""}
+        </span>`: ""}
     </div>`;
 
     // Ouvrir par défaut tous les menus s'ils sont nouveaux
@@ -2359,23 +2361,23 @@ function _renderGndFull() {
     </style>`;
 
     keys.forEach(k => {
-        const items   = [...all[k].items].sort((a,b) => (urgencyOrder[a.urgency]??9) - (urgencyOrder[b.urgency]??9));
-        const isOpen  = _gndOpenSections.has(k);
+        const items = [...all[k].items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
+        const isOpen = _gndOpenSections.has(k);
         const hasHigh = items.some(i => i.urgency === "high");
-        const hasMid  = !hasHigh && items.some(i => i.urgency === "mid");
+        const hasMid = !hasHigh && items.some(i => i.urgency === "mid");
         const countCls = hasHigh ? "has-high" : hasMid ? "has-mid" : "";
-        const safeKey  = k.replace(/[^a-zA-Z0-9_]/g, "_");
+        const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
 
         html += `
         <div class="gnd-acc" id="gnd-acc-${safeKey}">
             <div class="gnd-acc-header" onclick="gndToggleSection('${safeKey}')">
-                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="transform:${isOpen?"rotate(90deg)":"rotate(0deg)"}">
+                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="transform:${isOpen ? "rotate(90deg)" : "rotate(0deg)"}">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                 </svg>
                 <span class="gnd-acc-label">${esc(all[k].label)}</span>
                 <span class="gnd-acc-count ${countCls}">${items.length}</span>
             </div>
-            <div class="gnd-acc-body" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen?"9999px":"0"};opacity:${isOpen?"1":"0"}">
+            <div class="gnd-acc-body" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen ? "9999px" : "0"};opacity:${isOpen ? "1" : "0"}">
                 ${items.map(renderRow).join("")}
             </div>
         </div>`;
@@ -2388,9 +2390,9 @@ function _renderGndFull() {
 
 // ── Export Excel global ───────────────────────────────────────
 function exportGlobalNotifExcel() {
-    _waitForXLSX(function(XL) {
+    _waitForXLSX(function (XL) {
         if (!XL) { showToast("Bibliothèque Excel non chargée — vérifiez votre connexion", "error"); return; }
-        const all  = collectAllAlerts();
+        const all = collectAllAlerts();
         const keys = Object.keys(all);
         if (!keys.length) { showToast("Aucune alerte à exporter", "info"); return; }
 
@@ -2462,7 +2464,7 @@ function renderUserBadge() {
         .trim().split(" ")
         .filter(Boolean)
         .map(p => p[0].toUpperCase())
-        .slice(0,2).join("");
+        .slice(0, 2).join("");
 
     const badge = document.createElement("div");
     badge.id = "user-badge";
@@ -2530,13 +2532,13 @@ function openUserSettings() {
 
     // Peupler les infos
     const u = window.currentUser;
-    const initials = (u.displayName || u.email || "?").trim().split(" ").filter(Boolean).map(p=>p[0].toUpperCase()).slice(0,2).join("");
+    const initials = (u.displayName || u.email || "?").trim().split(" ").filter(Boolean).map(p => p[0].toUpperCase()).slice(0, 2).join("");
     document.getElementById("usm-avatar").innerHTML = u.photoURL
         ? `<img class="usm-photo" src="${u.photoURL}" alt="Photo"/>`
         : `<div class="usm-initials">${initials}</div>`;
-    document.getElementById("usm-name").textContent  = u.displayName || "—";
+    document.getElementById("usm-name").textContent = u.displayName || "—";
     document.getElementById("usm-email").textContent = u.email || "—";
-    document.getElementById("usm-gas-input").value   = u.gasUrl || "";
+    document.getElementById("usm-gas-input").value = u.gasUrl || "";
 
     requestAnimationFrame(() => modal.classList.add("open"));
 }
@@ -2564,19 +2566,19 @@ function collectDuplicates() {
     const sheetsToScan = Object.keys(SHEET_CONFIG).filter(k => k !== "ordering");
 
     sheetsToScan.forEach(sheetKey => {
-        const cfg  = SHEET_CONFIG[sheetKey];
+        const cfg = SHEET_CONFIG[sheetKey];
         const rows = state.data[sheetKey] || [];
         if (!rows.length) return;
 
         // Détecter les colonnes Style et Color dans ce menu
-        const styleCols  = ["Style","style","ref","Ref","reference","Reference","article","Article"];
-        const colorCols  = ["Color","color","Colour","colour","GMT Color","gmt color","coloris","Coloris","shade","Shade"];
+        const styleCols = ["Style", "style", "ref", "Ref", "reference", "Reference", "article", "Article"];
+        const colorCols = ["Color", "color", "Colour", "colour", "GMT Color", "gmt color", "coloris", "Coloris", "shade", "Shade"];
 
         const getVal = (r, candidates) => {
             for (const c of candidates) { if (r[c] && String(r[c]).trim()) return String(r[c]).trim(); }
             // Also check SHEET_CONFIG cols
             if (cfg.cols) {
-                const col = cfg.cols.find(c => candidates.map(x=>x.toLowerCase()).includes(c.label.toLowerCase()));
+                const col = cfg.cols.find(c => candidates.map(x => x.toLowerCase()).includes(c.label.toLowerCase()));
                 if (col && r[col.key] && String(r[col.key]).trim()) return String(r[col.key]).trim();
             }
             return null;
@@ -2649,7 +2651,7 @@ function renderDuplicatesBody() {
             <p>Aucun doublon détecté — tous les styles sont uniques.</p></div>`;
         return;
     }
-    if (subtitle) subtitle.textContent = `${dupes.length} doublon${dupes.length>1?"s":""} détecté${dupes.length>1?"s":""}`;
+    if (subtitle) subtitle.textContent = `${dupes.length} doublon${dupes.length > 1 ? "s" : ""} détecté${dupes.length > 1 ? "s" : ""}`;
 
     body.innerHTML = dupes.map(d => `
     <div style="background:var(--surface-2,#f8f9fa);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;margin-bottom:.8rem;">
@@ -2659,15 +2661,15 @@ function renderDuplicatesBody() {
             <span style="font-size:.75rem;color:var(--text-muted);margin-left:auto;">📂 ${esc(d.sheetLabel)}</span>
         </div>
         <div style="display:flex;flex-direction:column;gap:.3rem;">
-            ${d.rows.map((r,i) => {
-                const cols = (SHEET_CONFIG[d.sheet]?.cols || []).filter(c => !["Style","Color","Colour","style","color"].includes(c.key));
-                const preview = cols.slice(0,4).map(c => r[c.key] ? `<span style="color:var(--text-muted);font-size:.73rem;">${esc(c.label)}: <strong style="color:var(--text-primary,#1a1a2e)">${esc(String(r[c.key]).slice(0,20))}</strong></span>` : "").filter(Boolean).join(" · ");
-                return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;font-size:.8rem;">
+            ${d.rows.map((r, i) => {
+        const cols = (SHEET_CONFIG[d.sheet]?.cols || []).filter(c => !["Style", "Color", "Colour", "style", "color"].includes(c.key));
+        const preview = cols.slice(0, 4).map(c => r[c.key] ? `<span style="color:var(--text-muted);font-size:.73rem;">${esc(c.label)}: <strong style="color:var(--text-primary,#1a1a2e)">${esc(String(r[c.key]).slice(0, 20))}</strong></span>` : "").filter(Boolean).join(" · ");
+        return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:6px;padding:.5rem .8rem;font-size:.8rem;">
                     <span style="color:var(--text-muted);font-size:.7rem;">Ligne ${r._rowIndex}</span>
                     ${preview ? " · " + preview : ""}
                     <button onclick="closeDuplicatesPanel();navigateToRow('${d.sheet}',${r._rowIndex})" style="float:right;background:none;border:none;cursor:pointer;color:var(--primary,#6366f1);font-size:.72rem;font-weight:600;">Voir →</button>
                 </div>`;
-            }).join("")}
+    }).join("")}
         </div>
     </div>`).join("");
 }
@@ -2680,21 +2682,21 @@ function renderDuplicatesBody() {
 function collectCascadeBlocks() {
     const blocks = [];
     const allStyles = [...new Set([
-        ...(state.data.details||[]).map(r=>r.Style),
-        ...(state.data.sample||[]).map(r=>r.Style),
-        ...(state.data.ordering||[]).map(r=>r.Style),
+        ...(state.data.details || []).map(r => r.Style),
+        ...(state.data.sample || []).map(r => r.Style),
+        ...(state.data.ordering || []).map(r => r.Style),
     ].filter(Boolean))];
 
     allStyles.forEach(style => {
         const issues = [];
 
         // Ordering confirmée pour ce style ?
-        const orders = (state.data.ordering||[]).filter(r => r.Style===style && r.Status==="Confirmed");
+        const orders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed");
         const hasActiveOrder = orders.length > 0;
 
         // Sample rejetée ou non approuvée + ordering active
-        const samplesNotApproved = (state.data.sample||[]).filter(r =>
-            r.Style===style && r.Approval !== "Approved"
+        const samplesNotApproved = (state.data.sample || []).filter(r =>
+            r.Style === style && r.Approval !== "Approved"
             && (r["Sending Date"] && String(r["Sending Date"]).trim())
         );
         if (hasActiveOrder && samplesNotApproved.length) {
@@ -2711,7 +2713,7 @@ function collectCascadeBlocks() {
         Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
             const cfg = SHEET_CONFIG[key];
             const det = detectCustomCols(cfg.cols, cfg.label);
-            const menuRows = (state.data[key]||[]).filter(r => {
+            const menuRows = (state.data[key] || []).filter(r => {
                 const styleVal = det.style ? r[det.style] : (r.Style || r.style || r.Ref || r.ref);
                 return styleVal && String(styleVal).trim() === style;
             });
@@ -2724,8 +2726,8 @@ function collectCascadeBlocks() {
 
                 if (!approved && hasActiveOrder) {
                     const pending = hasSending ? "envoyé sans approval"
-                                  : hasLaunch && !hasReadyDate ? "test en cours sans résultat"
-                                  : "en cours sans clôture";
+                        : hasLaunch && !hasReadyDate ? "test en cours sans résultat"
+                            : "en cours sans clôture";
                     issues.push({
                         type: "custom_block",
                         icon: "⚗️",
@@ -2743,8 +2745,8 @@ function collectCascadeBlocks() {
             const t = computeDeliveryTrack(r);
             return t.cls === "track-late" || t.cls === "track-atrisk";
         });
-        const pendingSamples = (state.data.sample||[]).filter(r =>
-            r.Style===style && r.Approval !== "Approved"
+        const pendingSamples = (state.data.sample || []).filter(r =>
+            r.Style === style && r.Approval !== "Approved"
         );
         if (lateOrders.length && pendingSamples.length) {
             issues.push({
@@ -2760,9 +2762,9 @@ function collectCascadeBlocks() {
             const orderInfo = orders[0] || {};
             blocks.push({
                 style,
-                client: orderInfo.Client || (state.data.details||[]).find(r=>r.Style===style)?.Client || "",
+                client: orderInfo.Client || (state.data.details || []).find(r => r.Style === style)?.Client || "",
                 issues,
-                maxUrgency: issues.some(i=>i.urgency==="high") ? "high" : "mid"
+                maxUrgency: issues.some(i => i.urgency === "high") ? "high" : "mid"
             });
         }
     });
@@ -2779,62 +2781,68 @@ function collectCascadeBlocks() {
 function buildStyleTimeline() {
     // Collecter tous les styles connus
     const allStyles = [...new Set([
-        ...(state.data.details||[]).map(r=>r.Style),
-        ...(state.data.sample||[]).map(r=>r.Style),
-        ...(state.data.ordering||[]).map(r=>r.Style),
-        ...Object.keys(SHEET_CONFIG).filter(k=>SHEET_CONFIG[k].custom).flatMap(k => {
+        ...(state.data.details || []).map(r => r.Style),
+        ...(state.data.sample || []).map(r => r.Style),
+        ...(state.data.ordering || []).map(r => r.Style),
+        ...Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).flatMap(k => {
             const det = detectCustomCols(SHEET_CONFIG[k].cols, SHEET_CONFIG[k].label);
-            return (state.data[k]||[]).map(r => det.style ? r[det.style] : r.Style).filter(Boolean);
+            return (state.data[k] || []).map(r => det.style ? r[det.style] : r.Style).filter(Boolean);
         })
     ].filter(Boolean))].sort();
 
     return allStyles.map(style => {
-        const detail  = (state.data.details||[]).find(r=>r.Style===style);
-        const client  = detail?.Client || "";
-        const desc    = detail?.StyleDescription || "";
-        const stages  = [];
+        const detail = (state.data.details || []).find(r => r.Style === style);
+        const client = detail?.Client || "";
+        const desc = detail?.StyleDescription || "";
+        const stages = [];
 
         // ── Sample
-        const samples = (state.data.sample||[]).filter(r=>r.Style===style);
+        const samples = (state.data.sample || []).filter(r => r.Style === style);
         if (samples.length) {
-            const allApproved = samples.every(r=>r.Approval==="Approved");
-            const anyRejected = samples.some(r=>r.Approval==="Rejected");
-            const anySent     = samples.some(r=>r["Sending Date"] && String(r["Sending Date"]).trim());
+            const allApproved = samples.every(r => r.Approval === "Approved");
+            const anyRejected = samples.some(r => r.Approval === "Rejected");
+            const anySent = samples.some(r => r["Sending Date"] && String(r["Sending Date"]).trim());
             const status = allApproved ? "done" : anyRejected ? "blocked" : anySent ? "waiting" : "inprogress";
-            stages.push({ label:"Sample", icon:"🧵", status, count:samples.length,
-                detail: allApproved ? `${samples.length} approuvée(s)` : anyRejected ? "Rejetée" : anySent ? "En attente approval" : "En cours" });
+            stages.push({
+                label: "Sample", icon: "🧵", status, count: samples.length,
+                detail: allApproved ? `${samples.length} approuvée(s)` : anyRejected ? "Rejetée" : anySent ? "En attente approval" : "En cours"
+            });
         }
 
         // ── Custom menus
-        Object.keys(SHEET_CONFIG).filter(k=>SHEET_CONFIG[k].custom).forEach(key => {
+        Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
             const cfg = SHEET_CONFIG[key];
             const det = detectCustomCols(cfg.cols, cfg.label);
-            const rows = (state.data[key]||[]).filter(r => {
-                const sv = det.style ? r[det.style] : (r.Style||r.style||r.Ref||r.ref);
-                return sv && String(sv).trim()===style;
+            const rows = (state.data[key] || []).filter(r => {
+                const sv = det.style ? r[det.style] : (r.Style || r.style || r.Ref || r.ref);
+                return sv && String(sv).trim() === style;
             });
             if (!rows.length) return;
             const allApproved = rows.every(r => det.approval && isApproved(r[det.approval]));
-            const anySent     = rows.some(r => det.sendingDate && r[det.sendingDate] && String(r[det.sendingDate]).trim());
+            const anySent = rows.some(r => det.sendingDate && r[det.sendingDate] && String(r[det.sendingDate]).trim());
             const anyLaunched = rows.some(r => det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim());
-            const anyReady    = rows.some(r => det.readyDate && r[det.readyDate] && String(r[det.readyDate]).trim());
+            const anyReady = rows.some(r => det.readyDate && r[det.readyDate] && String(r[det.readyDate]).trim());
             const status = allApproved ? "done"
-                         : (anySent || anyLaunched) && !anyReady ? "waiting"
-                         : anySent || anyLaunched ? "inprogress" : "pending";
+                : (anySent || anyLaunched) && !anyReady ? "waiting"
+                    : anySent || anyLaunched ? "inprogress" : "pending";
             const icon = det.isFabricAnalysis ? "🧪" : "🎨";
-            stages.push({ label: cfg.label, icon, status,
-                detail: allApproved ? "Approuvé" : anySent||anyLaunched ? anyReady ? "Résultat reçu" : "En attente résultat" : "En cours" });
+            stages.push({
+                label: cfg.label, icon, status,
+                detail: allApproved ? "Approuvé" : anySent || anyLaunched ? anyReady ? "Résultat reçu" : "En attente résultat" : "En cours"
+            });
         });
 
         // ── Ordering
-        const orders = (state.data.ordering||[]).filter(r=>r.Style===style && r.Status!=="Cancelled");
+        const orders = (state.data.ordering || []).filter(r => r.Style === style && r.Status !== "Cancelled");
         if (orders.length) {
-            const allDelivered = orders.every(r=>r["Delivery Status"]==="Delivered");
-            const anyLate      = orders.some(r=>computeDeliveryTrack(r).cls==="track-late");
-            const anyRisk      = orders.some(r=>computeDeliveryTrack(r).cls==="track-atrisk");
+            const allDelivered = orders.every(r => r["Delivery Status"] === "Delivered");
+            const anyLate = orders.some(r => computeDeliveryTrack(r).cls === "track-late");
+            const anyRisk = orders.some(r => computeDeliveryTrack(r).cls === "track-atrisk");
             const status = allDelivered ? "done" : anyLate ? "blocked" : anyRisk ? "waiting" : "inprogress";
-            stages.push({ label:"Ordering", icon:"📦", status, count:orders.length,
-                detail: allDelivered ? "Livré" : anyLate ? "En retard" : anyRisk ? "À risque" : `${orders.length} commande(s)` });
+            stages.push({
+                label: "Ordering", icon: "📦", status, count: orders.length,
+                detail: allDelivered ? "Livré" : anyLate ? "En retard" : anyRisk ? "À risque" : `${orders.length} commande(s)`
+            });
         }
 
         return { style, client, desc, stages };
@@ -2846,18 +2854,18 @@ function renderStyleTimelineSection() {
     if (!data.length) return '<p style="color:var(--text-muted);padding:1rem 0;">Aucune donnée de style disponible.</p>';
 
     const STATUS_CFG = {
-        done:       { color:"#10b981", bg:"#10b9811a", label:"✓" },
-        waiting:    { color:"#f59e0b", bg:"#f59e0b1a", label:"⏳" },
-        inprogress: { color:"#6366f1", bg:"#6366f11a", label:"◉" },
-        blocked:    { color:"#ef4444", bg:"#ef44441a", label:"✗" },
-        pending:    { color:"#94a3b8", bg:"#94a3b81a", label:"○" },
+        done: { color: "#10b981", bg: "#10b9811a", label: "✓" },
+        waiting: { color: "#f59e0b", bg: "#f59e0b1a", label: "⏳" },
+        inprogress: { color: "#6366f1", bg: "#6366f11a", label: "◉" },
+        blocked: { color: "#ef4444", bg: "#ef44441a", label: "✗" },
+        pending: { color: "#94a3b8", bg: "#94a3b81a", label: "○" },
     };
 
     return data.map(s => {
         const stagesHtml = s.stages.map((stage, i) => {
             const cfg = STATUS_CFG[stage.status] || STATUS_CFG.pending;
-            const connector = i < s.stages.length-1
-                ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${cfg.color}66,${STATUS_CFG[s.stages[i+1]?.status||'pending'].color}33);margin:0 2px;align-self:center;min-width:12px;"></div>`
+            const connector = i < s.stages.length - 1
+                ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${cfg.color}66,${STATUS_CFG[s.stages[i + 1]?.status || 'pending'].color}33);margin:0 2px;align-self:center;min-width:12px;"></div>`
                 : "";
             return `<div style="display:flex;align-items:center;">
                 <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;max-width:80px;">
@@ -2870,9 +2878,9 @@ function renderStyleTimelineSection() {
         }).join("");
 
         // Statut global
-        const hasBlocked = s.stages.some(st=>st.status==="blocked");
-        const hasWaiting = s.stages.some(st=>st.status==="waiting");
-        const allDone    = s.stages.every(st=>st.status==="done");
+        const hasBlocked = s.stages.some(st => st.status === "blocked");
+        const hasWaiting = s.stages.some(st => st.status === "waiting");
+        const allDone = s.stages.every(st => st.status === "done");
         const globalColor = allDone ? "#10b981" : hasBlocked ? "#ef4444" : hasWaiting ? "#f59e0b" : "#6366f1";
         const globalLabel = allDone ? "Complet" : hasBlocked ? "Bloqué" : hasWaiting ? "En attente" : "En cours";
 
@@ -2896,14 +2904,14 @@ function renderCascadeBlocksSection() {
         Aucun blocage détecté</div>`;
 
     return blocks.map(b => {
-        const urgColor = b.maxUrgency==="high" ? "#ef4444" : "#f59e0b";
+        const urgColor = b.maxUrgency === "high" ? "#ef4444" : "#f59e0b";
         return `<div style="border-left:3px solid ${urgColor};background:${urgColor}08;border-radius:0 8px 8px 0;padding:.7rem 1rem;margin-bottom:.5rem;">
             <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
                 <strong style="font-size:.85rem;">${esc(b.style)}</strong>
                 ${b.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(b.client)}</span>` : ""}
-                <span style="margin-left:auto;font-size:.68rem;color:${urgColor};font-weight:700;">${b.issues.length} problème${b.issues.length>1?"s":""}</span>
+                <span style="margin-left:auto;font-size:.68rem;color:${urgColor};font-weight:700;">${b.issues.length} problème${b.issues.length > 1 ? "s" : ""}</span>
             </div>
-            ${b.issues.map(i=>`<div style="font-size:.75rem;color:var(--text-secondary,#64748b);line-height:1.5;">${i.icon} ${esc(i.label)}</div>`).join("")}
+            ${b.issues.map(i => `<div style="font-size:.75rem;color:var(--text-secondary,#64748b);line-height:1.5;">${i.icon} ${esc(i.label)}</div>`).join("")}
         </div>`;
     }).join("");
 }
@@ -2925,21 +2933,21 @@ function _refreshDashboardIntelligence() {
 
     if (tlBody) {
         const allData = buildStyleTimeline();
-        if (tlCount) tlCount.textContent = `${allData.length} style${allData.length>1?"s":""}`;
+        if (tlCount) tlCount.textContent = `${allData.length} style${allData.length > 1 ? "s" : ""}`;
         const toShow = _timelineShowAll ? allData : allData.slice(0, 5);
         const full = buildStyleTimeline; // re-use but limit
         const html = toShow.length ? toShow.map(s => {
             const STATUS_CFG = {
-                done:       { color:"#10b981", bg:"#10b9811a" },
-                waiting:    { color:"#f59e0b", bg:"#f59e0b1a" },
-                inprogress: { color:"#6366f1", bg:"#6366f11a" },
-                blocked:    { color:"#ef4444", bg:"#ef44441a" },
-                pending:    { color:"#94a3b8", bg:"#94a3b81a" },
+                done: { color: "#10b981", bg: "#10b9811a" },
+                waiting: { color: "#f59e0b", bg: "#f59e0b1a" },
+                inprogress: { color: "#6366f1", bg: "#6366f11a" },
+                blocked: { color: "#ef4444", bg: "#ef44441a" },
+                pending: { color: "#94a3b8", bg: "#94a3b81a" },
             };
             const stagesHtml = s.stages.map((stage, i) => {
                 const cfg = STATUS_CFG[stage.status] || STATUS_CFG.pending;
-                const nextCfg = STATUS_CFG[s.stages[i+1]?.status||"pending"] || STATUS_CFG.pending;
-                const connector = i < s.stages.length-1
+                const nextCfg = STATUS_CFG[s.stages[i + 1]?.status || "pending"] || STATUS_CFG.pending;
+                const connector = i < s.stages.length - 1
                     ? `<div style="flex:1;height:2px;background:linear-gradient(90deg,${cfg.color}88,${nextCfg.color}44);margin:0 2px;align-self:20px;min-width:10px;margin-top:15px;"></div>`
                     : "";
                 return `<div style="display:flex;align-items:flex-start;">
@@ -2951,17 +2959,17 @@ function _refreshDashboardIntelligence() {
                 </div>`;
             }).join("");
 
-            const hasBlocked = s.stages.some(st=>st.status==="blocked");
-            const hasWaiting = s.stages.some(st=>st.status==="waiting");
-            const allDone    = s.stages.every(st=>st.status==="done");
-            const gc = allDone?"#10b981":hasBlocked?"#ef4444":hasWaiting?"#f59e0b":"#6366f1";
-            const gl = allDone?"Complet":hasBlocked?"Bloqué":hasWaiting?"En attente":"En cours";
+            const hasBlocked = s.stages.some(st => st.status === "blocked");
+            const hasWaiting = s.stages.some(st => st.status === "waiting");
+            const allDone = s.stages.every(st => st.status === "done");
+            const gc = allDone ? "#10b981" : hasBlocked ? "#ef4444" : hasWaiting ? "#f59e0b" : "#6366f1";
+            const gl = allDone ? "Complet" : hasBlocked ? "Bloqué" : hasWaiting ? "En attente" : "En cours";
 
             return `<div style="background:var(--surface,#fff);border:1px solid var(--border);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;">
                 <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.7rem;flex-wrap:wrap;">
                     <strong style="font-size:.85rem;">${esc(s.style)}</strong>
-                    ${s.client?`<span class="client-badge" style="font-size:.62rem;">${esc(s.client)}</span>`:""}
-                    ${s.desc?`<span style="font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${esc(s.desc)}</span>`:""}
+                    ${s.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(s.client)}</span>` : ""}
+                    ${s.desc ? `<span style="font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;">${esc(s.desc)}</span>` : ""}
                     <span style="margin-left:auto;font-size:.65rem;font-weight:700;color:${gc};background:${gc}1a;padding:2px 8px;border-radius:20px;">${gl}</span>
                 </div>
                 <div style="display:flex;align-items:flex-start;overflow-x:auto;padding-bottom:2px;">${stagesHtml}</div>
@@ -2969,13 +2977,13 @@ function _refreshDashboardIntelligence() {
         }).join("") : `<p style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0;">Aucun style avec données multi-menus.</p>`;
         tlBody.innerHTML = html;
         if (!_timelineShowAll && allData.length > 5) {
-            tlBody.insertAdjacentHTML("beforeend", `<p style="text-align:center;font-size:.75rem;color:var(--text-muted);margin-top:.4rem;">+${allData.length-5} styles — cliquez "Voir tout"</p>`);
+            tlBody.insertAdjacentHTML("beforeend", `<p style="text-align:center;font-size:.75rem;color:var(--text-muted);margin-top:.4rem;">+${allData.length - 5} styles — cliquez "Voir tout"</p>`);
         }
     }
 
     if (cbBody) {
         const blocks = collectCascadeBlocks();
-        if (ccCount) ccCount.textContent = blocks.length ? `${blocks.length} blocage${blocks.length>1?"s":""}` : "Aucun";
+        if (ccCount) ccCount.textContent = blocks.length ? `${blocks.length} blocage${blocks.length > 1 ? "s" : ""}` : "Aucun";
         cbBody.innerHTML = renderCascadeBlocksSection();
     }
 }
