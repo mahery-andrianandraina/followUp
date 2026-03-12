@@ -1716,7 +1716,7 @@ function collectAllAlerts() {
 
         const getStyle = r => det.style ? (r[det.style] || "—") : "—";
         const getClient = r => det.client ? (r[det.client] || "") : "";
-        const getFsr = r => det.fsrNumber && r[det.fsrNumber] ? ` · FSR ${r[det.fsrNumber]}` : "";
+        const getFsr = r => det.fsrNumber && r[det.fsrNumber] && !det.isFabricAnalysis ? ` \u00B7 FSR ${r[det.fsrNumber]}` : "";
 
         const menuLabelLower = cfg.label.toLowerCase();
         const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
@@ -1812,48 +1812,42 @@ function collectAllAlerts() {
 
             // ── FABRIC DEVO / ANALYSIS ──────────────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
-                // Seul déclencheur : colonne "Launched on" renseignée
-                const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim()
-                    ? r[det.launchDate] : null;
+                if (!hasReadyDate && !hasReceived && !hasSending) {
+                    const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
+                    const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
+                    const efaVal = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                    const fsrVal = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                    const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                    const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
 
-                if (launchDateVal && !hasReadyDate) {
-                    const launchDays = Math.abs(_daysDiff(launchDateVal));
-                    const launchDaysTxt = launchDays === 0 ? "aujourd'hui"
-                        : launchDays === 1 ? "hier"
-                            : `il y a ${launchDays} jour${launchDays > 1 ? "s" : ""}`;
-                    const launchFmt = _fmtDate(launchDateVal);
-                    const urgency = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
-                    const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
-
-                    // Valeur réelle de la ref EFA dans la ligne
-                    const efaVal = det.efaRef && r[det.efaRef] && String(r[det.efaRef]).trim()
-                        ? String(r[det.efaRef]).trim()
-                        : (getStyle(r) !== "—" ? getStyle(r) : "Test");
-
-                    // FSR Number et Color extraits directement des cellules
-                    const fsrVal = det.fsrNumber && r[det.fsrNumber] && String(r[det.fsrNumber]).trim()
-                        ? String(r[det.fsrNumber]).trim() : null;
-                    const colorVal = det.color && r[det.color] && String(r[det.color]).trim()
-                        ? String(r[det.color]).trim() : null;
-
-                    const fsrPart = fsrVal ? ` · FSR : ${fsrVal}` : "";
-                    const colorPart = colorVal ? ` · Color : ${colorVal}` : "";
-
-                    // Distinction Fabric Devo (FSR visible) / Analysis (FSR masqué)
-                    const titlePrefix = det.isFabricDevo ? `FSR ${fsrVal || "—"} ` : "";
-
-                    items.push({
-                        dotCls: "dot-nopo", tagCls: "tag-nopo",
-                        tagLabel: `🧪 ${efaVal}${colorVal ? " — " + colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
-                        title: `${titlePrefix}${efaVal} ${colorVal || ""} — en attente du résultat — lancé ${launchDaysTxt}`,
-                        action: `Renseigner la Ready Date dès réception des résultats du laboratoire`,
-                        style: getStyle(r), client: getClient(r),
-                        meta: `Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
-                        urgency,
-                        sheet: key, rowIndex: r._rowIndex
-                    });
+                    if (dateRef) {
+                        const launchDays = Math.abs(_daysDiff(dateRef));
+                        const urgency = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
+                        const urgencyBadge = urgency === "high" ? " \uD83D\uDEA8" : urgency === "mid" ? " \u26A1" : "";
+                        items.push({
+                            dotCls: "dot-nopo", tagCls: "tag-nopo",
+                            tagLabel: `\uD83E\uDDEA ${efaVal}${colorVal ? " \u2014 " + colorVal : ""} \u2014 r\u00e9sultat attendu (${launchDays}j)${urgencyBadge}`,
+                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} \u2014 en attente du r\u00e9sultat \u2014 lanc\u00e9 il y a ${launchDays}j`,
+                            action: `Renseigner la Ready Date d\u00e8s r\u00e9ception du labo`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ref : ${efaVal}${colorVal ? " \u00B7 Color : " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""} \u00B7 Lanc\u00e9 le : ${_fmtDate(dateRef)}`,
+                            urgency, sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    } else if (det.isFabricDevo && !isRejected) {
+                        // Alerte Fabric Devo : Attente FSR (non lanc\u00e9)
+                        items.push({
+                            dotCls: "dot-nopo", tagCls: "tag-nopo",
+                            tagLabel: `\uD83D\uDCCB ${efaVal} \u2014 Attente FSR`,
+                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} \u2014 FSR \u00e0 lancer / Ready Date manquante`,
+                            action: `V\u00e9rifier avec le supplier et lancer l'analyse FSR`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ref : ${efaVal}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            urgency: "mid", sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    }
                 }
-                return; // Fabric Devo/Analysis : ne pas tomber dans la logique générique
             }
             // ── FIN logique Fabric Analysis ──────────────────────────
 
@@ -1866,12 +1860,12 @@ function collectAllAlerts() {
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     const styleVal = getStyle(r);
                     const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
-                    const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                    const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
 
                     items.push({
                         dotCls: "dot-send", tagCls: "tag-send",
                         tagLabel: `📦 À envoyer (${daysLabel})`,
-                        title: `${fabricPrefix}Reçu — à envoyer au client${!det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
+                        title: `${fabricPrefix}Re\u00e7u \u2014 \u00e0 envoyer au client${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
                         action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi`,
                         style: getStyle(r), client: getClient(r),
                         meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
@@ -1884,12 +1878,12 @@ function collectAllAlerts() {
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                     const styleVal = getStyle(r);
                     const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
-                    const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                    const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
 
                     items.push({
                         dotCls: "dot-approve", tagCls: "tag-approve",
                         tagLabel: `⏳ Approval ${days}j${urgencyLabel}`,
-                        title: `${fabricPrefix}Envoyé — approbation en attente depuis ${days}j${!det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
+                        title: `${fabricPrefix}Envoy\u00e9 \u2014 approbation en attente depuis ${days}j${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
                         style: getStyle(r), client: getClient(r),
                         meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
@@ -1902,11 +1896,11 @@ function collectAllAlerts() {
             // ── États A / B : pas encore reçu ──────────────────────
             if (hasFsr && !hasReadyDate) {
                 // État A : FSR lancé mais Ready Date absente → relancer mail
-                const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : ""; // Assuming timeAgo is defined
+                const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : "";
                 const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                 const styleVal = getStyle(r);
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
-                const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
 
                 items.push({
                     dotCls: "dot-nopo", tagCls: "tag-nopo",
@@ -1923,7 +1917,7 @@ function collectAllAlerts() {
                 const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                 const styleVal = getStyle(r);
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
-                const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
 
                 if (diff < 0) {
                     const days = Math.abs(diff);
@@ -1957,7 +1951,8 @@ function collectAllAlerts() {
                         urgency: "low", sheet: key, rowIndex: r._rowIndex
                     });
                 }
-            } else {
+            }
+            else {
                 // ── Système intelligent : toute colonne de type "date" génère
                 //    une alerte contextuelle selon la nature sémantique de la colonne.
                 //
