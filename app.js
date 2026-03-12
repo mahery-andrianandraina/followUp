@@ -1650,6 +1650,8 @@ function collectAllAlerts() {
                 const awbVal = awbCol && r[awbCol.key] ? String(r[awbCol.key]).trim() : "";
                 const awbPart = awbVal ? ` under AWB ${awbVal}` : "";
 
+                const trimColor = [trimsStr, colorVal].filter(Boolean).join(" · ");
+
                 // ── Priorité 1 : NL Submission renseigné → approval en attente (peu importe Ready Date) ──
                 if (hasNlSub && !isRejected && !approved) {
                     const nlDays = Math.abs(_daysDiff(r[det.nlSubmission]));
@@ -1657,7 +1659,7 @@ function collectAllAlerts() {
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ Envoyé à NL${awbVal?" · AWB "+awbVal:""} — approval en attente ${nlDays}j${urgBadge}`,
+                        tagLabel:`⏳ ${trimColor} — approval en attente ${nlDays}j${awbVal?" · AWB "+awbVal:""}${urgBadge}`,
                         title:`${displayName} — envoyé à NL${awbPart}, approval en attente depuis ${nlDays}j`,
                         action: urgency === "high"
                             ? `Envoyé il y a ${nlDays}j — relancer de toute urgence`
@@ -1673,14 +1675,13 @@ function collectAllAlerts() {
 
                 // ── Alerte 2 : Ligne rejetée → Keep Sample non reçu ──────────
                 if (isRejected && !hasKeepSample) {
-                    // Afficher seulement sur la 1ère ligne rejetée pour ce groupe (Description+Color)
                     const groupKey = `${descVal}__${colorVal}__${trimsStr}`;
                     if (!_trimsDevoKeepAlerted.has(groupKey)) {
                         _trimsDevoKeepAlerted.add(groupKey);
                         const rejDate = det.readyDate && r[det.readyDate] ? ` — Ready Date : ${_fmtDate(r[det.readyDate])}` : "";
                         items.push({
                             dotCls:"dot-late", tagCls:"tag-late",
-                            tagLabel:`🔴 Keep Sample non reçu — rejeté`,
+                            tagLabel:`🔴 ${trimColor} — Keep Sample non reçu`,
                             title:`${displayName} — sample rejeté, keep sample non réceptionné`,
                             action:`Confirmer la réception du keep sample de ce trims rejeté`,
                             style:getStyle(r), client:getClient(r),
@@ -1695,7 +1696,7 @@ function collectAllAlerts() {
                 if (!hasNlSub && !isRejected && !approved && !hasReadyDate) {
                     items.push({
                         dotCls:"dot-nopo", tagCls:"tag-nopo",
-                        tagLabel:`📋 Ready Date manquante — relancer supplier`,
+                        tagLabel:`📋 ${trimColor} — Ready Date manquante`,
                         title:`${trimsStr || "Trims"}${colorVal ? " · "+colorVal : ""} — Ready Date non renseignée`,
                         action:`Demander la Ready Date au supplier pour ${trimsStr || "ce trims"}${colorVal ? " ("+colorVal+")" : ""}`,
                         style:getStyle(r), client:getClient(r),
@@ -1705,7 +1706,7 @@ function collectAllAlerts() {
                     return;
                 }
 
-                // Sinon : logique générique (Ready Date future, FSR, etc.)
+                // ── Sinon (logique générique) : Ready Date présente, en attente réception ──
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
