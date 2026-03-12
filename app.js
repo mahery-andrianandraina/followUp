@@ -725,14 +725,24 @@ function renderTable() {
 
         const _sheetCfg = SHEET_CONFIG[state.activeSheet];
         const isTrimsDevoSheet = _sheetCfg && _sheetCfg.custom && (_sheetCfg.label || "").toLowerCase().includes("trims");
+        const isBulkSheet      = _sheetCfg && _sheetCfg.custom && ((_sheetCfg.label || "").toLowerCase().includes("bulk") || (_sheetCfg.label || "").toLowerCase().includes("shade"));
         const trimsDet = isTrimsDevoSheet ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
+        const bulkDet  = isBulkSheet      ? detectCustomCols(_sheetCfg.cols, _sheetCfg.label) : null;
+        const isRowRejected = r => {
+            const d = trimsDet || bulkDet;
+            return d && String(r[d.approval] ?? "").trim().toLowerCase() === "rejected";
+        };
+
+        const dupBtn = isTrimsDevoSheet && isRowRejected(row)
+            ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateTrimsDevoRejected(${rowIdx})" title="Créer nouvelle ligne (Season/Client/Dept/Style/Description/Color/Trims/Trims Details/Supplier)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
+            : isBulkSheet && isRowRejected(row)
+            ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
+            : "";
 
         return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
             <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-            ${isTrimsDevoSheet && trimsDet && String(row[trimsDet.approval] ?? "").trim().toLowerCase() === "rejected"
-                ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateTrimsDevoRejected(${rowIdx})" title="Créer nouvelle ligne Rejeté (Description/Color/Trims/Trims Details/Supplier)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
-                : ""}
+            ${dupBtn}
             <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
         </div></td></tr>`;
     }).join("");
@@ -782,6 +792,45 @@ async function duplicateTrimsDevoRejected(rowIndex) {
         await fetchAllData();
         renderAll();
         showToast("Nouvelle ligne créée — Season / Client / Dept / Style / Description / Color / Trims / Trims Details / Supplier ✓", "success");
+    } catch (err) {
+        showToast("Erreur lors de la duplication : " + err.message, "error");
+    }
+}
+
+async function duplicateBulkRejected(rowIndex) {
+    const sheetKey = state.activeSheet;
+    const cfg = SHEET_CONFIG[sheetKey];
+    if (!cfg) return;
+    const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
+    if (!row) return;
+
+    // Colonnes à garder : Client, Style, Description, GMT Color, Fabric, Type
+    const KEEP_PATTERNS = [
+        ["client","buyer","brand","marque"],
+        ["style","ref","reference","article"],
+        ["description","desc","name","nom"],
+        ["gmt color","gmt colour","coloris","color","colour","shade","teinte"],
+        ["fabric","tissu","matière","matiere","material","textile"],
+        ["type","bulk type"],
+    ];
+
+    const keepKeys = new Set();
+    KEEP_PATTERNS.forEach(patterns => {
+        const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
+        if (c) keepKeys.add(c.key);
+    });
+
+    const newRow = {};
+    cfg.cols.forEach(c => {
+        newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
+    });
+
+    try {
+        showToast("Création de la nouvelle ligne…", "info");
+        await sendRequest("CREATE", { data: newRow });
+        await fetchAllData();
+        renderAll();
+        showToast("Nouvelle ligne créée — Client / Style / Description / GMT Color / Fabric / Type ✓", "success");
     } catch (err) {
         showToast("Erreur lors de la duplication : " + err.message, "error");
     }
@@ -1220,6 +1269,7 @@ function detectCustomCols(cols, menuLabel) {
         nlSubmission:    find(["nl submission","nl sub","submission nl","envoi nl","send nl","nl send","nl date","submission date"]),
         keepSample:      find(["keep sample","keep spl","keep","retain","sample conserv","echantillon conserv"]),
         trimsDetails:    find(["trims detail","trim detail","trims details","accessories detail","detail trim"]),
+        fabric:          find(["fabric","tissu","matière","matiere","material","textile","gmt fabric","bulk fabric"]),
         color:           find(["color","colour","coloris","couleur","gmt color","shade","teinte"]),
         style:           find(["style","ref","reference","article"]),
         client:          find(["client","buyer","brand","marque"]),
@@ -1588,50 +1638,93 @@ function collectAllAlerts() {
 
             if (approved) return;
 
-            // ── BULK A4 / SHADE BAND : alertes spécifiques Type / Sending / Approval ──
+            // ── BULK A4 / SHADE BAND : alertes spécifiques ───────────
             if (isBulk) {
-                // La colonne "Type" contient la valeur "A4" ou "Shade Band" — c'est ce qu'on affiche.
-                const typeCol = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase() === "bulk type" || c.label.toLowerCase().includes("type"));
-                const typeVal = typeCol && r[typeCol.key] ? String(r[typeCol.key]).trim() : "";
-                const hasType = !!typeVal;
-                // typeLabel = valeur exacte du champ : "A4", "Shade Band", etc.
+                const typeCol   = cfg.cols.find(c => c.label.toLowerCase() === "type" || c.label.toLowerCase() === "bulk type" || c.label.toLowerCase().includes("type"));
+                const typeVal   = typeCol && r[typeCol.key] ? String(r[typeCol.key]).trim() : "";
                 const typeLabel = typeVal || bulkShortLabel;
+                const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "";
+                const isRejected = det.approval && String(r[det.approval] ?? "").trim().toLowerCase() === "rejected";
 
-                // Alerte 1 : Type renseigné mais Sending Date absent
-                if (hasType && !hasSending) {
+                if (isRejected) return; // ligne rejetée → pas d'alerte (bouton duplication dans le tableau)
+
+                // Situation 1 : Ready Date présente mais pas encore reçu → sample sera prêt dans Xj
+                if (hasReadyDate && !hasReceived && !hasSending) {
+                    const diff = _daysDiff(r[det.readyDate]);
+                    if (diff > 0) {
+                        items.push({
+                            dotCls:"dot-risk", tagCls:"tag-risk",
+                            tagLabel:`🕐 ${typeLabel}${fabricVal?" · "+fabricVal:""} — prêt dans ${diff}j`,
+                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — sample prêt dans ${diff} jour${diff>1?"s":""}`,
+                            action:`Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
+                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        });
+                        return;
+                    } else if (diff === 0) {
+                        items.push({
+                            dotCls:"dot-today", tagCls:"tag-today",
+                            tagLabel:`🟡 ${typeLabel}${fabricVal?" · "+fabricVal:""} — attendu aujourd'hui`,
+                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — attendu aujourd'hui`,
+                            action:`Confirmer la réception dès arrivée`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
+                            urgency:"low", sheet:key, rowIndex:r._rowIndex
+                        });
+                        return;
+                    } else {
+                        // Ready Date dépassée, toujours pas reçu
+                        const days = Math.abs(diff);
+                        items.push({
+                            dotCls:"dot-late", tagCls:"tag-late",
+                            tagLabel:`🔴 ${typeLabel}${fabricVal?" · "+fabricVal:""} — en retard ${days}j`,
+                            title:`${typeLabel}${fabricVal?" du "+fabricVal:""} — non reçu, ${days}j de retard`,
+                            action:`Relancer le supplier pour confirmer l'envoi`,
+                            style:getStyle(r), client:getClient(r),
+                            meta:`Ready Date : ${_fmtDate(r[det.readyDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
+                            urgency:"high", sheet:key, rowIndex:r._rowIndex
+                        });
+                        return;
+                    }
+                }
+
+                // Situation 2 : Received Date renseigné mais pas de Sending Date → à envoyer
+                if (hasReceived && !hasSending) {
                     items.push({
                         dotCls:"dot-send", tagCls:"tag-send",
-                        tagLabel:`📬 ${typeLabel} reçu — Sending Date manquant`,
-                        title:`${typeLabel} reçu — Sending Date non renseignée`,
-                        action:`Renseigner la Sending Date pour ce ${typeLabel}`,
+                        tagLabel:`📬 Envoyer ${typeLabel}${fabricVal?" · "+fabricVal:""}`,
+                        title:`Envoyer le ${typeLabel}${fabricVal?" du "+fabricVal:""}`,
+                        action:`Organiser l'envoi du ${typeLabel}${fabricVal?" ("+fabricVal+")":""}`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Type : ${typeLabel}`,
-                        urgency:"mid",
-                        sheet:key, rowIndex:r._rowIndex
+                        meta:`Reçu le : ${_fmtDate(r[det.receivedDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
+                        urgency:"mid", sheet:key, rowIndex:r._rowIndex
                     });
                     return;
                 }
 
-                // Alerte 2 : Sending Date renseigné mais pas encore d'Approval
-                if (hasSending && det.approval && !approved) {
+                // Situation 3 : Sending Date renseigné, pas d'Approval → en attente approval
+                if (hasSending && !approved) {
                     const days = Math.abs(_daysDiff(r[det.sendingDate]));
                     const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-                    const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls:"dot-approve", tagCls:"tag-approve",
-                        tagLabel:`⏳ ${typeLabel} — Approval en attente ${days}j${urgencyLabel}`,
-                        title:`${typeLabel} envoyé — approbation en attente depuis ${days} jour${days>1?"s":""}`,
+                        tagLabel:`⏳ Approval ${typeLabel}${fabricVal?" · "+fabricVal:""} — ${days}j${urgBadge}`,
+                        title:`Approval ${typeLabel}${fabricVal?" du "+fabricVal:""} — envoyé il y a ${days}j`,
                         action: urgency === "high"
-                            ? `Plus de 2 semaines sans retour — relancer le client (${typeLabel})`
+                            ? `Relancer de toute urgence — plus de 2 semaines`
                             : urgency === "mid"
-                            ? `1 semaine sans retour — envoyer un rappel (${typeLabel})`
-                            : `Attendre le retour du client ou envoyer un suivi`,
+                            ? `Envoyer un rappel — 1 semaine sans retour`
+                            : `Attendre ou envoyer un suivi`,
                         style:getStyle(r), client:getClient(r),
-                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])} · Type : ${typeLabel}${getFsr(r)}`,
+                        meta:`Envoyé le : ${_fmtDate(r[det.sendingDate])}${fabricVal?" · Fabric : "+fabricVal:""}${getFsr(r)}`,
                         urgency, sheet:key, rowIndex:r._rowIndex
                     });
                     return;
                 }
+
+                return; // Bulk : ne pas tomber dans la logique générique
             }
 
             // ── TRIMS DEVO : logique spécifique ──────────────────────
