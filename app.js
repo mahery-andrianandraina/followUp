@@ -2047,9 +2047,9 @@ function collectAllAlerts() {
         // Traitement des groupes Bulk (moved here to be after individual row processing)
         if (isBulk) {
             Object.keys(fabricGroups).forEach(f => {
-                const groupRows = fabricGroups[f];
+                const groupData = fabricGroups[f];
                 const stats = { late: 0, today: 0, toSend: 0, pending: 0 };
-                groupRows.forEach(r => {
+                groupData.rows.forEach(r => {
                     const hasReceived = !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
                     const hasSending = !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
                     const hasReady = !!(r[det.readyDate] && String(r[det.readyDate]).trim());
@@ -2063,10 +2063,10 @@ function collectAllAlerts() {
                         stats.pending++;
                     }
                 });
-                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: "Multi", client: groupRows[0].Client || "" });
-                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: "Multi", client: groupRows[0].Client || "" });
-                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: "Multi", client: groupRows[0].Client || "" });
-                if (stats.pending > 0) items.push({ dotCls: "dot-approve", tagCls: "tag-approve", tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval`, urgency: "low", sheet: key, rowIndex: groupRows[0]._rowIndex, title: `${f} : Approbation client`, action: "Suivi approval", style: "Multi", client: groupRows[0].Client || "" });
+                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: "Multi", client: groupData.rows[0].Client || "" });
+                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: "Multi", client: groupData.rows[0].Client || "" });
+                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: "Multi", client: groupData.rows[0].Client || "" });
+                if (stats.pending > 0) items.push({ dotCls: "dot-approve", tagCls: "tag-approve", tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval`, urgency: "low", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Approbation client`, action: "Suivi approval", style: "Multi", client: groupData.rows[0].Client || "" });
             });
         }
 
