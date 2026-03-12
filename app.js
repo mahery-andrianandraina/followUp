@@ -1691,6 +1691,20 @@ function collectAllAlerts() {
                     return;
                 }
 
+                // ── Alerte 3 : Pas de Ready Date → demander au supplier ──────
+                if (!hasNlSub && !isRejected && !approved && !hasReadyDate) {
+                    items.push({
+                        dotCls:"dot-nopo", tagCls:"tag-nopo",
+                        tagLabel:`📋 Ready Date manquante — relancer supplier`,
+                        title:`${displayName} — Ready Date non renseignée`,
+                        action:`Demander la Ready Date du sample au supplier`,
+                        style:getStyle(r), client:getClient(r),
+                        meta:`${descVal?descVal+"":" "}${colorVal?" · "+colorVal:""}${trimsStr?" · "+trimsStr:""}`.trim() || "—",
+                        urgency:"mid", sheet:key, rowIndex:r._rowIndex
+                    });
+                    return;
+                }
+
                 // Sinon : logique générique (Ready Date future, FSR, etc.)
             }
             // ── FIN logique Trims Devo ────────────────────────────────
