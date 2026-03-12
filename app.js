@@ -352,8 +352,25 @@ function renderAll() {
     renderKPIs();
     populateDeptFilter();
     populateClientFilter();
-
+    _injectEditColsBtn();
     updateGlobalNotifBadge();
+}
+
+function _injectEditColsBtn() {
+    // Affiche le bouton ⚙ Colonnes uniquement pour sample et details (menus non-custom éditables)
+    const EDITABLE_SHEETS = ["sample","details"];
+    const existing = document.getElementById("edit-cols-btn");
+    if (existing) existing.remove();
+    if (!EDITABLE_SHEETS.includes(state.activeSheet)) return;
+    const titleEl = document.getElementById("header-sheet-title");
+    if (!titleEl) return;
+    const btn = document.createElement("button");
+    btn.id = "edit-cols-btn";
+    btn.title = "Modifier les colonnes";
+    btn.style.cssText = "margin-left:8px;padding:3px 8px;font-size:11px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2,#f3f4f6);color:var(--text-2,#6b7280);cursor:pointer;display:inline-flex;align-items:center;gap:4px;vertical-align:middle;";
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> Colonnes`;
+    btn.onclick = () => openMenuEdit(state.activeSheet);
+    titleEl.insertAdjacentElement("afterend", btn);
 }
 
 // ─── Dashboard Render ──────────────────────────────────────────
@@ -1053,11 +1070,21 @@ function openMenuBuilder() {
 // ── Open builder (edit existing) ─────────────────────────────
 function openMenuEdit(key) {
     const cfg = SHEET_CONFIG[key];
-    if (!cfg || !cfg.custom) return;
+    if (!cfg) return;
+    // Autoriser sample et details en plus des menus custom
+    const isEditable = cfg.custom || key === "sample" || key === "details";
+    if (!isEditable) return;
     mbEditingKey = key;
     mbColumns = cfg.cols.map(c => ({ ...c }));
-    document.getElementById("mb-menu-name").value = cfg.label;
-    document.getElementById("menu-builder-title").textContent = "Modifier : " + cfg.label;
+    const nameInput = document.getElementById("mb-menu-name");
+    if (nameInput) {
+        nameInput.value = cfg.label;
+        // Bloquer le renommage pour sample/details (le nom est fixe)
+        nameInput.readOnly = !cfg.custom;
+        nameInput.style.opacity = cfg.custom ? "" : "0.5";
+        nameInput.title = cfg.custom ? "" : "Le nom de ce menu ne peut pas être modifié";
+    }
+    document.getElementById("menu-builder-title").textContent = "Colonnes : " + cfg.label;
     document.getElementById("mb-save-btn").textContent = "Enregistrer";
     renderMbColumns();
     document.getElementById("menu-builder-overlay").classList.add("open");
@@ -1191,20 +1218,21 @@ async function saveMenuBuilder() {
     }
 
     if (mbEditingKey) {
-        // Update SHEET_CONFIG
-        SHEET_CONFIG[key].label     = menuDef.label;
-        SHEET_CONFIG[key].sheetName = menuDef.label;
-        SHEET_CONFIG[key].cols      = menuDef.cols;
-        persistCustomMenus();
-
-        // Mettre à jour le label dans la nav
-        const navBtn = document.getElementById("tab-custom-" + key);
-        if (navBtn) navBtn.querySelector(".nav-label").textContent = menuDef.label;
+        const isNonCustom = mbEditingKey === "sample" || mbEditingKey === "details";
+        // Pour sample/details : garder le label d'origine, ne pas appeler persistCustomMenus
+        SHEET_CONFIG[key].cols = menuDef.cols;
+        if (!isNonCustom) {
+            SHEET_CONFIG[key].label     = menuDef.label;
+            SHEET_CONFIG[key].sheetName = menuDef.label;
+            persistCustomMenus();
+            const navBtn = document.getElementById("tab-custom-" + key);
+            if (navBtn) navBtn.querySelector(".nav-label").textContent = menuDef.label;
+        }
 
         // Si on est sur ce menu, rafraîchir l'affichage (KPIs + tableau)
         if (state.activeSheet === key) {
             const titleEl = document.getElementById("header-sheet-title");
-            if (titleEl) titleEl.textContent = menuDef.label;
+            if (titleEl && !isNonCustom) titleEl.textContent = menuDef.label;
             renderKPIs();
             applyFilters();
             renderTable();
