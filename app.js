@@ -1488,41 +1488,69 @@ function collectAllAlerts() {
     const ordRows = state.data.ordering || [];
     const ordItems = [];
 
-    ordRows.filter(r => computeDeliveryTrack(r).cls === "track-late").forEach(r => {
-        const days = Math.abs(_daysDiff(r["Ready Date"]));
-        ordItems.push({
-            dotCls:"dot-late", tagCls:"tag-late",
-            tagLabel:`🔴 Retard ${days}j`,
-            title:`Livraison en retard de ${days} jour${days>1?"s":""}`,
-            action:"Contacter le fournisseur et replanifier la livraison",
-            style:r.Style||"—", client:r.Client||"",
-            meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.PO?" · PO : "+r.PO:" · ⚠ PO manquant"}${r.Supplier?" · "+r.Supplier:""}`,
-            urgency:"high", sheet:"ordering", rowIndex:r._rowIndex
-        });
+    ordRows.filter(r => r.Status !== "Cancelled").forEach(r => {
+        const hasReadyDate   = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
+        const rdDiff         = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
+        const isShipped      = ["Shipped","In Transit","Delivered"].includes(r["Delivery Status"]);
+        const poLabel        = r.PO ? `PO ${r.PO}` : "PO manquant";
+        const styleMeta      = `${r.Style||"—"}${r.Color?" · "+r.Color:""}`;
+        const supplierMeta   = r.Supplier ? ` · ${r.Supplier}` : "";
+        const poMeta         = r.PO ? ` · PO : ${r.PO}` : " · ⚠ PO manquant";
+
+        // ── Situation 1 : Pas de Ready Date → relancer supplier ──────
+        if (!hasReadyDate) {
+            ordItems.push({
+                dotCls:"dot-nopo", tagCls:"tag-nopo",
+                tagLabel:`📋 ${poLabel} — Ready Date manquante`,
+                title:`${styleMeta} — Ready Date non renseignée`,
+                action:`Relancer le supplier pour obtenir la Ready Date${supplierMeta}`,
+                style:r.Style||"—", client:r.Client||"",
+                meta:`${poLabel} · Statut : ${r.Status||"—"}${supplierMeta}`,
+                urgency:"mid", sheet:"ordering", rowIndex:r._rowIndex
+            });
+            return;
+        }
+
+        // ── Situation 2 : Ready Date dépassée + pas encore shipped → relancer supplier ──
+        if (rdDiff < 0 && !isShipped) {
+            const days = Math.abs(rdDiff);
+            const urgency = days >= 14 ? "high" : "mid";
+            const urgBadge = urgency === "high" ? " 🚨" : " ⚡";
+            ordItems.push({
+                dotCls:"dot-late", tagCls:"tag-late",
+                tagLabel:`🔴 ${poLabel} — Ready Date dépassée ${days}j${urgBadge}`,
+                title:`${styleMeta} — Ready Date dépassée de ${days}j, non expédié`,
+                action:`Relancer le supplier : confirmer si prêt ou délai prévu${supplierMeta}`,
+                style:r.Style||"—", client:r.Client||"",
+                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta} · Statut : ${r["Delivery Status"]||"—"}`,
+                urgency, sheet:"ordering", rowIndex:r._rowIndex
+            });
+            return;
+        }
+
+        // ── Situation 3 : Ready Date dans le futur → PO sera prêt dans Xj ──
+        if (rdDiff >= 0 && !isShipped) {
+            const urgency = rdDiff <= 7 ? "mid" : "low";
+            const tagPrefix = rdDiff === 0 ? "🟡" : rdDiff <= 7 ? "🟠" : "🕐";
+            const daysTxt = rdDiff === 0 ? "aujourd'hui" : `dans ${rdDiff}j`;
+            ordItems.push({
+                dotCls: rdDiff === 0 ? "dot-today" : rdDiff <= 7 ? "dot-risk" : "dot-risk",
+                tagCls: rdDiff === 0 ? "tag-today" : rdDiff <= 7 ? "tag-risk" : "tag-risk",
+                tagLabel:`${tagPrefix} ${poLabel} — prêt ${daysTxt}`,
+                title:`${styleMeta} — prêt ${daysTxt}`,
+                action: rdDiff === 0
+                    ? `Prévoir l'expédition aujourd'hui${supplierMeta}`
+                    : rdDiff <= 7
+                    ? `Confirmer l'expédition imminente avec le supplier${supplierMeta}`
+                    : `Surveiller l'avancement — Ready Date le ${_fmtDate(r["Ready Date"])}`,
+                style:r.Style||"—", client:r.Client||"",
+                meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta}`,
+                urgency, sheet:"ordering", rowIndex:r._rowIndex
+            });
+        }
+        // Shipped/Delivered → pas d'alerte
     });
-    ordRows.filter(r => computeDeliveryTrack(r).cls === "track-atrisk").forEach(r => {
-        const days = _daysDiff(r["Ready Date"]);
-        ordItems.push({
-            dotCls:"dot-risk", tagCls:"tag-risk",
-            tagLabel:`🟠 Dans ${days}j`,
-            title:`Livraison dans ${days} jour${days>1?"s":""} — surveiller`,
-            action:"Confirmer l'avancement de la commande avec le fournisseur",
-            style:r.Style||"—", client:r.Client||"",
-            meta:`Ready Date : ${_fmtDate(r["Ready Date"])}${r.Supplier?" · "+r.Supplier:""}`,
-            urgency:"mid", sheet:"ordering", rowIndex:r._rowIndex
-        });
-    });
-    ordRows.filter(r => !r.PO && r.Status !== "Cancelled").forEach(r => {
-        ordItems.push({
-            dotCls:"dot-nopo", tagCls:"tag-nopo",
-            tagLabel:"⚠ PO manquant",
-            title:"Commande sans PO — renseigner avant livraison",
-            action:"Renseigner le numéro de PO dès que disponible",
-            style:r.Style||"—", client:r.Client||"",
-            meta:`${r.Color?"Coloris : "+r.Color+" · ":""}Statut : ${r.Status||"—"}${r["Ready Date"]?" · Ready : "+_fmtDate(r["Ready Date"]):""}`,
-            urgency:"low", sheet:"ordering", rowIndex:r._rowIndex
-        });
-    });
+
     if (ordItems.length) all["ordering"] = { label:"Ordering", items:ordItems };
 
     // ─── SAMPLE (PSS) ─────────────────────────────────────────
