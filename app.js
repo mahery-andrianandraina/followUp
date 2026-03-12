@@ -141,6 +141,7 @@ async function initApp() {
     await fetchAllData();
     renderDashboard();
     updateGlobalNotifBadge();
+    console.log("App Initialized. Fabric Analysis keywords updated.");
 }
 
 // ─── Sidebar Toggle ──────────────────────────────────────
@@ -1284,8 +1285,8 @@ function detectCustomCols(cols, menuLabel) {
     // Patterns qui identifient un menu Fabric Analysis
     // FABRIC_MENU_WORDS : mots isolés testés un par un dans le nom du menu
     // (ex: "Fabric Analysis" → mot "analysis" → match)
-    const FABRIC_MENU_WORDS = ["analysis", "analyse", "analys", "fiber", "fibre", "efa"];
-    const FABRIC_COL_PHRASES = ["fabric analysis", "fabric test", "efa", "test labo", "fiber test", "fibre test", "lab analysis", "composition test"];
+    const FABRIC_MENU_WORDS = ["analysis", "analyse", "analys", "fiber", "fibre", "efa", "labo"];
+    const FABRIC_COL_PHRASES = ["fabric analysis", "fabric test", "efa", "test labo", "fiber test", "fibre test", "lab analysis", "composition test", "fabric devo", "fabric dev"];
     // Patterns NON-Fabric explicites
     const NON_FABRIC_PATTERNS = ["lab dip", "labdip", "strike off", "strikeoff", "print strike", "color strike"];
     // Detect Trims Devo
@@ -1907,7 +1908,7 @@ function collectAllAlerts() {
                     items.push({
                         dotCls: "dot-nopo", tagCls: "tag-nopo",
                         tagLabel: `🧪 ${efaVal}${colorVal ? " — " + colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
-                        title: `${efaVal}${colorVal ? " [" + colorVal + "]" : ""} en attente du résultat du test — lancé ${launchDaysTxt}`,
+                        title: `FSR ${fsrVal || "—"} ${efaVal} ${colorVal || ""} — en attente du résultat — lancé ${launchDaysTxt}`,
                         action: `Renseigner la Ready Date dès réception des résultats du laboratoire`,
                         style: getStyle(r), client: getClient(r),
                         meta: `Ref : ${efaVal}${colorPart}${fsrPart} · Launched on : ${launchFmt} · Test en cours depuis ${launchDays} jour${launchDays > 1 ? "s" : ""}`,
@@ -1927,10 +1928,14 @@ function collectAllAlerts() {
                     const days = Math.abs(_daysDiff(r[det.receivedDate]));
                     const daysLabel = days === 0 ? "reçu aujourd'hui" : days === 1 ? "reçu hier" : `reçu il y a ${days}j`;
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
+                    const styleVal = getStyle(r);
+                    const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                    const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+
                     items.push({
                         dotCls: "dot-send", tagCls: "tag-send",
                         tagLabel: `📦 À envoyer (${daysLabel})`,
-                        title: `Reçu — à envoyer au client${fsrStr ? " · FSR " + fsrStr : ""}`,
+                        title: `${fabricPrefix}Reçu — à envoyer au client${!det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
                         action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi`,
                         style: getStyle(r), client: getClient(r),
                         meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
@@ -1941,10 +1946,14 @@ function collectAllAlerts() {
                     const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
                     const urgencyLabel = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
+                    const styleVal = getStyle(r);
+                    const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                    const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+
                     items.push({
                         dotCls: "dot-approve", tagCls: "tag-approve",
                         tagLabel: `⏳ Approval ${days}j${urgencyLabel}`,
-                        title: `Envoyé — approbation en attente depuis ${days}j${fsrStr ? " · FSR " + fsrStr : ""}`,
+                        title: `${fabricPrefix}Envoyé — approbation en attente depuis ${days}j${!det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
                         style: getStyle(r), client: getClient(r),
                         meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
@@ -1958,10 +1967,15 @@ function collectAllAlerts() {
             if (hasFsr && !hasReadyDate) {
                 // État A : FSR lancé mais Ready Date absente → relancer mail
                 const fsrAgo = det.fsrDate ? timeAgo(r[det.fsrDate]) : "";
+                const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
+                const styleVal = getStyle(r);
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+
                 items.push({
                     dotCls: "dot-nopo", tagCls: "tag-nopo",
                     tagLabel: `📧 Ready Date manquante`,
-                    title: `FSR lancé — Ready Date non renseignée`,
+                    title: `${fabricPrefix}FSR lancé — Ready Date non renseignée`,
                     action: `Relancer un mail pour obtenir la Ready Date${fsrAgo ? " (FSR " + fsrAgo + ")" : ""}`,
                     style: getStyle(r), client: getClient(r),
                     meta: `FSR lancé le : ${det.fsrDate ? _fmtDate(r[det.fsrDate]) : "—"}${getFsr(r)}`,
@@ -1970,12 +1984,17 @@ function collectAllAlerts() {
             } else if (hasReadyDate) {
                 // État B : Ready Date présente, attente réception
                 const diff = _daysDiff(r[det.readyDate]);
+                const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
+                const styleVal = getStyle(r);
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+
                 if (diff < 0) {
                     const days = Math.abs(diff);
                     items.push({
                         dotCls: "dot-late", tagCls: "tag-late",
                         tagLabel: `🔴 En retard — ${days}j`,
-                        title: `Ready Date dépassée de ${days}j — non reçu`,
+                        title: `${fabricPrefix}Ready Date dépassée de ${days}j — non reçu`,
                         action: "Relancer la factory pour confirmer l'avancement",
                         style: getStyle(r), client: getClient(r),
                         meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
@@ -1985,7 +2004,7 @@ function collectAllAlerts() {
                     items.push({
                         dotCls: "dot-today", tagCls: "tag-today",
                         tagLabel: `🟡 Attendu aujourd'hui`,
-                        title: `Ready Date aujourd'hui — prévoir la réception`,
+                        title: `${fabricPrefix}Ready Date aujourd'hui — prévoir la réception`,
                         action: "Confirmer la réception dès réception",
                         style: getStyle(r), client: getClient(r),
                         meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
@@ -1995,7 +2014,7 @@ function collectAllAlerts() {
                     items.push({
                         dotCls: "dot-risk", tagCls: "tag-risk",
                         tagLabel: `🕐 Dans ${diff}j`,
-                        title: `En attente de réception — prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
+                        title: `${fabricPrefix}En attente de réception — prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
                         action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
                         style: getStyle(r), client: getClient(r),
                         meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
@@ -2047,13 +2066,18 @@ function collectAllAlerts() {
                                 : `il y a ${days} jour${days > 1 ? "s" : ""}`;
                         const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
                         const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                        const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
+                        const styleVal = getStyle(r);
+                        const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                        const fabricPrefix = det.isFabricAnalysis ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+
                         items.push({
                             dotCls: urgency === "high" ? "dot-late" : urgency === "mid" ? "dot-risk" : "dot-send",
                             tagCls: urgency === "high" ? "tag-late" : urgency === "mid" ? "tag-risk" : "tag-send",
                             tagLabel: `⏳ ${col.label} — en attente (${days}j)${urgencyBadge}`,
-                            title: `${col.label} renseigné ${agoTxt} — en attente d'un retour`,
+                            title: `${fabricPrefix}${col.label} renseigné ${agoTxt} — en attente d'un retour`,
                             action: `Vérifier si une action est requise suite à "${col.label}" du ${fmt}`,
-                            style: getStyle(r), client: getClient(r),
+                            style: styleVal, client: getClient(r),
                             meta: `${col.label} : ${fmt}`,
                             urgency, sheet: key, rowIndex: r._rowIndex
                         });
