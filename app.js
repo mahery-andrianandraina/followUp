@@ -3441,11 +3441,4 @@ function applyDashboardFilters() {
     }
 }
 
-// Hook into initApp — call setupDashboardFilters once
-const _origInitApp = initApp;
-async function initApp() {
-    await _origInitApp();
-    setupDashboardFilters();
-    populateDashboardFilters();
-}
 
