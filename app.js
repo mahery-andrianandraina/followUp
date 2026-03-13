@@ -2281,31 +2281,26 @@ function _renderGndFull() {
     keys.forEach(k => { if (!_gndOpenSections.has("__visited__" + k)) { _gndOpenSections.add(k); _gndOpenSections.add("__visited__" + k); } });
 
     let html = `<style>
-    .gnd-acc { border-bottom: 1px solid var(--border, #e5e7eb); }
-    .gnd-acc-header {
-        display: flex; align-items: center; gap: 8px;
-        padding: 11px 16px; cursor: pointer; user-select: none;
-        background: var(--surface-1, #fff);
-        transition: background 0.15s;
-    }
-    .gnd-acc-header:hover { background: var(--surface-2, #f9fafb); }
-    .gnd-acc-arrow {
-        flex-shrink: 0; color: var(--text-muted, #9ca3af);
-        transition: transform 0.2s ease;
-    }
-    .gnd-acc-label { font-size: 12px; font-weight: 600; color: var(--text-1, #111827); flex: 1; }
-    .gnd-acc-count {
-        font-size: 11px; font-weight: 600; padding: 1px 7px;
-        border-radius: 10px; background: var(--surface-3, #f3f4f6);
-        color: var(--text-2, #6b7280);
-    }
-    .gnd-acc-count.has-high { background: #fee2e2; color: #b91c1c; }
-    .gnd-acc-count.has-mid  { background: #fef3c7; color: #92400e; }
-    .gnd-acc-body {
-        overflow: hidden;
-        transition: max-height 0.25s ease, opacity 0.2s ease;
-        opacity: 1;
-    }
+    .gnd-acc { border-radius: 10px; overflow: hidden; border: 0.5px solid var(--border, #e5e7eb); margin: 0 10px 7px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    .gnd-acc-header { display: flex; align-items: center; gap: 10px; padding: 12px 13px; cursor: pointer; user-select: none; border-left: 4px solid #94a3b8; background: #f1f5f9; transition: filter 0.15s; }
+    .gnd-acc-header:hover { filter: brightness(0.97); }
+    .gnd-acc-header.has-high-hdr { border-left-color: #dc2626; background: #fecaca; }
+    .gnd-acc-header.has-mid-hdr  { border-left-color: #d97706; background: #fef3c7; }
+    .gnd-acc-arrow { flex-shrink: 0; transition: transform 0.2s ease; color: #64748b; }
+    .gnd-acc-header.has-high-hdr .gnd-acc-arrow { color: #dc2626; }
+    .gnd-acc-header.has-mid-hdr  .gnd-acc-arrow { color: #d97706; }
+    .gnd-acc-label { font-size: 13px; font-weight: 700; flex: 1; color: #334155; }
+    .gnd-acc-header.has-high-hdr .gnd-acc-label { color: #7f1d1d; }
+    .gnd-acc-header.has-mid-hdr  .gnd-acc-label { color: #78350f; }
+    .gnd-acc-count { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; min-width: 22px; text-align: center; background: #e2e8f0; color: #475569; }
+    .gnd-acc-count.has-high { background: #fca5a5; color: #7f1d1d; }
+    .gnd-acc-count.has-mid  { background: #fde68a; color: #78350f; }
+    .gnd-acc-body { overflow: hidden; transition: max-height 0.25s ease, opacity 0.2s ease; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #e2e8f0; }
+    .gnd-acc-body.body-high { background: #fee2e2; }
+    .gnd-acc-body.body-mid  { background: #fef3c7; }
+    .gnd-row { border-radius: 8px !important; border: 0.5px solid var(--border, #e5e7eb) !important; background: #f8fafc !important; }
+    .gnd-row.gnd-row-high { background: #fff0f0 !important; border-color: #fca5a5 !important; }
+    .gnd-row.gnd-row-mid  { background: #fffbeb !important; border-color: #fde68a !important; }
     </style>`;
 
     keys.forEach(k => {
@@ -2316,16 +2311,18 @@ function _renderGndFull() {
         const countCls = hasHigh ? "has-high" : hasMid ? "has-mid" : "";
         const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
 
+        const hdrUrgCls = hasHigh ? "has-high-hdr" : hasMid ? "has-mid-hdr" : "";
+        const bodyUrgCls = hasHigh ? "body-high" : hasMid ? "body-mid" : "";
         html += `
         <div class="gnd-acc" id="gnd-acc-${safeKey}">
-            <div class="gnd-acc-header" onclick="gndToggleSection('${safeKey}')">
-                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="transform:${isOpen ? "rotate(90deg)" : "rotate(0deg)"}">
+            <div class="gnd-acc-header ${hdrUrgCls}" onclick="gndToggleSection('${safeKey}')">
+                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14" style="transform:${isOpen ? "rotate(90deg)" : "rotate(0deg)"}">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                 </svg>
                 <span class="gnd-acc-label">${esc(all[k].label)}</span>
                 <span class="gnd-acc-count ${countCls}">${items.length}</span>
             </div>
-            <div class="gnd-acc-body" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen ? "9999px" : "0"};opacity:${isOpen ? "1" : "0"}">
+            <div class="gnd-acc-body ${bodyUrgCls}" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen ? "9999px" : "0"};opacity:${isOpen ? "1" : "0"}">
                 ${items.map(renderRow).join("")}
             </div>
         </div>`;
