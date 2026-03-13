@@ -336,9 +336,11 @@ function showDashboard() {
     const tc = document.getElementById("table-card-wrap");
     const ap = document.getElementById("alerts-panel");
     const sp = document.getElementById("sample-alerts-panel");
+    const fb = document.getElementById("db-filter-bar");
     if (ds) ds.style.display = "flex";
     if (kg) kg.style.display = "none";
     if (tc) tc.style.display = "none";
+    if (fb) fb.style.display = "flex";
     if (ap) ap.innerHTML = "";
     if (sp) sp.innerHTML = "";
     // Show skeleton while data hasn't loaded yet
@@ -362,9 +364,11 @@ function showTableView() {
     const ds = document.getElementById("dashboard-screen");
     const kg = document.getElementById("kpi-grid");
     const tc = document.getElementById("table-card-wrap");
+    const fb = document.getElementById("db-filter-bar");
     if (ds) ds.style.display = "none";
     if (kg) kg.style.display = "none";
     if (tc) tc.style.display = "";
+    if (fb) fb.style.display = "none";
 }
 
 function renderAll() {
@@ -400,10 +404,32 @@ function _injectEditColsBtn() {
     titleEl.insertAdjacentElement("afterend", btn);
 }
 
+
+// ─── GMT Color → CSS hex approximation ──────────────────────
+function gmtColorToHex(name) {
+    if (!name) return "#e5e7eb";
+    const map = {
+        "BLACK": "#1a1a1a", "NAVY": "#1e3a5f", "WHITE": "#f5f5f5",
+        "ECRU": "#f0ead6", "IVORY": "#fffff0", "CREAM": "#fffdd0",
+        "KHAKI": "#c3b091", "STONE": "#b2a99a", "GREY": "#9ca3af",
+        "GRAY": "#9ca3af", "RED": "#dc2626", "BLUE": "#2563eb",
+        "GREEN": "#16a34a", "YELLOW": "#eab308", "PINK": "#f472b6",
+        "PURPLE": "#9333ea", "BROWN": "#92400e", "ORANGE": "#ea580c",
+        "TEAL": "#0d9488", "BURGUNDY": "#800020", "CAMEL": "#c19a6b",
+        "BEIGE": "#f5f0e8", "OLIVE": "#6b7c40", "CORAL": "#ff6b6b",
+        "MULTI": "linear-gradient(135deg, #f472b6 0%, #60a5fa 50%, #34d399 100%)",
+    };
+    const key = name.toUpperCase().split(" ").find(w => map[w]) || name.toUpperCase();
+    return map[key] || "#cbd5e1";
+}
+
 // ─── Dashboard Render ──────────────────────────────────────────
 function renderDashboard() {
     const el = document.getElementById("dashboard-screen");
     if (!el) return;
+
+    // Populate filter dropdowns with fresh data
+    if (typeof populateDashboardFilters === 'function') populateDashboardFilters();
 
     const details = state.data.details;
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -490,13 +516,72 @@ function renderDashboard() {
             // ── Style cards per dept
             const deptSections = deptDataArr.map((dd, di) => {
                 const c = DEPT_COLORS[di % DEPT_COLORS.length];
-                const cards = dd.rows.map(r => {
+                const cards = dd.rows.map((r, cardIdx) => {
                     const qty  = r["Order Qty"] ? (+r["Order Qty"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
                     const psd  = r["PSD"] ? new Date(r["PSD"]).toLocaleDateString("fr-FR", {day:"2-digit", month:"short"}) : '<span class="dbs-dim">—</span>';
                     const cost = r["Costing"] ? '$' + r["Costing"] : '<span class="dbs-dim">—</span>';
                     const fab  = r["Fabric Base"] ? esc(r["Fabric Base"]) : '<span class="dbs-dim">—</span>';
                     const desc = esc(r["Description"] || r["StyleDescription"] || "");
-                    return '<div class="dbs-sc">' +
+
+                    // ── Cross-data: ordering rows for this style
+                    const orderRows = (state.data.ordering || []).filter(o =>
+                        o.Style === r.Style && o.Client === r.Client
+                    );
+                    const confirmedOrders = orderRows.filter(o => o.Status === "Confirmed").length;
+                    const pendingOrders   = orderRows.filter(o => o.Status === "Pending").length;
+                    const deliveredOrders = orderRows.filter(o => o["Delivery Status"] === "Delivered").length;
+                    const inTransit       = orderRows.filter(o => o["Delivery Status"] === "In Transit").length;
+                    const totalColors     = orderRows.length;
+
+                    // ── Cross-data: sample approval for this style
+                    const sampleRows = (state.data.sample || []).filter(s =>
+                        s.Style === r.Style && s.Client === r.Client
+                    );
+                    const approved = sampleRows.filter(s => s.Approval === "Approved").length;
+                    const pending  = sampleRows.filter(s => s.Approval === "Pending").length;
+                    const rejected = sampleRows.filter(s => s.Approval === "Rejected").length;
+                    const totalSamples = sampleRows.length;
+
+                    // ── Sample badge
+                    let sampleBadge = "";
+                    if (totalSamples > 0) {
+                        const sampleCls = rejected > 0 ? "sc-badge-danger" : pending > 0 ? "sc-badge-warn" : "sc-badge-ok";
+                        const sampleTxt = rejected > 0 ? rejected + " rejeté" : pending > 0 ? pending + " en attente" : approved + " approuvé";
+                        sampleBadge = '<span class="dbs-sc-badge ' + sampleCls + '"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> ' + sampleTxt + '</span>';
+                    }
+
+                    // ── Order status mini-chips
+                    let orderChips = "";
+                    if (totalColors > 0) {
+                        if (deliveredOrders > 0) orderChips += '<span class="sc-chip sc-chip-delivered">' + deliveredOrders + ' livré' + (deliveredOrders > 1 ? 's' : '') + '</span>';
+                        if (inTransit > 0)       orderChips += '<span class="sc-chip sc-chip-transit">' + inTransit + ' en transit</span>';
+                        if (confirmedOrders > 0 && deliveredOrders + inTransit < confirmedOrders) {
+                            const rem = confirmedOrders - deliveredOrders - inTransit;
+                            orderChips += '<span class="sc-chip sc-chip-confirmed">' + rem + ' confirmé' + (rem > 1 ? 's' : '') + '</span>';
+                        }
+                        if (pendingOrders > 0)   orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
+                    }
+
+                    // ── Color swatches from style sheet
+                    const styleColors = (state.data.style || []).filter(s => s.Style === r.Style);
+                    const colorDots = styleColors.slice(0, 5).map(s => {
+                        const lbl = esc(s["GMT Color"] || "");
+                        return '<span class="sc-color-dot" title="' + lbl + '" style="background:' + gmtColorToHex(s["GMT Color"]) + '"></span>';
+                    }).join("");
+                    const colorWrap = styleColors.length
+                        ? '<div class="sc-colors-wrap">' + colorDots + (styleColors.length > 5 ? '<span class="sc-color-more">+' + (styleColors.length - 5) + '</span>' : '') + '</div>'
+                        : '';
+
+                    // ── Progress bar: delivered / total colors
+                    const progPct = totalColors > 0 ? Math.round((deliveredOrders / totalColors) * 100) : 0;
+                    const progBar = totalColors > 0
+                        ? '<div class="sc-prog-wrap"><div class="sc-prog-track"><div class="sc-prog-fill" style="width:' + progPct + '%"></div></div><span class="sc-prog-lbl">' + progPct + '% livré</span></div>'
+                        : '';
+
+                    // ── Animation delay staggered
+                    const delay = (cardIdx * 60) + (di * 30);
+
+                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms">' +
                         '<div class="dbs-sc-head">' +
                             '<div class="dbs-sc-id">' +
                                 '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
@@ -504,12 +589,13 @@ function renderDashboard() {
                             '</div>' +
                             exFtyBadge(r["Ex-Fty"]) +
                         '</div>' +
+                        (colorWrap ? colorWrap : '') +
                         '<hr class="dbs-sc-div">' +
                         '<div class="dbs-sc-fields">' +
                             '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
                             '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
                             '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                            '<div class="dbs-sf"><span class="dbs-sf-l">Fabric</span><span class="dbs-fab">' + fab + '</span></div>' +
+                            '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
                     '</div>';
                 }).join("");
@@ -600,6 +686,8 @@ function renderDashboard() {
             _dsEl.insertAdjacentHTML("beforeend", extraHtml);
         }
         _refreshDashboardIntelligence();
+        // Re-apply active dashboard filters after render
+        if (typeof applyDashboardFilters === 'function') applyDashboardFilters();
     }
 }
 
@@ -3232,3 +3320,132 @@ function _refreshDashboardIntelligence() {
         arBody.innerHTML = renderAtRiskSection(risks);
     }
 }
+
+// ─── Dashboard Filters ────────────────────────────────────────
+let _dbFilterState = { search: "", client: "", saison: "" };
+
+function populateDashboardFilters() {
+    const details = state.data.details || [];
+    const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
+    const saisons = [...new Set(details.map(r => r.Saison || r["Saison"] || "").filter(Boolean))].sort();
+
+    const clientSel = document.getElementById("db-client-filter");
+    const saisonSel = document.getElementById("db-saison-filter");
+    if (!clientSel || !saisonSel) return;
+
+    const prevClient = clientSel.value;
+    const prevSaison = saisonSel.value;
+
+    clientSel.innerHTML = '<option value="">Tous les clients</option>' +
+        clients.map(c => `<option value="${esc(c)}" ${c === prevClient ? "selected" : ""}>${esc(c)}</option>`).join("");
+    saisonSel.innerHTML = '<option value="">Toutes les saisons</option>' +
+        saisons.map(s => `<option value="${esc(s)}" ${s === prevSaison ? "selected" : ""}>${esc(s)}</option>`).join("");
+}
+
+function setupDashboardFilters() {
+    const searchEl = document.getElementById("db-search");
+    const clientEl = document.getElementById("db-client-filter");
+    const saisonEl = document.getElementById("db-saison-filter");
+    if (!searchEl) return;
+
+    searchEl.addEventListener("input", () => {
+        _dbFilterState.search = searchEl.value.toLowerCase().trim();
+        applyDashboardFilters();
+    });
+    clientEl.addEventListener("change", () => {
+        _dbFilterState.client = clientEl.value;
+        clientEl.classList.toggle("active", !!clientEl.value);
+        applyDashboardFilters();
+    });
+    saisonEl.addEventListener("change", () => {
+        _dbFilterState.saison = saisonEl.value;
+        saisonEl.classList.toggle("active", !!saisonEl.value);
+        applyDashboardFilters();
+    });
+}
+
+function resetDashboardFilters() {
+    _dbFilterState = { search: "", client: "", saison: "" };
+    const searchEl = document.getElementById("db-search");
+    const clientEl = document.getElementById("db-client-filter");
+    const saisonEl = document.getElementById("db-saison-filter");
+    if (searchEl) searchEl.value = "";
+    if (clientEl) { clientEl.value = ""; clientEl.classList.remove("active"); }
+    if (saisonEl) { saisonEl.value = ""; saisonEl.classList.remove("active"); }
+    applyDashboardFilters();
+}
+
+function applyDashboardFilters() {
+    const { search, client, saison } = _dbFilterState;
+    const ds = document.getElementById("dashboard-screen");
+    if (!ds) return;
+
+    // Filter saison blocks
+    const saisonBlocks = ds.querySelectorAll(".dbs-szn-block");
+    let anyVisible = false;
+
+    saisonBlocks.forEach(block => {
+        const pillEl = block.querySelector(".dbs-szn-pill");
+        const blockSaison = pillEl ? pillEl.textContent.trim() : "";
+
+        // saison filter
+        if (saison && blockSaison !== saison) {
+            block.classList.add("db-hidden");
+            return;
+        }
+        block.classList.remove("db-hidden");
+
+        // client + search filter within this block
+        const clientBlocks = block.querySelectorAll(".dbs-cli-block");
+        let anyClientVisible = false;
+
+        clientBlocks.forEach(cb => {
+            const clientNameEl = cb.querySelector(".dbs-cli-name");
+            const blockClient = clientNameEl ? clientNameEl.textContent.trim() : "";
+
+            if (client && blockClient !== client) {
+                cb.classList.add("db-hidden");
+                return;
+            }
+
+            if (search) {
+                const text = cb.textContent.toLowerCase();
+                if (!text.includes(search)) {
+                    cb.classList.add("db-hidden");
+                    return;
+                }
+            }
+
+            cb.classList.remove("db-hidden");
+            anyClientVisible = true;
+        });
+
+        if (!anyClientVisible && (client || search)) {
+            block.classList.add("db-hidden");
+        } else {
+            anyVisible = true;
+        }
+    });
+
+    // Show/hide no results
+    let noResultsEl = ds.querySelector(".db-no-results");
+    if (!anyVisible && (search || client || saison)) {
+        if (!noResultsEl) {
+            noResultsEl = document.createElement("div");
+            noResultsEl.className = "db-no-results";
+            noResultsEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="36" height="36"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg><p>Aucun résultat pour ces filtres.</p>`;
+            ds.appendChild(noResultsEl);
+        }
+    } else if (noResultsEl) {
+        noResultsEl.remove();
+    }
+}
+
+// Hook into initApp — call setupDashboardFilters once
+const _origInitApp = initApp;
+async function initApp() {
+    await _origInitApp();
+    setupDashboardFilters();
+    populateDashboardFilters();
+}
+

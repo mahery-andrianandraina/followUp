@@ -5557,3 +5557,391 @@ select.filter-select {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ─── Dashboard Filter Bar ────────────────────────────────── */
+.db-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1.5rem;
+    background: rgba(248, 250, 252, 0.95);
+    border-bottom: 1px solid var(--glass-border);
+    position: sticky;
+    top: var(--header-h);
+    z-index: 90;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    flex-wrap: wrap;
+}
+
+.db-filter-bar.hidden {
+    display: none;
+}
+
+.db-filter-search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #fff;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.75rem;
+    flex: 1;
+    min-width: 180px;
+    max-width: 320px;
+    transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.db-filter-search-wrap svg {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.db-filter-search-wrap:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.db-filter-search {
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    outline: none;
+    width: 100%;
+}
+
+.db-filter-search::placeholder {
+    color: var(--text-muted);
+}
+
+.db-filter-select {
+    height: 34px;
+    padding: 0 0.75rem;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    outline: none;
+    transition: border-color var(--transition);
+    min-width: 130px;
+}
+
+.db-filter-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.db-filter-select.active {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.db-filter-reset {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+.db-filter-reset:hover {
+    background: var(--danger-dim);
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.db-filter-active-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    padding: 0 0.25rem;
+}
+
+/* ─── Dashboard Layout Breathing Room ───────────────────────── */
+#dashboard-screen {
+    padding: 1.5rem 1.5rem 2rem;
+}
+
+/* Season block: more vertical spacing */
+.dbs-szn-block {
+    margin-bottom: 1.75rem !important;
+}
+
+/* Client block: more breathing room */
+.dbs-cli-block {
+    min-height: 0;
+}
+
+/* Style cards: slightly larger */
+.dbs-sc {
+    min-width: 165px !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+}
+
+/* Cards wrap: more gap */
+.dbs-cards-wrap {
+    gap: 9px !important;
+}
+
+/* dept group spacing */
+.dbs-dept-grp {
+    margin-bottom: 0.75rem;
+}
+.dbs-dept-grp:last-child {
+    margin-bottom: 0;
+}
+
+/* sidebar wider */
+.dbs-cli-block {
+    grid-template-columns: 200px 1fr !important;
+}
+
+.dbs-sidebar {
+    padding: 16px 18px !important;
+    gap: 16px !important;
+}
+
+.dbs-main {
+    padding: 16px 18px !important;
+    gap: 14px !important;
+}
+
+/* ─── Dashboard hidden blocks (filtered out) ─────────────────── */
+.dbs-szn-block.db-hidden,
+.dbs-cli-block.db-hidden {
+    display: none !important;
+}
+
+/* ─── No results message ─────────────────────────────────────── */
+.db-no-results {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+.db-no-results svg {
+    margin: 0 auto 0.75rem;
+    display: block;
+    opacity: 0.35;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   ENHANCED STYLE CARDS v2 + ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+
+/* ── Card entrance animation ─────────────────────────────── */
+@keyframes cardFadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(14px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sznFadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sidebarSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes progressGrow {
+    from { width: 0% !important; }
+}
+
+/* Season blocks stagger */
+.dbs-szn-block {
+    animation: sznFadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+.dbs-szn-block:nth-child(1) { animation-delay: 0ms; }
+.dbs-szn-block:nth-child(2) { animation-delay: 80ms; }
+.dbs-szn-block:nth-child(3) { animation-delay: 160ms; }
+
+/* Client sidebar slide */
+.dbs-sidebar {
+    animation: sidebarSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation-delay: 120ms;
+}
+
+/* Cards stagger */
+.dbs-sc-v2 {
+    animation: cardFadeUp 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+    will-change: transform, opacity;
+}
+
+/* ── Hover lift on cards ─────────────────────────────────── */
+.dbs-sc-v2 {
+    transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s !important;
+    cursor: default;
+}
+.dbs-sc-v2:hover {
+    border-color: #c0c6d0 !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,.09) !important;
+    transform: translateY(-2px);
+}
+
+/* ── Code row (style code + sample badge inline) ─────────── */
+.dbs-sc-code-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+/* ── Sample badge ────────────────────────────────────────── */
+.dbs-sc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 20px;
+    white-space: nowrap;
+    letter-spacing: .03em;
+}
+.sc-badge-ok     { background: #dcfce7; color: #166534; }
+.sc-badge-warn   { background: #fef3c7; color: #92400e; }
+.sc-badge-danger { background: #fee2e2; color: #991b1b; }
+
+/* ── Color swatches ──────────────────────────────────────── */
+.sc-colors-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 4px 0 2px;
+    flex-wrap: wrap;
+}
+
+.sc-color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.7);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
+    flex-shrink: 0;
+    transition: transform 0.15s;
+}
+.sc-color-dot:hover {
+    transform: scale(1.35);
+    z-index: 1;
+}
+
+.sc-color-more {
+    font-size: 9px;
+    font-weight: 700;
+    color: #9ca3af;
+    margin-left: 2px;
+}
+
+/* ── Order status chips ──────────────────────────────────── */
+.sc-chips-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.sc-chip {
+    display: inline-flex;
+    align-items: center;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    letter-spacing: .02em;
+    white-space: nowrap;
+}
+.sc-chip-delivered { background: #dcfce7; color: #166534; }
+.sc-chip-transit   { background: #dbeafe; color: #1e40af; }
+.sc-chip-confirmed { background: #e0e7ff; color: #3730a3; }
+.sc-chip-pending   { background: #fef3c7; color: #92400e; }
+
+/* ── Progress bar ────────────────────────────────────────── */
+.sc-prog-wrap {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 7px;
+}
+
+.sc-prog-track {
+    flex: 1;
+    height: 4px;
+    background: #eef0f3;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.sc-prog-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #34d399, #059669);
+    animation: progressGrow 0.8s cubic-bezier(0.4, 0, 0.2, 1) both;
+    animation-delay: inherit;
+}
+
+.sc-prog-lbl {
+    font-size: 9px;
+    font-weight: 700;
+    color: #6b7280;
+    white-space: nowrap;
+    min-width: 44px;
+    text-align: right;
+}
+
+/* ── Welcome bar animation ───────────────────────────────── */
+.db-welcome {
+    animation: sznFadeIn 0.3s ease both;
+}
+
+/* ── Filter bar slide down ───────────────────────────────── */
+@keyframes filterBarIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.db-filter-bar {
+    animation: filterBarIn 0.25s ease both;
+}
+
+/* ── Season band subtle entrance ───────────────────────────── */
+.dbs-szn-band {
+    transition: background 0.2s;
+}
+.dbs-szn-block:hover .dbs-szn-band {
+    background: #f5f6f8;
+}
+
+/* ── Donut animate on render ─────────────────────────────── */
+@keyframes donutSpin {
+    from { stroke-dashoffset: 100; opacity: 0; }
+    to   { opacity: 1; }
+}
+.dbs-donut-wrap circle:not(:first-child) {
+    animation: sznFadeIn 0.5s ease both;
+    animation-delay: 200ms;
+}
+
