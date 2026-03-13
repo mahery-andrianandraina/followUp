@@ -27,21 +27,22 @@ const SHEET_CONFIG = {
     details: {
         label: "Details",
         cols: [
+            { key: "Saison", label: "Saison", type: "text" },
             { key: "Client", label: "Client", type: "text", required: true },
             { key: "Dept", label: "Dept", type: "text", required: true },
             { key: "Style", label: "Style", type: "text", required: true },
-            { key: "StyleDescription", label: "Description", type: "text", full: true },
-            { key: "FabricBase", label: "Fabric Base", type: "text" },
+            { key: "Description", label: "Description", type: "text", full: true },
+            { key: "Fabric Base", label: "Fabric Base", type: "text" },
             { key: "Costing", label: "Costing", type: "text" },
-            { key: "OrderQty", label: "Order Qty", type: "number" },
+            { key: "Order Qty", label: "Order Qty", type: "number" },
             { key: "PSD", label: "PSD", type: "date" },
-            { key: "ExFty", label: "Ex-Fty", type: "date" }
+            { key: "Ex-Fty", label: "Ex-Fty", type: "date" }
         ],
         kpis: [
             { label: "Total Styles", colorClass: "teal", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`, compute: rows => rows.length },
-            { label: "Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r.OrderQty || 0), 0).toLocaleString() },
+            { label: "Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0).toLocaleString() },
             { label: "Departments", colorClass: "yellow", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`, compute: rows => new Set(rows.map(r => r.Dept).filter(Boolean)).size },
-            { label: "Upcoming ExFty", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r.ExFty && new Date(r.ExFty) >= new Date()).length }
+            { label: "Upcoming ExFty", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r["Ex-Fty"] && new Date(r["Ex-Fty"]) >= new Date()).length }
         ]
     },
     sample: {
@@ -416,7 +417,7 @@ function renderDashboard() {
         const accent = ACCENT[ci % ACCENT.length];
         const dRows = details.filter(r => r.Client === client);
 
-        const totalQty = dRows.reduce((s, r) => s + (+r.OrderQty || 0), 0);
+        const totalQty = dRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
         const initials = client.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
         // Group by dept
@@ -424,7 +425,7 @@ function renderDashboard() {
 
         const deptRows = depts.map(dept => {
             const deptR = dRows.filter(r => r.Dept === dept);
-            const deptQty = deptR.reduce((s, r) => s + (+r.OrderQty || 0), 0);
+            const deptQty = deptR.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
             const deptStyles = deptR.length;
             return '<div class="dbc-dept-row">' +
                 '<span class="dbc-dept-name">' + esc(dept) + '</span>' +
@@ -595,7 +596,7 @@ function renderTimeline() {
     const groups = {};
     rows.forEach(r => {
         const k = `${r.Client}||${r.Style}`;
-        if (!groups[k]) groups[k] = { client: r.Client, style: r.Style, desc: r.StyleDescription || "", rows: [] };
+        if (!groups[k]) groups[k] = { client: r.Client, style: r.Style, desc: r.StyleDescription || r.Description || "", rows: [] };
         groups[k].rows.push(r);
     });
 
@@ -762,7 +763,7 @@ function renderTable() {
             if (c.type === "date" && val) {
                 try {
                     const dd = new Date(val);
-                    if ((c.key === "ExFty" || c.key === "Ready Date") && dd.getTime() < new Date().setHours(0, 0, 0, 0)) isPast = true;
+                    if ((c.key === "Ex-Fty" || c.key === "Ready Date") && dd.getTime() < new Date().setHours(0, 0, 0, 0)) isPast = true;
                     displayVal = dd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
                 } catch (e) { }
             }
@@ -809,14 +810,11 @@ function openAddModal() {
     const cfg = SHEET_CONFIG[state.activeSheet];
     modalTitle.textContent = `Ajouter – ${cfg.label}`;
     modalSubTitle.textContent = "Remplissez les champs ci-dessous";
-
-    // Fabric Analysis : Ready Date auto = aujourd'hui + 2j
     const prefill = {};
     if (cfg.custom) {
         const det = detectCustomCols(cfg.cols, cfg.label);
         if (det.isFabricAnalysis && det.readyDate) {
-            const d = new Date();
-            d.setDate(d.getDate() + 2);
+            const d = new Date(); d.setDate(d.getDate() + 2);
             prefill[det.readyDate] = d.toISOString().slice(0, 10);
         }
     }
@@ -1358,8 +1356,8 @@ function detectCustomCols(cols, menuLabel) {
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
         receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
         readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date"]),
-        resultDate: find(["result date", "date result", "date resultat", "r\u00e9sultat date"]),
-        resultField: find(["result", "test result", "r\u00e9sultat", "outcome", "conclusion", "pass fail", "pass/fail"]),
+        resultDate: find(["result date", "date result", "date resultat"]),
+        resultField: find(["result", "test result", "r\u00e9sultat", "outcome", "pass fail"]),
         fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
         fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
@@ -1841,30 +1839,28 @@ function collectAllAlerts() {
                 const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
                 const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
                 const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
-
-                // Lire les 3 champs clés
                 const resultFieldVal = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
                 const resultDateVal  = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
                 const readyDateVal   = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
 
-                // ✅ Champ Result renseigné → analyse terminée, aucune alerte
+                // ✅ Champ Result renseigné → terminé, aucune alerte
                 if (resultFieldVal) return;
 
                 if (readyDateVal) {
-                    const today = new Date(); today.setHours(0,0,0,0);
+                    const today  = new Date(); today.setHours(0,0,0,0);
                     const rdDate = new Date(readyDateVal); rdDate.setHours(0,0,0,0);
 
-                    // Règle 2 : Result Date = Ready Date ET champ Result vide
+                    // Règle 2 : Result Date = Ready Date + champ Result vide
                     if (resultDateVal) {
                         const resDt = new Date(resultDateVal); resDt.setHours(0,0,0,0);
                         if (resDt.getTime() === rdDate.getTime()) {
                             items.push({
                                 dotCls: "dot-today", tagCls: "tag-today",
                                 tagLabel: `\uD83D\uDFE1 R\u00e9sultat re\u00e7u \u2014 \u00e0 renseigner`,
-                                title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, merci de le mentionner dans le champ Result`,
+                                title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, mentionner le r\u00e9sultat dans le champ Result`,
                                 action: `Renseigner le r\u00e9sultat du test (Pass / Fail) dans le champ Result`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `Result Date : ${_fmtDate(resultDateVal)} \u00B7 Ready Date : ${_fmtDate(readyDateVal)}${colorVal ? " \u00B7 " + colorVal : ""}`,
+                                meta: `Result Date : ${_fmtDate(resultDateVal)} \u00B7 Ready Date : ${_fmtDate(readyDateVal)}`,
                                 urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                             return;
@@ -1877,7 +1873,7 @@ function collectAllAlerts() {
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
                             tagLabel: `\uD83D\uDD34 R\u00e9sultat en retard \u2014 ${days}j`,
-                            title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
+                            title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
                             action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j`,
                             style: getStyle(r), client: getClient(r),
                             meta: `Ready Date : ${_fmtDate(readyDateVal)}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
@@ -1885,9 +1881,7 @@ function collectAllAlerts() {
                         });
                         return;
                     }
-
-                    // Ready Date non dépassée → pas d'alerte
-                    return;
+                    return; // Ready Date non dépassée → pas d'alerte
                 }
 
                 // Pas de Ready Date : logique existante (launch date / FSR)
@@ -2799,7 +2793,7 @@ function buildStyleTimeline() {
     return allStyles.map(style => {
         const detail = (state.data.details || []).find(r => r.Style === style);
         const client = detail?.Client || "";
-        const desc = detail?.StyleDescription || "";
+        const desc = detail?.StyleDescription || detail?.Description || "";
         const stages = [];
 
         // ── Sample
@@ -2917,7 +2911,7 @@ function collectAtRiskStyles() {
         const flags = []; let score = 0;
         const detail = (state.data.details || []).find(r => r.Style === style);
         const client = detail?.Client || (state.data.ordering || []).find(r => r.Style === style)?.Client || "";
-        const desc = detail?.StyleDescription || "";
+        const desc = detail?.StyleDescription || detail?.Description || "";
 
         const psdDiff = safeDiff(detail?.PSD);
         if (psdDiff !== null) {
@@ -2925,10 +2919,10 @@ function collectAtRiskStyles() {
             else if (psdDiff <= 7) { flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${_fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" }); score += 1; }
         }
 
-        const exftyDiff = safeDiff(detail?.ExFty);
+        const exftyDiff = safeDiff(detail?.["Ex-Fty"] ?? detail?.ExFty);
         if (exftyDiff !== null) {
-            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail.ExFty)})`, urgency: "high" }); score += 2; }
-            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
+            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: "high" }); score += 2; }
+            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
         }
 
         const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered");
