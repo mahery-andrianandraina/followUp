@@ -1351,13 +1351,18 @@ function detectCustomCols(cols, menuLabel) {
         || FABRIC_COL_PHRASES.some(p => sheetNameHints.includes(p))
     );
 
+    // findExact : match exact sur le label complet (pour eviter "RESULT DATE" au lieu de "RESULT")
+    const findExact = (patterns) => {
+        const c = cols.find(c => patterns.includes(c.label.toLowerCase()));
+        return c ? c.key : null;
+    };
     return {
         approval: find(["approval", "approv", "approved", "validation", "statut appr"]),
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
         receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
         readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date"]),
-        resultDate: find(["result date", "date result", "date resultat"]),
-        resultField: find(["result", "test result", "r\u00e9sultat", "outcome", "pass fail"]),
+        resultDate: find(["result date", "date result"]),
+        resultField: findExact(["result"]),
         fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
         fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
@@ -1835,40 +1840,46 @@ function collectAllAlerts() {
 
             // ── FABRIC DEVO / ANALYSIS ──────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
-                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
-                const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
-                const resultFieldVal = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
-                const resultDateVal  = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
-                const readyDateVal   = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
+                // Lire les 3 champs clés du GS : READY DATE, RESULT DATE, RESULT
+                const efaVal       = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                const colorVal     = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal       = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const fsrInTitle   = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
+                // RESULT : champ texte Pass/Fail
+                const resultVal    = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
+                // RESULT DATE : date de réception du résultat
+                const resultDtVal  = det.resultDate && r[det.resultDate] ? String(r[det.resultDate]).trim() : "";
+                // READY DATE : date attendue du résultat (auto J+2)
+                const readyDtVal   = det.readyDate && r[det.readyDate] ? String(r[det.readyDate]).trim() : "";
 
-                // ✅ Champ Result renseigné → terminé, aucune alerte
-                if (resultFieldVal) return;
+                // ✅ RESULT renseigné → analyse terminée, AUCUNE alerte
+                if (resultVal) return;
 
-                if (readyDateVal) {
-                    const today  = new Date(); today.setHours(0,0,0,0);
-                    const rdDate = new Date(readyDateVal); rdDate.setHours(0,0,0,0);
+                if (readyDtVal) {
+                    const today  = new Date(); today.setHours(0, 0, 0, 0);
+                    const rdDate = new Date(readyDtVal); rdDate.setHours(0, 0, 0, 0);
 
-                    // Règle 2 : Result Date = Ready Date + champ Result vide
-                    if (resultDateVal) {
-                        const resDt = new Date(resultDateVal); resDt.setHours(0,0,0,0);
+                    // Règle 2 : RESULT DATE = READY DATE + RESULT vide
+                    // → le labo a rendu le résultat mais on ne l'a pas saisi
+                    if (resultDtVal) {
+                        const resDt = new Date(resultDtVal); resDt.setHours(0, 0, 0, 0);
                         if (resDt.getTime() === rdDate.getTime()) {
                             items.push({
                                 dotCls: "dot-today", tagCls: "tag-today",
-                                tagLabel: `\uD83D\uDFE1 R\u00e9sultat re\u00e7u \u2014 \u00e0 renseigner`,
-                                title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, mentionner le r\u00e9sultat dans le champ Result`,
-                                action: `Renseigner le r\u00e9sultat du test (Pass / Fail) dans le champ Result`,
+                                tagLabel: `\uD83D\uDFE1 R\u00e9sultat re\u00e7u \u2014 \u00e0 saisir`,
+                                title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, merci de le saisir dans le champ RESULT`,
+                                action: `Saisir le r\u00e9sultat du test (Pass / Fail) dans le champ RESULT`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `Result Date : ${_fmtDate(resultDateVal)} \u00B7 Ready Date : ${_fmtDate(readyDateVal)}`,
+                                meta: `Result Date : ${_fmtDate(resultDtVal)} \u00B7 Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " \u00B7 EFA : " + efaVal : ""}`,
                                 urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                             return;
                         }
                     }
 
-                    // Règle 1 : Ready Date dépassée + Result Date vide + Result vide
-                    if (!resultDateVal && rdDate < today) {
+                    // Règle 1 : READY DATE dépassée + RESULT DATE vide + RESULT vide
+                    // → le labo n'a pas encore rendu le résultat
+                    if (!resultDtVal && rdDate < today) {
                         const days = Math.round((today - rdDate) / 86400000);
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
@@ -1876,16 +1887,17 @@ function collectAllAlerts() {
                             title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
                             action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(readyDateVal)}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " \u00B7 EFA : " + efaVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
                             urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
-                    return; // Ready Date non dépassée → pas d'alerte
+                    // Ready Date pas encore dépassée → pas d'alerte
+                    return;
                 }
 
-                // Pas de Ready Date : logique existante (launch date / FSR)
-                if (!hasReadyDate && !hasReceived && !hasSending) {
+                // Pas de Ready Date : en attente résultat labo (launch date connue)
+                if (!readyDtVal && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
                     if (dateRef) {
@@ -1895,22 +1907,11 @@ function collectAllAlerts() {
                         items.push({
                             dotCls: "dot-nopo", tagCls: "tag-nopo",
                             tagLabel: `\uD83E\uDDEA ${efaVal}${colorVal ? " \u2014 " + colorVal : ""} \u2014 r\u00e9sultat attendu (${launchDays}j)${urgencyBadge}`,
-                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} \u2014 en attente du r\u00e9sultat \u2014 lanc\u00e9 il y a ${launchDays}j`,
+                            title: `${efaVal}${colorVal ? " " + colorVal : ""} \u2014 en attente du r\u00e9sultat \u2014 lanc\u00e9 il y a ${launchDays}j`,
                             action: `Renseigner la Ready Date d\u00e8s r\u00e9ception du labo`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ref : ${efaVal}${colorVal ? " \u00B7 Color : " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""} \u00B7 Lanc\u00e9 le : ${_fmtDate(dateRef)}`,
+                            meta: `EFA : ${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u00B7 Lanc\u00e9 le : ${_fmtDate(dateRef)}`,
                             urgency, sheet: key, rowIndex: r._rowIndex
-                        });
-                        return;
-                    } else if (det.isFabricDevo && !isRejected) {
-                        items.push({
-                            dotCls: "dot-nopo", tagCls: "tag-nopo",
-                            tagLabel: `\uD83D\uDCCB ${efaVal} \u2014 Attente FSR`,
-                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} \u2014 FSR \u00e0 lancer / Ready Date manquante`,
-                            action: `V\u00e9rifier avec le supplier et lancer l'analyse FSR`,
-                            style: getStyle(r), client: getClient(r),
-                            meta: `Ref : ${efaVal}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
-                            urgency: "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
