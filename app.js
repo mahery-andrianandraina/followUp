@@ -364,7 +364,7 @@ function showTableView() {
     const tc = document.getElementById("table-card-wrap");
     if (ds) ds.style.display = "none";
     if (kg) kg.style.display = "none";
-    if (tc) tc.style.display = "";
+    if (tc) { tc.style.display = "flex"; tc.style.flexDirection = "column"; tc.style.flex = "1"; tc.style.minHeight = "0"; tc.style.overflow = "hidden"; }
 }
 
 function renderAll() {

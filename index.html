@@ -10,49 +10,42 @@
     <style>
       /* ── Fix: table-card remplit tout l'espace vertical disponible ── */
 
-      /* Le layout principal doit être en colonne pleine hauteur */
       .layout-body {
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        overflow: hidden;
+        display: flex !important;
+        flex-direction: column !important;
+        height: 100vh !important;
+        overflow: hidden !important;
       }
 
-      /* Le <main> prend tout l'espace restant sous le header */
       main.main {
-        flex: 1 1 0;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 1rem; /* ajustez si votre styles.css en a déjà */
-        gap: 0.75rem;
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
       }
 
-      /* La kpi-bar garde sa hauteur naturelle */
       .kpi-bar {
-        flex-shrink: 0;
+        flex-shrink: 0 !important;
       }
 
-      /* Le table-card s'étire pour remplir le reste */
-      .table-card {
-        flex: 1 1 0;
-        min-height: 0;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+      /* Quand table-card est visible (pas display:none), il s'étire */
+      .table-card:not([style*="display: none"]):not([style*="display:none"]) {
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
       }
 
-      /* Le header du tableau garde sa hauteur */
       .table-header {
-        flex-shrink: 0;
+        flex-shrink: 0 !important;
       }
 
-      /* La zone scrollable du tableau prend tout l'espace restant */
       .table-wrap {
-        flex: 1 1 0;
-        min-height: 0;
-        overflow: auto;
+        flex: 1 1 0 !important;
+        min-height: 0 !important;
+        overflow: auto !important;
       }
     </style>
 </head>
