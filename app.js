@@ -2312,12 +2312,12 @@ function openGlobalNotifDrawer() {
         .gnd-menu-list { display:flex; flex-direction:column; padding:8px 10px; gap:3px; }
         .gnd-mline { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; border-radius:10px; border:0.5px solid transparent; transition:border-color .12s,background .12s; }
         .gnd-mline:hover { border-color:var(--color-border-secondary,#d1d5db); }
-        .gnd-mline-high { background:#FDF3F3; } .gnd-mline-high:hover { background:#FAEBEB; }
-        .gnd-mline-mid  { background:#FDFAF3; } .gnd-mline-mid:hover  { background:#FAF4E6; }
+        .gnd-mline-high { background:#FFF0F0; } .gnd-mline-high:hover { background:#FFE4E4; }
+        .gnd-mline-mid  { background:#FFFDE7; } .gnd-mline-mid:hover  { background:#FFFAC0; }
         .gnd-mline-low  { background:var(--color-background-secondary,#f9fafb); }
         .gnd-mline-badge { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-        .gnd-mline-high .gnd-mline-badge { background:#F7C1C1; }
-        .gnd-mline-mid  .gnd-mline-badge { background:#FAC775; }
+        .gnd-mline-high .gnd-mline-badge { background:#FFBCBC; }
+        .gnd-mline-mid  .gnd-mline-badge { background:#FFF176; }
         .gnd-mline-low  .gnd-mline-badge { background:#D3D1C7; }
         .gnd-mline-body { flex:1; min-width:0; }
         .gnd-mline-name { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); margin-bottom:4px; }
@@ -2333,6 +2333,18 @@ function openGlobalNotifDrawer() {
         .gnd-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:10px 14px 12px; border-top:0.5px solid var(--color-border-tertiary,#e5e7eb); margin-top:2px; }
         .gnd-leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary,#6b7280); white-space:nowrap; }
         .gnd-leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; display:inline-block; }
+        .dot-late    { background:#FF6B6B !important; }
+        .dot-today   { background:#FFD600 !important; }
+        .dot-send    { background:#22C55E !important; }
+        .dot-approve { background:#3B82F6 !important; }
+        .dot-nopo    { background:#D946EF !important; }
+        .dot-risk    { background:#7C2D12 !important; }
+        .tag-late    { background:#FFF0F0; color:#C0392B; border:0.5px solid #FFBCBC; }
+        .tag-today   { background:#FFFDE7; color:#827717; border:0.5px solid #FFF176; }
+        .tag-send    { background:#F0FDF4; color:#166534; border:0.5px solid #86EFAC; }
+        .tag-approve { background:#EFF6FF; color:#1E40AF; border:0.5px solid #93C5FD; }
+        .tag-nopo    { background:#FDF4FF; color:#86198F; border:0.5px solid #E879F9; }
+        .tag-risk    { background:#FEF3C7; color:#7C2D12; border:0.5px solid #D97706; }
         `;
         document.head.appendChild(st);
     }
@@ -2421,9 +2433,9 @@ function _renderGndFull() {
             .join("");
 
         const iconSvg = hasHigh
-            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L1 14h14L8 2z" stroke="#A32D2D" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#A32D2D" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L1 14h14L8 2z" stroke="#C0392B" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#C0392B" stroke-width="1.6" stroke-linecap="round"/></svg>`
             : hasMid
-            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#633806" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#633806" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#827717" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#827717" stroke-width="1.6" stroke-linecap="round"/></svg>`
             : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
         listHtml += `
