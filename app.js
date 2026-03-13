@@ -2304,6 +2304,31 @@ function openGlobalNotifDrawer() {
         </div>`;
         document.body.appendChild(drawer);
     }
+    // Inject summary card styles once
+    if (!document.getElementById("gnd-summary-styles")) {
+        const st = document.createElement("style");
+        st.id = "gnd-summary-styles";
+        st.textContent = `
+        .gnd-menu-list { display:flex; flex-direction:column; }
+        .gnd-mline { display:flex; align-items:center; gap:9px; padding:10px 16px; cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); transition:background .1s; border-left:3px solid transparent; }
+        .gnd-mline:hover { background:var(--color-background-secondary,#f9fafb); }
+        .gnd-mline:last-child { border-bottom:none; }
+        .gnd-mline-high { border-left-color:#ef4444; }
+        .gnd-mline-mid  { border-left-color:#f59e0b; }
+        .gnd-mline-low  { border-left-color:#9ca3af; }
+        .gnd-mline-name { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); flex:1; }
+        .gnd-mline-pills { display:flex; gap:4px; }
+        .gnd-mpill { font-size:10px; padding:1px 6px; border-radius:4px; font-weight:500; }
+        .gnd-mpill-high { background:#fee2e2; color:#b91c1c; }
+        .gnd-mpill-mid  { background:#fef3c7; color:#92400e; }
+        .gnd-mpill-low  { background:#f3f4f6; color:#6b7280; }
+        .gnd-mline-total { font-size:11px; font-weight:500; color:var(--color-text-secondary,#6b7280); min-width:16px; text-align:right; }
+        .gnd-detail-back { display:flex; align-items:center; gap:6px; padding:8px 16px; font-size:12px; color:var(--color-text-secondary,#6b7280); cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); background:var(--color-background-secondary,#f9fafb); }
+        .gnd-detail-back:hover { color:var(--color-text-primary,#111827); }
+        .gnd-detail-label { font-size:12px; font-weight:500; color:var(--color-text-primary,#111827); padding:8px 16px 4px; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); }
+        `;
+        document.head.appendChild(st);
+    }
     _renderGndFull();
     requestAnimationFrame(() => drawer.classList.add("open"));
 }
@@ -2335,13 +2360,11 @@ function _renderGndFull() {
     const keys = Object.keys(all);
     const total = keys.reduce((s, k) => s + all[k].items.length, 0);
 
-    // Sub-header
     const sub = document.getElementById("gnd-header-sub");
     if (sub) sub.textContent = total
         ? `${total} alerte${total > 1 ? "s" : ""} · ${keys.length} menu${keys.length > 1 ? "s" : ""}`
         : "Aucune alerte active";
 
-    // Cacher les tabs — on utilise les accordéons à la place
     const tabsEl = document.getElementById("gnd-tabs");
     if (tabsEl) tabsEl.style.display = "none";
 
@@ -2355,7 +2378,7 @@ function _renderGndFull() {
 
     const renderRow = item => `
     <div class="gnd-row${item.urgency === "high" ? " gnd-row-high" : item.urgency === "mid" ? " gnd-row-mid" : ""}${item.rowIndex != null ? " gnd-row-clickable" : ""}"
-         ${item.rowIndex != null ? `onclick="navigateToRow('${item.sheet}',${item.rowIndex})" title="Cliquer pour voir la ligne"` : ""}>
+         ${item.rowIndex != null ? `onclick="navigateToRow('${item.sheet}',${item.rowIndex})"` : ""}>
         <span class="gnd-row-dot ${item.dotCls}"></span>
         <div class="gnd-row-info">
             <div class="gnd-row-top">
@@ -2367,44 +2390,81 @@ function _renderGndFull() {
             <div class="gnd-row-action">→ ${esc(item.action)}</div>
             <div class="gnd-row-meta">${item.meta || ""}</div>
         </div>
-        ${item.rowIndex != null ? `<span class="gnd-row-goto" title="Voir la ligne">
+        ${item.rowIndex != null ? `<span class="gnd-row-goto">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
-        </span>`: ""}
+        </span>` : ""}
     </div>`;
 
-    // Ouvrir par défaut tous les menus s'ils sont nouveaux
-    keys.forEach(k => { if (!_gndOpenSections.has("__visited__" + k)) { _gndOpenSections.add(k); _gndOpenSections.add("__visited__" + k); } });
-
-    let html = ``;
-
+    // ── Vue liste : une ligne par menu, tout fermé ──
+    let listHtml = `<div class="gnd-menu-list" id="gnd-menu-list">`;
     keys.forEach(k => {
         const items = [...all[k].items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
-        const isOpen = _gndOpenSections.has(k);
         const hasHigh = items.some(i => i.urgency === "high");
-        const hasMid = !hasHigh && items.some(i => i.urgency === "mid");
-        const countCls = hasHigh ? "has-high" : hasMid ? "has-mid" : "";
-        const hdrUrgCls = hasHigh ? "has-high-hdr" : hasMid ? "has-mid-hdr" : "";
-        const bodyUrgCls = hasHigh ? "body-high" : hasMid ? "body-mid" : "";
+        const hasMid  = !hasHigh && items.some(i => i.urgency === "mid");
+        const barCls  = hasHigh ? "gnd-mline-high" : hasMid ? "gnd-mline-mid" : "gnd-mline-low";
+        const nHigh   = items.filter(i => i.urgency === "high").length;
+        const nMid    = items.filter(i => i.urgency === "mid").length;
+        const nLow    = items.filter(i => i.urgency === "low").length;
         const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
+        const pillsHtml = [
+            nHigh ? `<span class="gnd-mpill gnd-mpill-high">\uD83D\uDD34 ${nHigh}</span>` : "",
+            nMid  ? `<span class="gnd-mpill gnd-mpill-mid">\uD83D\uDFE1 ${nMid}</span>`  : "",
+            nLow  ? `<span class="gnd-mpill gnd-mpill-low">\u26AA ${nLow}</span>`         : ""
+        ].filter(Boolean).join("");
 
-        html += `
-        <div class="gnd-acc" id="gnd-acc-${safeKey}">
-            <div class="gnd-acc-header ${hdrUrgCls}" onclick="gndToggleSection('${safeKey}')">
-                <svg id="gnd-acc-arrow-${safeKey}" class="gnd-acc-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14" style="transform:${isOpen ? "rotate(90deg)" : "rotate(0deg)"}">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
-                </svg>
-                <span class="gnd-acc-label">${esc(all[k].label)}</span>
-                <span class="gnd-acc-count ${countCls}">${items.length}</span>
-            </div>
-            <div class="gnd-acc-body ${bodyUrgCls}" id="gnd-acc-body-${safeKey}" style="max-height:${isOpen ? "9999px" : "0"};opacity:${isOpen ? "1" : "0"}">
-                ${items.map(renderRow).join("")}
-            </div>
+        listHtml += `
+        <div class="gnd-mline ${barCls}" onclick="gndOpenDetail('${safeKey}')">
+            <span class="gnd-mline-name">${esc(all[k].label)}</span>
+            <div class="gnd-mline-pills">${pillsHtml}</div>
+            <span class="gnd-mline-total">${items.length}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0;color:var(--color-text-secondary,#6b7280)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
         </div>`;
-        // Sync key en safeKey dans _gndOpenSections
-        if (_gndOpenSections.has(k) && k !== safeKey) { _gndOpenSections.add(safeKey); }
     });
+    listHtml += `</div>`;
 
-    body.innerHTML = html;
+    // ── Vue détail (cachée par défaut) ──
+    const detailHtml = `<div class="gnd-detail-view" id="gnd-detail-view" style="display:none">
+        <div class="gnd-detail-back" onclick="gndCloseDetail()">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+            Retour
+        </div>
+        <div class="gnd-detail-label" id="gnd-detail-label"></div>
+        <div id="gnd-detail-rows"></div>
+    </div>`;
+
+    body.innerHTML = listHtml + detailHtml;
+    body._gndAll = all;
+    body._gndRenderRow = renderRow;
+    body._gndUrgOrder = urgencyOrder;
+}
+
+function gndOpenDetail(safeKey) {
+    const body = document.getElementById("gnd-body");
+    const all = body._gndAll;
+    const renderRow = body._gndRenderRow;
+    const urgencyOrder = body._gndUrgOrder;
+    if (!all) return;
+
+    const origKey = Object.keys(all).find(k => k.replace(/[^a-zA-Z0-9_]/g, "_") === safeKey) || safeKey;
+    const data = all[origKey];
+    if (!data) return;
+
+    const items = [...data.items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
+
+    document.getElementById("gnd-detail-label").textContent = `${data.label} — ${items.length} alerte${items.length > 1 ? "s" : ""}`;
+    document.getElementById("gnd-detail-rows").innerHTML = items.map(renderRow).join("");
+    document.getElementById("gnd-menu-list").style.display = "none";
+    document.getElementById("gnd-detail-view").style.display = "block";
+    body.scrollTop = 0;
+}
+
+function gndCloseDetail() {
+    const body = document.getElementById("gnd-body");
+    const list = document.getElementById("gnd-menu-list");
+    const detail = document.getElementById("gnd-detail-view");
+    if (list) list.style.display = "";
+    if (detail) detail.style.display = "none";
+    if (body) body.scrollTop = 0;
 }
 
 // ── Export Excel global ───────────────────────────────────────
