@@ -495,12 +495,12 @@ function renderDashboard() {
         </div>
         <div>
             <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#ef4444"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Blocages en Cascade</h3>
-                <span id="cascade-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#f59e0b"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Styles à Risque</h3>
+                <span id="atrisk-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
                 <button onclick="openDuplicatesPanel()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">🔍 Doublons</button>
             </div>
-            <div id="cascade-blocks-body"></div>
+            <div id="atrisk-body"></div>
         </div>
     </div>`;
             _dsEl.insertAdjacentHTML("beforeend", extraHtml);
@@ -2095,9 +2095,18 @@ function collectAllAlerts() {
         if (items.length) all[key] = { label: cfg.label, items };
     });
 
-    const blocks = collectCascadeBlocks(); // Assuming collectCascadeBlocks is defined elsewhere
-    if (blocks.length) {
-        all["__cascade__"] = { label: "⛓ Blocages Cascade", items: blocks.map(b => ({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} Cascade — ${b.issues.length} problèmes`, title: `Style ${b.style} — Blocage`, action: "Vérifier dépendances", style: b.style, urgency: "high", sheet: "ordering" })) };
+    const atRisks = collectAtRiskStyles();
+    if (atRisks.length) {
+        all["__atrisk__"] = { label: "⚡ Styles à Risque", items: atRisks.map(r => ({
+            dotCls: r.maxUrgency === "high" ? "dot-late" : "dot-today",
+            tagCls: r.maxUrgency === "high" ? "tag-late" : "tag-today",
+            tagLabel: `${r.maxUrgency === "high" ? ICONS.alert : ICONS.clock} Score ${r.score} — ${r.flags.length} signal${r.flags.length > 1 ? "s" : ""}`,
+            title: `${r.style}${r.desc ? " · " + r.desc : ""} — ${r.flags.map(f => f.label).join(" · ")}`,
+            action: r.flags[0]?.label || "Vérifier le style",
+            style: r.style, client: r.client,
+            urgency: r.maxUrgency, sheet: "details",
+            rowIndex: (state.data.details || []).find(d => d.Style === r.style)?._rowIndex ?? null
+        })) };
     }
     return all;
 }
@@ -2841,22 +2850,96 @@ function renderStyleTimelineSection() {
     }).join("");
 }
 
-// ── Panneau dashboard Blocages ────────────────────────────────
-function renderCascadeBlocksSection() {
-    const blocks = collectCascadeBlocks();
-    if (!blocks.length) return `<div style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.8rem;">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20" style="display:block;margin:0 auto .4rem;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Aucun blocage détecté</div>`;
+// ── Styles à Risque ───────────────────────────────────────────
+function collectAtRiskStyles() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const daysDiff = d => { if (!d) return null; const dt = new Date(d); if (isNaN(dt)) return null; return Math.round((dt - today) / 86400000); };
+    const fmtDate = d => { if (!d) return "—"; const dt = new Date(d); if (isNaN(dt)) return d; return dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }); };
 
-    return blocks.map(b => {
-        const urgColor = b.maxUrgency === "high" ? "#ef4444" : "#f59e0b";
+    const allStyles = [...new Set([
+        ...(state.data.details || []).map(r => r.Style),
+        ...(state.data.sample || []).map(r => r.Style),
+        ...(state.data.ordering || []).map(r => r.Style),
+    ].filter(Boolean))];
+
+    const results = [];
+
+    allStyles.forEach(style => {
+        const flags = [];
+        let score = 0;
+
+        const detail = (state.data.details || []).find(r => r.Style === style);
+        const client = detail?.Client || (state.data.ordering || []).find(r => r.Style === style)?.Client || "";
+        const desc = detail?.StyleDescription || "";
+
+        // PSD — risque si < 7j ou dépassée
+        const psdDiff = daysDiff(detail?.PSD);
+        if (psdDiff !== null) {
+            if (psdDiff < 0) {
+                flags.push({ icon: "📅", label: `PSD dépassée de ${Math.abs(psdDiff)}j (${fmtDate(detail.PSD)})`, urgency: "high" });
+                score += 2;
+            } else if (psdDiff <= 7) {
+                flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" });
+                score += 1;
+            }
+        }
+
+        // Ex-Fty — risque si < 14j ou dépassée
+        const exftyDiff = daysDiff(detail?.ExFty);
+        if (exftyDiff !== null) {
+            if (exftyDiff < 0) {
+                flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${fmtDate(detail.ExFty)})`, urgency: "high" });
+                score += 2;
+            } else if (exftyDiff <= 14) {
+                flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" });
+                score += 1;
+            }
+        }
+
+        // Commande confirmée non livrée
+        const activeOrders = (state.data.ordering || []).filter(r =>
+            r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered"
+        );
+        if (activeOrders.length) {
+            flags.push({ icon: "📦", label: `${activeOrders.length} commande${activeOrders.length > 1 ? "s" : ""} confirmée${activeOrders.length > 1 ? "s" : ""} non livrée${activeOrders.length > 1 ? "s" : ""}`, urgency: "mid" });
+            score += 1;
+        }
+
+        // Sample envoyée non approuvée
+        const pendingSamples = (state.data.sample || []).filter(r =>
+            r.Style === style && r.Approval !== "Approved"
+            && (r["Sending Date"] && String(r["Sending Date"]).trim())
+        );
+        if (pendingSamples.length) {
+            flags.push({ icon: "🧵", label: `${pendingSamples.length} sample${pendingSamples.length > 1 ? "s" : ""} envoyée${pendingSamples.length > 1 ? "s" : ""} sans approval`, urgency: "mid" });
+            score += 1;
+        }
+
+        if (flags.length >= 2) {
+            results.push({ style, client, desc, flags, score, maxUrgency: flags.some(f => f.urgency === "high") ? "high" : "mid" });
+        }
+    });
+
+    return results.sort((a, b) => b.score - a.score);
+}
+
+function renderAtRiskSection(risks) {
+    if (!risks || !risks.length) return `<div style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.8rem;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20" style="display:block;margin:0 auto .4rem;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Aucun style à risque détecté</div>`;
+
+    return risks.map(r => {
+        const urgColor = r.maxUrgency === "high" ? "#ef4444" : "#f59e0b";
+        const scoreBg = r.score >= 4 ? "#fee2e2" : r.score >= 2 ? "#fef3c7" : "#f1f5f9";
+        const scoreColor = r.score >= 4 ? "#b91c1c" : r.score >= 2 ? "#92400e" : "#475569";
         return `<div style="border-left:3px solid ${urgColor};background:${urgColor}08;border-radius:0 8px 8px 0;padding:.7rem 1rem;margin-bottom:.5rem;">
-            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;">
-                <strong style="font-size:.85rem;">${esc(b.style)}</strong>
-                ${b.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(b.client)}</span>` : ""}
-                <span style="margin-left:auto;font-size:.68rem;color:${urgColor};font-weight:700;">${b.issues.length} problème${b.issues.length > 1 ? "s" : ""}</span>
+            <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;flex-wrap:wrap;">
+                <strong style="font-size:.85rem;">${esc(r.style)}</strong>
+                ${r.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(r.client)}</span>` : ""}
+                ${r.desc ? `<span style="font-size:.72rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:150px;">${esc(r.desc)}</span>` : ""}
+                <span style="margin-left:auto;font-size:.68rem;font-weight:700;background:${scoreBg};color:${scoreColor};padding:2px 8px;border-radius:20px;">Score ${r.score}</span>
             </div>
-            ${b.issues.map(i => `<div style="font-size:.75rem;color:var(--text-secondary,#64748b);line-height:1.5;">${i.icon} ${esc(i.label)}</div>`).join("")}
+            ${r.flags.map(f => `<div style="font-size:.75rem;color:var(--text-secondary,#64748b);line-height:1.6;">${f.icon} ${esc(f.label)}</div>`).join("")}
         </div>`;
     }).join("");
 }
@@ -2872,9 +2955,9 @@ function toggleStyleTimeline() {
 
 function _refreshDashboardIntelligence() {
     const tlBody = document.getElementById("style-timeline-body");
-    const cbBody = document.getElementById("cascade-blocks-body");
+    const arBody = document.getElementById("atrisk-body");
     const tlCount = document.getElementById("timeline-style-count");
-    const ccCount = document.getElementById("cascade-count");
+    const arCount = document.getElementById("atrisk-count");
 
     if (tlBody) {
         const allData = buildStyleTimeline();
@@ -2926,9 +3009,9 @@ function _refreshDashboardIntelligence() {
         }
     }
 
-    if (cbBody) {
-        const blocks = collectCascadeBlocks();
-        if (ccCount) ccCount.textContent = blocks.length ? `${blocks.length} blocage${blocks.length > 1 ? "s" : ""}` : "Aucun";
-        cbBody.innerHTML = renderCascadeBlocksSection();
+    if (arBody) {
+        const risks = collectAtRiskStyles();
+        if (arCount) arCount.textContent = risks.length ? `${risks.length} style${risks.length > 1 ? "s" : ""}` : "Aucun";
+        arBody.innerHTML = renderAtRiskSection(risks);
     }
 }
