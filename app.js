@@ -1872,6 +1872,20 @@ function collectAllAlerts() {
                         }
                     }
 
+                    // Règle 1b : READY DATE = aujourd'hui + RESULT vide → résultat attendu aujourd'hui
+                    if (!resultDtVal && rdDate.getTime() === today.getTime()) {
+                        items.push({
+                            dotCls: "dot-today", tagCls: "tag-today",
+                            tagLabel: `🟡 Résultat attendu aujourd'hui`,
+                            title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Résultat du labo attendu aujourd'hui`,
+                            action: `Contacter le laboratoire pour obtenir le résultat`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}${fsrVal ? " · FSR : " + fsrVal : ""}`,
+                            urgency: "mid", sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    }
+
                     // Règle 1 : READY DATE dépassée + RESULT DATE vide + RESULT vide
                     if (!resultDtVal && rdDate < today) {
                         const days = Math.round((today - rdDate) / 86400000);
@@ -1886,7 +1900,7 @@ function collectAllAlerts() {
                         });
                         return;
                     }
-                    return; // Ready Date non dépassée
+                    return; // Ready Date dans le futur → pas d'alerte
                 }
 
                 // Pas de Ready Date : en attente labo
