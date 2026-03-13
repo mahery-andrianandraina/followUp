@@ -1358,7 +1358,8 @@ function detectCustomCols(cols, menuLabel) {
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
         receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
         readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date"]),
-        resultDate: find(["result date", "date result", "test result", "date test", "resultat", "r\u00e9sultat", "lab result", "date resultat", "result"]),
+        resultDate: find(["result date", "date result", "date resultat", "r\u00e9sultat date"]),
+        resultField: find(["result", "test result", "r\u00e9sultat", "outcome", "conclusion", "pass fail", "pass/fail"]),
         fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
         fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
@@ -1836,36 +1837,60 @@ function collectAllAlerts() {
 
             // ── FABRIC DEVO / ANALYSIS ──────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
-                const efaVal   = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
-                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                const fsrVal   = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
                 const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
 
-                // ✅ Result Date renseignée → analyse terminée, aucune alerte
-                const hasResultDate = det.resultDate && !!(r[det.resultDate] && String(r[det.resultDate]).trim());
-                if (hasResultDate) return;
+                // Lire les 3 champs clés
+                const resultFieldVal = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
+                const resultDateVal  = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
+                const readyDateVal   = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
 
-                // 🔴 Ready Date dépassée ET pas de Result Date → alerte retard
-                if (hasReadyDate) {
-                    const diff = _daysDiff(r[det.readyDate]);
-                    if (diff < 0) {
-                        const days = Math.abs(diff);
+                // ✅ Champ Result renseigné → analyse terminée, aucune alerte
+                if (resultFieldVal) return;
+
+                if (readyDateVal) {
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const rdDate = new Date(readyDateVal); rdDate.setHours(0,0,0,0);
+
+                    // Règle 2 : Result Date = Ready Date ET champ Result vide
+                    if (resultDateVal) {
+                        const resDt = new Date(resultDateVal); resDt.setHours(0,0,0,0);
+                        if (resDt.getTime() === rdDate.getTime()) {
+                            items.push({
+                                dotCls: "dot-today", tagCls: "tag-today",
+                                tagLabel: `\uD83D\uDFE1 R\u00e9sultat re\u00e7u \u2014 \u00e0 renseigner`,
+                                title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, merci de le mentionner dans le champ Result`,
+                                action: `Renseigner le r\u00e9sultat du test (Pass / Fail) dans le champ Result`,
+                                style: getStyle(r), client: getClient(r),
+                                meta: `Result Date : ${_fmtDate(resultDateVal)} \u00B7 Ready Date : ${_fmtDate(readyDateVal)}${colorVal ? " \u00B7 " + colorVal : ""}`,
+                                urgency: "mid", sheet: key, rowIndex: r._rowIndex
+                            });
+                            return;
+                        }
+                    }
+
+                    // Règle 1 : Ready Date dépassée + Result Date vide + Result vide
+                    if (!resultDateVal && rdDate < today) {
+                        const days = Math.round((today - rdDate) / 86400000);
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
                             tagLabel: `\uD83D\uDD34 R\u00e9sultat en retard \u2014 ${days}j`,
                             title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
                             action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            meta: `Ready Date : ${_fmtDate(readyDateVal)}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
                             urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
-                    // Ready Date pas encore dépassée → pas d'alerte
+
+                    // Ready Date non dépassée → pas d'alerte
                     return;
                 }
 
-                // Pas de Ready Date ni de Result Date : logique existante (launch date / FSR)
+                // Pas de Ready Date : logique existante (launch date / FSR)
                 if (!hasReadyDate && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
