@@ -2319,24 +2319,20 @@ function openGlobalNotifDrawer() {
         .gnd-mline-high .gnd-mline-badge { background:#F7C1C1; }
         .gnd-mline-mid  .gnd-mline-badge { background:#FAC775; }
         .gnd-mline-low  .gnd-mline-badge { background:#D3D1C7; }
-        .gnd-mline-name { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); flex:1; }
-        .gnd-mline-pills { display:flex; gap:3px; align-items:center; }
-        .gnd-mpill { font-size:11px; padding:2px 7px; border-radius:20px; font-weight:500; }
-        .gnd-mpill-high { background:#F7C1C1; color:#791F1F; }
-        .gnd-mpill-mid  { background:#FAC775; color:#633806; }
-        .gnd-mpill-low  { background:#D3D1C7; color:#444441; }
-        .gnd-mline-total { font-size:12px; font-weight:500; color:var(--color-text-secondary,#6b7280); min-width:18px; text-align:right; }
+        .gnd-mline-body { flex:1; min-width:0; }
+        .gnd-mline-name { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); margin-bottom:4px; }
+        .gnd-mline-types { display:flex; flex-wrap:wrap; gap:4px; }
+        .gnd-mtype { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; padding:1px 6px; border-radius:20px; border:0.5px solid transparent; color:var(--color-text-secondary,#6b7280); background:var(--color-background-primary,#fff); border-color:var(--color-border-tertiary,#e5e7eb); }
+        .gnd-mtype-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; display:inline-block; }
+        .gnd-mline-total { font-size:13px; font-weight:500; color:var(--color-text-secondary,#6b7280); min-width:18px; text-align:right; flex-shrink:0; }
         .gnd-mline-arrow { color:var(--color-text-secondary,#9ca3af); flex-shrink:0; transition:transform .12s; }
         .gnd-mline:hover .gnd-mline-arrow { transform:translateX(2px); }
         .gnd-detail-back { display:flex; align-items:center; gap:7px; padding:10px 16px; font-size:12px; font-weight:500; color:var(--color-text-secondary,#6b7280); cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); background:var(--color-background-secondary,#f9fafb); transition:color .1s; }
         .gnd-detail-back:hover { color:var(--color-text-primary,#111827); }
         .gnd-detail-label { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); padding:10px 16px 6px; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); }
-        .gnd-legend { display:flex; align-items:center; gap:14px; padding:10px 14px; border-top:0.5px solid var(--color-border-tertiary,#e5e7eb); margin-top:2px; }
-        .gnd-leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary,#6b7280); }
-        .gnd-leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-        .gnd-leg-high .gnd-leg-dot { background:#F09595; }
-        .gnd-leg-mid  .gnd-leg-dot { background:#FAC775; }
-        .gnd-leg-low  .gnd-leg-dot { background:#B4B2A9; }
+        .gnd-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; padding:10px 14px 12px; border-top:0.5px solid var(--color-border-tertiary,#e5e7eb); margin-top:2px; }
+        .gnd-leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary,#6b7280); white-space:nowrap; }
+        .gnd-leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; display:inline-block; }
         `;
         document.head.appendChild(st);
     }
@@ -2413,45 +2409,51 @@ function _renderGndFull() {
         const hasHigh = items.some(i => i.urgency === "high");
         const hasMid  = !hasHigh && items.some(i => i.urgency === "mid");
         const barCls  = hasHigh ? "gnd-mline-high" : hasMid ? "gnd-mline-mid" : "gnd-mline-low";
-        const nHigh   = items.filter(i => i.urgency === "high").length;
-        const nMid    = items.filter(i => i.urgency === "mid").length;
-        const nLow    = items.filter(i => i.urgency === "low").length;
         const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
-        const pillsHtml = [
-            nHigh ? `<span class="gnd-mpill gnd-mpill-high">\uD83D\uDD34 ${nHigh}</span>` : "",
-            nMid  ? `<span class="gnd-mpill gnd-mpill-mid">\uD83D\uDFE1 ${nMid}</span>`  : "",
-            nLow  ? `<span class="gnd-mpill gnd-mpill-low">\u26AA ${nLow}</span>`         : ""
-        ].filter(Boolean).join("");
+
+        // Compter par dotCls
+        const dotCount = {};
+        items.forEach(i => { dotCount[i.dotCls] = (dotCount[i.dotCls] || 0) + 1; });
+        const dotOrder = ["dot-late","dot-today","dot-approve","dot-send","dot-nopo","dot-risk"];
+        const typesHtml = dotOrder
+            .filter(d => dotCount[d])
+            .map(d => `<span class="gnd-mtype"><span class="gnd-mtype-dot ${d}"></span>${dotCount[d]}</span>`)
+            .join("");
 
         const iconSvg = hasHigh
-            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L1 14h14L8 2z" stroke="#A32D2D" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#A32D2D" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L1 14h14L8 2z" stroke="#A32D2D" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#A32D2D" stroke-width="1.6" stroke-linecap="round"/></svg>`
             : hasMid
-            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5.5" stroke="#633806" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#633806" stroke-width="1.6" stroke-linecap="round"/></svg>`
-            : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#633806" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#633806" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
         listHtml += `
         <div class="gnd-mline ${barCls}" onclick="gndOpenDetail('${safeKey}')">
             <div class="gnd-mline-badge">${iconSvg}</div>
-            <span class="gnd-mline-name">${esc(all[k].label)}</span>
-            <div class="gnd-mline-pills">${pillsHtml}</div>
+            <div class="gnd-mline-body">
+                <div class="gnd-mline-name">${esc(all[k].label)}</div>
+                <div class="gnd-mline-types">${typesHtml}</div>
+            </div>
             <span class="gnd-mline-total">${items.length}</span>
             <svg class="gnd-mline-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" width="13" height="13"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
     });
     listHtml += `</div>`;
 
-    // ── Légende ──
-    listHtml += `
-    <div class="gnd-legend">
-        <span class="gnd-leg-item gnd-leg-high">
-            <span class="gnd-leg-dot"></span>Urgent
-        </span>
-        <span class="gnd-leg-item gnd-leg-mid">
-            <span class="gnd-leg-dot"></span>À surveiller
-        </span>
-        <span class="gnd-leg-item gnd-leg-low">
-            <span class="gnd-leg-dot"></span>En attente
-        </span>
-    </div>`;
+    // ── Légende dynamique : lit les vraies couleurs CSS des dot-* ──
+    const legendDots = [
+        { cls: "dot-late",    label: "En retard"        },
+        { cls: "dot-today",   label: "Aujourd'hui"      },
+        { cls: "dot-approve", label: "Approval en attente" },
+        { cls: "dot-send",    label: "À envoyer"        },
+        { cls: "dot-nopo",    label: "Info manquante"   },
+        { cls: "dot-risk",    label: "À risque"         },
+    ];
+    const legendItems = legendDots.map(d =>
+        `<span class="gnd-leg-item">
+            <span class="gnd-leg-dot ${d.cls}"></span>${d.label}
+        </span>`
+    ).join("");
+    listHtml += `<div class="gnd-legend">${legendItems}</div>`;
 
     // ── Vue détail (cachée par défaut) ──
     const detailHtml = `<div class="gnd-detail-view" id="gnd-detail-view" style="display:none">
