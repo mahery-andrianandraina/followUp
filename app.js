@@ -2074,9 +2074,11 @@ function collectAllAlerts() {
                         if (sendDays > stats.oldestSendDays) stats.oldestSendDays = sendDays;
                     }
                 });
-                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: "Multi", client: groupData.rows[0].Client || "" });
-                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: "Multi", client: groupData.rows[0].Client || "" });
-                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: "Multi", client: groupData.rows[0].Client || "" });
+                const groupStyleLabel = [...new Set(groupData.rows.map(r => getStyle(r)).filter(s => s && s !== "—"))].join(", ") || getStyle(groupData.rows[0]);
+                const groupClient = groupData.rows[0].Client || "";
+                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: groupStyleLabel, client: groupClient });
+                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: groupStyleLabel, client: groupClient });
+                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: groupStyleLabel, client: groupClient });
                 if (stats.pending > 0) {
                     const daysTxt = stats.oldestSendDays > 0 ? ` (envoyé il y a ${stats.oldestSendDays}j)` : "";
                     items.push({
@@ -2084,7 +2086,7 @@ function collectAllAlerts() {
                         tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval${daysTxt}`,
                         urgency: "low", sheet: key, rowIndex: groupData.rows[0]._rowIndex,
                         title: `${f} : Approbation client${daysTxt}`,
-                        action: "Suivi approval", style: "Multi", client: groupData.rows[0].Client || ""
+                        action: "Suivi approval", style: groupStyleLabel, client: groupClient
                     });
                 }
             });
