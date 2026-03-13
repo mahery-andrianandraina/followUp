@@ -1,0 +1,18 @@
+Bulk  A4 & Shade Band :
+
+Il y a trop d'information repetitif dans la notif.
+Renseigne seulemnt le fabric une fois comme
+
+Pour le chargement de donnes du dashboard a l ouverture de la page. ajoute une animation de chargement au panel du dashboard. Je veux aussi que vous ne mentionne jamais google sheet dans l'appli. le user ne doit pas savoir que la base est google sheet.
+L'actualisation tous les 5mn aussi enleve. le user doit actualiser manuelement les donnes. une marquage sur le logo actualiser quand l'user doit actualiser la page.
+
+avite aussi d'utiliser des emoji pour etre pro. change en illustration 
+
+
+
+
+Tu confondu fabric devo et fabric analysis  ,
+dans fabric devo , tu dois mentioner le FSR comme dans fabric analysis.
+dans le fabric analisys enleve le mot FRS dans la notif
+
+Pour Bulk  A4 & Shade Band :tu dois mentioner le sending date dans la notif. dit que il y a envoye nb de jours si attente approval. 

@@ -363,7 +363,7 @@ function showTableView() {
     const kg = document.getElementById("kpi-grid");
     const tc = document.getElementById("table-card-wrap");
     if (ds) ds.style.display = "none";
-    if (kg) kg.style.display = "";
+    if (kg) kg.style.display = "none";
     if (tc) tc.style.display = "";
 }
 
@@ -523,18 +523,6 @@ function renderKPIs() {
       </div>
     </div>`).join("");
 
-    // ── Bouton ⚙ Colonnes pour Sample et Details ──────────────
-    const old = document.getElementById("edit-cols-btn");
-    if (old) old.remove();
-    if (state.activeSheet === "sample" || state.activeSheet === "details") {
-        const btn = document.createElement("button");
-        btn.id = "edit-cols-btn";
-        btn.title = "Modifier les colonnes de ce menu";
-        btn.style.cssText = "display:flex;align-items:center;gap:5px;margin:8px 0 0 0;padding:5px 12px;font-size:12px;font-weight:500;border:1px solid var(--border,#e5e7eb);border-radius:7px;background:var(--surface-2,#f9fafb);color:var(--text-1,#374151);cursor:pointer;";
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg> Modifier les colonnes`;
-        btn.onclick = () => openMenuEdit(state.activeSheet);
-        kpiGrid.insertAdjacentElement("afterend", btn);
-    }
 }
 
 function openTimeline() {
