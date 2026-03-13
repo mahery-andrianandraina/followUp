@@ -364,7 +364,7 @@ function showTableView() {
     const tc = document.getElementById("table-card-wrap");
     if (ds) ds.style.display = "none";
     if (kg) kg.style.display = "none";
-    if (tc) { tc.style.display = "flex"; tc.style.flexDirection = "column"; tc.style.flex = "1"; tc.style.minHeight = "0"; tc.style.overflow = "hidden"; }
+    if (tc) tc.style.display = "";
 }
 
 function renderAll() {
@@ -408,57 +408,87 @@ function renderDashboard() {
     const details = state.data.details;
     const today = new Date(); today.setHours(0, 0, 0, 0);
 
-    // ── Clients list
-    const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
-
     const ACCENT = ["#6366f1", "#14b8a6", "#f59e0b", "#ef4444", "#3b82f6", "#ec4899", "#8b5cf6", "#10b981"];
 
-    const clientCards = clients.map((client, ci) => {
-        const accent = ACCENT[ci % ACCENT.length];
-        const dRows = details.filter(r => r.Client === client);
+    // ── Helper: Ex-Fty badge
+    function exFtyBadge(dateStr) {
+        if (!dateStr) return '<span class="dbs-exfty none">No Date</span>';
+        const d = new Date(dateStr); d.setHours(0,0,0,0);
+        const diff = Math.round((d - today) / 86400000);
+        const label = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+        if (diff < 0)  return '<span class="dbs-exfty late">' + label + '</span>';
+        if (diff <= 14) return '<span class="dbs-exfty near">' + label + '</span>';
+        return '<span class="dbs-exfty ok">' + label + '</span>';
+    }
 
-        const totalQty = dRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
+    // ── Build client blocks
+    const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
+
+    const blocks = clients.map((client, ci) => {
+        const accent = ACCENT[ci % ACCENT.length];
+        const cRows = details.filter(r => r.Client === client);
+        const clientTotalQty = cRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
         const initials = client.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
-        // Group by dept
-        const depts = [...new Set(dRows.map(r => r.Dept).filter(Boolean))].sort();
+        const depts = [...new Set(cRows.map(r => r.Dept).filter(Boolean))].sort();
+        const maxDeptQty = Math.max(...depts.map(d => cRows.filter(r => r.Dept === d).reduce((s, r) => s + (+r["Order Qty"] || 0), 0)), 1);
 
-        const deptRows = depts.map(dept => {
-            const deptR = dRows.filter(r => r.Dept === dept);
-            const deptQty = deptR.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
-            const deptStyles = deptR.length;
-            return '<div class="dbc-dept-row">' +
-                '<span class="dbc-dept-name">' + esc(dept) + '</span>' +
-                '<span class="dbc-dept-styles">' + deptStyles + ' style' + (deptStyles > 1 ? 's' : '') + '</span>' +
-                '<span class="dbc-dept-qty">' + deptQty.toLocaleString("fr-FR") + ' u.</span>' +
+        // ── Dept summary rows with bar
+        const deptSummaryRows = depts.map(dept => {
+            const dRows = cRows.filter(r => r.Dept === dept);
+            const dQty = dRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
+            const barPct = Math.round((dQty / maxDeptQty) * 100);
+            const nStyles = dRows.length;
+            return '<div class="dbs-dept-row">' +
+                '<span class="dbs-dept-name">' + esc(dept) + '</span>' +
+                '<div class="dbs-bar-wrap"><div class="dbs-bar" style="width:' + barPct + '%;background:' + accent + '"></div></div>' +
+                '<span class="dbs-dept-styles">' + nStyles + ' style' + (nStyles > 1 ? 's' : '') + '</span>' +
+                '<span class="dbs-dept-qty">' + dQty.toLocaleString("fr-FR") + ' u.</span>' +
                 '</div>';
         }).join("");
 
-        return '<div class="dbc-card">' +
+        // ── Style cards per dept
+        const deptStyleSections = depts.map(dept => {
+            const dRows = cRows.filter(r => r.Dept === dept);
+            const cards = dRows.map(r => {
+                const qty   = r["Order Qty"] ? (+r["Order Qty"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-muted">—</span>';
+                const psd   = r["PSD"]    ? new Date(r["PSD"]).toLocaleDateString("fr-FR", {day:"2-digit",month:"short",year:"2-digit"}) : '<span class="dbs-muted">—</span>';
+                const cost  = r["Costing"] ? '$' + r["Costing"] : '<span class="dbs-muted">—</span>';
+                const fab   = r["Fabric Base"] ? esc(r["Fabric Base"]) : '<span class="dbs-muted">—</span>';
+                return '<div class="dbs-sc">' +
+                    '<div class="dbs-sc-top">' +
+                    '<div><div class="dbs-sc-style">' + esc(r.Style || '—') + '</div>' +
+                    '<div class="dbs-sc-desc">' + esc(r.Description || r.StyleDescription || '') + '</div></div>' +
+                    exFtyBadge(r["Ex-Fty"]) +
+                    '</div>' +
+                    '<div class="dbs-sc-fields">' +
+                    '<div class="dbs-sc-field"><span class="dbs-sc-lbl">Qty</span><span class="dbs-sc-val">' + qty + '</span></div>' +
+                    '<div class="dbs-sc-field"><span class="dbs-sc-lbl">PSD</span><span class="dbs-sc-val">' + psd + '</span></div>' +
+                    '<div class="dbs-sc-field"><span class="dbs-sc-lbl">Costing</span><span class="dbs-sc-val">' + cost + '</span></div>' +
+                    '<div class="dbs-sc-field dbs-sc-field--full"><span class="dbs-sc-lbl">Fabric</span><span class="dbs-fabric-pill">' + fab + '</span></div>' +
+                    '</div>' +
+                    '</div>';
+            }).join("");
 
-            // Header
-            '<div class="dbc-head" style="border-top:3px solid ' + accent + '">' +
+            return '<div class="dbs-dept-section">' +
+                '<div class="dbs-dept-lbl">' + esc(dept) + ' <span>' + dRows.length + ' style' + (dRows.length > 1 ? 's' : '') + '</span></div>' +
+                '<div class="dbs-cards-grid">' + cards + '</div>' +
+                '</div>';
+        }).join("");
+
+        return '<div class="dbs-client-block">' +
+            // Client header
+            '<div class="dbs-client-header" style="border-left:3px solid ' + accent + '">' +
             '<div class="dbc-avatar" style="background:' + accent + '1a;color:' + accent + '">' + initials + '</div>' +
-            '<div class="dbc-head-info">' +
-            '<div class="dbc-client-name">' + esc(client) + '</div>' +
-            '<div class="dbc-total-qty-lbl">Total &mdash; <strong>' + totalQty.toLocaleString("fr-FR") + '</strong> u.</div>' +
+            '<div class="dbs-client-info">' +
+            '<span class="dbs-client-name">' + esc(client) + '</span>' +
+            '<span class="dbs-client-total">' + clientTotalQty.toLocaleString("fr-FR") + ' u. total</span>' +
             '</div>' +
             '</div>' +
-
-            // Dept breakdown
-            '<div class="dbc-dept-table">' +
-            '<div class="dbc-dept-header">' +
-            '<span>Dept</span><span>Styles</span><span>Qté</span>' +
-            '</div>' +
-            deptRows +
-            '</div>' +
-
-            // Total footer
-            '<div class="dbc-footer" style="border-top:2px solid ' + accent + '1a">' +
-            '<span class="dbc-footer-lbl">Total Quantit\u00e9</span>' +
-            '<span class="dbc-footer-val" style="color:' + accent + '">' + totalQty.toLocaleString("fr-FR") + ' u.</span>' +
-            '</div>' +
-
+            // Dept summary with bars
+            '<div class="dbs-dept-summary">' + deptSummaryRows + '</div>' +
+            // Style cards per dept
+            '<div class="dbs-styles-section">' + deptStyleSections + '</div>' +
             '</div>';
     }).join("");
 
@@ -468,15 +498,13 @@ function renderDashboard() {
 
     el.innerHTML =
         '<div class="db-welcome">' +
-        '<div class="db-welcome-text"><h2>AW27 Checkers \ud83d\udc4b</h2><p>R\u00e9partition des styles et quantit\u00e9s par client</p></div>' +
+        '<div class="db-welcome-text"><h2>AW27 Checkers \ud83d\udc4b</h2><p>Brief des styles par client &amp; département</p></div>' +
         '<span class="db-welcome-badge">' +
         '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
         dateCapitalized +
         '</span>' +
         '</div>' +
-        '<div class="dbc-grid">' +
-        (clientCards || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>') +
-        '</div>';
+        (blocks || '<p style="color:var(--text-muted);padding:2rem">Aucune donnée.</p>');
 
     // ── Dashboard intelligence sections (merged from injection) ──
     const _dsEl = document.getElementById("dashboard-screen");
