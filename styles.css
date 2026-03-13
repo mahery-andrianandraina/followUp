@@ -4540,11 +4540,14 @@ select.filter-select {
 
 .gnd-row.gnd-row-high {
     border-left: 3px solid #dc2626;
-    background: #fff8f8;
+    background: #fff0f0;
+    border-color: #fca5a5;
 }
 
 .gnd-row.gnd-row-mid {
     border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    border-color: #fde68a;
 }
 
 .gnd-row-dot {
@@ -5143,4 +5146,109 @@ select.filter-select {
     to {
         background-position: -200% 0;
     }
+}
+/* ═══════════════════════════════════════════════════════════════
+   GND ACCORDION — Alertes Globales
+════════════════════════════════════════════════════════════════ */
+.gnd-acc {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 0.5px solid var(--glass-border, #e5e7eb);
+    margin: 0 10px 7px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.gnd-acc-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 13px;
+    cursor: pointer;
+    user-select: none;
+    border-left: 4px solid #94a3b8;
+    background: #f1f5f9;
+    transition: filter 0.15s;
+}
+
+.gnd-acc-header:hover { filter: brightness(0.97); }
+
+.gnd-acc-header.has-high-hdr {
+    border-left-color: #dc2626;
+    background: #fecaca;
+}
+
+.gnd-acc-header.has-mid-hdr {
+    border-left-color: #d97706;
+    background: #fef3c7;
+}
+
+.gnd-acc-arrow {
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+    color: #64748b;
+}
+
+.gnd-acc-header.has-high-hdr .gnd-acc-arrow { color: #dc2626; }
+.gnd-acc-header.has-mid-hdr  .gnd-acc-arrow { color: #d97706; }
+
+.gnd-acc-label {
+    font-size: 13px;
+    font-weight: 700;
+    flex: 1;
+    color: #334155;
+}
+
+.gnd-acc-header.has-high-hdr .gnd-acc-label { color: #7f1d1d; }
+.gnd-acc-header.has-mid-hdr  .gnd-acc-label { color: #78350f; }
+
+.gnd-acc-count {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 20px;
+    min-width: 22px;
+    text-align: center;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.gnd-acc-count.has-high { background: #fca5a5; color: #7f1d1d; }
+.gnd-acc-count.has-mid  { background: #fde68a; color: #78350f; }
+
+.gnd-acc-body {
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #e2e8f0;
+}
+
+.gnd-acc-body.body-high { background: #fee2e2; }
+.gnd-acc-body.body-mid  { background: #fef3c7; }
+
+/* ═══════════════════════════════════════════════════════════════
+   STYLES À RISQUE — Dashboard panel
+════════════════════════════════════════════════════════════════ */
+#atrisk-body .risk-card {
+    border-radius: 0 8px 8px 0;
+    padding: 0.7rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+#atrisk-body .risk-card.risk-high {
+    border-left: 3px solid #ef4444;
+    background: #fff0f0;
+    border-top: 0.5px solid #fca5a5;
+    border-right: 0.5px solid #fca5a5;
+    border-bottom: 0.5px solid #fca5a5;
+}
+
+#atrisk-body .risk-card.risk-mid {
+    border-left: 3px solid #f59e0b;
+    background: #fffbeb;
+    border-top: 0.5px solid #fde68a;
+    border-right: 0.5px solid #fde68a;
+    border-bottom: 0.5px solid #fde68a;
 }
