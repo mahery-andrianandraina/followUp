@@ -804,7 +804,31 @@ function renderTable() {
 // ─── Sort / Modal / Form / Delete / API / Toast / Helpers ─────
 function sortBy(col) { if (state.sortCol === col) state.sortDir *= -1; else { state.sortCol = col; state.sortDir = 1; } applyFilters(); }
 
-function openAddModal() { state.editingRow = null; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Ajouter – ${cfg.label}`; modalSubTitle.textContent = "Remplissez les champs ci-dessous"; buildForm(cfg.cols, {}); formSave.textContent = "Enregistrer"; openModal(); }
+function openAddModal() {
+    state.editingRow = null;
+    const cfg = SHEET_CONFIG[state.activeSheet];
+    modalTitle.textContent = `Ajouter – ${cfg.label}`;
+    modalSubTitle.textContent = "Remplissez les champs ci-dessous";
+
+    // Fabric Analysis : pré-remplir Ready Date = aujourd'hui + 2j
+    const prefill = {};
+    if (cfg.custom) {
+        const det = detectCustomCols(cfg.cols, cfg.label);
+        if (det.isFabricAnalysis && det.readyDate) {
+            const readyAuto = new Date();
+            readyAuto.setDate(readyAuto.getDate() + 2);
+            prefill[det.readyDate] = readyAuto.toISOString().slice(0, 10);
+        }
+    }
+    buildForm(cfg.cols, prefill);
+    formSave.textContent = "Enregistrer";
+    openModal();
+
+    if (Object.keys(prefill).length) {
+        const readyFmt = new Date(Object.values(prefill)[0]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+        showToast(`🧪 Ready Date calculée automatiquement : ${readyFmt} (J+2)`, "info", 5000);
+    }
+}
 function openEditModal(rowIndex) { const row = state.data[state.activeSheet].find(r => r._rowIndex === rowIndex); if (!row) return; state.editingRow = rowIndex; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Modifier – ${cfg.label}`; modalSubTitle.textContent = `Ligne ${rowIndex}`; buildForm(cfg.cols, row); formSave.textContent = "Mettre à jour"; openModal(); }
 
 async function duplicateTrimsDevoRejected(rowIndex) {
@@ -1334,7 +1358,8 @@ function detectCustomCols(cols, menuLabel) {
         approval: find(["approval", "approv", "approved", "validation", "statut appr"]),
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
         receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
-        readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date", "result date", "date result"]),
+        readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date"]),
+        resultDate: find(["result date", "date result", "test result", "date test", "resultat", "r\u00e9sultat", "lab result", "date resultat"]),
         fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
         fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
@@ -1810,15 +1835,39 @@ function collectAllAlerts() {
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
-            // ── FABRIC DEVO / ANALYSIS ──────────────────────────────
+            // ── FABRIC DEVO / ANALYSIS ──────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
+                const efaVal = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
+
+                // ✅ Result Date renseignée → analyse terminée, aucune alerte
+                const hasResultDate = det.resultDate && !!(r[det.resultDate] && String(r[det.resultDate]).trim());
+                if (hasResultDate) return;
+
+                // 🔴 Ready Date dépassée mais pas de Result Date → alerte retard
+                if (hasReadyDate) {
+                    const diff = _daysDiff(r[det.readyDate]);
+                    if (diff < 0) {
+                        const days = Math.abs(diff);
+                        items.push({
+                            dotCls: "dot-late", tagCls: "tag-late",
+                            tagLabel: `\uD83D\uDD34 R\u00e9sultat en retard \u2014 ${days}j`,
+                            title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} (r\u00e9sultat non re\u00e7u)`,
+                            action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j, r\u00e9sultat non re\u00e7u`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    }
+                }
+
+                // Pas de Ready Date ni de Result Date : logique existante
                 if (!hasReadyDate && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
-                    const efaVal = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
-                    const fsrVal = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                    const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                    const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
 
                     if (dateRef) {
                         const launchDays = Math.abs(_daysDiff(dateRef));
@@ -1849,7 +1898,7 @@ function collectAllAlerts() {
                     }
                 }
             }
-            // ── FIN logique Fabric Analysis ──────────────────────────
+            // ── FIN logique Fabric Analysis ──────────────────────
 
 
             if (hasReceived || hasSending) {
