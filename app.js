@@ -2309,23 +2309,28 @@ function openGlobalNotifDrawer() {
         const st = document.createElement("style");
         st.id = "gnd-summary-styles";
         st.textContent = `
-        .gnd-menu-list { display:flex; flex-direction:column; }
-        .gnd-mline { display:flex; align-items:center; gap:9px; padding:10px 16px; cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); transition:background .1s; border-left:3px solid transparent; }
-        .gnd-mline:hover { background:var(--color-background-secondary,#f9fafb); }
-        .gnd-mline:last-child { border-bottom:none; }
-        .gnd-mline-high { border-left-color:#ef4444; }
-        .gnd-mline-mid  { border-left-color:#f59e0b; }
-        .gnd-mline-low  { border-left-color:#9ca3af; }
+        .gnd-menu-list { display:flex; flex-direction:column; padding:8px 10px; gap:3px; }
+        .gnd-mline { display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; border-radius:10px; border:0.5px solid transparent; transition:border-color .12s,background .12s; }
+        .gnd-mline:hover { border-color:var(--color-border-secondary,#d1d5db); }
+        .gnd-mline-high { background:#FDF3F3; } .gnd-mline-high:hover { background:#FAEBEB; }
+        .gnd-mline-mid  { background:#FDFAF3; } .gnd-mline-mid:hover  { background:#FAF4E6; }
+        .gnd-mline-low  { background:var(--color-background-secondary,#f9fafb); }
+        .gnd-mline-badge { width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+        .gnd-mline-high .gnd-mline-badge { background:#F7C1C1; }
+        .gnd-mline-mid  .gnd-mline-badge { background:#FAC775; }
+        .gnd-mline-low  .gnd-mline-badge { background:#D3D1C7; }
         .gnd-mline-name { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); flex:1; }
-        .gnd-mline-pills { display:flex; gap:4px; }
-        .gnd-mpill { font-size:10px; padding:1px 6px; border-radius:4px; font-weight:500; }
-        .gnd-mpill-high { background:#fee2e2; color:#b91c1c; }
-        .gnd-mpill-mid  { background:#fef3c7; color:#92400e; }
-        .gnd-mpill-low  { background:#f3f4f6; color:#6b7280; }
-        .gnd-mline-total { font-size:11px; font-weight:500; color:var(--color-text-secondary,#6b7280); min-width:16px; text-align:right; }
-        .gnd-detail-back { display:flex; align-items:center; gap:6px; padding:8px 16px; font-size:12px; color:var(--color-text-secondary,#6b7280); cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); background:var(--color-background-secondary,#f9fafb); }
+        .gnd-mline-pills { display:flex; gap:3px; align-items:center; }
+        .gnd-mpill { font-size:11px; padding:2px 7px; border-radius:20px; font-weight:500; }
+        .gnd-mpill-high { background:#F7C1C1; color:#791F1F; }
+        .gnd-mpill-mid  { background:#FAC775; color:#633806; }
+        .gnd-mpill-low  { background:#D3D1C7; color:#444441; }
+        .gnd-mline-total { font-size:12px; font-weight:500; color:var(--color-text-secondary,#6b7280); min-width:18px; text-align:right; }
+        .gnd-mline-arrow { color:var(--color-text-secondary,#9ca3af); flex-shrink:0; transition:transform .12s; }
+        .gnd-mline:hover .gnd-mline-arrow { transform:translateX(2px); }
+        .gnd-detail-back { display:flex; align-items:center; gap:7px; padding:10px 16px; font-size:12px; font-weight:500; color:var(--color-text-secondary,#6b7280); cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); background:var(--color-background-secondary,#f9fafb); transition:color .1s; }
         .gnd-detail-back:hover { color:var(--color-text-primary,#111827); }
-        .gnd-detail-label { font-size:12px; font-weight:500; color:var(--color-text-primary,#111827); padding:8px 16px 4px; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); }
+        .gnd-detail-label { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); padding:10px 16px 6px; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); }
         `;
         document.head.appendChild(st);
     }
@@ -2412,12 +2417,18 @@ function _renderGndFull() {
             nLow  ? `<span class="gnd-mpill gnd-mpill-low">\u26AA ${nLow}</span>`         : ""
         ].filter(Boolean).join("");
 
+        const iconSvg = hasHigh
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 2L1 14h14L8 2z" stroke="#A32D2D" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#A32D2D" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            : hasMid
+            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5.5" stroke="#633806" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#633806" stroke-width="1.6" stroke-linecap="round"/></svg>`
+            : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
         listHtml += `
         <div class="gnd-mline ${barCls}" onclick="gndOpenDetail('${safeKey}')">
+            <div class="gnd-mline-badge">${iconSvg}</div>
             <span class="gnd-mline-name">${esc(all[k].label)}</span>
             <div class="gnd-mline-pills">${pillsHtml}</div>
             <span class="gnd-mline-total">${items.length}</span>
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0;color:var(--color-text-secondary,#6b7280)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg>
+            <svg class="gnd-mline-arrow" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" width="13" height="13"><path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>`;
     });
     listHtml += `</div>`;
