@@ -1351,9 +1351,8 @@ function detectCustomCols(cols, menuLabel) {
         || FABRIC_COL_PHRASES.some(p => sheetNameHints.includes(p))
     );
 
-    // findExact : match exact sur le label complet (pour eviter "RESULT DATE" au lieu de "RESULT")
     const findExact = (patterns) => {
-        const c = cols.find(c => patterns.includes(c.label.toLowerCase()));
+        const c = cols.find(col => patterns.includes(col.label.toLowerCase()));
         return c ? c.key : null;
     };
     return {
@@ -1840,19 +1839,16 @@ function collectAllAlerts() {
 
             // ── FABRIC DEVO / ANALYSIS ──────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
-                // Lire les 3 champs clés du GS : READY DATE, RESULT DATE, RESULT
-                const efaVal       = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
-                const colorVal     = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                const fsrVal       = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                const fsrInTitle   = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
-                // RESULT : champ texte Pass/Fail
-                const resultVal    = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
-                // RESULT DATE : date de réception du résultat
-                const resultDtVal  = det.resultDate && r[det.resultDate] ? String(r[det.resultDate]).trim() : "";
-                // READY DATE : date attendue du résultat (auto J+2)
-                const readyDtVal   = det.readyDate && r[det.readyDate] ? String(r[det.readyDate]).trim() : "";
+                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
+                // Champs clés : RESULT, RESULT DATE, READY DATE
+                const resultVal   = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
+                const resultDtVal = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
+                const readyDtVal  = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
 
-                // ✅ RESULT renseigné → analyse terminée, AUCUNE alerte
+                // ✅ RESULT renseigné → terminé, aucune alerte
                 if (resultVal) return;
 
                 if (readyDtVal) {
@@ -1860,17 +1856,16 @@ function collectAllAlerts() {
                     const rdDate = new Date(readyDtVal); rdDate.setHours(0, 0, 0, 0);
 
                     // Règle 2 : RESULT DATE = READY DATE + RESULT vide
-                    // → le labo a rendu le résultat mais on ne l'a pas saisi
                     if (resultDtVal) {
                         const resDt = new Date(resultDtVal); resDt.setHours(0, 0, 0, 0);
                         if (resDt.getTime() === rdDate.getTime()) {
                             items.push({
                                 dotCls: "dot-today", tagCls: "tag-today",
-                                tagLabel: `\uD83D\uDFE1 R\u00e9sultat re\u00e7u \u2014 \u00e0 saisir`,
-                                title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 R\u00e9sultat re\u00e7u, merci de le saisir dans le champ RESULT`,
-                                action: `Saisir le r\u00e9sultat du test (Pass / Fail) dans le champ RESULT`,
+                                tagLabel: `🟡 Résultat reçu — à saisir dans RESULT`,
+                                title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Résultat reçu, merci de le saisir dans le champ RESULT`,
+                                action: `Saisir le résultat du test (Pass / Fail) dans le champ RESULT`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `Result Date : ${_fmtDate(resultDtVal)} \u00B7 Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " \u00B7 EFA : " + efaVal : ""}`,
+                                meta: `Result Date : ${_fmtDate(resultDtVal)} · Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}`,
                                 urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                             return;
@@ -1878,40 +1873,49 @@ function collectAllAlerts() {
                     }
 
                     // Règle 1 : READY DATE dépassée + RESULT DATE vide + RESULT vide
-                    // → le labo n'a pas encore rendu le résultat
                     if (!resultDtVal && rdDate < today) {
                         const days = Math.round((today - rdDate) / 86400000);
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
-                            tagLabel: `\uD83D\uDD34 R\u00e9sultat en retard \u2014 ${days}j`,
-                            title: `${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
-                            action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j`,
+                            tagLabel: `🔴 Résultat en retard — ${days}j`,
+                            title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Analyse en retard de ${days} jour${days > 1 ? "s" : ""} — résultat non reçu`,
+                            action: `Contacter le laboratoire — Ready Date dépassée de ${days}j`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " \u00B7 EFA : " + efaVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}${fsrVal ? " · FSR : " + fsrVal : ""}`,
                             urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
-                    // Ready Date pas encore dépassée → pas d'alerte
-                    return;
+                    return; // Ready Date non dépassée
                 }
 
-                // Pas de Ready Date : en attente résultat labo (launch date connue)
+                // Pas de Ready Date : en attente labo
                 if (!readyDtVal && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
                     if (dateRef) {
                         const launchDays = Math.abs(_daysDiff(dateRef));
                         const urgency = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
-                        const urgencyBadge = urgency === "high" ? " \uD83D\uDEA8" : urgency === "mid" ? " \u26A1" : "";
+                        const urgencyBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                         items.push({
                             dotCls: "dot-nopo", tagCls: "tag-nopo",
-                            tagLabel: `\uD83E\uDDEA ${efaVal}${colorVal ? " \u2014 " + colorVal : ""} \u2014 r\u00e9sultat attendu (${launchDays}j)${urgencyBadge}`,
-                            title: `${efaVal}${colorVal ? " " + colorVal : ""} \u2014 en attente du r\u00e9sultat \u2014 lanc\u00e9 il y a ${launchDays}j`,
-                            action: `Renseigner la Ready Date d\u00e8s r\u00e9ception du labo`,
+                            tagLabel: `🧪 ${efaVal}${colorVal ? " — " + colorVal : ""} — résultat attendu (${launchDays}j)${urgencyBadge}`,
+                            title: `${efaVal}${colorVal ? " " + colorVal : ""} — en attente du résultat — lancé il y a ${launchDays}j`,
+                            action: `Renseigner la Ready Date dès réception du labo`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `EFA : ${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u00B7 Lanc\u00e9 le : ${_fmtDate(dateRef)}`,
+                            meta: `EFA : ${efaVal}${colorVal ? " · " + colorVal : ""} · Lancé le : ${_fmtDate(dateRef)}`,
                             urgency, sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    } else if (det.isFabricDevo && !isRejected) {
+                        items.push({
+                            dotCls: "dot-nopo", tagCls: "tag-nopo",
+                            tagLabel: `📋 ${efaVal} — Attente FSR`,
+                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} — FSR à lancer / Ready Date manquante`,
+                            action: `Vérifier avec le supplier et lancer l'analyse FSR`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ref : ${efaVal}${fsrVal ? " · FSR : " + fsrVal : ""}`,
+                            urgency: "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
@@ -2922,8 +2926,8 @@ function collectAtRiskStyles() {
 
         const exftyDiff = safeDiff(detail?.["Ex-Fty"] ?? detail?.ExFty);
         if (exftyDiff !== null) {
-            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: "high" }); score += 2; }
-            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
+            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail.ExFty)})`, urgency: "high" }); score += 2; }
+            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
         }
 
         const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered");
