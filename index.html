@@ -7,6 +7,54 @@
     <meta name="description" content="Dashboard de suivi des commandes AW27 – SOCOTA Checkers" />
     <title>AW27 CHECKERS – Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
+    <style>
+      /* ── Fix: table-card remplit tout l'espace vertical disponible ── */
+
+      /* Le layout principal doit être en colonne pleine hauteur */
+      .layout-body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      /* Le <main> prend tout l'espace restant sous le header */
+      main.main {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 1rem; /* ajustez si votre styles.css en a déjà */
+        gap: 0.75rem;
+      }
+
+      /* La kpi-bar garde sa hauteur naturelle */
+      .kpi-bar {
+        flex-shrink: 0;
+      }
+
+      /* Le table-card s'étire pour remplir le reste */
+      .table-card {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      /* Le header du tableau garde sa hauteur */
+      .table-header {
+        flex-shrink: 0;
+      }
+
+      /* La zone scrollable du tableau prend tout l'espace restant */
+      .table-wrap {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow: auto;
+      }
+    </style>
 </head>
 
 <body>
