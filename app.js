@@ -27,22 +27,21 @@ const SHEET_CONFIG = {
     details: {
         label: "Details",
         cols: [
-            { key: "Saison", label: "Saison", type: "text" },
             { key: "Client", label: "Client", type: "text", required: true },
             { key: "Dept", label: "Dept", type: "text", required: true },
             { key: "Style", label: "Style", type: "text", required: true },
-            { key: "Description", label: "Description", type: "text", full: true },
-            { key: "Fabric Base", label: "Fabric Base", type: "text" },
+            { key: "StyleDescription", label: "Description", type: "text", full: true },
+            { key: "FabricBase", label: "Fabric Base", type: "text" },
             { key: "Costing", label: "Costing", type: "text" },
-            { key: "Order Qty", label: "Order Qty", type: "number" },
+            { key: "OrderQty", label: "Order Qty", type: "number" },
             { key: "PSD", label: "PSD", type: "date" },
-            { key: "Ex-Fty", label: "Ex-Fty", type: "date" }
+            { key: "ExFty", label: "Ex-Fty", type: "date" }
         ],
         kpis: [
             { label: "Total Styles", colorClass: "teal", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`, compute: rows => rows.length },
-            { label: "Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0).toLocaleString() },
+            { label: "Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r.OrderQty || 0), 0).toLocaleString() },
             { label: "Departments", colorClass: "yellow", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`, compute: rows => new Set(rows.map(r => r.Dept).filter(Boolean)).size },
-            { label: "Upcoming ExFty", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r["Ex-Fty"] && new Date(r["Ex-Fty"]) >= new Date()).length }
+            { label: "Upcoming ExFty", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r.ExFty && new Date(r.ExFty) >= new Date()).length }
         ]
     },
     sample: {
@@ -299,11 +298,11 @@ function getDemoData() {
     const d = (n) => { const x = new Date(t); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10); };
     return {
         details: [
-            { _rowIndex: 2, Client: "CALVIN KLEIN", Dept: "MEN", Style: "ST001", Description: "Slim Fit Chinos", "Fabric Base": "Cotton Poplin", Costing: "12.50", "Order Qty": 500, PSD: d(10), "Ex-Fty": d(90) },
-            { _rowIndex: 3, Client: "CALVIN KLEIN", Dept: "WOMEN", Style: "ST002", Description: "Floral Midi Dress", "Fabric Base": "Rayon", Costing: "18.00", "Order Qty": 350, PSD: d(15), "Ex-Fty": d(110) },
-            { _rowIndex: 4, Client: "TOMMY", Dept: "KIDS", Style: "ST003", Description: "Cargo Shorts", "Fabric Base": "Twill", Costing: "8.75", "Order Qty": 800, PSD: d(-5), "Ex-Fty": d(-10) },
-            { _rowIndex: 5, Client: "TOMMY", Dept: "MEN", Style: "ST004", Description: "Oxford Button Down", "Fabric Base": "Cotton", Costing: "15.20", "Order Qty": 420, PSD: d(20), "Ex-Fty": d(75) },
-            { _rowIndex: 6, Client: "ZARA", Dept: "WOMEN", Style: "ST005", Description: "High Waist Trousers", "Fabric Base": "Linen Blend", Costing: "22.00", "Order Qty": 280, PSD: d(25), "Ex-Fty": d(95) }
+            { _rowIndex: 2, Client: "CALVIN KLEIN", Dept: "MEN", Style: "ST001", StyleDescription: "Slim Fit Chinos", FabricBase: "Cotton Poplin", Costing: "12.50", OrderQty: 500, PSD: d(10), ExFty: d(90) },
+            { _rowIndex: 3, Client: "CALVIN KLEIN", Dept: "WOMEN", Style: "ST002", StyleDescription: "Floral Midi Dress", FabricBase: "Rayon", Costing: "18.00", OrderQty: 350, PSD: d(15), ExFty: d(110) },
+            { _rowIndex: 4, Client: "TOMMY", Dept: "KIDS", Style: "ST003", StyleDescription: "Cargo Shorts", FabricBase: "Twill", Costing: "8.75", OrderQty: 800, PSD: d(-5), ExFty: d(-10) },
+            { _rowIndex: 5, Client: "TOMMY", Dept: "MEN", Style: "ST004", StyleDescription: "Oxford Button Down", FabricBase: "Cotton", Costing: "15.20", OrderQty: 420, PSD: d(20), ExFty: d(75) },
+            { _rowIndex: 6, Client: "ZARA", Dept: "WOMEN", Style: "ST005", StyleDescription: "High Waist Trousers", FabricBase: "Linen Blend", Costing: "22.00", OrderQty: 280, PSD: d(25), ExFty: d(95) }
         ],
         sample: [
             { _rowIndex: 2, Client: "CALVIN KLEIN", Dept: "MEN", Style: "ST001", StyleDescription: "Slim Fit Chinos", Type: "Fit", Fabric: "Cotton Poplin", Size: "M", "SRS Date": d(-20), "Ready Date": d(-5), Remarks: "Check inseam", Approval: "Approved" },
@@ -317,7 +316,7 @@ function getDemoData() {
             { _rowIndex: 4, Client: "TOMMY", Dept: "KIDS", Style: "ST003", StyleDescription: "Cargo Shorts", Color: "Khaki", Trims: "Buttons", Supplier: "Supplier A", UP: "8.75", PO: "", "PO Date": "", "Ready Date": d(-12), PI: "", Status: "Pending", "Delivery Status": "Not Shipped", Comments: "" },
             { _rowIndex: 5, Client: "TOMMY", Dept: "MEN", Style: "ST004", StyleDescription: "Oxford Button Down", Color: "White", Trims: "Buttons", Supplier: "Supplier C", UP: "15.20", PO: "PO-2026-003", "PO Date": d(-15), "Ready Date": d(8), PI: "", Status: "Confirmed", "Delivery Status": "Not Shipped", Comments: "" },
             { _rowIndex: 6, Client: "ZARA", Dept: "WOMEN", Style: "ST005", StyleDescription: "High Waist Trousers", Color: "Ecru", Trims: "Hooks", Supplier: "Supplier B", UP: "22.00", PO: "PO-2026-004", "PO Date": d(-10), "Ready Date": d(60), PI: "PI-004", Status: "Confirmed", "Delivery Status": "Not Shipped", Comments: "" },
-            { _rowIndex: 7, Client: "ZARA", Dept: "WOMEN", Style: "ST005", Description: "High Waist Trousers", Color: "Black", Trims: "Hooks", Supplier: "Supplier B", UP: "22.00", PO: "PO-2026-005", "PO Date": d(-5), "Ready Date": d(55), PI: "", Status: "Confirmed", "Delivery Status": "Delivered", Comments: "" }
+            { _rowIndex: 7, Client: "ZARA", Dept: "WOMEN", Style: "ST005", StyleDescription: "High Waist Trousers", Color: "Black", Trims: "Hooks", Supplier: "Supplier B", UP: "22.00", PO: "PO-2026-005", "PO Date": d(-5), "Ready Date": d(55), PI: "", Status: "Confirmed", "Delivery Status": "Delivered", Comments: "" }
         ],
         style: [
             { _rowIndex: 2, Style: "ST001", "GMT Color": "KHAKI", Pantone: "Smoky Olive", PO: "1202363673", Articles: "10953373" },
@@ -417,7 +416,7 @@ function renderDashboard() {
         const accent = ACCENT[ci % ACCENT.length];
         const dRows = details.filter(r => r.Client === client);
 
-        const totalQty = dRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
+        const totalQty = dRows.reduce((s, r) => s + (+r.OrderQty || 0), 0);
         const initials = client.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
         // Group by dept
@@ -425,7 +424,7 @@ function renderDashboard() {
 
         const deptRows = depts.map(dept => {
             const deptR = dRows.filter(r => r.Dept === dept);
-            const deptQty = deptR.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
+            const deptQty = deptR.reduce((s, r) => s + (+r.OrderQty || 0), 0);
             const deptStyles = deptR.length;
             return '<div class="dbc-dept-row">' +
                 '<span class="dbc-dept-name">' + esc(dept) + '</span>' +
@@ -596,7 +595,7 @@ function renderTimeline() {
     const groups = {};
     rows.forEach(r => {
         const k = `${r.Client}||${r.Style}`;
-        if (!groups[k]) groups[k] = { client: r.Client, style: r.Style, desc: r.StyleDescription || r.Description || "", rows: [] };
+        if (!groups[k]) groups[k] = { client: r.Client, style: r.Style, desc: r.StyleDescription || "", rows: [] };
         groups[k].rows.push(r);
     });
 
@@ -805,7 +804,30 @@ function renderTable() {
 // ─── Sort / Modal / Form / Delete / API / Toast / Helpers ─────
 function sortBy(col) { if (state.sortCol === col) state.sortDir *= -1; else { state.sortCol = col; state.sortDir = 1; } applyFilters(); }
 
-function openAddModal() { state.editingRow = null; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Ajouter – ${cfg.label}`; modalSubTitle.textContent = "Remplissez les champs ci-dessous"; buildForm(cfg.cols, {}); formSave.textContent = "Enregistrer"; openModal(); }
+function openAddModal() {
+    state.editingRow = null;
+    const cfg = SHEET_CONFIG[state.activeSheet];
+    modalTitle.textContent = `Ajouter – ${cfg.label}`;
+    modalSubTitle.textContent = "Remplissez les champs ci-dessous";
+
+    // Fabric Analysis : Ready Date auto = aujourd'hui + 2j
+    const prefill = {};
+    if (cfg.custom) {
+        const det = detectCustomCols(cfg.cols, cfg.label);
+        if (det.isFabricAnalysis && det.readyDate) {
+            const d = new Date();
+            d.setDate(d.getDate() + 2);
+            prefill[det.readyDate] = d.toISOString().slice(0, 10);
+        }
+    }
+    buildForm(cfg.cols, prefill);
+    formSave.textContent = "Enregistrer";
+    openModal();
+    if (Object.keys(prefill).length) {
+        const fmt = new Date(Object.values(prefill)[0]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+        showToast(`🧪 Ready Date calculée automatiquement : ${fmt} (J+2)`, "info", 5000);
+    }
+}
 function openEditModal(rowIndex) { const row = state.data[state.activeSheet].find(r => r._rowIndex === rowIndex); if (!row) return; state.editingRow = rowIndex; const cfg = SHEET_CONFIG[state.activeSheet]; modalTitle.textContent = `Modifier – ${cfg.label}`; modalSubTitle.textContent = `Ligne ${rowIndex}`; buildForm(cfg.cols, row); formSave.textContent = "Mettre à jour"; openModal(); }
 
 async function duplicateTrimsDevoRejected(rowIndex) {
@@ -1335,7 +1357,8 @@ function detectCustomCols(cols, menuLabel) {
         approval: find(["approval", "approv", "approved", "validation", "statut appr"]),
         sendingDate: find(["sending date", "send date", "sent date", "date envoi", "ship date", "sending", "date send"]),
         receivedDate: find(["received date", "receipt date", "date recep", "date recu", "reception", "received"]),
-        readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date", "result date", "date result"]),
+        readyDate: find(["ready date", "ready", "date pret", "date pr\u00eat", "due date", "expected date"]),
+        resultDate: find(["result date", "date result", "test result", "date test", "resultat", "r\u00e9sultat", "lab result", "date resultat", "result"]),
         fsrDate: find(["fsr date", "launch date", "date lancement", "date launch", "request date", "date request"]),
         fsrNumber: find(["fsr number", "fsr no", "fsr num", "fsr #", "fsr ref", "num\u00e9ro fsr", "no fsr", "reference fsr", "fsr"]),
         launchDate: find(["launched on", "launched", "launch", "lanc\u00e9", "date lanc", "sent to lab", "submitted", "submission date", "date soumis", "lab date", "date analyse", "analysis date"]),
@@ -1811,16 +1834,41 @@ function collectAllAlerts() {
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
-            // ── FABRIC DEVO / ANALYSIS ──────────────────────────────
+            // ── FABRIC DEVO / ANALYSIS ──────────────────────
             if (det.isFabricAnalysis || det.isFabricDevo) {
+                const efaVal   = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal   = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
+
+                // ✅ Result Date renseignée → analyse terminée, aucune alerte
+                const hasResultDate = det.resultDate && !!(r[det.resultDate] && String(r[det.resultDate]).trim());
+                if (hasResultDate) return;
+
+                // 🔴 Ready Date dépassée ET pas de Result Date → alerte retard
+                if (hasReadyDate) {
+                    const diff = _daysDiff(r[det.readyDate]);
+                    if (diff < 0) {
+                        const days = Math.abs(diff);
+                        items.push({
+                            dotCls: "dot-late", tagCls: "tag-late",
+                            tagLabel: `\uD83D\uDD34 R\u00e9sultat en retard \u2014 ${days}j`,
+                            title: `${fsrInTitle}${efaVal}${colorVal ? " \u00B7 " + colorVal : ""} \u2014 Analyse en retard de ${days} jour${days > 1 ? "s" : ""} \u2014 r\u00e9sultat non re\u00e7u`,
+                            action: `Contacter le laboratoire \u2014 Ready Date d\u00e9pass\u00e9e de ${days}j`,
+                            style: getStyle(r), client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${colorVal ? " \u00B7 " + colorVal : ""}${fsrVal ? " \u00B7 FSR : " + fsrVal : ""}`,
+                            urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
+                        });
+                        return;
+                    }
+                    // Ready Date pas encore dépassée → pas d'alerte
+                    return;
+                }
+
+                // Pas de Ready Date ni de Result Date : logique existante (launch date / FSR)
                 if (!hasReadyDate && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
-                    const efaVal = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
-                    const fsrVal = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                    const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                    const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
-
                     if (dateRef) {
                         const launchDays = Math.abs(_daysDiff(dateRef));
                         const urgency = launchDays >= 14 ? "high" : launchDays >= 7 ? "mid" : "low";
@@ -1836,7 +1884,6 @@ function collectAllAlerts() {
                         });
                         return;
                     } else if (det.isFabricDevo && !isRejected) {
-                        // Alerte Fabric Devo : Attente FSR (non lanc\u00e9)
                         items.push({
                             dotCls: "dot-nopo", tagCls: "tag-nopo",
                             tagLabel: `\uD83D\uDCCB ${efaVal} \u2014 Attente FSR`,
@@ -1850,7 +1897,7 @@ function collectAllAlerts() {
                     }
                 }
             }
-            // ── FIN logique Fabric Analysis ──────────────────────────
+            // ── FIN logique Fabric Analysis ──────────────────────
 
 
             if (hasReceived || hasSending) {
@@ -2727,7 +2774,7 @@ function buildStyleTimeline() {
     return allStyles.map(style => {
         const detail = (state.data.details || []).find(r => r.Style === style);
         const client = detail?.Client || "";
-        const desc = detail?.StyleDescription || detail?.Description || "";
+        const desc = detail?.StyleDescription || "";
         const stages = [];
 
         // ── Sample
@@ -2845,7 +2892,7 @@ function collectAtRiskStyles() {
         const flags = []; let score = 0;
         const detail = (state.data.details || []).find(r => r.Style === style);
         const client = detail?.Client || (state.data.ordering || []).find(r => r.Style === style)?.Client || "";
-        const desc = detail?.StyleDescription || detail?.Description || "";
+        const desc = detail?.StyleDescription || "";
 
         const psdDiff = safeDiff(detail?.PSD);
         if (psdDiff !== null) {
@@ -2853,10 +2900,10 @@ function collectAtRiskStyles() {
             else if (psdDiff <= 7) { flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${_fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" }); score += 1; }
         }
 
-        const exftyDiff = safeDiff(detail?.["Ex-Fty"] ?? detail?.ExFty);
+        const exftyDiff = safeDiff(detail?.ExFty);
         if (exftyDiff !== null) {
-            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: "high" }); score += 2; }
-            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail?.["Ex-Fty"] ?? detail?.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
+            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail.ExFty)})`, urgency: "high" }); score += 2; }
+            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
         }
 
         const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered");
