@@ -2331,6 +2331,12 @@ function openGlobalNotifDrawer() {
         .gnd-detail-back { display:flex; align-items:center; gap:7px; padding:10px 16px; font-size:12px; font-weight:500; color:var(--color-text-secondary,#6b7280); cursor:pointer; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); background:var(--color-background-secondary,#f9fafb); transition:color .1s; }
         .gnd-detail-back:hover { color:var(--color-text-primary,#111827); }
         .gnd-detail-label { font-size:13px; font-weight:500; color:var(--color-text-primary,#111827); padding:10px 16px 6px; border-bottom:0.5px solid var(--color-border-tertiary,#e5e7eb); }
+        .gnd-legend { display:flex; align-items:center; gap:14px; padding:10px 14px; border-top:0.5px solid var(--color-border-tertiary,#e5e7eb); margin-top:2px; }
+        .gnd-leg-item { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--color-text-secondary,#6b7280); }
+        .gnd-leg-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .gnd-leg-high .gnd-leg-dot { background:#F09595; }
+        .gnd-leg-mid  .gnd-leg-dot { background:#FAC775; }
+        .gnd-leg-low  .gnd-leg-dot { background:#B4B2A9; }
         `;
         document.head.appendChild(st);
     }
@@ -2432,6 +2438,20 @@ function _renderGndFull() {
         </div>`;
     });
     listHtml += `</div>`;
+
+    // ── Légende ──
+    listHtml += `
+    <div class="gnd-legend">
+        <span class="gnd-leg-item gnd-leg-high">
+            <span class="gnd-leg-dot"></span>Urgent
+        </span>
+        <span class="gnd-leg-item gnd-leg-mid">
+            <span class="gnd-leg-dot"></span>À surveiller
+        </span>
+        <span class="gnd-leg-item gnd-leg-low">
+            <span class="gnd-leg-dot"></span>En attente
+        </span>
+    </div>`;
 
     // ── Vue détail (cachée par défaut) ──
     const detailHtml = `<div class="gnd-detail-view" id="gnd-detail-view" style="display:none">
