@@ -8,45 +8,9 @@
     <title>AW27 CHECKERS – Dashboard</title>
     <link rel="stylesheet" href="styles.css" />
     <style>
-      /* ── Fix: table-card remplit tout l'espace vertical disponible ── */
-
-      .layout-body {
-        display: flex !important;
-        flex-direction: column !important;
-        height: 100vh !important;
-        overflow: hidden !important;
-      }
-
-      main.main {
-        flex: 1 1 0 !important;
-        min-height: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-      }
-
-      .kpi-bar {
-        flex-shrink: 0 !important;
-      }
-
-      /* Quand table-card est visible (pas display:none), il s'étire */
-      .table-card:not([style*="display: none"]):not([style*="display:none"]) {
-        flex: 1 1 0 !important;
-        min-height: 0 !important;
-        display: flex !important;
-        flex-direction: column !important;
-        overflow: hidden !important;
-      }
-
-      .table-header {
-        flex-shrink: 0 !important;
-      }
-
-      .table-wrap {
-        flex: 1 1 0 !important;
-        min-height: 0 !important;
-        overflow: auto !important;
-      }
+      /* Forcer display:flex sur layout-body et main (cascade safety) */
+      .layout-body { display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+      main.main    { overflow: hidden !important; }
     </style>
 </head>
 

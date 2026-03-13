@@ -309,8 +309,7 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    overflow-y: auto;
-    /* page scroll here, not on body */
+    overflow-y: hidden;
     overflow-x: hidden;
     height: 100vh;
     transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -469,8 +468,13 @@ body.sidebar-collapsed .hamburger {
 .main {
     max-width: 1600px;
     margin: 0 auto;
-    padding: 1.5rem 1.5rem 3rem;
+    padding: 1.5rem 1.5rem 1.5rem;
     width: 100%;
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* ─── KPI Stat Bar (compact) ───────────────────────────────── */
@@ -483,6 +487,7 @@ body.sidebar-collapsed .hamburger {
     margin-bottom: 1.25rem;
     overflow: hidden;
     backdrop-filter: blur(8px);
+    flex-shrink: 0;
 }
 
 .kpi-stat {
@@ -575,6 +580,11 @@ body.sidebar-collapsed .hamburger {
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     backdrop-filter: blur(8px);
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .table-header {
@@ -586,6 +596,7 @@ body.sidebar-collapsed .hamburger {
     gap: 1rem;
     flex-wrap: wrap;
     background: var(--bg-card);
+    flex-shrink: 0;
 }
 
 .table-title {
@@ -748,7 +759,8 @@ select.filter-select:focus {
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
-    max-height: calc(100vh - var(--header-h) - 220px);
+    flex: 1 1 0;
+    min-height: 0;
 }
 
 table {
@@ -1457,7 +1469,7 @@ tr.row-ok>td:first-child {
     }
 
     .main {
-        padding: 1rem 1rem 2rem;
+        padding: 1rem 1rem 1rem;
     }
 
     .kpi-grid {
