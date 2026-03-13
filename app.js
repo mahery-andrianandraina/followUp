@@ -2289,28 +2289,7 @@ function _renderGndFull() {
     // Ouvrir par défaut tous les menus s'ils sont nouveaux
     keys.forEach(k => { if (!_gndOpenSections.has("__visited__" + k)) { _gndOpenSections.add(k); _gndOpenSections.add("__visited__" + k); } });
 
-    let html = `<style>
-    .gnd-acc { border-radius: 10px; overflow: hidden; border: 0.5px solid var(--border, #e5e7eb); margin: 0 10px 7px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-    .gnd-acc-header { display: flex; align-items: center; gap: 10px; padding: 12px 13px; cursor: pointer; user-select: none; border-left: 4px solid #94a3b8; background: #f1f5f9; transition: filter 0.15s; }
-    .gnd-acc-header:hover { filter: brightness(0.97); }
-    .gnd-acc-header.has-high-hdr { border-left-color: #dc2626; background: #fecaca; }
-    .gnd-acc-header.has-mid-hdr  { border-left-color: #d97706; background: #fef3c7; }
-    .gnd-acc-arrow { flex-shrink: 0; transition: transform 0.2s ease; color: #64748b; }
-    .gnd-acc-header.has-high-hdr .gnd-acc-arrow { color: #dc2626; }
-    .gnd-acc-header.has-mid-hdr  .gnd-acc-arrow { color: #d97706; }
-    .gnd-acc-label { font-size: 13px; font-weight: 700; flex: 1; color: #334155; }
-    .gnd-acc-header.has-high-hdr .gnd-acc-label { color: #7f1d1d; }
-    .gnd-acc-header.has-mid-hdr  .gnd-acc-label { color: #78350f; }
-    .gnd-acc-count { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; min-width: 22px; text-align: center; background: #e2e8f0; color: #475569; }
-    .gnd-acc-count.has-high { background: #fca5a5; color: #7f1d1d; }
-    .gnd-acc-count.has-mid  { background: #fde68a; color: #78350f; }
-    .gnd-acc-body { overflow: hidden; transition: max-height 0.25s ease, opacity 0.2s ease; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: #e2e8f0; }
-    .gnd-acc-body.body-high { background: #fee2e2; }
-    .gnd-acc-body.body-mid  { background: #fef3c7; }
-    .gnd-row { border-radius: 8px !important; border: 0.5px solid var(--border, #e5e7eb) !important; background: #f8fafc !important; }
-    .gnd-row.gnd-row-high { background: #fff0f0 !important; border-color: #fca5a5 !important; }
-    .gnd-row.gnd-row-mid  { background: #fffbeb !important; border-color: #fde68a !important; }
-    </style>`;
+    let html = ``;
 
     keys.forEach(k => {
         const items = [...all[k].items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
@@ -2318,10 +2297,10 @@ function _renderGndFull() {
         const hasHigh = items.some(i => i.urgency === "high");
         const hasMid = !hasHigh && items.some(i => i.urgency === "mid");
         const countCls = hasHigh ? "has-high" : hasMid ? "has-mid" : "";
-        const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
-
         const hdrUrgCls = hasHigh ? "has-high-hdr" : hasMid ? "has-mid-hdr" : "";
         const bodyUrgCls = hasHigh ? "body-high" : hasMid ? "body-mid" : "";
+        const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
+
         html += `
         <div class="gnd-acc" id="gnd-acc-${safeKey}">
             <div class="gnd-acc-header ${hdrUrgCls}" onclick="gndToggleSection('${safeKey}')">
@@ -2852,9 +2831,7 @@ function renderStyleTimelineSection() {
 
 // ── Styles à Risque ───────────────────────────────────────────
 function collectAtRiskStyles() {
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const daysDiff = d => { if (!d) return null; const dt = new Date(d); if (isNaN(dt)) return null; return Math.round((dt - today) / 86400000); };
-    const fmtDate = d => { if (!d) return "—"; const dt = new Date(d); if (isNaN(dt)) return d; return dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }); };
+    const safeDiff = v => { if (!v) return null; const d = _daysDiff(v); return isNaN(d) ? null : d; };
 
     const allStyles = [...new Set([
         ...(state.data.details || []).map(r => r.Style),
@@ -2863,63 +2840,32 @@ function collectAtRiskStyles() {
     ].filter(Boolean))];
 
     const results = [];
-
     allStyles.forEach(style => {
-        const flags = [];
-        let score = 0;
-
+        const flags = []; let score = 0;
         const detail = (state.data.details || []).find(r => r.Style === style);
         const client = detail?.Client || (state.data.ordering || []).find(r => r.Style === style)?.Client || "";
         const desc = detail?.StyleDescription || "";
 
-        // PSD — risque si < 7j ou dépassée
-        const psdDiff = daysDiff(detail?.PSD);
+        const psdDiff = safeDiff(detail?.PSD);
         if (psdDiff !== null) {
-            if (psdDiff < 0) {
-                flags.push({ icon: "📅", label: `PSD dépassée de ${Math.abs(psdDiff)}j (${fmtDate(detail.PSD)})`, urgency: "high" });
-                score += 2;
-            } else if (psdDiff <= 7) {
-                flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" });
-                score += 1;
-            }
+            if (psdDiff < 0) { flags.push({ icon: "📅", label: `PSD dépassée de ${Math.abs(psdDiff)}j (${_fmtDate(detail.PSD)})`, urgency: "high" }); score += 2; }
+            else if (psdDiff <= 7) { flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${_fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" }); score += 1; }
         }
 
-        // Ex-Fty — risque si < 14j ou dépassée
-        const exftyDiff = daysDiff(detail?.ExFty);
+        const exftyDiff = safeDiff(detail?.ExFty);
         if (exftyDiff !== null) {
-            if (exftyDiff < 0) {
-                flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${fmtDate(detail.ExFty)})`, urgency: "high" });
-                score += 2;
-            } else if (exftyDiff <= 14) {
-                flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" });
-                score += 1;
-            }
+            if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail.ExFty)})`, urgency: "high" }); score += 2; }
+            else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
         }
 
-        // Commande confirmée non livrée
-        const activeOrders = (state.data.ordering || []).filter(r =>
-            r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered"
-        );
-        if (activeOrders.length) {
-            flags.push({ icon: "📦", label: `${activeOrders.length} commande${activeOrders.length > 1 ? "s" : ""} confirmée${activeOrders.length > 1 ? "s" : ""} non livrée${activeOrders.length > 1 ? "s" : ""}`, urgency: "mid" });
-            score += 1;
-        }
+        const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered");
+        if (activeOrders.length) { flags.push({ icon: "📦", label: `${activeOrders.length} commande${activeOrders.length > 1 ? "s" : ""} confirmée${activeOrders.length > 1 ? "s" : ""} non livrée${activeOrders.length > 1 ? "s" : ""}`, urgency: "mid" }); score += 1; }
 
-        // Sample envoyée non approuvée
-        const pendingSamples = (state.data.sample || []).filter(r =>
-            r.Style === style && r.Approval !== "Approved"
-            && (r["Sending Date"] && String(r["Sending Date"]).trim())
-        );
-        if (pendingSamples.length) {
-            flags.push({ icon: "🧵", label: `${pendingSamples.length} sample${pendingSamples.length > 1 ? "s" : ""} envoyée${pendingSamples.length > 1 ? "s" : ""} sans approval`, urgency: "mid" });
-            score += 1;
-        }
+        const pendingSamples = (state.data.sample || []).filter(r => r.Style === style && !isApproved(r.Approval) && isSent(r["Sending Date"]));
+        if (pendingSamples.length) { flags.push({ icon: "🧵", label: `${pendingSamples.length} sample${pendingSamples.length > 1 ? "s" : ""} envoyée${pendingSamples.length > 1 ? "s" : ""} sans approval`, urgency: "mid" }); score += 1; }
 
-        if (flags.length >= 2) {
-            results.push({ style, client, desc, flags, score, maxUrgency: flags.some(f => f.urgency === "high") ? "high" : "mid" });
-        }
+        if (flags.length >= 2) results.push({ style, client, desc, flags, score, maxUrgency: flags.some(f => f.urgency === "high") ? "high" : "mid" });
     });
-
     return results.sort((a, b) => b.score - a.score);
 }
 
@@ -2927,12 +2873,11 @@ function renderAtRiskSection(risks) {
     if (!risks || !risks.length) return `<div style="text-align:center;padding:1.2rem;color:var(--text-muted);font-size:.8rem;">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="20" height="20" style="display:block;margin:0 auto .4rem;opacity:.4"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         Aucun style à risque détecté</div>`;
-
     return risks.map(r => {
         const urgColor = r.maxUrgency === "high" ? "#ef4444" : "#f59e0b";
         const scoreBg = r.score >= 4 ? "#fee2e2" : r.score >= 2 ? "#fef3c7" : "#f1f5f9";
         const scoreColor = r.score >= 4 ? "#b91c1c" : r.score >= 2 ? "#92400e" : "#475569";
-        return `<div style="border-left:3px solid ${urgColor};background:${urgColor}08;border-radius:0 8px 8px 0;padding:.7rem 1rem;margin-bottom:.5rem;">
+        return `<div style="border-left:3px solid ${urgColor};background:${r.maxUrgency === "high" ? "#fff0f0" : "#fffbeb"};border-top:0.5px solid ${urgColor}33;border-right:0.5px solid ${urgColor}33;border-bottom:0.5px solid ${urgColor}33;border-radius:0 8px 8px 0;padding:.7rem 1rem;margin-bottom:.5rem;">
             <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem;flex-wrap:wrap;">
                 <strong style="font-size:.85rem;">${esc(r.style)}</strong>
                 ${r.client ? `<span class="client-badge" style="font-size:.62rem;">${esc(r.client)}</span>` : ""}
