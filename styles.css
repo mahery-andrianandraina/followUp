@@ -5818,20 +5818,7 @@ select.filter-select {
     margin-bottom: 0;
 }
 
-/* sidebar wider */
-.dbs-cli-block {
-    grid-template-columns: 200px 1fr !important;
-}
-
-.dbs-sidebar {
-    padding: 16px 18px !important;
-    gap: 16px !important;
-}
-
-.dbs-main {
-    padding: 16px 18px !important;
-    gap: 14px !important;
-}
+/* sidebar layout — handled by flex column in main rule */
 
 
 /* ─── Style Card Image ───────────────────────────────────────── */
