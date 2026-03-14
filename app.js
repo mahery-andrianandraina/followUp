@@ -254,6 +254,8 @@ async function fetchAllData() {
         state.loading = false;
         renderAll();
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
+        // Log any Pantone names from GS that are not in the TCX database
+        setTimeout(_debugUnresolvedPantones, 500);
     } catch (err) {
         console.error(err);
         state.loading = false;
@@ -441,19 +443,58 @@ const PANTONE_TCX = {
 };
 
 // ─── Pantone name → real TCX hex ──────────────────────────────
-// Build a normalized lookup map once (lowercase → hex) for fast O(1) exact access
+// Normalize a string: lowercase, remove accents, collapse whitespace
+function _normalizePantone(s) {
+    return s.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+        .replace(/[^a-z0-9 ]/g, " ")  // non-alphanumeric → space
+        .replace(/\s+/g, " ")         // collapse spaces
+        .trim();
+}
+
+// Build normalized lookup map once
 const _PANTONE_INDEX = (() => {
     const idx = {};
     for (const [name, hex] of Object.entries(PANTONE_TCX)) {
-        idx[name.toLowerCase().trim()] = hex;
+        idx[_normalizePantone(name)] = hex;
     }
     return idx;
 })();
 
+// Dynamic cache for names fetched at runtime (not in static DB)
+const _PANTONE_RUNTIME_CACHE = {};
+
 function pantoneNameToHex(pantoneName) {
     if (!pantoneName) return null;
-    // Exact match only (case-insensitive) — no fuzzy/partial to avoid wrong colors
-    return _PANTONE_INDEX[pantoneName.toLowerCase().trim()] || null;
+    const norm = _normalizePantone(pantoneName);
+    // 1. Static database exact match
+    if (_PANTONE_INDEX[norm]) return _PANTONE_INDEX[norm];
+    // 2. Runtime cache (previously fetched)
+    if (_PANTONE_RUNTIME_CACHE[norm]) return _PANTONE_RUNTIME_CACHE[norm];
+    return null;
+}
+
+// Fetch missing Pantone hex from colorxs.com API (async, caches result)
+async function fetchPantoneHex(pantoneName) {
+    if (!pantoneName) return null;
+    const norm = _normalizePantone(pantoneName);
+    if (_PANTONE_INDEX[norm]) return _PANTONE_INDEX[norm];
+    if (_PANTONE_RUNTIME_CACHE[norm]) return _PANTONE_RUNTIME_CACHE[norm];
+    try {
+        // colorxs.com has a search that returns JSON with hex
+        const slug = pantoneName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        const url = `https://www.colorxs.com/api/color/pantone-tcx-${slug}`;
+        const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
+        if (r.ok) {
+            const data = await r.json();
+            if (data && data.hex) {
+                const hex = "#" + data.hex.replace("#","");
+                _PANTONE_RUNTIME_CACHE[norm] = hex;
+                return hex;
+            }
+        }
+    } catch(e) { /* silent fail */ }
+    return null;
 }
 
 // ─── GMT Color → CSS hex fallback (for when no Pantone match) ──
@@ -474,20 +515,40 @@ function gmtColorToHex(name) {
     return map[key] || "#cbd5e1";
 }
 
-// ─── Resolve best hex for a style row (Pantone first, GMT fallback) ──
+// ─── Resolve best hex for a style row ─────────────────────────
+// STRICT PRIORITY: Pantone name → GMT generic fallback
+// The Pantone name from GS is ALWAYS tried first.
+// GMT color is only used as a last resort visual hint.
 function resolveColorHex(gmtColor, pantoneName) {
-    // 1. Try Pantone name first (most accurate)
-    if (pantoneName) {
-        const hex = pantoneNameToHex(pantoneName);
+    // 1. Pantone name from GS — exact match in TCX database
+    if (pantoneName && pantoneName.trim()) {
+        const hex = pantoneNameToHex(pantoneName.trim());
         if (hex) return hex;
     }
-    // 2. Try GMT color name as Pantone lookup
-    if (gmtColor) {
-        const hex = pantoneNameToHex(gmtColor);
+    // 2. GMT name as-is in TCX database (e.g. "Greenery", "Flame Scarlet")
+    if (gmtColor && gmtColor.trim()) {
+        const hex = pantoneNameToHex(gmtColor.trim());
         if (hex) return hex;
     }
-    // 3. Fallback to GMT generic map
+    // 3. Last resort: generic GMT color family (Black, Navy, Red...)
     return gmtColorToHex(gmtColor);
+}
+
+// ─── Debug helper: log unresolved Pantone names (dev only) ────
+// Call resolveColorHex_debug() in console to see which names are missing
+function _debugUnresolvedPantones() {
+    const missing = new Set();
+    (state.data.style || []).forEach(s => {
+        if (s["Pantone"] && !pantoneNameToHex(s["Pantone"].trim())) {
+            missing.add(s["Pantone"].trim());
+        }
+    });
+    if (missing.size) {
+        console.warn("[Pantone] Ces noms ne sont pas dans la base TCX — ajoutez-les à PANTONE_TCX :", [...missing]);
+    } else {
+        console.log("[Pantone] Tous les noms Pantone sont résolus ✓");
+    }
+    return [...missing];
 }
 
 // ─── Dashboard Render ──────────────────────────────────────────
@@ -631,16 +692,27 @@ function renderDashboard() {
 
                     // ── Color labels from style sheet (real Pantone TCX hex)
                     const styleColors = (state.data.style || []).filter(s => s.Style === r.Style);
-                    const colorTags = styleColors.map(s => {
+                    const colorTags = styleColors.map((s, ci) => {
                         const gmtColor = esc(s["GMT Color"] || "");
                         const pantone  = esc(s["Pantone"] || "");
                         if (!gmtColor && !pantone) return '';
-                        // Resolve real Pantone hex (priority: Pantone name → GMT name → generic)
-                        const hex = resolveColorHex(s["GMT Color"], s["Pantone"]);
-                        const isGradient = hex.startsWith("linear");
-                        const barStyle = 'background:' + hex;
+                        // Unique ID for async color update
+                        const barId = 'cb-' + esc(r.Style||"") + '-' + ci;
+                        // Resolve color: static DB first (sync), then async fetch if missing
+                        const hexSync = resolveColorHex(s["GMT Color"], s["Pantone"]);
+                        const needsFetch = hexSync === "#cbd5e1" && s["Pantone"] && s["Pantone"].trim();
+                        const barStyle = 'background:' + hexSync;
+                        // Schedule async fetch if color not in static DB
+                        if (needsFetch) {
+                            fetchPantoneHex(s["Pantone"]).then(fetched => {
+                                if (fetched) {
+                                    const el = document.getElementById(barId);
+                                    if (el) el.style.background = fetched;
+                                }
+                            });
+                        }
                         return '<span class="sc-color-tag">' +
-                            '<span class="sc-color-bar" style="' + barStyle + '"></span>' +
+                            '<span class="sc-color-bar" id="' + barId + '" style="' + barStyle + '"></span>' +
                             '<span class="sc-color-info">' +
                                 '<span class="sc-color-gmt">' + gmtColor + '</span>' +
                                 (pantone ? '<span class="sc-color-pantone">' + pantone + '</span>' : '') +
