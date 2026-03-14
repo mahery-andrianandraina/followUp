@@ -429,26 +429,31 @@ const PANTONE_TCX = {
     "Sky Captain":"#262934","Jet Black":"#2D2C2F","Black Beauty":"#202020","Caviar":"#2A2A2A","Anthracite":"#303030","Phantom":"#383838","Carbon":"#404040","Dark Shadow":"#484848","Gunmetal":"#505050","Charcoal Gray":"#585858","Asphalt":"#606060","Dark Gray":"#686868","Naval":"#1A2A4A","Navy Peony":"#223A6A","Dark Navy":"#1A2850","Parisian Night":"#1A2038","Naval":"#1A2A4A","Dark Denim":"#2A3A5A","Peacoat":"#2A3050","Blue Wing Teal":"#2A4A58","Deep Teal":"#1A4A50","Dark Teal":"#1A4048","Reflecting Pond":"#2A3840","Deep Peacock Blue":"#2A4858","Dark Slate":"#383C48","Midnight":"#202838","Outer Space":"#2A3038","Dark Umber":"#382018","Dark Brown":"#382010","Espresso":"#301808","Coffee Bean":"#281810","Dark Chocolate":"#302020","Bitter Chocolate":"#3A2020","Seal Brown":"#402820","Dark Mocha":"#3A2818","Chocolate Fondant":"#3A2020","Dark Burgundy":"#501828","Wine":"#601830","Bordeaux":"#501828","Dark Red":"#602020","Deep Claret":"#502030","Dark Cherry":"#601828","Tawny Port":"#582028","Fig":"#602838","Eggplant":"#502848","Dark Purple":"#502858","Blackberry":"#402848","Midnight Purple":"#302050","Deep Purple":"#383060","Dark Violet":"#402868","Indigo":"#302868","Dark Indigo":"#282060",
     // Additional common fashion colors
     "True Red":"#CC2229","Racing Red":"#D52B1E","Mars Red":"#C5281C","Flame Scarlet":"#CD212A","Fiesta":"#DD4132","Grenadine":"#DC4B36","Aurora Red":"#C45C51","Bittersweet":"#B7513F","Chili":"#A84232","Marsala":"#96584A","Baked Clay":"#965038","Potter's Clay":"#9A5535","Copper Tan":"#9A6345","Sequoia":"#9B6048","Russet Brown":"#8C4A3A","Burnt Brick":"#923A2A","Red Ochre":"#A04830","Arrowwood":"#A06030","Dark Cheddar":"#E08119","Harvest Pumpkin":"#E06820","Autumn Maple":"#B84830","Russet":"#8A4020","Sienna":"#A04028","Cognac":"#9B3A2A","Adobe":"#B85840","Chrysanthemum":"#D05A38","Emberglow":"#D04A30","Dusty Orange":"#C87048","Amber":"#D09028","Melon":"#F47A5A","Coral":"#F57A60","Living Coral":"#FF6B6B","Peach Cobbler":"#FFB181","Candied Yams":"#D97040","Apricot Tan":"#C8825A","Caramel":"#B87750","Butterum":"#C89858","Taffy":"#E8A8A0","Flamingo Pink":"#F3927A",
+    // ── Additional TCX colors frequently used in fashion ──
+    "White Pepper":"#DBD5D1","Blanc de Blanc":"#E7E9E7","Bright Chalk":"#F2F0EB",
+    "Pristine White":"#F4F5F0","Eggshell":"#F1E8DF","Off White":"#F5F0E8",
+    "Optical White":"#F4F5F0","Natural White":"#F0EBE0","Warm White":"#EDE3D2",
+    "Cool White":"#EDEFEE","Blue White":"#EFF0F1","Arctic White":"#EEF0F0",
+    "Bone":"#D7D0C0","Ivory":"#FFFFF0","Champagne":"#F7E7CE",
+    "Powder":"#EDE6DE","Porcelain":"#F1E8DF","Alabaster":"#F0E6DC",
+    "Antique":"#EDE3D2","Vintage White":"#EDE0C8","Oyster":"#D2CAAF",
+    "Sea Fog":"#E8E8E4","Lily":"#F2E8DF","Whitened":"#EDE9E5",
 };
 
 // ─── Pantone name → real TCX hex ──────────────────────────────
-// Priority 1: exact Pantone name match in PANTONE_TCX
-// Priority 2: GMT color name fallback
+// Build a normalized lookup map once (lowercase → hex) for fast O(1) exact access
+const _PANTONE_INDEX = (() => {
+    const idx = {};
+    for (const [name, hex] of Object.entries(PANTONE_TCX)) {
+        idx[name.toLowerCase().trim()] = hex;
+    }
+    return idx;
+})();
+
 function pantoneNameToHex(pantoneName) {
     if (!pantoneName) return null;
-    // Try exact match (case-insensitive)
-    const clean = pantoneName.trim();
-    const exactKey = Object.keys(PANTONE_TCX).find(
-        k => k.toLowerCase() === clean.toLowerCase()
-    );
-    if (exactKey) return PANTONE_TCX[exactKey];
-    // Try partial / word match
-    const lc = clean.toLowerCase();
-    const partialKey = Object.keys(PANTONE_TCX).find(
-        k => k.toLowerCase().includes(lc) || lc.includes(k.toLowerCase())
-    );
-    if (partialKey) return PANTONE_TCX[partialKey];
-    return null;
+    // Exact match only (case-insensitive) — no fuzzy/partial to avoid wrong colors
+    return _PANTONE_INDEX[pantoneName.toLowerCase().trim()] || null;
 }
 
 // ─── GMT Color → CSS hex fallback (for when no Pantone match) ──
