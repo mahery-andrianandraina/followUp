@@ -563,16 +563,26 @@ function renderDashboard() {
                         if (pendingOrders > 0)   orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
                     }
 
-                    // ── Color labels from style sheet (text only, no swatches)
+                    // ── Color labels from style sheet (text tags with accent bar)
                     const styleColors = (state.data.style || []).filter(s => s.Style === r.Style);
                     const colorTags = styleColors.map(s => {
                         const gmtColor = esc(s["GMT Color"] || "");
                         const pantone  = esc(s["Pantone"] || "");
-                        const label    = pantone ? gmtColor + ' · ' + pantone : gmtColor;
-                        return label ? '<span class="sc-color-tag">' + label + '</span>' : '';
+                        if (!gmtColor) return '';
+                        const hex = gmtColorToHex(s["GMT Color"]);
+                        const isGradient = hex.startsWith("linear");
+                        const barStyle = isGradient ? 'background:' + hex : 'background:' + hex;
+                        return '<span class="sc-color-tag">' +
+                            '<span class="sc-color-bar" style="' + barStyle + '"></span>' +
+                            '<span class="sc-color-gmt">' + gmtColor + '</span>' +
+                            (pantone ? '<span class="sc-color-pantone">' + pantone + '</span>' : '') +
+                        '</span>';
                     }).filter(Boolean).join("");
                     const colorWrap = colorTags
-                        ? '<div class="sc-colors-wrap sc-colors-text">' + colorTags + '</div>'
+                        ? '<div class="sc-colors-wrap sc-colors-text">' +
+                            '<span class="sc-colors-lbl">Coloris</span>' +
+                            '<div class="sc-color-tags-row">' + colorTags + '</div>' +
+                          '</div>'
                         : '';
 
                     // ── Progress bar: delivered / total colors
