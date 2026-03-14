@@ -563,14 +563,16 @@ function renderDashboard() {
                         if (pendingOrders > 0)   orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
                     }
 
-                    // ── Color swatches from style sheet
+                    // ── Color labels from style sheet (text only, no swatches)
                     const styleColors = (state.data.style || []).filter(s => s.Style === r.Style);
-                    const colorDots = styleColors.slice(0, 5).map(s => {
-                        const lbl = esc(s["GMT Color"] || "");
-                        return '<span class="sc-color-dot" title="' + lbl + '" style="background:' + gmtColorToHex(s["GMT Color"]) + '"></span>';
-                    }).join("");
-                    const colorWrap = styleColors.length
-                        ? '<div class="sc-colors-wrap">' + colorDots + (styleColors.length > 5 ? '<span class="sc-color-more">+' + (styleColors.length - 5) + '</span>' : '') + '</div>'
+                    const colorTags = styleColors.map(s => {
+                        const gmtColor = esc(s["GMT Color"] || "");
+                        const pantone  = esc(s["Pantone"] || "");
+                        const label    = pantone ? gmtColor + ' · ' + pantone : gmtColor;
+                        return label ? '<span class="sc-color-tag">' + label + '</span>' : '';
+                    }).filter(Boolean).join("");
+                    const colorWrap = colorTags
+                        ? '<div class="sc-colors-wrap sc-colors-text">' + colorTags + '</div>'
                         : '';
 
                     // ── Progress bar: delivered / total colors
