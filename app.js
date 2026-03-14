@@ -689,36 +689,8 @@ function renderDashboard() {
 
     // ── Dashboard intelligence sections (merged from injection) ──
     const _dsEl = document.getElementById("dashboard-screen");
-    if (_dsEl) {
-        // Avoid duplicate injection
-        if (!_dsEl.querySelector("#style-timeline-body")) {
-            const extraHtml = `
-    <div style="margin-top:2rem;">
-        <div style="margin-bottom:2rem;">
-            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#6366f1"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Progression des Styles</h3>
-                <span id="timeline-style-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
-                <button onclick="toggleStyleTimeline()" id="btn-toggle-timeline" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">Voir tout</button>
-            </div>
-            <div id="style-timeline-body"></div>
-        </div>
-        <div>
-            <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16" style="color:#f59e0b"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                <h3 style="font-size:.9rem;font-weight:700;color:var(--text-primary,#1a1a2e);margin:0;">Styles à Risque</h3>
-                <span id="atrisk-count" style="font-size:.72rem;color:var(--text-muted);background:var(--surface-2,#f1f5f9);padding:2px 8px;border-radius:20px;"></span>
-                <button onclick="openDuplicatesPanel()" style="margin-left:auto;background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:.72rem;color:var(--text-muted);cursor:pointer;">🔍 Doublons</button>
-            </div>
-            <div id="atrisk-body"></div>
-        </div>
-    </div>`;
-            _dsEl.insertAdjacentHTML("beforeend", extraHtml);
-        }
-        _refreshDashboardIntelligence();
-        // Re-apply active dashboard filters after render
-        if (typeof applyDashboardFilters === 'function') applyDashboardFilters();
-    }
+    // Re-apply active dashboard filters after render
+    if (typeof applyDashboardFilters === 'function') applyDashboardFilters();
 }
 
 // ─── KPIs ─────────────────────────────────────────────────────
