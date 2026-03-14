@@ -582,7 +582,7 @@ function renderDashboard() {
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms">' +
+                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms" data-style="' + esc((r.Style || "").toLowerCase()) + '" data-desc="' + esc((r["Description"] || r["StyleDescription"] || "").toLowerCase()) + '" data-fabric="' + esc((r["Fabric Base"] || "").toLowerCase()) + '" data-client="' + esc((r.Client || "").toLowerCase()) + '">' +
                         '<div class="dbs-sc-head">' +
                             '<div class="dbs-sc-id">' +
                                 '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
@@ -3378,72 +3378,62 @@ function applyDashboardFilters() {
     let anyVisible = false;
 
     saisonBlocks.forEach(block => {
+        // ── Saison filter
         const pillEl = block.querySelector(".dbs-szn-pill");
         const blockSaison = pillEl ? pillEl.textContent.trim() : "";
-
-        // ── Saison filter
         if (saison && blockSaison !== saison) {
             block.classList.add("db-hidden");
             return;
         }
         block.classList.remove("db-hidden");
 
-        const clientBlocks = block.querySelectorAll(".dbs-cli-block");
         let anyClientVisible = false;
+        const clientBlocks = block.querySelectorAll(".dbs-cli-block");
 
         clientBlocks.forEach(cb => {
+            // ── Client filter
             const clientNameEl = cb.querySelector(".dbs-cli-name");
             const blockClient = clientNameEl ? clientNameEl.textContent.trim() : "";
-
-            // ── Client filter
             if (client && blockClient !== client) {
                 cb.classList.add("db-hidden");
                 return;
             }
             cb.classList.remove("db-hidden");
 
-            // ── Search: filter at style-card level
+            // ── Search filter at card level using data-attributes
             const styleCards = cb.querySelectorAll(".dbs-sc");
             let anyCardVisible = false;
 
-            if (search) {
-                styleCards.forEach(card => {
-                    // Get style code + description text from the card
-                    const codeEl = card.querySelector(".dbs-sc-code");
-                    const descEl = card.querySelector(".dbs-sc-desc");
-                    const fieldEls = card.querySelectorAll(".dbs-sf-v, .dbs-fab");
-                    let cardText = "";
-                    if (codeEl) cardText += codeEl.textContent.toLowerCase() + " ";
-                    if (descEl) cardText += descEl.textContent.toLowerCase() + " ";
-                    fieldEls.forEach(el => { cardText += el.textContent.toLowerCase() + " "; });
-
-                    if (cardText.includes(search)) {
-                        card.classList.remove("db-hidden");
-                        anyCardVisible = true;
-                    } else {
-                        card.classList.add("db-hidden");
-                    }
-                });
-
-                // Hide dept groups that have no visible cards
-                const deptGroups = cb.querySelectorAll(".dbs-dept-grp");
-                deptGroups.forEach(grp => {
-                    const visibleCards = grp.querySelectorAll(".dbs-sc:not(.db-hidden)");
-                    grp.classList.toggle("db-hidden", visibleCards.length === 0);
-                });
-
-                if (!anyCardVisible) {
-                    cb.classList.add("db-hidden");
+            styleCards.forEach(card => {
+                if (!search) {
+                    card.classList.remove("db-hidden");
+                    anyCardVisible = true;
                     return;
                 }
-            } else {
-                // No search: show all cards and dept groups
-                styleCards.forEach(c => c.classList.remove("db-hidden"));
-                cb.querySelectorAll(".dbs-dept-grp").forEach(g => g.classList.remove("db-hidden"));
-                anyCardVisible = true;
-            }
+                const styleVal  = (card.dataset.style  || "");
+                const descVal   = (card.dataset.desc   || "");
+                const fabricVal = (card.dataset.fabric || "");
+                const clientVal = (card.dataset.client || "");
+                const combined  = styleVal + " " + descVal + " " + fabricVal + " " + clientVal;
+                if (combined.includes(search)) {
+                    card.classList.remove("db-hidden");
+                    anyCardVisible = true;
+                } else {
+                    card.classList.add("db-hidden");
+                }
+            });
 
-            anyClientVisible = true;
+            // Show/hide dept groups based on visible cards
+            cb.querySelectorAll(".dbs-dept-grp").forEach(grp => {
+                const hasVisible = grp.querySelectorAll(".dbs-sc:not(.db-hidden)").length > 0;
+                grp.classList.toggle("db-hidden", !hasVisible);
+            });
+
+            if (!anyCardVisible && search) {
+                cb.classList.add("db-hidden");
+            } else {
+                anyClientVisible = true;
+            }
         });
 
         if (!anyClientVisible && (client || search)) {
