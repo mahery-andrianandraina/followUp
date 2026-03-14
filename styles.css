@@ -5730,7 +5730,9 @@ select.filter-select {
 
 /* ─── Dashboard hidden blocks (filtered out) ─────────────────── */
 .dbs-szn-block.db-hidden,
-.dbs-cli-block.db-hidden {
+.dbs-cli-block.db-hidden,
+.dbs-sc.db-hidden,
+.dbs-dept-grp.db-hidden {
     display: none !important;
 }
 
