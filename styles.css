@@ -5728,6 +5728,55 @@ select.filter-select {
     gap: 14px !important;
 }
 
+
+/* ─── Style Card Image ───────────────────────────────────────── */
+.dbs-sc-img-wrap {
+    width: 100%;
+    height: 160px;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+    position: relative;
+}
+
+.dbs-sc-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+    transition: transform 0.35s ease;
+}
+
+.dbs-sc:hover .dbs-sc-img {
+    transform: scale(1.04);
+}
+
+.dbs-sc-img-wrap.dbs-sc-img-error .dbs-sc-img {
+    display: none;
+}
+
+.dbs-sc-img-wrap.dbs-sc-img-error::after {
+    content: "Image indisponible";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.dbs-sc-img-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
 /* ─── Dashboard hidden blocks (filtered out) ─────────────────── */
 .dbs-szn-block.db-hidden,
 .dbs-cli-block.db-hidden,
