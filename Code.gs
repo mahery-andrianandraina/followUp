@@ -261,10 +261,20 @@ function doPost(e) {
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn())
                          .getValues()[0].map(h => String(h).trim());
 
+    // ── Convertir les strings de dates en vrais objets Date pour Google Sheets ──
+    function parseVal(val) {
+      if (!val || val === "") return "";
+      if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
+        const parts = val.trim().split("-");
+        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
+      return val;
+    }
+
     if (action === "CREATE") {
-      sheet.appendRow(headers.map(h => data[h] ?? ""));
+      sheet.appendRow(headers.map(h => parseVal(data[h] ?? "")));
     } else if (action === "UPDATE") {
-      sheet.getRange(rowIndex, 1, 1, headers.length).setValues([headers.map(h => data[h] ?? "")]);
+      sheet.getRange(rowIndex, 1, 1, headers.length).setValues([headers.map(h => parseVal(data[h] ?? ""))]);
     } else if (action === "DELETE") {
       sheet.deleteRow(rowIndex);
     } else {

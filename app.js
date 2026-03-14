@@ -2008,73 +2008,161 @@ function collectAllAlerts() {
             }
             // ── FIN logique Trims Devo ────────────────────────────────
 
-            // ── FABRIC DEVO / ANALYSIS ──────────────────────
-            if (det.isFabricAnalysis || det.isFabricDevo) {
-                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "\u2014" ? getStyle(r) : "Test");
+            // ── FABRIC DEVO — 4 étapes séquentielles ─────────────
+            if (det.isFabricDevo) {
+                const styleVal = getStyle(r);
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
+                const fsrDateVal = det.fsrDate && r[det.fsrDate] ? String(r[det.fsrDate]).trim() : "";
+                const prefix = [styleVal !== "—" ? styleVal : "", colorVal].filter(Boolean).join(" · ");
+
+                if (approved) return;
+
+                // Étape 4 : Sending Date rempli → en attente approval
+                if (hasSending) {
+                    const days = Math.abs(_daysDiff(r[det.sendingDate]));
+                    const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                    const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    items.push({
+                        dotCls: "dot-approve", tagCls: "tag-approve",
+                        tagLabel: `⏳ Approval en attente — ${days}j${urgBadge}`,
+                        title: `${prefix} — Envoyé · approval en attente depuis ${days}j`,
+                        action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Suivre l'approval",
+                        style: styleVal, client: getClient(r),
+                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
+                    });
+                    return;
+                }
+
+                // Étape 3 : Received Date rempli + pas de Sending Date → à envoyer
+                if (hasReceived && !hasSending) {
+                    const days = Math.abs(_daysDiff(r[det.receivedDate]));
+                    const urgency = days >= 5 ? "mid" : "low";
+                    items.push({
+                        dotCls: "dot-send", tagCls: "tag-send",
+                        tagLabel: `📦 À envoyer au client`,
+                        title: `${prefix} — Reçu · à envoyer au client`,
+                        action: `Reçu il y a ${days}j — organiser l'envoi et renseigner la Sending Date`,
+                        style: styleVal, client: getClient(r),
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
+                    });
+                    return;
+                }
+
+                // Étape 2 : Ready Date rempli + pas de Received Date → attendre réception
+                if (hasReadyDate && !hasReceived) {
+                    const diff = _daysDiff(r[det.readyDate]);
+                    const absDiff = Math.abs(diff);
+                    if (diff < 0) {
+                        items.push({
+                            dotCls: "dot-late", tagCls: "tag-late",
+                            tagLabel: `🔴 Réception en retard — ${absDiff}j`,
+                            title: `${prefix} — Ready Date dépassée de ${absDiff}j · non reçu`,
+                            action: `Relancer la factory — réception attendue il y a ${absDiff}j`,
+                            style: styleVal, client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            urgency: "high", sheet: key, rowIndex: r._rowIndex
+                        });
+                    } else if (diff === 0) {
+                        items.push({
+                            dotCls: "dot-today", tagCls: "tag-today",
+                            tagLabel: `🟡 Réception attendue aujourd'hui`,
+                            title: `${prefix} — Ready Date aujourd'hui · prévoir la réception`,
+                            action: `Confirmer la réception dès arrivée`,
+                            style: styleVal, client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            urgency: "low", sheet: key, rowIndex: r._rowIndex
+                        });
+                    } else {
+                        items.push({
+                            dotCls: "dot-risk", tagCls: "tag-risk",
+                            tagLabel: `🕐 Réception dans ${diff}j`,
+                            title: `${prefix} — En attente de réception · prêt dans ${diff}j`,
+                            action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                            style: styleVal, client: getClient(r),
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            urgency: "low", sheet: key, rowIndex: r._rowIndex
+                        });
+                    }
+                    return;
+                }
+
+                // Étape 1 : FSR Date rempli + pas de Ready Date → demander la Ready Date
+                if (hasFsr && !hasReadyDate) {
+                    const fsrDays = Math.abs(_daysDiff(r[det.fsrDate]));
+                    const urgency = fsrDays >= 14 ? "high" : fsrDays >= 7 ? "mid" : "low";
+                    const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                    items.push({
+                        dotCls: "dot-nopo", tagCls: "tag-nopo",
+                        tagLabel: `📧 Demander la Ready Date${urgBadge}`,
+                        title: `${prefix} — FSR lancé · Ready Date non renseignée`,
+                        action: `Contacter le supplier pour obtenir la Ready Date (FSR lancé il y a ${fsrDays}j)`,
+                        style: styleVal, client: getClient(r),
+                        meta: `FSR Date : ${_fmtDate(r[det.fsrDate])}`,
+                        urgency, sheet: key, rowIndex: r._rowIndex
+                    });
+                    return;
+                }
+                return;
+            }
+
+            // ── FABRIC ANALYSIS ──────────────────────────────────
+            if (det.isFabricAnalysis) {
+                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "—" ? getStyle(r) : "Test");
                 const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
                 const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                const fsrInTitle = (det.isFabricDevo && fsrVal) ? `FSR ${fsrVal} ` : "";
-                // Champs clés : RESULT, RESULT DATE, READY DATE
                 const resultVal   = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
                 const resultDtVal = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
                 const readyDtVal  = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
 
-                // ✅ RESULT renseigné → terminé, aucune alerte
                 if (resultVal) return;
 
                 if (readyDtVal) {
                     const today  = new Date(); today.setHours(0, 0, 0, 0);
                     const rdDate = new Date(readyDtVal); rdDate.setHours(0, 0, 0, 0);
-
-                    // Règle 2 : RESULT DATE = READY DATE + RESULT vide
                     if (resultDtVal) {
                         const resDt = new Date(resultDtVal); resDt.setHours(0, 0, 0, 0);
                         if (resDt.getTime() === rdDate.getTime()) {
                             items.push({
                                 dotCls: "dot-today", tagCls: "tag-today",
                                 tagLabel: `🟡 Résultat reçu — à saisir dans RESULT`,
-                                title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Résultat reçu, merci de le saisir dans le champ RESULT`,
-                                action: `Saisir le résultat du test (Pass / Fail) dans le champ RESULT`,
+                                title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Résultat reçu, merci de le saisir`,
+                                action: `Saisir le résultat (Pass / Fail) dans le champ RESULT`,
                                 style: getStyle(r), client: getClient(r),
-                                meta: `Result Date : ${_fmtDate(resultDtVal)} · Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}`,
+                                meta: `Result Date : ${_fmtDate(resultDtVal)} · Ready Date : ${_fmtDate(readyDtVal)}`,
                                 urgency: "mid", sheet: key, rowIndex: r._rowIndex
                             });
                             return;
                         }
                     }
-
-                    // Règle 1b : READY DATE = aujourd'hui + RESULT vide → résultat attendu aujourd'hui
                     if (!resultDtVal && rdDate.getTime() === today.getTime()) {
                         items.push({
                             dotCls: "dot-today", tagCls: "tag-today",
                             tagLabel: `🟡 Résultat attendu aujourd'hui`,
                             title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Résultat du labo attendu aujourd'hui`,
-                            action: `Contacter le laboratoire pour obtenir le résultat`,
+                            action: `Contacter le laboratoire`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}${fsrVal ? " · FSR : " + fsrVal : ""}`,
+                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${fsrVal ? " · FSR : " + fsrVal : ""}`,
                             urgency: "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
-
-                    // Règle 1 : READY DATE dépassée + RESULT DATE vide + RESULT vide
                     if (!resultDtVal && rdDate < today) {
                         const days = Math.round((today - rdDate) / 86400000);
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
                             tagLabel: `🔴 Résultat en retard — ${days}j`,
-                            title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Analyse en retard de ${days} jour${days > 1 ? "s" : ""} — résultat non reçu`,
+                            title: `${efaVal}${colorVal ? " · " + colorVal : ""} — Analyse en retard de ${days}j`,
                             action: `Contacter le laboratoire — Ready Date dépassée de ${days}j`,
                             style: getStyle(r), client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${efaVal ? " · EFA : " + efaVal : ""}${fsrVal ? " · FSR : " + fsrVal : ""}`,
+                            meta: `Ready Date : ${_fmtDate(readyDtVal)}${fsrVal ? " · FSR : " + fsrVal : ""}`,
                             urgency: days >= 5 ? "high" : "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
-                    return; // Ready Date dans le futur → pas d'alerte
+                    return;
                 }
-
-                // Pas de Ready Date : en attente labo
                 if (!readyDtVal && !hasReceived && !hasSending) {
                     const launchDateVal = det.launchDate && r[det.launchDate] && String(r[det.launchDate]).trim() ? r[det.launchDate] : null;
                     const dateRef = launchDateVal || (hasFsr ? r[det.fsrDate] : null);
@@ -2090,17 +2178,6 @@ function collectAllAlerts() {
                             style: getStyle(r), client: getClient(r),
                             meta: `EFA : ${efaVal}${colorVal ? " · " + colorVal : ""} · Lancé le : ${_fmtDate(dateRef)}`,
                             urgency, sheet: key, rowIndex: r._rowIndex
-                        });
-                        return;
-                    } else if (det.isFabricDevo && !isRejected) {
-                        items.push({
-                            dotCls: "dot-nopo", tagCls: "tag-nopo",
-                            tagLabel: `📋 ${efaVal} — Attente FSR`,
-                            title: `${fsrInTitle}${efaVal}${colorVal ? " " + colorVal : ""} — FSR à lancer / Ready Date manquante`,
-                            action: `Vérifier avec le supplier et lancer l'analyse FSR`,
-                            style: getStyle(r), client: getClient(r),
-                            meta: `Ref : ${efaVal}${fsrVal ? " · FSR : " + fsrVal : ""}`,
-                            urgency: "mid", sheet: key, rowIndex: r._rowIndex
                         });
                         return;
                     }
