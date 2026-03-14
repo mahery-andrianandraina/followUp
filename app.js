@@ -582,8 +582,13 @@ function renderDashboard() {
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style (depuis GAS _imageUrl)
-                    const imgUrl = r["_imageUrl"] || r["Image"] || "";
+                    // ── Image du style (URL OneDrive depuis colonne Image)
+                    let imgUrl = r["_imageUrl"] || r["Image"] || "";
+                    // Convertir lien de partage OneDrive 1drv.ms en lien direct si nécessaire
+                    if (imgUrl && imgUrl.includes("1drv.ms")) {
+                        imgUrl = imgUrl.replace("https://1drv.ms/i/", "https://api.onedrive.com/v1.0/shares/")
+                                       .replace(/[?].*$/, "") + "/root/content";
+                    }
                     let imgBlock;
                     if (imgUrl) {
                         imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + esc(r.Style || "") + '" loading="lazy"/></div>';

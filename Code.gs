@@ -11,55 +11,6 @@ const SHEET_NAMES = {
   ordering: "Ordering"
 };
 
-// ─── Helper : extraire les URLs d'images =IMAGE() d'une feuille ──
-// Retourne un objet { StyleCode: "https://..." }
-function getImageUrlsFromSheet(sheet) {
-  const imageMap = {};
-  try {
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    if (lastRow < 2 || lastCol < 1) return imageMap;
-
-    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-
-    // Trouver les colonnes "Image" et "Style"
-    const imgColIndex   = headers.findIndex(h => String(h).trim().toLowerCase() === "image");
-    const styleColIndex = headers.findIndex(h => String(h).trim().toLowerCase() === "style");
-
-    if (imgColIndex === -1 || styleColIndex === -1) return imageMap;
-
-    const numDataRows  = lastRow - 1;
-    const formulas     = sheet.getRange(2, imgColIndex + 1,   numDataRows, 1).getFormulas();
-    const styleValues  = sheet.getRange(2, styleColIndex + 1, numDataRows, 1).getValues();
-
-    formulas.forEach(function(row, i) {
-      const formula = row[0];
-      const style   = String(styleValues[i][0]).trim();
-      if (!style || !formula) return;
-
-      // Extraire l'URL depuis =IMAGE("url") ou =IMAGE("url", mode, h, w)
-      const match = formula.match(/=IMAGE\s*\(\s*"([^"]+)"/i);
-      if (!match) return;
-
-      let url = match[1];
-
-      // Convertir lien Google Drive /file/d/ID/ → lien direct d'export
-      const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
-      if (driveMatch) {
-        url = "https://drive.google.com/uc?export=view&id=" + driveMatch[1];
-      }
-
-      // Ne stocker qu'une image par style (première trouvée)
-      if (!imageMap[style]) {
-        imageMap[style] = url;
-      }
-    });
-
-  } catch(err) {
-    Logger.log("getImageUrlsFromSheet error: " + err.message);
-  }
-  return imageMap;
-}
 
 // ─── GET : lecture de toutes les feuilles ─────────────────────
 function doGet(e) {
@@ -72,12 +23,10 @@ function doGet(e) {
       result[key] = readSheet(ss, sheetName);
     }
 
-    // ── Injecter les images dans les lignes Details ───────────
-    const detailsSheet = ss.getSheetByName(SHEET_NAMES.details);
-    if (detailsSheet && result.details && result.details.rows) {
-      const imageMap = getImageUrlsFromSheet(detailsSheet);
+    // ── Injecter _imageUrl depuis la colonne "Image" (URL texte OneDrive) ──
+    if (result.details && result.details.rows) {
       result.details.rows = result.details.rows.map(function(row) {
-        return Object.assign({}, row, { _imageUrl: imageMap[row.Style] || "" });
+        return Object.assign({}, row, { _imageUrl: row["Image"] || "" });
       });
     }
 
@@ -272,7 +221,13 @@ function testLigne2() {
 function testImages() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEET_NAMES.details);
-  const imageMap = getImageUrlsFromSheet(sheet);
-  Logger.log("Images trouvées : " + Object.keys(imageMap).length);
-  Logger.log(JSON.stringify(imageMap));
+  const data = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const imgColIndex = headers.findIndex(h => h.toLowerCase() === "image");
+  Logger.log("Colonne Image à l\'index : " + imgColIndex);
+  if (imgColIndex > -1) {
+    for (let i = 1; i <= Math.min(5, data.length - 1); i++) {
+      Logger.log("Ligne " + (i+1) + " Image: " + data[i][imgColIndex]);
+    }
+  }
 }
