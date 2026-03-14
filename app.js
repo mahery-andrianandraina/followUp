@@ -582,13 +582,8 @@ function renderDashboard() {
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style (URL OneDrive depuis colonne Image)
-                    let imgUrl = r["_imageUrl"] || r["Image"] || "";
-                    // Convertir lien de partage OneDrive 1drv.ms en lien direct si nécessaire
-                    if (imgUrl && imgUrl.includes("1drv.ms")) {
-                        imgUrl = imgUrl.replace("https://1drv.ms/i/", "https://api.onedrive.com/v1.0/shares/")
-                                       .replace(/[?].*$/, "") + "/root/content";
-                    }
+                    // ── Image du style (base64 depuis Google Drive via GAS)
+                    const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
                         imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + esc(r.Style || "") + '" loading="lazy"/></div>';
@@ -625,6 +620,23 @@ function renderDashboard() {
                 '</div>';
             }).join("");
 
+            // ── Bar chart sidebar
+            const maxQty = Math.max(...deptDataArr.map(d => d.qty), 1);
+            const bars = deptDataArr.map((dd, di) => {
+                const c = DEPT_COLORS[di % DEPT_COLORS.length];
+                const pct = Math.round((dd.qty / maxQty) * 100);
+                const qtyLabel = dd.qty >= 1000 ? (dd.qty / 1000).toFixed(1).replace('.0','') + 'k' : dd.qty.toString();
+                return '<div class="dbs-bar-row">' +
+                    '<div class="dbs-bar-dept">' + esc(dd.dept) + '</div>' +
+                    '<div class="dbs-bar-track">' +
+                        '<div class="dbs-bar-fill" style="width:' + Math.max(pct, 8) + '%;background:linear-gradient(90deg,' + c.stroke + ',' + c.stroke + '99)">' +
+                            '<span class="dbs-bar-qty">' + qtyLabel + ' u.</span>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="dbs-bar-n" style="color:' + c.text + ';background:' + c.bg + '">' + dd.nStyles + '</div>' +
+                '</div>';
+            }).join("");
+
             return '<div class="dbs-cli-block">' +
                 '<div class="dbs-sidebar">' +
                     '<div class="dbs-cli-id">' +
@@ -634,12 +646,21 @@ function renderDashboard() {
                             '<div class="dbs-cli-sub">' + cTotal.toLocaleString("fr-FR") + ' u. &middot; ' + cStyles + ' style' + (cStyles > 1 ? 's' : '') + '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div class="dbs-donut-area">' +
-                        '<div class="dbs-donut-wrap">' +
-                            buildDonut(depts, deptDataArr) +
-                            '<div class="dbs-donut-lbl">dept</div>' +
+                    '<div class="dbs-bar-sep"></div>' +
+                    '<div class="dbs-bar-chart">' +
+                        '<div class="dbs-bar-chart-lbl">Répartition par département</div>' +
+                        bars +
+                    '</div>' +
+                    '<div class="dbs-bar-sep"></div>' +
+                    '<div class="dbs-bar-kpis">' +
+                        '<div class="dbs-bar-kpi" style="background:' + accentColor + '1a">' +
+                            '<div class="dbs-bar-kpi-n" style="color:' + accentColor + '">' + cTotal.toLocaleString("fr-FR") + '</div>' +
+                            '<div class="dbs-bar-kpi-l" style="color:' + accentColor + '">u. total</div>' +
                         '</div>' +
-                        '<div class="dbs-legend">' + buildLegend(deptDataArr) + '</div>' +
+                        '<div class="dbs-bar-kpi">' +
+                            '<div class="dbs-bar-kpi-n">' + cStyles + '</div>' +
+                            '<div class="dbs-bar-kpi-l">styles</div>' +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="dbs-main">' + deptSections + '</div>' +
