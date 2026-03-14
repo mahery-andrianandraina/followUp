@@ -138,6 +138,7 @@ async function initApp() {
     loadCustomMenus();
     setupTabListeners();
     setupSearchAndFilter();
+    setupDashboardFilters();
     showDashboard();
     await fetchAllData();
     renderDashboard();
@@ -340,7 +341,7 @@ function showDashboard() {
     if (ds) ds.style.display = "flex";
     if (kg) kg.style.display = "none";
     if (tc) tc.style.display = "none";
-    if (fb) fb.style.display = "flex";
+    if (fb) { fb.style.display = "flex"; fb.classList.remove("hidden"); }
     if (ap) ap.innerHTML = "";
     if (sp) sp.innerHTML = "";
     // Show skeleton while data hasn't loaded yet
@@ -368,7 +369,7 @@ function showTableView() {
     if (ds) ds.style.display = "none";
     if (kg) kg.style.display = "none";
     if (tc) tc.style.display = "";
-    if (fb) fb.style.display = "none";
+    if (fb) { fb.style.display = "none"; fb.classList.add("hidden"); }
 }
 
 function renderAll() {
@@ -648,13 +649,6 @@ function renderDashboard() {
     const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
 
     el.innerHTML =
-        '<div class="db-welcome">' +
-        '<div class="db-welcome-text"><h2>AW27 Checkers</h2><p>Brief des styles par saison, client &amp; d\u00e9partement</p></div>' +
-        '<span class="db-welcome-badge">' +
-        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
-        dateCapitalized +
-        '</span>' +
-        '</div>' +
         (saisonBlocks || '<p style="color:var(--text-muted);padding:2rem">Aucune donn\u00e9e.</p>');
 
     // ── Dashboard intelligence sections (merged from injection) ──
