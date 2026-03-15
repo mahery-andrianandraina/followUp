@@ -1103,7 +1103,6 @@ function renderTable() {
 
     // ── Details : rendu groupé par client ──────────────────────────────
     if (isDetails) {
-        // Grouper les rows filtrées par client (ordre d'apparition préservé)
         const _clientMap = {};
         const _clientOrder = [];
         rows.forEach(row => {
@@ -1114,11 +1113,9 @@ function renderTable() {
 
         tableBody.innerHTML = _clientOrder.map(clientName => {
             const clientRows = _clientMap[clientName];
-            const clientKey  = "det-cli-" + clientName.replace(/[^a-zA-Z0-9]/g,"_");
             const chevId     = "det-cli-chv-" + clientName.replace(/[^a-zA-Z0-9]/g,"_");
             const isOpen     = _detClientOpen.has(clientName);
 
-            // ── Récap client : total styles, late, à risque
             const _today = new Date(); _today.setHours(0,0,0,0);
             let _lateCount = 0, _riskCount = 0;
             clientRows.forEach(r => {
@@ -1131,18 +1128,8 @@ function renderTable() {
                 } catch(e) {}
             });
             const _totalQty = clientRows.reduce((s,r) => s + (+r["Order Qty"]||0), 0);
-
-            const _lateBadge = _lateCount > 0
-                ? `<span class="det-client-badge det-cb-danger">${_lateCount} en retard</span>` : "";
-            const _riskBadge = _riskCount > 0
-                ? `<span class="det-client-badge det-cb-warn">${_riskCount} à risque</span>` : "";
-
-            // ── Pills dept pour ce client
-            const _depts = {};
-            clientRows.forEach(r => { const d = r["Dept"]||"—"; _depts[d] = (_depts[d]||0)+1; });
-            const _activeDept = _detDeptFilter[clientName] || "";
-            const _pills = `<span class="det-dpill${_activeDept===""?" det-dpill-active":""}" onclick="event.stopPropagation();detSetDept('${clientName.replace(/'/g,"\'")}','')">Tous<span class="det-dpill-n">${clientRows.length}</span></span>`
-                + Object.entries(_depts).map(([d,n]) => `<span class="det-dpill${_activeDept===d?" det-dpill-active":""}" onclick="event.stopPropagation();detSetDept('${clientName.replace(/'/g,"\'")}','${d}')">${esc(d)}<span class="det-dpill-n">${n}</span></span>`).join("");
+            const _lateBadge = _lateCount > 0 ? `<span class="det-client-badge det-cb-danger">${_lateCount} en retard</span>` : "";
+            const _riskBadge = _riskCount > 0 ? `<span class="det-client-badge det-cb-warn">${_riskCount} à risque</span>` : "";
 
             const _clientRow = `<tr class="det-client-row" onclick="detToggleClient('${clientName.replace(/'/g,"\'")}')">
                 <td style="width:28px;padding:8px 0 8px 10px">
@@ -1150,29 +1137,22 @@ function renderTable() {
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                     </svg>
                 </td>
-                <td colspan="2" style="padding:8px 10px">
+                <td colspan="6" style="padding:8px 12px">
                     <span class="det-client-name">${esc(clientName)}</span>
                     <span class="det-client-meta">${clientRows.length} style${clientRows.length>1?"s":""} · ${_totalQty.toLocaleString()} pcs</span>
                     ${_lateBadge}${_riskBadge}
-                </td>
-                <td colspan="4" style="padding:8px 10px">
-                    <div class="det-pills-wrap">${_pills}</div>
                 </td>
             </tr>`;
 
             if (!isOpen) return _clientRow;
 
-            // ── Lignes de styles sous ce client ──
             const _styleRows = clientRows.map(row => {
-                const rowIdx    = row._rowIndex;
-                const _expandId  = "det-exp-" + rowIdx;
-                const _chevronId = "det-chv-" + rowIdx;
+                const rowIdx = row._rowIndex;
                 const _dept  = row["Dept"]  || "—";
                 const _style = row["Style"] || "—";
                 const _desc  = row["Description"] || row["StyleDescription"] || "—";
                 const _qty   = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
 
-                // Ex-Fty badge
                 let _eftyHtml = "—";
                 if (row["Ex-Fty"]) {
                     try {
@@ -1185,39 +1165,7 @@ function renderTable() {
                     } catch(e) {}
                 }
 
-                // Données croisées pour le expand
-                const _sRows = (state.data.sample || []).filter(s => s.Style === row.Style && s.Client === row.Client);
-                const _oRows = (state.data.ordering || []).filter(o => o.Style === row.Style && o.Client === row.Client);
-                const _sApproved = _sRows.filter(s => s.Approval === "Approved").length;
-                const _sPending  = _sRows.filter(s => s.Approval === "Pending").length;
-                const _sRejected = _sRows.filter(s => s.Approval === "Rejected").length;
-                const _oDelivered= _oRows.filter(o => o["Delivery Status"] === "Delivered").length;
-                const _oTransit  = _oRows.filter(o => o["Delivery Status"] === "In Transit").length;
-                const _oTotal    = _oRows.filter(o => o.Status !== "Cancelled").length;
-
-                const _sampleBadge = _sRows.length === 0
-                    ? `<span class="det-xbadge det-xbadge-gray">Aucun sample</span>`
-                    : _sRejected > 0 ? `<span class="det-xbadge det-xbadge-danger">${_sRejected} rejeté${_sRejected>1?"s":""}</span>`
-                    : _sPending  > 0 ? `<span class="det-xbadge det-xbadge-warn">${_sPending} en attente</span>`
-                    : `<span class="det-xbadge det-xbadge-ok">${_sApproved} approuvé${_sApproved>1?"s":""}</span>`;
-
-                const _orderBadge = _oTotal === 0
-                    ? `<span class="det-xbadge det-xbadge-gray">Aucune commande</span>`
-                    : _oDelivered === _oTotal ? `<span class="det-xbadge det-xbadge-ok">${_oDelivered}/${_oTotal} livré${_oDelivered>1?"s":""}</span>`
-                    : _oTransit > 0 ? `<span class="det-xbadge det-xbadge-blue">${_oTransit} en transit</span>`
-                    : `<span class="det-xbadge det-xbadge-warn">${_oTotal - _oDelivered} non expédié${(_oTotal-_oDelivered)>1?"s":""}</span>`;
-
-                const _fab  = esc(row["Fabric Base"] || "—");
-                const _cost = row["Costing"] ? `$${Number(row["Costing"]).toFixed(2)}` : "—";
-                const _psd  = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
-
-                const _isExpOpen = _detStyleOpen.has(rowIdx);
-
-                // ── Filtre dept actif pour ce client
-                const _activeDeptFilter = _detDeptFilter[row.Client||"—"] || "";
-                if (_activeDeptFilter && row["Dept"] !== _activeDeptFilter) return "";
-
-                const _sr = `<tr class="det-style-row">
+                return `<tr class="det-style-row">
                     <td></td>
                     <td><span class="dept-badge">${esc(_dept)}</span></td>
                     <td><a class="style-link" onclick="openStyleModal('${esc(_style)}')">${esc(_style)}</a></td>
@@ -1229,21 +1177,6 @@ function renderTable() {
                         <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                     </div></td>
                 </tr>`;
-
-                const _er = _isExpOpen ? `<tr id="${_expandId}" class="det-expand-row">
-                    <td colspan="8" style="padding:0">
-                        <div class="det-expand-body">
-                            <div class="det-xfield"><span class="det-xlabel">Fabric Base</span><span class="det-xval">${_fab}</span></div>
-                            <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:#166534;font-weight:500">${_cost}</span></div>
-                            <div class="det-xfield"><span class="det-xlabel">PSD</span><span class="det-xval">${_psd}</span></div>
-                            <div class="det-xfield"><span class="det-xlabel">Saison</span><span class="det-xval">${esc(row["Saison"]||"—")}</span></div>
-                            <div class="det-xfield"><span class="det-xlabel">Samples</span><span class="det-xval">${_sampleBadge}</span></div>
-                            <div class="det-xfield"><span class="det-xlabel">Commandes</span><span class="det-xval">${_orderBadge}</span></div>
-                        </div>
-                    </td>
-                </tr>` : "";
-
-                return _sr + _er;
             }).join("");
 
             return _clientRow + _styleRows;
