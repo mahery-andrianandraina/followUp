@@ -1113,7 +1113,17 @@ function renderTable() {
             const _style  = esc(row["Style"]  || "—");
             const _desc   = esc(row["Description"] || row["StyleDescription"] || "—");
             const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
-            const _psd    = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+            let _psdHtml = "—";
+            if (row["PSD"]) {
+                try {
+                    const _psdDate = new Date(row["PSD"]);
+                    const _psdDiff = Math.round((_psdDate - _today) / 86400000);
+                    const _psdFmt  = _psdDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _psdCls  = _psdDiff < 0 ? "det-efty-danger" : _psdDiff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _psdBcls = _psdDiff < 0 ? "det-daybadge det-daybadge-danger" : _psdDiff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    _psdHtml = `<span class="${_psdCls}">${_psdFmt}</span><span class="${_psdBcls}">(${_psdDiff}j)</span>`;
+                } catch(e) {}
+            }
 
             let _eftyHtml = "—";
             if (row["Ex-Fty"]) {
@@ -1123,7 +1133,7 @@ function renderTable() {
                     const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
                     const _cls  = _diff < 0 ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
                     const _bcls = _diff < 0 ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
-                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_diff}j</span>`;
+                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">(${_diff}j)</span>`;
                 } catch(e) {}
             }
 
@@ -1133,7 +1143,7 @@ function renderTable() {
                 <td><span class="dept-badge">${_dept}</span></td>
                 <td><a class="style-link" onclick="openStyleModal('${_style}')">${_style}</a></td>
                 <td><span class="det-desc-cell" title="${_desc}">${_desc}</span></td>
-                <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">${_psd}</td>
+                <td style="white-space:nowrap">${_psdHtml}</td>
                 <td style="white-space:nowrap">${_eftyHtml}</td>
                 <td style="font-size:12.5px">${esc(_qty)}</td>
                 <td><div class="action-btns">
