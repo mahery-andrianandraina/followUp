@@ -2877,8 +2877,38 @@ function _renderGndFull() {
             Retour
         </div>
         <div class="gnd-detail-label" id="gnd-detail-label"></div>
+        <div class="gnd-detail-filters" id="gnd-detail-filters">
+            <div class="gnd-filter-search-wrap">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="color:var(--color-text-secondary,#9ca3af);flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input id="gnd-filter-style" class="gnd-filter-style-input" placeholder="Filtrer par style..." oninput="gndApplyDetailFilters()" autocomplete="off"/>
+            </div>
+            <div class="gnd-filter-types" id="gnd-filter-types"></div>
+        </div>
         <div id="gnd-detail-rows"></div>
+        <div id="gnd-detail-empty" class="gnd-detail-empty" style="display:none">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="28" height="28"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"/></svg>
+            <span>Aucune alerte pour ces filtres</span>
+        </div>
     </div>`;
+
+    // Inject filter styles once
+    if (!document.getElementById("gnd-filter-styles")) {
+        const fs = document.createElement("style");
+        fs.id = "gnd-filter-styles";
+        fs.textContent = `
+        .gnd-detail-filters { display:flex; flex-direction:column; gap:7px; padding:8px 12px 10px; border-bottom:1px solid var(--border,#e5e7eb); background:var(--color-background-secondary,#f9fafb); }
+        .gnd-filter-search-wrap { display:flex; align-items:center; gap:7px; background:var(--color-background-primary,#fff); border:1px solid var(--border,#e5e7eb); border-radius:8px; padding:5px 10px; }
+        .gnd-filter-style-input { flex:1; border:none; outline:none; background:transparent; font-size:12.5px; color:var(--color-text-primary,#111827); }
+        .gnd-filter-style-input::placeholder { color:var(--color-text-secondary,#9ca3af); }
+        .gnd-filter-types { display:flex; flex-wrap:wrap; gap:5px; }
+        .gnd-ftype-pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--border,#e5e7eb); background:var(--color-background-primary,#fff); cursor:pointer; color:var(--color-text-secondary,#6b7280); transition:all .12s; user-select:none; }
+        .gnd-ftype-pill:hover { border-color:#9ca3af; }
+        .gnd-ftype-pill.active { background:#111827; color:#fff; border-color:#111827; }
+        .gnd-ftype-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+        .gnd-detail-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:32px 16px; color:var(--color-text-secondary,#9ca3af); font-size:13px; }
+        `;
+        document.head.appendChild(fs);
+    }
 
     body.innerHTML = listHtml + detailHtml;
     body._gndAll = all;
@@ -2899,11 +2929,82 @@ function gndOpenDetail(safeKey) {
 
     const items = [...data.items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
 
+    // Store items on body for filter access
+    body._gndDetailItems = items;
+    body._gndDetailLabel = data.label;
+
+    // ── Build type filter pills from available dotCls in this menu ──
+    const dotMeta = [
+        { cls: "dot-late",    label: "En retard"           },
+        { cls: "dot-today",   label: "Aujourd'hui"         },
+        { cls: "dot-approve", label: "Approval"            },
+        { cls: "dot-send",    label: "À envoyer"           },
+        { cls: "dot-nopo",    label: "Info manquante"      },
+        { cls: "dot-risk",    label: "À risque"            },
+    ];
+    const presentDots = new Set(items.map(i => i.dotCls));
+    const filterTypesEl = document.getElementById("gnd-filter-types");
+    if (filterTypesEl) {
+        filterTypesEl.innerHTML = dotMeta
+            .filter(d => presentDots.has(d.cls))
+            .map(d => `<span class="gnd-ftype-pill" data-dot="${d.cls}" onclick="gndToggleTypeFilter(this, '${d.cls}')">
+                <span class="gnd-ftype-dot ${d.cls}"></span>${d.label}
+            </span>`)
+            .join("");
+    }
+
+    // Reset filters on each open
+    const styleInput = document.getElementById("gnd-filter-style");
+    if (styleInput) styleInput.value = "";
+    document.querySelectorAll(".gnd-ftype-pill").forEach(p => p.classList.remove("active"));
+    body._gndActiveTypes = new Set();
+
     document.getElementById("gnd-detail-label").textContent = `${data.label} — ${items.length} alerte${items.length > 1 ? "s" : ""}`;
     document.getElementById("gnd-detail-rows").innerHTML = items.map(renderRow).join("");
     document.getElementById("gnd-menu-list").style.display = "none";
     document.getElementById("gnd-detail-view").style.display = "block";
     body.scrollTop = 0;
+}
+
+function gndToggleTypeFilter(pill, dotCls) {
+    const body = document.getElementById("gnd-body");
+    if (!body._gndActiveTypes) body._gndActiveTypes = new Set();
+    if (body._gndActiveTypes.has(dotCls)) {
+        body._gndActiveTypes.delete(dotCls);
+        pill.classList.remove("active");
+    } else {
+        body._gndActiveTypes.add(dotCls);
+        pill.classList.add("active");
+    }
+    gndApplyDetailFilters();
+}
+
+function gndApplyDetailFilters() {
+    const body = document.getElementById("gnd-body");
+    const items = body._gndDetailItems;
+    const renderRow = body._gndRenderRow;
+    const label = body._gndDetailLabel || "";
+    if (!items || !renderRow) return;
+
+    const styleQuery = (document.getElementById("gnd-filter-style")?.value || "").toLowerCase().trim();
+    const activeTypes = body._gndActiveTypes || new Set();
+
+    const filtered = items.filter(item => {
+        const matchStyle = !styleQuery || (item.style || "").toLowerCase().includes(styleQuery);
+        const matchType  = activeTypes.size === 0 || activeTypes.has(item.dotCls);
+        return matchStyle && matchType;
+    });
+
+    const rowsEl  = document.getElementById("gnd-detail-rows");
+    const emptyEl = document.getElementById("gnd-detail-empty");
+    const labelEl = document.getElementById("gnd-detail-label");
+
+    if (rowsEl)  rowsEl.innerHTML = filtered.map(renderRow).join("");
+    if (emptyEl) emptyEl.style.display = filtered.length === 0 ? "flex" : "none";
+    if (labelEl) {
+        const suffix = filtered.length !== items.length ? ` (${filtered.length}/${items.length})` : ` — ${items.length} alerte${items.length > 1 ? "s" : ""}`;
+        labelEl.textContent = label + suffix;
+    }
 }
 
 function gndCloseDetail() {
@@ -2912,7 +3013,7 @@ function gndCloseDetail() {
     const detail = document.getElementById("gnd-detail-view");
     if (list) list.style.display = "";
     if (detail) detail.style.display = "none";
-    if (body) body.scrollTop = 0;
+    if (body) { body.scrollTop = 0; body._gndActiveTypes = new Set(); }
 }
 
 // ── Export Excel global ───────────────────────────────────────
