@@ -1032,7 +1032,32 @@ function renderTable() {
     const rows = state.filteredData;
     const isOrdering = state.activeSheet === "ordering";
 
+    const isDetails = state.activeSheet === "details";
+    // Inject expand styles once for details view
+    if (isDetails && !document.getElementById("det-expand-styles")) {
+        const _ds = document.createElement("style");
+        _ds.id = "det-expand-styles";
+        _ds.textContent = `
+        .det-main-row:hover { background: var(--color-background-secondary); }
+        .det-main-row:hover .det-chevron { color: var(--color-text-primary); }
+        .det-chevron { color: var(--color-text-secondary); transition: transform .15s; flex-shrink:0; }
+        .det-chevron.open { transform: rotate(90deg); }
+        .det-expand-row td { padding: 0 !important; }
+        .det-expand-body { display:flex; flex-wrap:wrap; gap:10px 20px; padding:10px 18px 12px 34px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-tertiary); }
+        .det-xfield { display:flex; flex-direction:column; gap:2px; min-width:90px; }
+        .det-xlabel { font-size:10px; font-weight:500; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.04em; }
+        .det-xval { font-size:12px; color:var(--color-text-primary); }
+        .det-xbadge { display:inline-flex; align-items:center; font-size:11px; padding:2px 8px; border-radius:20px; border:0.5px solid; }
+        .det-xbadge-ok     { background:#F0FDF4; color:#166534; border-color:#86EFAC; }
+        .det-xbadge-warn   { background:#FFFDE7; color:#827717; border-color:#FFF176; }
+        .det-xbadge-danger { background:#FFF0F0; color:#C0392B; border-color:#FFBCBC; }
+        .det-xbadge-blue   { background:#EFF6FF; color:#1E40AF; border-color:#93C5FD; }
+        .det-xbadge-gray   { background:var(--color-background-secondary); color:var(--color-text-secondary); border-color:var(--color-border-secondary); }
+        `;
+        document.head.appendChild(_ds);
+    }
     tableHead.innerHTML = `<tr>
+    ${isDetails ? `<th style="width:22px;padding-right:0"></th>` : ""}
     ${cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")}
     ${isOrdering ? `<th style="white-space:nowrap;">🚦 Track</th>` : ""}
     <th>Actions</th></tr>`;
@@ -1118,6 +1143,71 @@ function renderTable() {
             : isBulkSheet && isRowRejected(row)
                 ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
                 : "";
+
+        // ── Details : ligne expansible ──────────────────────────────
+        if (state.activeSheet === "details") {
+            // ── Données croisées samples + orders pour cette ligne
+            const _sRows = (state.data.sample || []).filter(s => s.Style === row.Style && s.Client === row.Client);
+            const _oRows = (state.data.ordering || []).filter(o => o.Style === row.Style && o.Client === row.Client);
+            const _sApproved = _sRows.filter(s => s.Approval === "Approved").length;
+            const _sPending  = _sRows.filter(s => s.Approval === "Pending").length;
+            const _sRejected = _sRows.filter(s => s.Approval === "Rejected").length;
+            const _oDelivered= _oRows.filter(o => o["Delivery Status"] === "Delivered").length;
+            const _oTransit  = _oRows.filter(o => o["Delivery Status"] === "In Transit").length;
+            const _oTotal    = _oRows.filter(o => o.Status !== "Cancelled").length;
+
+            const _sampleBadge = _sRows.length === 0
+                ? `<span class="det-xbadge det-xbadge-gray">Aucun sample</span>`
+                : _sRejected > 0
+                    ? `<span class="det-xbadge det-xbadge-danger">${_sRejected} rejeté${_sRejected>1?"s":""}</span>`
+                    : _sPending > 0
+                        ? `<span class="det-xbadge det-xbadge-warn">${_sPending} en attente</span>`
+                        : `<span class="det-xbadge det-xbadge-ok">${_sApproved} approuvé${_sApproved>1?"s":""}</span>`;
+
+            const _orderBadge = _oTotal === 0
+                ? `<span class="det-xbadge det-xbadge-gray">Aucune commande</span>`
+                : _oDelivered === _oTotal
+                    ? `<span class="det-xbadge det-xbadge-ok">${_oDelivered}/${_oTotal} livré${_oDelivered>1?"s":""}</span>`
+                    : _oTransit > 0
+                        ? `<span class="det-xbadge det-xbadge-blue">${_oTransit} en transit</span>`
+                        : `<span class="det-xbadge det-xbadge-warn">${_oTotal - _oDelivered} non expédié${(_oTotal-_oDelivered)>1?"s":""}</span>`;
+
+            const _fab  = esc(row["Fabric Base"] || "—");
+            const _cost = row["Costing"] ? `$${Number(row["Costing"]).toFixed(2)}` : "—";
+            const _psd  = row["PSD"]   ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+            const _efty = row["Ex-Fty"]? new Date(row["Ex-Fty"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+            const _desc = esc(row["Description"] || row["StyleDescription"] || "—");
+            const _cols = cfg.cols.length + (isOrdering ? 2 : 1);
+
+            const _expandId = "det-exp-" + rowIdx;
+            const _chevronId = "det-chv-" + rowIdx;
+
+            const _mainRow = `<tr class="det-main-row" onclick="detToggleExpand('${_expandId}','${_chevronId}')" style="cursor:pointer">
+                <td style="width:22px;padding-right:0"><svg id="${_chevronId}" class="det-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></td>
+                ${cells}${trackCell}
+                <td><div class="action-btns">
+                    <button class="btn btn-edit btn-icon" onclick="event.stopPropagation();openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    ${dupBtn}
+                    <button class="btn btn-danger btn-icon" onclick="event.stopPropagation();confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div></td>
+            </tr>`;
+
+            const _expandRow = `<tr id="${_expandId}" class="det-expand-row" style="display:none">
+                <td colspan="${_cols + 1}" style="padding:0">
+                    <div class="det-expand-body">
+                        <div class="det-xfield"><span class="det-xlabel">Description</span><span class="det-xval">${_desc}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Fabric Base</span><span class="det-xval">${_fab}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:var(--color-success,#166534);font-weight:500">${_cost}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">PSD</span><span class="det-xval">${_psd}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Ex-Fty</span><span class="det-xval">${_efty}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Samples</span><span class="det-xval">${_sampleBadge}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Commandes</span><span class="det-xval">${_orderBadge}</span></div>
+                    </div>
+                </td>
+            </tr>`;
+
+            return _mainRow + _expandRow;
+        }
 
         return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
@@ -3871,4 +3961,15 @@ function openImageLightbox(src, label, description) {
     document.addEventListener("keydown", escHandler);
 
     document.body.appendChild(overlay);
+}
+
+
+// ─── Details : toggle ligne expansible ───────────────────────
+function detToggleExpand(expandId, chevronId) {
+    const row = document.getElementById(expandId);
+    const chv = document.getElementById(chevronId);
+    if (!row || !chv) return;
+    const isOpen = row.style.display !== "none";
+    row.style.display = isOpen ? "none" : "";
+    chv.classList.toggle("open", !isOpen);
 }
