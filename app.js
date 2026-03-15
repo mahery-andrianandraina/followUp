@@ -739,7 +739,9 @@ function renderDashboard() {
                     const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
-                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + esc(r.Style || "") + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + esc(r.Style || "") + '\')"/></div>';
+                        const _lbStyle = esc(r.Style || "");
+                        const _lbDesc  = esc(r["Description"] || r["StyleDescription"] || "");
+                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
                     } else {
                         imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
                     }
@@ -3699,7 +3701,7 @@ function applyDashboardFilters() {
 
 
 // ─── Image Lightbox ───────────────────────────────────────────
-function openImageLightbox(src, label) {
+function openImageLightbox(src, label, description) {
     // Remove existing lightbox if any
     const existing = document.getElementById("img-lightbox-overlay");
     if (existing) existing.remove();
@@ -3752,7 +3754,7 @@ function openImageLightbox(src, label) {
         </style>
         <button id="img-lightbox-close" onclick="event.stopPropagation(); document.getElementById('img-lightbox-overlay').remove()">✕</button>
         <img src="${src}" alt="${label}" onclick="event.stopPropagation()"/>
-        ${label ? `<div id="img-lightbox-label">${label}</div>` : ""}
+        ${label ? `<div id="img-lightbox-label"><span style="font-weight:600;letter-spacing:0.1em">${label}</span>${description ? `<span style="opacity:0.6;margin-left:8px;font-weight:400">${description}</span>` : ""}</div>` : ""}
     `;
 
     // Close on overlay click
