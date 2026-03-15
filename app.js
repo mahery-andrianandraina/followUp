@@ -1201,38 +1201,6 @@ function renderTable() {
                     <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
                 </div></td>`;
             }
-            if (c.key === "Carrier") {
-                const carrierOpts = ["", "DHL", "FedEx", "UPS", "TNT", "Other"].map(o =>
-                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Carrier —"}</option>`
-                ).join("");
-                const carrierCls = {"DHL":"carrier-dhl","FedEx":"carrier-fedex","UPS":"carrier-ups","TNT":"carrier-tnt","Other":"carrier-other"}[val] || "";
-                return `<td><div class="quick-sel-wrap">
-                    ${val ? `<span class="carrier-badge ${carrierCls} quick-badge">${esc(val)}</span>` : `<span class="carrier-badge carrier-empty quick-badge">—</span>`}
-                    <select class="quick-select" onchange="carrierQuickSave(${rowIdx},this.value)">${carrierOpts}</select>
-                </div></td>`;
-            }
-            if (c.key === "AWB") {
-                const carrierVal = row["Carrier"] || "";
-                const awbVal     = val || "";
-                const trackingUrl = {
-                    DHL:   `https://www.dhl.com/fr-fr/home/tracking.html?tracking-id=${awbVal}`,
-                    FedEx: `https://www.fedex.com/fedextrack/?trknbr=${awbVal}`,
-                    UPS:   `https://www.ups.com/track?tracknum=${awbVal}`,
-                    TNT:   `https://www.tnt.com/express/fr_fr/site/tracking.html?cons=${awbVal}`,
-                }[carrierVal] || "";
-                if (awbVal && trackingUrl) {
-                    return `<td><a class="awb-tracking-link" href="${trackingUrl}" target="_blank" rel="noopener" title="Tracking ${carrierVal}">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                        ${esc(awbVal)}
-                    </a></td>`;
-                }
-                if (awbVal) {
-                    return `<td><span style="font-family:var(--font-mono);font-size:12px">${esc(awbVal)}</span></td>`;
-                }
-                return `<td><input class="awb-inline-input" placeholder="N° tracking…" value="${esc(awbVal)}"
-                    onblur="awbQuickSave(${rowIdx}, this.value)"
-                    onkeydown="if(event.key==='Enter')this.blur()"/></td>`;
-            }
             if (c.key === "PO" && !val) return `<td><span class="missing-po-badge">Missing PO</span></td>`;
 
             let isPast = false, displayVal = val;
