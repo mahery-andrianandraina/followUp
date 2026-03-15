@@ -739,7 +739,7 @@ function renderDashboard() {
                     const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
-                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + esc(r.Style || "") + '" loading="lazy"/></div>';
+                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + esc(r.Style || "") + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + esc(r.Style || "") + '\')"/></div>';
                     } else {
                         imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
                     }
@@ -3696,3 +3696,76 @@ function applyDashboardFilters() {
 }
 
 
+
+
+// ─── Image Lightbox ───────────────────────────────────────────
+function openImageLightbox(src, label) {
+    // Remove existing lightbox if any
+    const existing = document.getElementById("img-lightbox-overlay");
+    if (existing) existing.remove();
+
+    const overlay = document.createElement("div");
+    overlay.id = "img-lightbox-overlay";
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 99999;
+        background: rgba(0,0,0,0.85);
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        cursor: zoom-out;
+        animation: lbFadeIn 0.18s ease;
+    `;
+
+    overlay.innerHTML = `
+        <style>
+            @keyframes lbFadeIn { from { opacity:0; } to { opacity:1; } }
+            @keyframes lbScaleIn { from { opacity:0; transform:scale(0.88); } to { opacity:1; transform:scale(1); } }
+            #img-lightbox-overlay img {
+                max-width: 90vw;
+                max-height: 85vh;
+                object-fit: contain;
+                border-radius: 10px;
+                box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+                animation: lbScaleIn 0.2s ease;
+                cursor: default;
+            }
+            #img-lightbox-label {
+                margin-top: 14px;
+                color: rgba(255,255,255,0.85);
+                font-size: 13px;
+                letter-spacing: 0.08em;
+                font-family: inherit;
+            }
+            #img-lightbox-close {
+                position: absolute;
+                top: 18px; right: 22px;
+                background: rgba(255,255,255,0.12);
+                border: none;
+                color: #fff;
+                font-size: 22px;
+                width: 38px; height: 38px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex; align-items: center; justify-content: center;
+                transition: background 0.15s;
+            }
+            #img-lightbox-close:hover { background: rgba(255,255,255,0.25); }
+        </style>
+        <button id="img-lightbox-close" onclick="event.stopPropagation(); document.getElementById('img-lightbox-overlay').remove()">✕</button>
+        <img src="${src}" alt="${label}" onclick="event.stopPropagation()"/>
+        ${label ? `<div id="img-lightbox-label">${label}</div>` : ""}
+    `;
+
+    // Close on overlay click
+    overlay.addEventListener("click", () => overlay.remove());
+
+    // Close on Escape key
+    const escHandler = (e) => {
+        if (e.key === "Escape") {
+            overlay.remove();
+            document.removeEventListener("keydown", escHandler);
+        }
+    };
+    document.addEventListener("keydown", escHandler);
+
+    document.body.appendChild(overlay);
+}
