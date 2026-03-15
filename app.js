@@ -87,6 +87,8 @@ const SHEET_CONFIG = {
             { key: "PI", label: "PI", type: "text" },
             { key: "Status", label: "Status", type: "select", options: ["", "Confirmed", "Pending", "Cancelled"] },
             { key: "Delivery Status", label: "Delivery", type: "select", options: ["", "Not Shipped", "In Transit", "Delivered"] },
+            { key: "Carrier", label: "Carrier", type: "select", options: ["", "DHL", "FedEx", "UPS", "TNT", "Other"] },
+            { key: "AWB", label: "AWB / Tracking", type: "text" },
             { key: "Comments", label: "Comments", type: "textarea", full: true }
         ],
         kpis: [
@@ -1198,6 +1200,38 @@ function renderTable() {
                     <span class="delivery-badge ${cls} quick-badge">${esc(val) || "—"}</span>
                     <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
                 </div></td>`;
+            }
+            if (c.key === "Carrier") {
+                const carrierOpts = ["", "DHL", "FedEx", "UPS", "TNT", "Other"].map(o =>
+                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Carrier —"}</option>`
+                ).join("");
+                const carrierCls = {"DHL":"carrier-dhl","FedEx":"carrier-fedex","UPS":"carrier-ups","TNT":"carrier-tnt","Other":"carrier-other"}[val] || "";
+                return `<td><div class="quick-sel-wrap">
+                    ${val ? `<span class="carrier-badge ${carrierCls} quick-badge">${esc(val)}</span>` : `<span class="carrier-badge carrier-empty quick-badge">—</span>`}
+                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Carrier',this.value,'ordering')">${carrierOpts}</select>
+                </div></td>`;
+            }
+            if (c.key === "AWB") {
+                const carrierVal = row["Carrier"] || "";
+                const awbVal     = val || "";
+                const trackingUrl = {
+                    DHL:   `https://www.dhl.com/fr-fr/home/tracking.html?tracking-id=${awbVal}`,
+                    FedEx: `https://www.fedex.com/fedextrack/?trknbr=${awbVal}`,
+                    UPS:   `https://www.ups.com/track?tracknum=${awbVal}`,
+                    TNT:   `https://www.tnt.com/express/fr_fr/site/tracking.html?cons=${awbVal}`,
+                }[carrierVal] || "";
+                if (awbVal && trackingUrl) {
+                    return `<td><a class="awb-tracking-link" href="${trackingUrl}" target="_blank" rel="noopener" title="Tracking ${carrierVal}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                        ${esc(awbVal)}
+                    </a></td>`;
+                }
+                if (awbVal) {
+                    return `<td><span style="font-family:var(--font-mono);font-size:12px">${esc(awbVal)}</span></td>`;
+                }
+                return `<td><input class="awb-inline-input" placeholder="N° tracking…" value="${esc(awbVal)}"
+                    onblur="awbQuickSave(${rowIdx}, this.value)"
+                    onkeydown="if(event.key==='Enter')this.blur()"/></td>`;
             }
             if (c.key === "PO" && !val) return `<td><span class="missing-po-badge">Missing PO</span></td>`;
 
@@ -4131,3 +4165,56 @@ function detSetDept(clientName, dept) {
     _detDeptFilter[clientName] = dept;
     renderTable();
 }
+
+
+// ─── AWB : sauvegarde + auto Delivery Status → In Transit ────
+async function awbQuickSave(rowIndex, awbValue) {
+    const awb = awbValue.trim();
+    const row = (state.data.ordering || []).find(r => r._rowIndex === rowIndex);
+    if (!row) return;
+    if (awb === (row["AWB"] || "")) return; // rien changé
+
+    row["AWB"] = awb;
+
+    // Auto : si AWB renseigné et statut = Not Shipped → In Transit
+    const autoTransit = awb && row["Delivery Status"] === "Not Shipped";
+    if (autoTransit) row["Delivery Status"] = "In Transit";
+
+    applyFilters();
+    if (state.activeView === "sheet") renderTable();
+
+    try {
+        const data = { ...row }; delete data._rowIndex;
+        await sendRequest("UPDATE", { data, rowIndex }, "ordering");
+        if (autoTransit) {
+            showToast("AWB enregistré — Delivery Status → In Transit", "success", 3000);
+        } else {
+            showToast("AWB enregistré", "success", 2000);
+        }
+    } catch (err) {
+        showToast("Erreur : " + err.message, "error");
+        await fetchAllData();
+    }
+}
+
+// ─── Styles CSS AWB + Carrier (injectés une fois) ────────────
+(function _injectAwbStyles() {
+    if (document.getElementById("awb-carrier-styles")) return;
+    const s = document.createElement("style");
+    s.id = "awb-carrier-styles";
+    s.textContent = `
+    .awb-inline-input { border:0.5px solid var(--color-border-secondary); border-radius:6px; padding:3px 8px; font-size:11.5px; color:var(--color-text-primary); background:var(--color-background-secondary); outline:none; width:120px; transition:border-color .15s; }
+    .awb-inline-input:focus { border-color:#3B82F6; background:var(--color-background-primary); }
+    .awb-inline-input::placeholder { color:var(--color-text-secondary); font-size:11px; }
+    .awb-tracking-link { display:inline-flex; align-items:center; gap:4px; color:#1E40AF; font-size:11.5px; font-family:var(--font-mono); text-decoration:underline; cursor:pointer; }
+    .awb-tracking-link:hover { color:#1D4ED8; }
+    .carrier-badge { font-size:10.5px; font-weight:500; padding:2px 8px; border-radius:20px; }
+    .carrier-dhl   { background:#FFF9E6; color:#8B6914; border:0.5px solid #FCD34D; }
+    .carrier-fedex { background:#F5F3FF; color:#5B21B6; border:0.5px solid #C4B5FD; }
+    .carrier-ups   { background:#FEF3C7; color:#7C2D12; border:0.5px solid #FDE68A; }
+    .carrier-tnt   { background:#FFF0F0; color:#C0392B; border:0.5px solid #FFBCBC; }
+    .carrier-other { background:var(--color-background-secondary); color:var(--color-text-secondary); border:0.5px solid var(--color-border-secondary); }
+    .carrier-empty { color:var(--color-text-secondary); }
+    `;
+    document.head.appendChild(s);
+})();
