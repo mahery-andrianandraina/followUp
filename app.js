@@ -4184,21 +4184,49 @@ async function awbQuickSave(rowIndex, awbValue) {
         _updateDeliveryBadgeDOM(rowIndex, "In Transit");
     }
 
-    applyFilters();
-    if (state.activeView === "sheet") renderTable();
+    // Mettre à jour le lien tracking dans le DOM si carrier présent
+    _updateAwbLinkDOM(rowIndex, awb, row["Carrier"] || "");
 
     try {
         const data = { ...row }; delete data._rowIndex;
         await sendRequest("UPDATE", { data, rowIndex }, "ordering");
         if (autoTransit) {
             showToast("AWB enregistré — Delivery Status → In Transit ✓", "success", 3000);
-        } else {
+        } else if (awb) {
             showToast("AWB enregistré", "success", 2000);
         }
     } catch (err) {
         showToast("Erreur : " + err.message, "error");
         await fetchAllData();
     }
+}
+
+function _updateAwbLinkDOM(rowIndex, awbVal, carrierVal) {
+    const trackingUrl = {
+        DHL:   `https://www.dhl.com/fr-fr/home/tracking.html?tracking-id=${awbVal}`,
+        FedEx: `https://www.fedex.com/fedextrack/?trknbr=${awbVal}`,
+        UPS:   `https://www.ups.com/track?tracknum=${awbVal}`,
+        TNT:   `https://www.tnt.com/express/fr_fr/site/tracking.html?cons=${awbVal}`,
+    }[carrierVal] || "";
+    document.querySelectorAll(`input.awb-inline-input[data-row="${rowIndex}"]`).forEach(input => {
+        const wrap = input.parentElement;
+        if (!wrap) return;
+        let link = wrap.querySelector(".awb-tracking-link");
+        if (awbVal && trackingUrl) {
+            if (!link) {
+                link = document.createElement("a");
+                link.className = "awb-tracking-link";
+                link.target = "_blank"; link.rel = "noopener";
+                link.onclick = e => e.stopPropagation();
+                link.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>`;
+                wrap.appendChild(link);
+            }
+            link.href = trackingUrl;
+            link.title = `Tracking ${carrierVal}`;
+        } else if (link) {
+            link.remove();
+        }
+    });
 }
 
 // ─── Carrier changé : si AWB déjà présent → vérifier auto-transit ──────────
@@ -4209,11 +4237,14 @@ async function carrierQuickSave(rowIndex, carrierValue) {
     row["Carrier"] = carrierValue;
 
     // Si AWB déjà renseigné et Not Shipped → passer In Transit
-    const autoTransit = row["AWB"] && String(row["AWB"]).trim() && row["Delivery Status"] === "Not Shipped";
+    const awbPresent = row["AWB"] && String(row["AWB"]).trim();
+    const autoTransit = awbPresent && row["Delivery Status"] === "Not Shipped";
     if (autoTransit) row["Delivery Status"] = "In Transit";
 
-    applyFilters();
-    if (state.activeView === "sheet") renderTable();
+    // Mise à jour DOM sans redessiner le tableau (préserve l'input AWB en cours)
+    _updateCarrierBadgeDOM(rowIndex, carrierValue);
+    if (autoTransit) _updateDeliveryBadgeDOM(rowIndex, "In Transit");
+    if (awbPresent) _updateAwbLinkDOM(rowIndex, String(row["AWB"]).trim(), carrierValue);
 
     try {
         const data = { ...row }; delete data._rowIndex;
