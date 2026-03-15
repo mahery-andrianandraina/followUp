@@ -86,9 +86,9 @@ const SHEET_CONFIG = {
             { key: "Ready Date", label: "Ready Date", type: "date" },
             { key: "PI", label: "PI", type: "text" },
             { key: "Status", label: "Status", type: "select", options: ["", "Confirmed", "Pending", "Cancelled"] },
-            { key: "Delivery Status", label: "Delivery", type: "select", options: ["", "Not Shipped", "In Transit", "Delivered"] },
             { key: "Carrier", label: "Carrier", type: "select", options: ["", "DHL", "FedEx", "UPS", "TNT", "Other"] },
             { key: "AWB", label: "AWB / Tracking", type: "text" },
+            { key: "Delivery Status", label: "Delivery", type: "select", options: ["", "Not Shipped", "In Transit", "Delivered"] },
             { key: "Comments", label: "Comments", type: "textarea", full: true }
         ],
         kpis: [
@@ -1208,7 +1208,7 @@ function renderTable() {
                 const carrierCls = {"DHL":"carrier-dhl","FedEx":"carrier-fedex","UPS":"carrier-ups","TNT":"carrier-tnt","Other":"carrier-other"}[val] || "";
                 return `<td><div class="quick-sel-wrap">
                     ${val ? `<span class="carrier-badge ${carrierCls} quick-badge">${esc(val)}</span>` : `<span class="carrier-badge carrier-empty quick-badge">—</span>`}
-                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Carrier',this.value,'ordering')">${carrierOpts}</select>
+                    <select class="quick-select" onchange="carrierQuickSave(${rowIdx},this.value)">${carrierOpts}</select>
                 </div></td>`;
             }
             if (c.key === "AWB") {
@@ -4176,8 +4176,40 @@ async function awbQuickSave(rowIndex, awbValue) {
 
     row["AWB"] = awb;
 
-    // Auto : si AWB renseigné et statut = Not Shipped → In Transit
+    // Auto : si AWB renseigné et statut Not Shipped → In Transit
     const autoTransit = awb && row["Delivery Status"] === "Not Shipped";
+    if (autoTransit) {
+        row["Delivery Status"] = "In Transit";
+        // Mettre à jour le badge Delivery Status directement dans le DOM sans redessiner tout le tableau
+        _updateDeliveryBadgeDOM(rowIndex, "In Transit");
+    }
+
+    applyFilters();
+    if (state.activeView === "sheet") renderTable();
+
+    try {
+        const data = { ...row }; delete data._rowIndex;
+        await sendRequest("UPDATE", { data, rowIndex }, "ordering");
+        if (autoTransit) {
+            showToast("AWB enregistré — Delivery Status → In Transit ✓", "success", 3000);
+        } else {
+            showToast("AWB enregistré", "success", 2000);
+        }
+    } catch (err) {
+        showToast("Erreur : " + err.message, "error");
+        await fetchAllData();
+    }
+}
+
+// ─── Carrier changé : si AWB déjà présent → vérifier auto-transit ──────────
+async function carrierQuickSave(rowIndex, carrierValue) {
+    const row = (state.data.ordering || []).find(r => r._rowIndex === rowIndex);
+    if (!row) return;
+
+    row["Carrier"] = carrierValue;
+
+    // Si AWB déjà renseigné et Not Shipped → passer In Transit
+    const autoTransit = row["AWB"] && String(row["AWB"]).trim() && row["Delivery Status"] === "Not Shipped";
     if (autoTransit) row["Delivery Status"] = "In Transit";
 
     applyFilters();
@@ -4187,14 +4219,27 @@ async function awbQuickSave(rowIndex, awbValue) {
         const data = { ...row }; delete data._rowIndex;
         await sendRequest("UPDATE", { data, rowIndex }, "ordering");
         if (autoTransit) {
-            showToast("AWB enregistré — Delivery Status → In Transit", "success", 3000);
+            showToast("Carrier mis à jour — Delivery Status → In Transit ✓", "success", 3000);
         } else {
-            showToast("AWB enregistré", "success", 2000);
+            showToast("Carrier mis à jour", "success", 2000);
         }
     } catch (err) {
         showToast("Erreur : " + err.message, "error");
         await fetchAllData();
     }
+}
+
+function _updateDeliveryBadgeDOM(rowIndex, newStatus) {
+    // Mise à jour directe du badge sans redessiner le tableau
+    const cls = { "Not Shipped": "del-notshipped", "In Transit": "del-transit", "Delivered": "del-delivered" }[newStatus] || "";
+    document.querySelectorAll(`tr`).forEach(tr => {
+        if (!tr.innerHTML.includes(`quickUpdate(${rowIndex},'Delivery Status'`)) return;
+        const badge = tr.querySelector(".delivery-badge.quick-badge");
+        if (badge) {
+            badge.className = `delivery-badge ${cls} quick-badge`;
+            badge.textContent = newStatus;
+        }
+    });
 }
 
 // ─── Styles CSS AWB + Carrier (injectés une fois) ────────────
