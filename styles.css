@@ -1551,24 +1551,12 @@ tr.row-ok>td:first-child {
     white-space: nowrap;
 }
 
-.style-detail-table th:nth-child(1) {
-    width: 11%;
-}
-
-.style-detail-table th:nth-child(2) {
-    width: 16%;
-}
-
-.style-detail-table th:nth-child(3) {
-    width: 13%;
-}
-
-.style-detail-table th:nth-child(4) {
-    width: 13%;
-}
-
+.style-detail-table th:nth-child(1),
+.style-detail-table th:nth-child(2),
+.style-detail-table th:nth-child(3),
+.style-detail-table th:nth-child(4),
 .style-detail-table th:nth-child(5) {
-    width: auto;
+    width: calc((100% - 70px) / 5);
 }
 
 .style-detail-table td {
