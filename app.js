@@ -4172,29 +4172,15 @@ async function awbQuickSave(rowIndex, awbValue) {
     const awb = awbValue.trim();
     const row = (state.data.ordering || []).find(r => r._rowIndex === rowIndex);
     if (!row) return;
-    if (awb === (row["AWB"] || "")) return; // rien changé
+    if (awb === (row["AWB"] || "")) return;
 
     row["AWB"] = awb;
-
-    // Auto : si AWB renseigné et statut Not Shipped → In Transit
-    const autoTransit = awb && row["Delivery Status"] === "Not Shipped";
-    if (autoTransit) {
-        row["Delivery Status"] = "In Transit";
-        // Mettre à jour le badge Delivery Status directement dans le DOM sans redessiner tout le tableau
-        _updateDeliveryBadgeDOM(rowIndex, "In Transit");
-    }
-
-    // Mettre à jour le lien tracking dans le DOM si carrier présent
     _updateAwbLinkDOM(rowIndex, awb, row["Carrier"] || "");
 
     try {
         const data = { ...row }; delete data._rowIndex;
         await sendRequest("UPDATE", { data, rowIndex }, "ordering");
-        if (autoTransit) {
-            showToast("AWB enregistré — Delivery Status → In Transit ✓", "success", 3000);
-        } else if (awb) {
-            showToast("AWB enregistré", "success", 2000);
-        }
+        if (awb) showToast("AWB enregistré", "success", 2000);
     } catch (err) {
         showToast("Erreur : " + err.message, "error");
         await fetchAllData();
@@ -4229,31 +4215,19 @@ function _updateAwbLinkDOM(rowIndex, awbVal, carrierVal) {
     });
 }
 
-// ─── Carrier changé : si AWB déjà présent → vérifier auto-transit ──────────
+// ─── Carrier : sauvegarde simple ─────────────────────────────
 async function carrierQuickSave(rowIndex, carrierValue) {
     const row = (state.data.ordering || []).find(r => r._rowIndex === rowIndex);
     if (!row) return;
 
     row["Carrier"] = carrierValue;
-
-    // Si AWB déjà renseigné et Not Shipped → passer In Transit
-    const awbPresent = row["AWB"] && String(row["AWB"]).trim();
-    const autoTransit = awbPresent && row["Delivery Status"] === "Not Shipped";
-    if (autoTransit) row["Delivery Status"] = "In Transit";
-
-    // Mise à jour DOM sans redessiner le tableau (préserve l'input AWB en cours)
     _updateCarrierBadgeDOM(rowIndex, carrierValue);
-    if (autoTransit) _updateDeliveryBadgeDOM(rowIndex, "In Transit");
-    if (awbPresent) _updateAwbLinkDOM(rowIndex, String(row["AWB"]).trim(), carrierValue);
+    if (row["AWB"]) _updateAwbLinkDOM(rowIndex, String(row["AWB"]).trim(), carrierValue);
 
     try {
         const data = { ...row }; delete data._rowIndex;
         await sendRequest("UPDATE", { data, rowIndex }, "ordering");
-        if (autoTransit) {
-            showToast("Carrier mis à jour — Delivery Status → In Transit ✓", "success", 3000);
-        } else {
-            showToast("Carrier mis à jour", "success", 2000);
-        }
+        showToast("Carrier mis à jour", "success", 2000);
     } catch (err) {
         showToast("Erreur : " + err.message, "error");
         await fetchAllData();
