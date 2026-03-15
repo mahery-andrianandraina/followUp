@@ -1038,11 +1038,22 @@ function renderTable() {
         const _ds = document.createElement("style");
         _ds.id = "det-expand-styles";
         _ds.textContent = `
-        .det-main-row:hover { background: var(--color-background-secondary); }
-        .det-expand-row td { padding: 0 !important; }
-        .det-expand-body { display:flex; flex-wrap:wrap; gap:10px 20px; padding:10px 18px 12px 18px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-tertiary); }
-        .det-xfield { display:flex; flex-direction:column; gap:2px; min-width:90px; }
-        .det-xlabel { font-size:10px; font-weight:500; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.04em; }
+        .det-client-row { cursor:pointer; background:var(--color-background-secondary); transition:background .1s; border-bottom:0.5px solid var(--color-border-tertiary); }
+        .det-client-row:hover { background:var(--color-background-secondary); filter:brightness(0.97); }
+        .det-client-row td { padding:9px 12px; }
+        .det-client-name { font-size:13px; font-weight:500; color:var(--color-text-primary); }
+        .det-client-meta { font-size:11px; color:var(--color-text-secondary); margin-left:8px; }
+        .det-client-badge { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; padding:2px 8px; border-radius:20px; border:0.5px solid; margin-left:6px; }
+        .det-cb-warn   { background:#FFFDE7; color:#827717; border-color:#FFF176; }
+        .det-cb-danger { background:#FFF0F0; color:#C0392B; border-color:#FFBCBC; }
+        .det-cb-ok     { background:#F0FDF4; color:#166534; border-color:#86EFAC; }
+        .det-style-row { border-bottom:0.5px solid var(--color-border-tertiary); transition:background .1s; cursor:pointer; }
+        .det-style-row:hover { background:var(--color-background-secondary); }
+        .det-style-row td { padding:8px 10px 8px 36px; vertical-align:middle; }
+        .det-expand-row td { padding:0 !important; }
+        .det-expand-body { display:flex; flex-wrap:wrap; gap:8px 22px; padding:9px 14px 11px 52px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-tertiary); }
+        .det-xfield { display:flex; flex-direction:column; gap:2px; min-width:80px; }
+        .det-xlabel { font-size:9.5px; font-weight:500; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.05em; }
         .det-xval { font-size:12px; color:var(--color-text-primary); }
         .det-xbadge { display:inline-flex; align-items:center; font-size:11px; padding:2px 8px; border-radius:20px; border:0.5px solid; }
         .det-xbadge-ok     { background:#F0FDF4; color:#166534; border-color:#86EFAC; }
@@ -1050,23 +1061,28 @@ function renderTable() {
         .det-xbadge-danger { background:#FFF0F0; color:#C0392B; border-color:#FFBCBC; }
         .det-xbadge-blue   { background:#EFF6FF; color:#1E40AF; border-color:#93C5FD; }
         .det-xbadge-gray   { background:var(--color-background-secondary); color:var(--color-text-secondary); border-color:var(--color-border-secondary); }
-        .det-chevron { color: var(--color-text-secondary); transition: transform .15s; flex-shrink:0; cursor:pointer; }
-        .det-chevron.open { transform: rotate(90deg); }
-        .det-desc-cell { max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12.5px; color:var(--color-text-secondary); }
-        .det-daybadge { display:inline-flex; align-items:center; font-size:10px; padding:1px 5px; border-radius:4px; margin-left:5px; font-weight:500; }
+        .det-chevron { color:var(--color-text-secondary); transition:transform .15s; flex-shrink:0; }
+        .det-chevron.open { transform:rotate(90deg); }
+        .det-desc-cell { max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; color:var(--color-text-secondary); display:block; }
+        .det-daybadge { display:inline-flex; align-items:center; font-size:10px; padding:1px 5px; border-radius:4px; margin-left:4px; font-weight:500; }
         .det-daybadge-ok     { background:#F0FDF4; color:#166534; }
         .det-daybadge-warn   { background:#FFFDE7; color:#827717; }
         .det-daybadge-danger { background:#FFF0F0; color:#C0392B; }
         .det-efty-ok     { color:#166534; font-weight:500; }
         .det-efty-warn   { color:#827717; font-weight:500; }
         .det-efty-danger { color:#C0392B; font-weight:500; }
+        .det-pills-wrap  { display:flex; align-items:center; gap:4px; flex-wrap:nowrap; }
+        .det-dpill { display:inline-flex; align-items:center; font-size:10.5px; padding:2px 9px; border-radius:20px; border:0.5px solid var(--color-border-secondary); background:var(--color-background-primary); color:var(--color-text-secondary); white-space:nowrap; cursor:pointer; user-select:none; transition:all .12s; }
+        .det-dpill:hover { border-color:var(--color-border-primary); }
+        .det-dpill-active { background:var(--color-text-primary) !important; color:var(--color-background-primary) !important; border-color:var(--color-text-primary) !important; }
+        .det-dpill-n { font-size:9.5px; margin-left:3px; opacity:.7; }
         `;
         document.head.appendChild(_ds);
     }
     tableHead.innerHTML = `<tr>
-    ${isDetails ? `<th style="width:22px;padding:0"></th>` : ""}
+    ${isDetails ? `<th style="width:28px;padding:0"></th>` : ""}
     ${isDetails
-        ? `<th onclick="sortBy('Client')" title="Trier par Client">Client${state.sortCol==='Client'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+        ? `<th>Client / Style</th>
            <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
@@ -1082,6 +1098,156 @@ function renderTable() {
             <div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
             <h3>Aucune donnée</h3><p>Ajoutez une ligne ou modifiez votre recherche.</p></div>
         </td></tr>`;
+        return;
+    }
+
+    // ── Details : rendu groupé par client ──────────────────────────────
+    if (isDetails) {
+        // Grouper les rows filtrées par client (ordre d'apparition préservé)
+        const _clientMap = {};
+        const _clientOrder = [];
+        rows.forEach(row => {
+            const c = row.Client || "—";
+            if (!_clientMap[c]) { _clientMap[c] = []; _clientOrder.push(c); }
+            _clientMap[c].push(row);
+        });
+
+        tableBody.innerHTML = _clientOrder.map(clientName => {
+            const clientRows = _clientMap[clientName];
+            const clientKey  = "det-cli-" + clientName.replace(/[^a-zA-Z0-9]/g,"_");
+            const chevId     = "det-cli-chv-" + clientName.replace(/[^a-zA-Z0-9]/g,"_");
+            const isOpen     = _detClientOpen.has(clientName);
+
+            // ── Récap client : total styles, late, à risque
+            const _today = new Date(); _today.setHours(0,0,0,0);
+            let _lateCount = 0, _riskCount = 0;
+            clientRows.forEach(r => {
+                if (!r["Ex-Fty"]) return;
+                try {
+                    const d = new Date(r["Ex-Fty"]);
+                    const diff = Math.round((d - _today) / 86400000);
+                    if (diff < 0) _lateCount++;
+                    else if (diff <= 14) _riskCount++;
+                } catch(e) {}
+            });
+            const _totalQty = clientRows.reduce((s,r) => s + (+r["Order Qty"]||0), 0);
+
+            const _lateBadge = _lateCount > 0
+                ? `<span class="det-client-badge det-cb-danger">${_lateCount} en retard</span>` : "";
+            const _riskBadge = _riskCount > 0
+                ? `<span class="det-client-badge det-cb-warn">${_riskCount} à risque</span>` : "";
+
+            // ── Pills dept pour ce client
+            const _depts = {};
+            clientRows.forEach(r => { const d = r["Dept"]||"—"; _depts[d] = (_depts[d]||0)+1; });
+            const _activeDept = _detDeptFilter[clientName] || "";
+            const _pills = `<span class="det-dpill${_activeDept===""?" det-dpill-active":""}" onclick="event.stopPropagation();detSetDept('${clientName.replace(/'/g,"\'")}','')">Tous<span class="det-dpill-n">${clientRows.length}</span></span>`
+                + Object.entries(_depts).map(([d,n]) => `<span class="det-dpill${_activeDept===d?" det-dpill-active":""}" onclick="event.stopPropagation();detSetDept('${clientName.replace(/'/g,"\'")}','${d}')">${esc(d)}<span class="det-dpill-n">${n}</span></span>`).join("");
+
+            const _clientRow = `<tr class="det-client-row" onclick="detToggleClient('${clientName.replace(/'/g,"\'")}')">
+                <td style="width:28px;padding:8px 0 8px 10px">
+                    <svg id="${chevId}" class="det-chevron${isOpen?" open":""}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </td>
+                <td colspan="2" style="padding:8px 10px">
+                    <span class="det-client-name">${esc(clientName)}</span>
+                    <span class="det-client-meta">${clientRows.length} style${clientRows.length>1?"s":""} · ${_totalQty.toLocaleString()} pcs</span>
+                    ${_lateBadge}${_riskBadge}
+                </td>
+                <td colspan="4" style="padding:8px 10px">
+                    <div class="det-pills-wrap">${_pills}</div>
+                </td>
+            </tr>`;
+
+            if (!isOpen) return _clientRow;
+
+            // ── Lignes de styles sous ce client ──
+            const _styleRows = clientRows.map(row => {
+                const rowIdx    = row._rowIndex;
+                const _expandId  = "det-exp-" + rowIdx;
+                const _chevronId = "det-chv-" + rowIdx;
+                const _dept  = row["Dept"]  || "—";
+                const _style = row["Style"] || "—";
+                const _desc  = row["Description"] || row["StyleDescription"] || "—";
+                const _qty   = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+
+                // Ex-Fty badge
+                let _eftyHtml = "—";
+                if (row["Ex-Fty"]) {
+                    try {
+                        const _eftyDate = new Date(row["Ex-Fty"]);
+                        const _diff  = Math.round((_eftyDate - _today) / 86400000);
+                        const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                        const _cls  = _diff < 0 ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                        const _bcls = _diff < 0 ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                        _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_diff}j</span>`;
+                    } catch(e) {}
+                }
+
+                // Données croisées pour le expand
+                const _sRows = (state.data.sample || []).filter(s => s.Style === row.Style && s.Client === row.Client);
+                const _oRows = (state.data.ordering || []).filter(o => o.Style === row.Style && o.Client === row.Client);
+                const _sApproved = _sRows.filter(s => s.Approval === "Approved").length;
+                const _sPending  = _sRows.filter(s => s.Approval === "Pending").length;
+                const _sRejected = _sRows.filter(s => s.Approval === "Rejected").length;
+                const _oDelivered= _oRows.filter(o => o["Delivery Status"] === "Delivered").length;
+                const _oTransit  = _oRows.filter(o => o["Delivery Status"] === "In Transit").length;
+                const _oTotal    = _oRows.filter(o => o.Status !== "Cancelled").length;
+
+                const _sampleBadge = _sRows.length === 0
+                    ? `<span class="det-xbadge det-xbadge-gray">Aucun sample</span>`
+                    : _sRejected > 0 ? `<span class="det-xbadge det-xbadge-danger">${_sRejected} rejeté${_sRejected>1?"s":""}</span>`
+                    : _sPending  > 0 ? `<span class="det-xbadge det-xbadge-warn">${_sPending} en attente</span>`
+                    : `<span class="det-xbadge det-xbadge-ok">${_sApproved} approuvé${_sApproved>1?"s":""}</span>`;
+
+                const _orderBadge = _oTotal === 0
+                    ? `<span class="det-xbadge det-xbadge-gray">Aucune commande</span>`
+                    : _oDelivered === _oTotal ? `<span class="det-xbadge det-xbadge-ok">${_oDelivered}/${_oTotal} livré${_oDelivered>1?"s":""}</span>`
+                    : _oTransit > 0 ? `<span class="det-xbadge det-xbadge-blue">${_oTransit} en transit</span>`
+                    : `<span class="det-xbadge det-xbadge-warn">${_oTotal - _oDelivered} non expédié${(_oTotal-_oDelivered)>1?"s":""}</span>`;
+
+                const _fab  = esc(row["Fabric Base"] || "—");
+                const _cost = row["Costing"] ? `$${Number(row["Costing"]).toFixed(2)}` : "—";
+                const _psd  = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+
+                const _isExpOpen = _detStyleOpen.has(rowIdx);
+
+                // ── Filtre dept actif pour ce client
+                const _activeDeptFilter = _detDeptFilter[row.Client||"—"] || "";
+                if (_activeDeptFilter && row["Dept"] !== _activeDeptFilter) return "";
+
+                const _sr = `<tr class="det-style-row">
+                    <td></td>
+                    <td><span class="dept-badge">${esc(_dept)}</span></td>
+                    <td><a class="style-link" onclick="openStyleModal('${esc(_style)}')">${esc(_style)}</a></td>
+                    <td><span class="det-desc-cell" title="${esc(_desc)}">${esc(_desc)}</span></td>
+                    <td style="white-space:nowrap">${_eftyHtml}</td>
+                    <td style="font-size:12.5px">${esc(_qty)}</td>
+                    <td><div class="action-btns">
+                        <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                        <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                    </div></td>
+                </tr>`;
+
+                const _er = _isExpOpen ? `<tr id="${_expandId}" class="det-expand-row">
+                    <td colspan="8" style="padding:0">
+                        <div class="det-expand-body">
+                            <div class="det-xfield"><span class="det-xlabel">Fabric Base</span><span class="det-xval">${_fab}</span></div>
+                            <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:#166534;font-weight:500">${_cost}</span></div>
+                            <div class="det-xfield"><span class="det-xlabel">PSD</span><span class="det-xval">${_psd}</span></div>
+                            <div class="det-xfield"><span class="det-xlabel">Saison</span><span class="det-xval">${esc(row["Saison"]||"—")}</span></div>
+                            <div class="det-xfield"><span class="det-xlabel">Samples</span><span class="det-xval">${_sampleBadge}</span></div>
+                            <div class="det-xfield"><span class="det-xlabel">Commandes</span><span class="det-xval">${_orderBadge}</span></div>
+                        </div>
+                    </td>
+                </tr>` : "";
+
+                return _sr + _er;
+            }).join("");
+
+            return _clientRow + _styleRows;
+        }).join("");
         return;
     }
 
@@ -4025,4 +4191,27 @@ function detFilterByClient(clientName) {
     const cf = document.getElementById("client-filter");
     if (cf) cf.value = state.filterClient;
     applyFilters();
+}
+
+
+// ─── Details : état des accordéons client + style + filtre dept ──
+const _detClientOpen = new Set();
+const _detStyleOpen  = new Set();
+const _detDeptFilter = {};  // { clientName: deptActif }
+
+function detToggleClient(clientName) {
+    if (_detClientOpen.has(clientName)) _detClientOpen.delete(clientName);
+    else _detClientOpen.add(clientName);
+    renderTable();
+}
+
+function detToggleStyleExpand(rowIdx) {
+    if (_detStyleOpen.has(rowIdx)) _detStyleOpen.delete(rowIdx);
+    else _detStyleOpen.add(rowIdx);
+    renderTable();
+}
+
+function detSetDept(clientName, dept) {
+    _detDeptFilter[clientName] = dept;
+    renderTable();
 }
