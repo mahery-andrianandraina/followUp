@@ -1552,19 +1552,23 @@ tr.row-ok>td:first-child {
 }
 
 .style-detail-table th:nth-child(1) {
-    width: 22%;
+    width: 14%;
 }
 
 .style-detail-table th:nth-child(2) {
-    width: 28%;
+    width: 20%;
 }
 
 .style-detail-table th:nth-child(3) {
-    width: 26%;
+    width: 14%;
 }
 
 .style-detail-table th:nth-child(4) {
-    width: 24%;
+    width: 14%;
+}
+
+.style-detail-table th:nth-child(5) {
+    width: 26%;
 }
 
 .style-detail-table td {
@@ -1605,7 +1609,7 @@ tr.row-ok>td:first-child {
 
 .style-form-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     gap: 0.75rem;
     margin-bottom: 0.85rem;
 }

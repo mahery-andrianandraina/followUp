@@ -2003,23 +2003,6 @@ function openStyleModal(styleName) {
     _currentStyleName = styleName;
     styleModalTitle.textContent = `Détails du Style : ${styleName}`;
     document.getElementById("style-modal-subtitle").textContent = "Couleurs & Articles";
-    // Agrandir la popup pour accueillir la colonne Prepack Barcode
-    if (!document.getElementById("style-modal-wide-css")) {
-        const _s = document.createElement("style");
-        _s.id = "style-modal-wide-css";
-        _s.textContent = `
-        #style-modal-overlay .modal-dialog { max-width: 860px; width: 95vw; }
-        .style-detail-table { width: 100%; table-layout: fixed; }
-        .style-detail-table th, .style-detail-table td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .style-detail-table th:nth-child(1), .style-detail-table td:nth-child(1) { width: 110px; }
-        .style-detail-table th:nth-child(2), .style-detail-table td:nth-child(2) { width: 130px; }
-        .style-detail-table th:nth-child(3), .style-detail-table td:nth-child(3) { width: 110px; }
-        .style-detail-table th:nth-child(4), .style-detail-table td:nth-child(4) { width: 110px; }
-        .style-detail-table th:nth-child(5), .style-detail-table td:nth-child(5) { width: auto; }
-        .style-detail-table th:nth-child(6), .style-detail-table td:nth-child(6) { width: 80px; text-align: center; }
-        `;
-        document.head.appendChild(_s);
-    }
     renderStyleModalBody();
     styleModalOverlay.classList.add("open");
 }
