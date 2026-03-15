@@ -1086,6 +1086,8 @@ function renderTable() {
            <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Fabric Base')" title="Trier par Fabric Base">Fabric Base${state.sortCol==='Fabric Base'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Costing')" title="Trier par Costing">Costing${state.sortCol==='Costing'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('PSD')" title="Trier par PSD">PSD${state.sortCol==='PSD'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Ex-Fty')" title="Trier par Ex-Fty">Ex-Fty${state.sortCol==='Ex-Fty'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Order Qty')" title="Trier par Qty">Qty${state.sortCol==='Order Qty'?(state.sortDir===1?' ↑':' ↓'):''}</th>`
@@ -1113,6 +1115,8 @@ function renderTable() {
             const _style  = esc(row["Style"]  || "—");
             const _desc   = esc(row["Description"] || row["StyleDescription"] || "—");
             const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+            const _fab    = esc(row["Fabric Base"] || "—");
+            const _cost   = row["Costing"] && !isNaN(row["Costing"]) ? `$${Number(row["Costing"]).toFixed(2)}` : esc(row["Costing"] || "—");
             let _psdHtml = "—";
             if (row["PSD"]) {
                 try {
@@ -1143,6 +1147,8 @@ function renderTable() {
                 <td><span class="dept-badge">${_dept}</span></td>
                 <td><a class="style-link" onclick="openStyleModal('${_style}')">${_style}</a></td>
                 <td><span class="det-desc-cell" title="${_desc}">${_desc}</span></td>
+                <td style="font-size:12px;color:var(--color-text-secondary)">${_fab}</td>
+                <td style="font-size:12px;color:#166534;font-weight:500">${_cost}</td>
                 <td style="white-space:nowrap">${_psdHtml}</td>
                 <td style="white-space:nowrap">${_eftyHtml}</td>
                 <td style="font-size:12.5px">${esc(_qty)}</td>
