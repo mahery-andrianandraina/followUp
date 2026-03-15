@@ -1080,9 +1080,9 @@ function renderTable() {
         document.head.appendChild(_ds);
     }
     tableHead.innerHTML = `<tr>
-    ${isDetails ? `<th style="width:28px;padding:0"></th>` : ""}
     ${isDetails
-        ? `<th>Client / Style</th>
+        ? `<th onclick="sortBy('Saison')" title="Trier par Saison">Saison${state.sortCol==='Saison'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Client')" title="Trier par Client">Client${state.sortCol==='Client'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
@@ -1101,85 +1101,43 @@ function renderTable() {
         return;
     }
 
-    // ── Details : rendu groupé par client ──────────────────────────────
+    // ── Details : tableau plat (Saison, Client, Dept, Style, Description, Ex-Fty, Qty) ──
     if (isDetails) {
-        const _clientMap = {};
-        const _clientOrder = [];
-        rows.forEach(row => {
-            const c = row.Client || "—";
-            if (!_clientMap[c]) { _clientMap[c] = []; _clientOrder.push(c); }
-            _clientMap[c].push(row);
-        });
+        const _today = new Date(); _today.setHours(0,0,0,0);
+        tableBody.innerHTML = rows.map(row => {
+            const rowIdx  = row._rowIndex;
+            const _saison = esc(row["Saison"] || "—");
+            const _client = esc(row["Client"] || "—");
+            const _dept   = esc(row["Dept"]   || "—");
+            const _style  = esc(row["Style"]  || "—");
+            const _desc   = esc(row["Description"] || row["StyleDescription"] || "—");
+            const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
 
-        tableBody.innerHTML = _clientOrder.map(clientName => {
-            const clientRows = _clientMap[clientName];
-            const chevId     = "det-cli-chv-" + clientName.replace(/[^a-zA-Z0-9]/g,"_");
-            const isOpen     = _detClientOpen.has(clientName);
-
-            const _today = new Date(); _today.setHours(0,0,0,0);
-            let _lateCount = 0, _riskCount = 0;
-            clientRows.forEach(r => {
-                if (!r["Ex-Fty"]) return;
+            let _eftyHtml = "—";
+            if (row["Ex-Fty"]) {
                 try {
-                    const d = new Date(r["Ex-Fty"]);
-                    const diff = Math.round((d - _today) / 86400000);
-                    if (diff < 0) _lateCount++;
-                    else if (diff <= 14) _riskCount++;
+                    const _eftyDate = new Date(row["Ex-Fty"]);
+                    const _diff  = Math.round((_eftyDate - _today) / 86400000);
+                    const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _cls  = _diff < 0 ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _bcls = _diff < 0 ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_diff}j</span>`;
                 } catch(e) {}
-            });
-            const _totalQty = clientRows.reduce((s,r) => s + (+r["Order Qty"]||0), 0);
-            const _lateBadge = _lateCount > 0 ? `<span class="det-client-badge det-cb-danger">${_lateCount} en retard</span>` : "";
-            const _riskBadge = _riskCount > 0 ? `<span class="det-client-badge det-cb-warn">${_riskCount} à risque</span>` : "";
+            }
 
-            const _clientRow = `<tr class="det-client-row" onclick="detToggleClient('${clientName.replace(/'/g,"\'")}')">
-                <td style="width:28px;padding:8px 0 8px 10px">
-                    <svg id="${chevId}" class="det-chevron${isOpen?" open":""}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </td>
-                <td colspan="6" style="padding:8px 12px">
-                    <span class="det-client-name">${esc(clientName)}</span>
-                    <span class="det-client-meta">${clientRows.length} style${clientRows.length>1?"s":""} · ${_totalQty.toLocaleString()} pcs</span>
-                    ${_lateBadge}${_riskBadge}
-                </td>
+            return `<tr>
+                <td style="font-size:12px;color:var(--color-text-secondary)">${_saison}</td>
+                <td><span class="client-badge">${_client}</span></td>
+                <td><span class="dept-badge">${_dept}</span></td>
+                <td><a class="style-link" onclick="openStyleModal('${_style}')">${_style}</a></td>
+                <td><span class="det-desc-cell" title="${_desc}">${_desc}</span></td>
+                <td style="white-space:nowrap">${_eftyHtml}</td>
+                <td style="font-size:12.5px">${esc(_qty)}</td>
+                <td><div class="action-btns">
+                    <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div></td>
             </tr>`;
-
-            if (!isOpen) return _clientRow;
-
-            const _styleRows = clientRows.map(row => {
-                const rowIdx = row._rowIndex;
-                const _dept  = row["Dept"]  || "—";
-                const _style = row["Style"] || "—";
-                const _desc  = row["Description"] || row["StyleDescription"] || "—";
-                const _qty   = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
-
-                let _eftyHtml = "—";
-                if (row["Ex-Fty"]) {
-                    try {
-                        const _eftyDate = new Date(row["Ex-Fty"]);
-                        const _diff  = Math.round((_eftyDate - _today) / 86400000);
-                        const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
-                        const _cls  = _diff < 0 ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
-                        const _bcls = _diff < 0 ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
-                        _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_diff}j</span>`;
-                    } catch(e) {}
-                }
-
-                return `<tr class="det-style-row">
-                    <td></td>
-                    <td><span class="dept-badge">${esc(_dept)}</span></td>
-                    <td><a class="style-link" onclick="openStyleModal('${esc(_style)}')">${esc(_style)}</a></td>
-                    <td><span class="det-desc-cell" title="${esc(_desc)}">${esc(_desc)}</span></td>
-                    <td style="white-space:nowrap">${_eftyHtml}</td>
-                    <td style="font-size:12.5px">${esc(_qty)}</td>
-                    <td><div class="action-btns">
-                        <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
-                        <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-                    </div></td>
-                </tr>`;
-            }).join("");
-
-            return _clientRow + _styleRows;
         }).join("");
         return;
     }
