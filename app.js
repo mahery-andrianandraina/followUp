@@ -1033,17 +1033,14 @@ function renderTable() {
     const isOrdering = state.activeSheet === "ordering";
 
     const isDetails = state.activeSheet === "details";
-    // Inject expand styles once for details view
+    // Inject compact-row styles once for details view
     if (isDetails && !document.getElementById("det-expand-styles")) {
         const _ds = document.createElement("style");
         _ds.id = "det-expand-styles";
         _ds.textContent = `
         .det-main-row:hover { background: var(--color-background-secondary); }
-        .det-main-row:hover .det-chevron { color: var(--color-text-primary); }
-        .det-chevron { color: var(--color-text-secondary); transition: transform .15s; flex-shrink:0; }
-        .det-chevron.open { transform: rotate(90deg); }
         .det-expand-row td { padding: 0 !important; }
-        .det-expand-body { display:flex; flex-wrap:wrap; gap:10px 20px; padding:10px 18px 12px 34px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-tertiary); }
+        .det-expand-body { display:flex; flex-wrap:wrap; gap:10px 20px; padding:10px 18px 12px 18px; background:var(--color-background-secondary); border-bottom:0.5px solid var(--color-border-tertiary); }
         .det-xfield { display:flex; flex-direction:column; gap:2px; min-width:90px; }
         .det-xlabel { font-size:10px; font-weight:500; color:var(--color-text-secondary); text-transform:uppercase; letter-spacing:.04em; }
         .det-xval { font-size:12px; color:var(--color-text-primary); }
@@ -1053,12 +1050,30 @@ function renderTable() {
         .det-xbadge-danger { background:#FFF0F0; color:#C0392B; border-color:#FFBCBC; }
         .det-xbadge-blue   { background:#EFF6FF; color:#1E40AF; border-color:#93C5FD; }
         .det-xbadge-gray   { background:var(--color-background-secondary); color:var(--color-text-secondary); border-color:var(--color-border-secondary); }
+        .det-chevron { color: var(--color-text-secondary); transition: transform .15s; flex-shrink:0; cursor:pointer; }
+        .det-chevron.open { transform: rotate(90deg); }
+        .det-desc-cell { max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12.5px; color:var(--color-text-secondary); }
+        .det-daybadge { display:inline-flex; align-items:center; font-size:10px; padding:1px 5px; border-radius:4px; margin-left:5px; font-weight:500; }
+        .det-daybadge-ok     { background:#F0FDF4; color:#166534; }
+        .det-daybadge-warn   { background:#FFFDE7; color:#827717; }
+        .det-daybadge-danger { background:#FFF0F0; color:#C0392B; }
+        .det-efty-ok     { color:#166534; font-weight:500; }
+        .det-efty-warn   { color:#827717; font-weight:500; }
+        .det-efty-danger { color:#C0392B; font-weight:500; }
         `;
         document.head.appendChild(_ds);
     }
     tableHead.innerHTML = `<tr>
-    ${isDetails ? `<th style="width:22px;padding-right:0"></th>` : ""}
-    ${cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")}
+    ${isDetails ? `<th style="width:22px;padding:0"></th>` : ""}
+    ${isDetails
+        ? `<th onclick="sortBy('Client')" title="Trier par Client">Client${state.sortCol==='Client'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Ex-Fty')" title="Trier par Ex-Fty">Ex-Fty${state.sortCol==='Ex-Fty'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Order Qty')" title="Trier par Qty">Qty${state.sortCol==='Order Qty'?(state.sortDir===1?' ↑':' ↓'):''}</th>`
+        : cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")
+    }
     ${isOrdering ? `<th style="white-space:nowrap;">🚦 Track</th>` : ""}
     <th>Actions</th></tr>`;
 
@@ -1144,9 +1159,34 @@ function renderTable() {
                 ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
                 : "";
 
-        // ── Details : ligne expansible ──────────────────────────────
+        // ── Details : vue compacte avec expand pour les champs secondaires ──
         if (state.activeSheet === "details") {
-            // ── Données croisées samples + orders pour cette ligne
+            const _expandId  = "det-exp-" + rowIdx;
+            const _chevronId = "det-chv-" + rowIdx;
+
+            // ── Cellules compactes (Client, Dept, Style, Description, Ex-Fty+badge, Qty) ──
+            const _client = row["Client"] || "—";
+            const _dept   = row["Dept"]   || "—";
+            const _style  = row["Style"]  || "—";
+            const _desc   = row["Description"] || row["StyleDescription"] || "—";
+            const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+
+            // Ex-Fty : date + badge jours coloré
+            let _eftyHtml = "—";
+            if (row["Ex-Fty"]) {
+                try {
+                    const _eftyDate = new Date(row["Ex-Fty"]);
+                    const _today = new Date(); _today.setHours(0,0,0,0);
+                    const _diff  = Math.round((_eftyDate - _today) / 86400000);
+                    const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _cls  = _diff < 0  ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _bcls = _diff < 0  ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    const _dlbl = _diff < 0  ? `${_diff}j` : `${_diff}j`;
+                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_dlbl}</span>`;
+                } catch(e) {}
+            }
+
+            // ── Données croisées samples + orders pour le expand ──
             const _sRows = (state.data.sample || []).filter(s => s.Style === row.Style && s.Client === row.Client);
             const _oRows = (state.data.ordering || []).filter(o => o.Style === row.Style && o.Client === row.Client);
             const _sApproved = _sRows.filter(s => s.Approval === "Approved").length;
@@ -1174,17 +1214,16 @@ function renderTable() {
 
             const _fab  = esc(row["Fabric Base"] || "—");
             const _cost = row["Costing"] ? `$${Number(row["Costing"]).toFixed(2)}` : "—";
-            const _psd  = row["PSD"]   ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
-            const _efty = row["Ex-Fty"]? new Date(row["Ex-Fty"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
-            const _desc = esc(row["Description"] || row["StyleDescription"] || "—");
-            const _cols = cfg.cols.length + (isOrdering ? 2 : 1);
-
-            const _expandId = "det-exp-" + rowIdx;
-            const _chevronId = "det-chv-" + rowIdx;
+            const _psd  = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
 
             const _mainRow = `<tr class="det-main-row" onclick="detToggleExpand('${_expandId}','${_chevronId}')" style="cursor:pointer">
-                <td style="width:22px;padding-right:0"><svg id="${_chevronId}" class="det-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></td>
-                ${cells}${trackCell}
+                <td style="width:22px;padding:0 0 0 8px"><svg id="${_chevronId}" class="det-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></td>
+                <td class="sticky-col"><span class="client-badge" style="cursor:pointer" title="Filtrer par ${esc(_client)}" onclick="event.stopPropagation();detFilterByClient('${esc(_client)}')">${esc(_client)}</span></td>
+                <td class="sticky-col-2"><span class="dept-badge">${esc(_dept)}</span></td>
+                <td class="sticky-col-3"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(_style)}')">${esc(_style)}</a></td>
+                <td><span class="det-desc-cell" title="${esc(_desc)}">${esc(_desc)}</span></td>
+                <td style="white-space:nowrap">${_eftyHtml}</td>
+                <td style="font-size:12.5px">${esc(_qty)}</td>
                 <td><div class="action-btns">
                     <button class="btn btn-edit btn-icon" onclick="event.stopPropagation();openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
                     ${dupBtn}
@@ -1193,13 +1232,12 @@ function renderTable() {
             </tr>`;
 
             const _expandRow = `<tr id="${_expandId}" class="det-expand-row" style="display:none">
-                <td colspan="${_cols + 1}" style="padding:0">
+                <td colspan="8" style="padding:0">
                     <div class="det-expand-body">
-                        <div class="det-xfield"><span class="det-xlabel">Description</span><span class="det-xval">${_desc}</span></div>
                         <div class="det-xfield"><span class="det-xlabel">Fabric Base</span><span class="det-xval">${_fab}</span></div>
-                        <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:var(--color-success,#166534);font-weight:500">${_cost}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:#166534;font-weight:500">${_cost}</span></div>
                         <div class="det-xfield"><span class="det-xlabel">PSD</span><span class="det-xval">${_psd}</span></div>
-                        <div class="det-xfield"><span class="det-xlabel">Ex-Fty</span><span class="det-xval">${_efty}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Saison</span><span class="det-xval">${esc(row["Saison"]||"—")}</span></div>
                         <div class="det-xfield"><span class="det-xlabel">Samples</span><span class="det-xval">${_sampleBadge}</span></div>
                         <div class="det-xfield"><span class="det-xlabel">Commandes</span><span class="det-xval">${_orderBadge}</span></div>
                     </div>
@@ -3972,4 +4010,19 @@ function detToggleExpand(expandId, chevronId) {
     const isOpen = row.style.display !== "none";
     row.style.display = isOpen ? "none" : "";
     chv.classList.toggle("open", !isOpen);
+}
+
+
+// ─── Details : clic sur badge client → filtre ─────────────────
+function detFilterByClient(clientName) {
+    // Toggle : si déjà filtré sur ce client, on enlève le filtre
+    if (state.filterClient === clientName) {
+        state.filterClient = "";
+    } else {
+        state.filterClient = clientName;
+    }
+    // Sync le <select> client-filter
+    const cf = document.getElementById("client-filter");
+    if (cf) cf.value = state.filterClient;
+    applyFilters();
 }
