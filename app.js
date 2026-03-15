@@ -1086,6 +1086,7 @@ function renderTable() {
            <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('PSD')" title="Trier par PSD">PSD${state.sortCol==='PSD'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Ex-Fty')" title="Trier par Ex-Fty">Ex-Fty${state.sortCol==='Ex-Fty'?(state.sortDir===1?' ↑':' ↓'):''}</th>
            <th onclick="sortBy('Order Qty')" title="Trier par Qty">Qty${state.sortCol==='Order Qty'?(state.sortDir===1?' ↑':' ↓'):''}</th>`
         : cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")
@@ -1112,6 +1113,7 @@ function renderTable() {
             const _style  = esc(row["Style"]  || "—");
             const _desc   = esc(row["Description"] || row["StyleDescription"] || "—");
             const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+            const _psd    = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
 
             let _eftyHtml = "—";
             if (row["Ex-Fty"]) {
@@ -1131,6 +1133,7 @@ function renderTable() {
                 <td><span class="dept-badge">${_dept}</span></td>
                 <td><a class="style-link" onclick="openStyleModal('${_style}')">${_style}</a></td>
                 <td><span class="det-desc-cell" title="${_desc}">${_desc}</span></td>
+                <td style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap">${_psd}</td>
                 <td style="white-space:nowrap">${_eftyHtml}</td>
                 <td style="font-size:12.5px">${esc(_qty)}</td>
                 <td><div class="action-btns">
