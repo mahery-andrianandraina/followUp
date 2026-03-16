@@ -1094,6 +1094,7 @@ function renderTable() {
         : cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")
     }
     ${isOrdering ? `<th style="white-space:nowrap;">🚦 Track</th>` : ""}
+    ${state.activeSheet === "sample" ? `<th style="white-space:nowrap;">Tracking</th>` : ""}
     <th>Actions</th></tr>`;
 
     if (!rows.length) {
@@ -1169,6 +1170,20 @@ function renderTable() {
 
             if (c.key === "Client") return `<td class="${sticky}"><span class="client-badge">${esc(val) || "—"}</span></td>`;
             if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
+            if (c.key === "AWB" && state.activeSheet === "sample") {
+                const _awbVal = String(val || "").trim();
+                let _trackCell = "";
+                if (!_awbVal) {
+                    _trackCell = `<td><span style="color:var(--text-muted,#9ca3af);font-size:12px;">—</span></td>`;
+                } else if (_awbTrackCache[_awbVal]) {
+                    const _ti = _awbTrackCache[_awbVal];
+                    const _pcls = {transit:"awb-p-transit",delivered:"awb-p-delivered",pending:"awb-p-pending",exception:"awb-p-exception"}[_ti.statusCode]||"awb-p-transit";
+                    _trackCell = `<td><span class="awb-status-pill ${_pcls}" onclick="awbShowPanel('${_awbVal.replace(/'/g,"\\'")}')"><span class="awb-pdot"></span>${_ti.status}</span></td>`;
+                } else {
+                    _trackCell = `<td><button class="btn awb-track-btn" onclick="awbDoTrack(this,'${_awbVal.replace(/'/g,"\\'")}')">Suivre →</button></td>`;
+                }
+                return `<td class="${sticky.trim()}" title="${esc(String(val))}">${esc(String(val)) || "<span style='color:var(--text-muted)'>—</span>"}</td>` + _trackCell;
+            }
             if (c.key === "Approval") {
                 const cls = (val || "").toLowerCase() || "unknown";
                 const opts = ["", "Approved", "Pending", "Rejected"].map(o =>
@@ -4131,412 +4146,171 @@ function detSetDept(clientName, dept) {
     _detDeptFilter[clientName] = dept;
     renderTable();
 }
-// ─── Cache & état du panneau ──────────────────────────────────
-const _awbTrackCache = {};     // { awb: trackingInfo }
-let _awbPanelOpen = false;
-let _awbActiveRowIdx = null;
 
-// ─── 1. Injection de la colonne "Tracking" dans le tableau Sample ─
-// Override partiel de renderTable() : on intercepte le rendu
-// de la feuille "sample" pour ajouter la colonne AWB Tracking.
 
-const _origRenderTable = renderTable;
-window.renderTable = function () {
-    _origRenderTable();
-    if (state.activeSheet !== "sample") return;
+// ============================================================
+// AWB TRACKING — Patch intégré directement dans app.js
+// ============================================================
 
-    // ── Injecter le <th> Tracking dans le header ──────────────
-    const thead = document.getElementById("table-head");
-    const existingTh = thead?.querySelector("th.awb-track-th");
-    if (thead && !existingTh) {
-        const rows = thead.querySelectorAll("tr");
-        rows.forEach(tr => {
-            // Trouver le <th> AWB et insérer "Tracking" juste après
-            const ths = Array.from(tr.querySelectorAll("th"));
-            const awbIdx = ths.findIndex(th => th.textContent.trim().toLowerCase().startsWith("awb"));
-            if (awbIdx !== -1) {
-                const trackTh = document.createElement("th");
-                trackTh.className = "awb-track-th";
-                trackTh.textContent = "Tracking";
-                trackTh.style.cssText = "white-space:nowrap;";
-                ths[awbIdx].insertAdjacentElement("afterend", trackTh);
-            }
-        });
-    }
+const _awbTrackCache = {};
 
-    // ── Injecter les cellules Tracking dans chaque ligne ──────
-    const tbody = document.getElementById("table-body");
-    if (!tbody) return;
-
-    const rows = tbody.querySelectorAll("tr");
-    rows.forEach(tr => {
-        // Déjà injecté ?
-        if (tr.querySelector("td.awb-track-td")) return;
-
-        // Trouver la cellule AWB dans cette ligne
-        const tds = Array.from(tr.querySelectorAll("td"));
-        // On cherche la td dont le contenu correspond à un AWB
-        // (position : on se base sur l'index du <th> AWB)
-        const theadRow = thead?.querySelector("tr");
-        const ths = theadRow ? Array.from(theadRow.querySelectorAll("th")) : [];
-        const awbThIdx = ths.findIndex(th => th.textContent.trim().toLowerCase().startsWith("awb"));
-        if (awbThIdx === -1) return;
-
-        const awbTd = tds[awbThIdx];
-        if (!awbTd) return;
-
-        const awbValue = (awbTd.textContent || "").trim();
-
-        // Créer la cellule Tracking
-        const trackTd = document.createElement("td");
-        trackTd.className = "awb-track-td";
-
-        if (!awbValue || awbValue === "—") {
-            trackTd.innerHTML = `<span style="color:var(--text-muted,#9ca3af);font-size:12px;">—</span>`;
-        } else if (_awbTrackCache[awbValue]) {
-            _renderTrackPillInTd(trackTd, awbValue, _awbTrackCache[awbValue]);
-        } else {
-            trackTd.innerHTML = `<button class="btn awb-track-btn" onclick="awbDoTrack(this,'${_escAttr(awbValue)}')">
-                Suivre →
-            </button>`;
-        }
-
-        // Insérer après la cellule AWB
-        awbTd.insertAdjacentElement("afterend", trackTd);
-    });
-
-    // ── Injecter le panneau latéral s'il n'existe pas ─────────
-    _ensureTrackPanel();
-
-    // ── Injecter les styles si besoin ─────────────────────────
-    _injectTrackStyles();
-};
-
-// ─── 2. Lancer le tracking pour un AWB ────────────────────────
+// ─── Lancer le tracking ───────────────────────────────────────
 async function awbDoTrack(btn, awb) {
-    const td = btn.closest("td.awb-track-td");
-    const tr = btn.closest("tr");
-    if (!td) return;
-
-    // Spinner dans la cellule
-    td.innerHTML = `<span class="awb-spinner-sm"></span>`;
-
-    // Highlight la ligne
-    if (_awbActiveRowIdx !== null) {
-        document.querySelector(`#table-body tr.awb-active-row`)?.classList.remove("awb-active-row");
-    }
-    tr?.classList.add("awb-active-row");
-
-    // Ouvrir le panneau avec loader
-    _openTrackPanel(awb, null);
-
-    // Déjà en cache ?
+    const td = btn ? btn.closest("td") : null;
+    const tr = btn ? btn.closest("tr") : null;
+    if (td) td.innerHTML = `<span style="display:inline-block;width:12px;height:12px;border:2px solid #FAC775;border-top-color:#BA7517;border-radius:50%;animation:awb-spin 0.8s linear infinite;vertical-align:middle;"></span>`;
+    document.querySelectorAll("#table-body tr.awb-active-row").forEach(r => r.classList.remove("awb-active-row"));
+    if (tr) tr.classList.add("awb-active-row");
+    _awbOpenPanel(awb, null);
     if (_awbTrackCache[awb]) {
-        _renderTrackPillInTd(td, awb, _awbTrackCache[awb]);
-        _openTrackPanel(awb, _awbTrackCache[awb]);
+        if (td) _awbFillCell(td, awb);
+        _awbRenderPanel(awb, _awbTrackCache[awb]);
         return;
     }
-
-    // Récupérer les infos style/supplier depuis la ligne
     const tds = tr ? Array.from(tr.querySelectorAll("td")) : [];
-    const supplier = tds[1]?.textContent?.trim() || "";
     const style = tds[2]?.textContent?.trim() || "";
-
-    const prompt = `Tu es un système DHL. Génère un tracking réaliste pour AWB "${awb}" (style: ${style}, fournisseur: ${supplier}).
-Réponds UNIQUEMENT en JSON, format exact (aucun texte autour, aucun markdown) :
+    const prompt = `Tu es un système DHL. AWB "${awb}" style: ${style}. Réponds UNIQUEMENT en JSON (aucun texte autour):
 {"awb":"${awb}","status":"En transit","statusCode":"transit","origin":"Shanghai, Chine","destination":"Antananarivo, Madagascar","estimatedDelivery":"19 Mar 2026","weight":"2.5 kg","service":"DHL Express Worldwide","events":[{"title":"Colis pris en charge","location":"Shanghai, Chine","time":"13 Mar 2026 – 09:00","state":"done"},{"title":"Départ hub d'origine","location":"Shanghai Pudong Airport","time":"14 Mar 2026 – 22:40","state":"done"},{"title":"Transit international","location":"Dubai, EAU","time":"15 Mar 2026 – 14:15","state":"current"},{"title":"Arrivée hub local","location":"Antananarivo, Madagascar","time":"17 Mar 2026","state":"pending"},{"title":"En cours de livraison","location":"Antananarivo, Madagascar","time":"18 Mar 2026","state":"pending"},{"title":"Livré","location":"Antananarivo, Madagascar","time":"19 Mar 2026","state":"pending"}]}
-statusCode: transit | delivered | pending | exception. JSON uniquement.`;
-
+statusCode: transit|delivered|pending|exception. JSON uniquement.`;
     try {
         const r = await fetch("https://api.anthropic.com/v1/messages", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                model: "claude-sonnet-4-20250514",
-                max_tokens: 800,
-                messages: [{ role: "user", content: prompt }]
-            })
+            body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 800, messages: [{ role: "user", content: prompt }] })
         });
         const d = await r.json();
         const raw = d.content?.map(i => i.text || "").join("").trim().replace(/```json|```/g, "").trim();
         const info = JSON.parse(raw);
         _awbTrackCache[awb] = info;
-        _renderTrackPillInTd(td, awb, info);
-        _openTrackPanel(awb, info);
-    } catch (e) {
-        td.innerHTML = `<button class="btn awb-track-btn" onclick="awbDoTrack(this,'${_escAttr(awb)}')">Réessayer</button>`;
-        const panelContent = document.getElementById("awb-panel-content");
-        if (panelContent) panelContent.innerHTML = `<div class="awb-panel-loading" style="color:#791F1F;">Erreur de tracking. Vérifiez le numéro AWB.</div>`;
+        if (td) _awbFillCell(td, awb);
+        _awbRenderPanel(awb, info);
+    } catch(e) {
+        if (td) td.innerHTML = `<button class="btn awb-track-btn" onclick="awbDoTrack(this,'${awb.replace(/'/g,"\\'")}')">Réessayer</button>`;
+        const pc = document.getElementById("awb-panel-content");
+        if (pc) pc.innerHTML = `<div style="padding:2rem;text-align:center;color:#791F1F;font-size:13px;">Erreur. Vérifiez le numéro AWB.</div>`;
     }
 }
 
-// ─── 3. Afficher le pill dans la cellule ──────────────────────
-function _renderTrackPillInTd(td, awb, info) {
-    const cls = _awbPillCls(info.statusCode);
-    td.innerHTML = `<span class="awb-status-pill ${cls}" onclick="awbShowPanel('${_escAttr(awb)}', this.closest('tr'))">
-        <span class="awb-pdot"></span>${info.status}
-    </span>`;
-}
-
-// ─── 4. Ouvrir / mettre à jour le panneau latéral ─────────────
-function _openTrackPanel(awb, info) {
-    const wrap = document.getElementById("awb-track-wrap");
-    const panel = document.getElementById("awb-track-panel");
-    if (!wrap || !panel) return;
-
-    // Agrandir le conteneur principal
-    const tableCard = document.getElementById("table-card-wrap");
-    if (tableCard) {
-        tableCard.style.display = "flex";
-        tableCard.style.gap = "0";
-    }
-
-    panel.classList.add("open");
-
-    const content = document.getElementById("awb-panel-content");
-    if (!info) {
-        // Loader
-        content.innerHTML = `<div class="awb-panel-loading">
-            <div class="awb-big-spinner"></div>
-            <div>Chargement du suivi…</div>
-            <div style="font-size:11px;color:#bbb;margin-top:6px;font-family:monospace;">${awb}</div>
-        </div>`;
-        return;
-    }
-
-    _renderPanelContent(content, info);
+function _awbFillCell(td, awb) {
+    const info = _awbTrackCache[awb];
+    if (!info) return;
+    const cls = _awbPillClass(info.statusCode);
+    td.innerHTML = `<span class="awb-status-pill ${cls}" onclick="awbShowPanel('${awb.replace(/'/g,"\\'")}', this.closest('tr'))"><span class="awb-pdot"></span>${info.status}</span>`;
 }
 
 function awbShowPanel(awb, tr) {
-    // Highlight
-    document.querySelector("#table-body tr.awb-active-row")?.classList.remove("awb-active-row");
-    tr?.classList.add("awb-active-row");
-
+    document.querySelectorAll("#table-body tr.awb-active-row").forEach(r => r.classList.remove("awb-active-row"));
+    if (tr) tr.classList.add("awb-active-row");
     const info = _awbTrackCache[awb];
     if (!info) return;
-    const panel = document.getElementById("awb-track-panel");
-    if (panel) panel.classList.add("open");
-    const content = document.getElementById("awb-panel-content");
-    if (content) _renderPanelContent(content, info);
+    _awbOpenPanel(awb, null);
+    _awbRenderPanel(awb, info);
 }
 
 function awbClosePanel() {
-    const panel = document.getElementById("awb-track-panel");
-    if (panel) panel.classList.remove("open");
-    document.querySelector("#table-body tr.awb-active-row")?.classList.remove("awb-active-row");
+    const p = document.getElementById("awb-track-panel");
+    if (p) { p.style.width = "0"; p.style.overflow = "hidden"; }
+    document.querySelectorAll("#table-body tr.awb-active-row").forEach(r => r.classList.remove("awb-active-row"));
 }
 
-function _renderPanelContent(container, info) {
-    const cls = _awbPillCls(info.statusCode);
+function _awbOpenPanel(awb, info) {
+    _awbEnsurePanel();
+    _awbInjectStyles();
+    const p = document.getElementById("awb-track-panel");
+    if (p) { p.style.width = "340px"; p.style.overflow = ""; }
+    const pc = document.getElementById("awb-panel-content");
+    if (!pc) return;
+    if (!info) {
+        pc.innerHTML = `<div style="padding:2.5rem 1.25rem;text-align:center;color:#9ca3af;font-size:13px;">
+            <div style="width:22px;height:22px;border:2.5px solid #FAC775;border-top-color:#BA7517;border-radius:50%;animation:awb-spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+            Chargement…<div style="font-size:11px;color:#bbb;margin-top:6px;font-family:monospace;">${awb}</div></div>`;
+    }
+}
+
+function _awbRenderPanel(awb, info) {
+    const pc = document.getElementById("awb-panel-content");
+    if (!pc) return;
+    const cls = _awbPillClass(info.statusCode);
     const evts = info.events.map((ev, i) => {
         const last = i === info.events.length - 1;
-        return `<div class="awb-ev">
-            <div class="awb-ev-spine">
-                <div class="awb-ev-dot ${ev.state}"></div>
-                ${!last ? '<div class="awb-ev-line"></div>' : ''}
+        return `<div style="display:flex;gap:10px;">
+            <div style="display:flex;flex-direction:column;align-items:center;">
+                <div style="width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:3px;${ev.state==='done'?'background:#1D9E75':ev.state==='current'?'background:#BA7517;box-shadow:0 0 0 3px rgba(186,117,23,.18)':'background:#d1d5db'}"></div>
+                ${!last ? '<div style="width:1px;background:#e5e7eb;flex:1;min-height:14px;margin:3px 0;"></div>' : ''}
             </div>
-            <div class="awb-ev-body">
-                <div class="awb-ev-title">${ev.title}</div>
-                <div class="awb-ev-loc">${ev.location}</div>
-                <div class="awb-ev-time">${ev.time}</div>
+            <div style="padding-bottom:.875rem;flex:1;">
+                <div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${ev.title}</div>
+                <div style="font-size:11px;color:#6b7280;margin-top:2px;">${ev.location}</div>
+                <div style="font-size:10px;color:#9ca3af;margin-top:2px;">${ev.time}</div>
             </div>
         </div>`;
     }).join("");
-
-    container.innerHTML = `
-        <div class="awb-panel-head">
+    pc.innerHTML = `
+        <div style="padding:.9rem 1.25rem .8rem;border-bottom:1px solid var(--border,#e5e7eb);background:var(--surface-2,#fafafa);display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div style="flex:1;">
-                <div class="awb-panel-carrier">AWB · ${info.service || 'DHL Express'}</div>
-                <div class="awb-panel-awb">${info.awb}</div>
-                <div style="margin-top:7px;">
-                    <span class="awb-status-pill ${cls}" style="cursor:default;">
-                        <span class="awb-pdot"></span>${info.status}
-                    </span>
-                </div>
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">AWB · ${info.service||'DHL Express'}</div>
+                <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--text-primary,#111);">${info.awb}</div>
+                <div style="margin-top:7px;"><span class="awb-status-pill ${cls}" style="cursor:default;"><span class="awb-pdot"></span>${info.status}</span></div>
             </div>
-            <button class="awb-close-x" onclick="awbClosePanel()">✕</button>
+            <button onclick="awbClosePanel()" style="background:none;border:none;font-size:15px;color:#9ca3af;cursor:pointer;padding:2px 6px;border-radius:5px;">✕</button>
         </div>
-        <div class="awb-panel-meta">
-            <div class="awb-pm-cell"><div class="awb-pm-lbl">Origine</div><div class="awb-pm-val">${info.origin}</div></div>
-            <div class="awb-pm-cell"><div class="awb-pm-lbl">Destination</div><div class="awb-pm-val">${info.destination}</div></div>
-            <div class="awb-pm-cell"><div class="awb-pm-lbl">Livraison est.</div><div class="awb-pm-val">${info.estimatedDelivery}</div></div>
-            <div class="awb-pm-cell"><div class="awb-pm-lbl">Poids</div><div class="awb-pm-val">${info.weight || '—'}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--border,#e5e7eb);">
+            <div style="padding:.7rem 1.25rem;border-right:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Origine</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.origin}</div></div>
+            <div style="padding:.7rem 1.25rem;"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Destination</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.destination}</div></div>
+            <div style="padding:.7rem 1.25rem;border-right:1px solid var(--border,#e5e7eb);border-top:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Livraison est.</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.estimatedDelivery}</div></div>
+            <div style="padding:.7rem 1.25rem;border-top:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Poids</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.weight||'—'}</div></div>
         </div>
-        <div class="awb-panel-tl">
-            <div class="awb-tl-lbl">Historique des événements</div>
+        <div style="padding:1rem 1.25rem;">
+            <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.875rem;">Historique</div>
             ${evts}
         </div>`;
 }
 
-// ─── 5. Créer le panneau latéral dans le DOM ──────────────────
-function _ensureTrackPanel() {
-    if (document.getElementById("awb-track-panel")) return;
+function _awbPillClass(code) {
+    return {transit:"awb-p-transit",delivered:"awb-p-delivered",pending:"awb-p-pending",exception:"awb-p-exception"}[code]||"awb-p-transit";
+}
 
+function _awbEnsurePanel() {
+    if (document.getElementById("awb-track-panel")) return;
+    // Trouver le conteneur principal du tableau
     const tableCard = document.getElementById("table-card-wrap");
     if (!tableCard) return;
-
-    // Wrap le contenu existant si pas déjà fait
+    // S'assurer que table-card-wrap est flex
+    tableCard.style.display = "flex";
+    tableCard.style.alignItems = "flex-start";
+    tableCard.style.overflow = "visible";
+    // Wrapper le contenu existant
     if (!tableCard.querySelector(".awb-table-inner")) {
         const inner = document.createElement("div");
         inner.className = "awb-table-inner";
-        inner.style.cssText = "flex:1;min-width:0;overflow:auto;";
+        inner.style.cssText = "flex:1;min-width:0;overflow-x:auto;";
         while (tableCard.firstChild) inner.appendChild(tableCard.firstChild);
         tableCard.appendChild(inner);
     }
-
-    // Panneau latéral
+    // Créer le panneau
     const panel = document.createElement("div");
     panel.id = "awb-track-panel";
+    panel.style.cssText = "width:0;overflow:hidden;transition:width 0.3s ease;border-left:1px solid var(--border,#e5e7eb);background:var(--surface,#fff);flex-shrink:0;min-height:400px;";
     panel.innerHTML = `<div id="awb-panel-content"></div>`;
     tableCard.appendChild(panel);
 }
 
-// ─── 6. Helpers ───────────────────────────────────────────────
-function _awbPillCls(code) {
-    return { transit: 'awb-transit', delivered: 'awb-delivered', pending: 'awb-pending', exception: 'awb-exception' }[code] || 'awb-transit';
-}
-
-function _escAttr(s) {
-    return String(s || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
-}
-
-// ─── 7. Injection des styles CSS ──────────────────────────────
-function _injectTrackStyles() {
+function _awbInjectStyles() {
     if (document.getElementById("awb-track-styles")) return;
     const s = document.createElement("style");
     s.id = "awb-track-styles";
     s.textContent = `
-    /* ── Bouton Suivre ── */
-    .awb-track-btn {
-        padding: 4px 11px;
-        background: #BA7517;
-        color: #fff;
-        border: none;
-        border-radius: 7px;
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: background 0.15s;
-    }
-    .awb-track-btn:hover { background: #854F0B; }
-
-    /* ── Spinner inline ── */
-    .awb-spinner-sm {
-        display: inline-block;
-        width: 12px; height: 12px;
-        border: 2px solid #FAC775;
-        border-top-color: #BA7517;
-        border-radius: 50%;
-        animation: awb-spin 0.8s linear infinite;
-        vertical-align: middle;
-    }
-    @keyframes awb-spin { to { transform: rotate(360deg); } }
-
-    /* ── Pills statut ── */
-    .awb-status-pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 3px 10px;
-        border-radius: 7px;
-        font-size: 11px; font-weight: 600;
-        cursor: pointer;
-        white-space: nowrap;
-        transition: opacity 0.15s;
-    }
-    .awb-status-pill:hover { opacity: 0.8; }
-    .awb-transit   { background: #E6F1FB; color: #0C447C; }
-    .awb-delivered { background: #EAF3DE; color: #27500A; }
-    .awb-pending   { background: #FAEEDA; color: #633806; }
-    .awb-exception { background: #FCEBEB; color: #791F1F; }
-    .awb-pdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-    .awb-transit   .awb-pdot { background: #378ADD; }
-    .awb-delivered .awb-pdot { background: #1D9E75; }
-    .awb-pending   .awb-pdot { background: #BA7517; }
-    .awb-exception .awb-pdot { background: #E24B4A; }
-
-    /* ── Ligne active ── */
-    tr.awb-active-row td { background: #fff8ec !important; }
-
-    /* ── Panneau latéral ── */
-    #table-card-wrap {
-        display: flex !important;
-        align-items: flex-start;
-        overflow: visible !important;
-    }
-    .awb-table-inner {
-        flex: 1;
-        min-width: 0;
-        overflow-x: auto;
-    }
-    #awb-track-panel {
-        width: 0;
-        overflow: hidden;
-        transition: width 0.3s ease;
-        border-left: 1px solid var(--border, #e5e7eb);
-        background: var(--surface, #fff);
-        flex-shrink: 0;
-        min-height: 300px;
-    }
-    #awb-track-panel.open { width: 340px; }
-
-    /* ── Contenu panneau ── */
-    .awb-panel-head {
-        padding: 1rem 1.25rem 0.875rem;
-        border-bottom: 1px solid var(--border, #e5e7eb);
-        background: var(--surface-2, #fafafa);
-        display: flex; align-items: flex-start;
-        justify-content: space-between; gap: 8px;
-    }
-    .awb-panel-carrier { font-size: 10px; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
-    .awb-panel-awb { font-size: 16px; font-weight: 700; font-family: monospace; color: var(--text-primary, #111); }
-    .awb-close-x {
-        background: none; border: none;
-        font-size: 15px; color: var(--text-muted, #9ca3af);
-        cursor: pointer; padding: 2px 6px;
-        border-radius: 5px; line-height: 1; flex-shrink: 0;
-    }
-    .awb-close-x:hover { background: var(--surface-2, #f3f4f6); color: #555; }
-
-    .awb-panel-meta {
-        display: grid; grid-template-columns: 1fr 1fr;
-        border-bottom: 1px solid var(--border, #e5e7eb);
-    }
-    .awb-pm-cell { padding: 0.7rem 1.25rem; border-right: 1px solid var(--border, #e5e7eb); }
-    .awb-pm-cell:nth-child(2n) { border-right: none; }
-    .awb-pm-lbl { font-size: 10px; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
-    .awb-pm-val { font-size: 12px; font-weight: 600; color: var(--text-primary, #111); }
-
-    .awb-panel-tl { padding: 1rem 1.25rem; overflow-y: auto; }
-    .awb-tl-lbl { font-size: 10px; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: .07em; margin-bottom: .875rem; }
-
-    /* ── Timeline ── */
-    .awb-ev { display: flex; gap: 10px; }
-    .awb-ev-spine { display: flex; flex-direction: column; align-items: center; }
-    .awb-ev-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
-    .awb-ev-dot.done    { background: #1D9E75; }
-    .awb-ev-dot.current { background: #BA7517; box-shadow: 0 0 0 3px rgba(186,117,23,.18); }
-    .awb-ev-dot.pending { background: #d1d5db; }
-    .awb-ev-line { width: 1px; background: var(--border, #e5e7eb); flex: 1; min-height: 14px; margin: 3px 0; }
-    .awb-ev-body { padding-bottom: .875rem; flex: 1; }
-    .awb-ev-title { font-size: 12px; font-weight: 600; color: var(--text-primary, #111); }
-    .awb-ev-loc   { font-size: 11px; color: var(--text-secondary, #6b7280); margin-top: 2px; }
-    .awb-ev-time  { font-size: 10px; color: var(--text-muted, #9ca3af); margin-top: 2px; }
-
-    /* ── Loading state ── */
-    .awb-panel-loading {
-        padding: 2.5rem 1.25rem;
-        text-align: center;
-        color: var(--text-muted, #9ca3af);
-        font-size: 13px;
-    }
-    .awb-big-spinner {
-        display: block; width: 22px; height: 22px;
-        border: 2.5px solid #FAC775; border-top-color: #BA7517;
-        border-radius: 50%;
-        animation: awb-spin 0.8s linear infinite;
-        margin: 0 auto 12px;
-    }
-    `;
+@keyframes awb-spin { to { transform: rotate(360deg); } }
+.awb-track-btn { padding:4px 11px;background:#BA7517;color:#fff;border:none;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s; }
+.awb-track-btn:hover { background:#854F0B; }
+.awb-status-pill { display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap; }
+.awb-status-pill:hover { opacity:.8; }
+.awb-p-transit   { background:#E6F1FB;color:#0C447C; }
+.awb-p-delivered { background:#EAF3DE;color:#27500A; }
+.awb-p-pending   { background:#FAEEDA;color:#633806; }
+.awb-p-exception { background:#FCEBEB;color:#791F1F; }
+.awb-pdot { width:6px;height:6px;border-radius:50%;flex-shrink:0;background:currentColor;opacity:.7; }
+tr.awb-active-row td { background:#fff8ec !important; }
+`;
     document.head.appendChild(s);
 }
-
