@@ -7,6 +7,27 @@
 // Ne pas modifier cette constante directement.
 let GOOGLE_APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 
+// ─── Normalize Google Drive image URLs ────────────────────────────────────
+// Accepte 3 formats :
+//   1. base64 data:image/...  → retourné tel quel (GAS legacy)
+//   2. https://drive.google.com/file/d/FILE_ID/view?...
+//   3. https://drive.google.com/open?id=FILE_ID
+// → convertit (2) et (3) en thumbnail public utilisable par tous les comptes :
+//   https://drive.google.com/thumbnail?id=FILE_ID&sz=w400
+function normalizeDriveUrl(url) {
+    if (!url) return "";
+    // Déjà un base64 ou thumbnail → intouché
+    if (url.startsWith("data:") || url.includes("thumbnail?id=")) return url;
+    // Format /file/d/FILE_ID/
+    const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m1) return "https://drive.google.com/thumbnail?id=" + m1[1] + "&sz=w400";
+    // Format ?id=FILE_ID ou open?id=FILE_ID
+    const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (m2) return "https://drive.google.com/thumbnail?id=" + m2[1] + "&sz=w400";
+    // Autre URL → retournée telle quelle
+    return url;
+}
+
 // ─── Delivery Track Logic ────────────────────────────────────
 function computeDeliveryTrack(row) {
     const status = row["Status"] || "";
@@ -735,8 +756,8 @@ function renderDashboard() {
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style (base64 depuis Google Drive via GAS)
-                    const imgUrl = r["_imageUrl"] || "";
+                    // ── Image du style (base64 GAS ou lien Drive direct public)
+                    const imgUrl = normalizeDriveUrl(r["_imageUrl"] || "");
                     let imgBlock;
                     if (imgUrl) {
                         const _lbStyle = esc(r.Style || "");
