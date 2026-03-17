@@ -241,10 +241,15 @@ async function fetchAllData() {
         if (json.status !== "ok") throw new Error(json.message);
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
-        const fixRows = (rows) => (rows || []).map((r, i) => ({
-            ...r,
-            _rowIndex: r._rowIndex ?? (i + 2)
-        }));
+        const fixRows = (rows) => (rows || []).map((r, i) => {
+            // Normalise _imageUrl depuis tous les noms de colonnes possibles
+            const rawImg = r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || "";
+            return {
+                ...r,
+                _rowIndex: r._rowIndex ?? (i + 2),
+                _imageUrl: normalizeDriveUrl(rawImg)
+            };
+        });
 
         state.data.details = fixRows(json.data.details?.rows);
         state.data.sample = fixRows(json.data.sample?.rows);
@@ -273,6 +278,13 @@ async function fetchAllData() {
         });
 
         state.loading = false;
+
+        // ── Diagnostic images : affiche dans la console les lignes sans _imageUrl
+        const detailsWithImg  = (state.data.details || []).filter(r => r._imageUrl).length;
+        const detailsTotal    = (state.data.details || []).length;
+        const sampleImg       = (state.data.details || []).slice(0,1).map(r => ({ style: r.Style, _imageUrl: r._imageUrl, rawKeys: Object.keys(r).filter(k => /image|photo/i.test(k)) }));
+        console.info("[AW27] Images chargées :", detailsWithImg + "/" + detailsTotal, "| Exemple row[0] :", sampleImg[0] || "—");
+
         renderAll();
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
         // Log any Pantone names from GS that are not in the TCX database
@@ -756,8 +768,8 @@ function renderDashboard() {
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style (base64 GAS ou lien Drive direct public)
-                    const imgUrl = normalizeDriveUrl(r["_imageUrl"] || "");
+                    // ── Image du style (normalisé dans fixRows — supporte base64 GAS, Drive /file/d/, open?id=)
+                    const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
                         const _lbStyle = esc(r.Style || "");
