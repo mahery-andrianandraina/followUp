@@ -9,89 +9,134 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="color-tags.css">
     <style>
-      /* Forcer display:flex sur layout-body et main (cascade safety) */
-      .layout-body { display: flex !important; flex-direction: column !important; overflow-y: auto !important; overflow-x: hidden !important; }
-      main.main    { overflow: visible !important; }
+        /* Forcer un layout CSS Flex 100vh strict pour garder le scroll DANS les composants */
+        .layout-body {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            overflow: hidden !important;
+        }
 
-      /* Fond dégradé bleu */
-      body {
-        background: linear-gradient(135deg, #0f172a 0%, #0284c7 50%, #6366f1 100%) !important;
-        background-attachment: fixed !important;
-        min-height: 100vh !important;
-      }
+        main.main {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important;
+            overflow: hidden !important;
+            min-height: 0 !important;
+            padding-bottom: 1.5rem !important;
+        }
 
-      /* Sidebar glassmorphism */
-      .sidebar {
-        background: rgba(2, 132, 199, 0.25) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border-right: 1px solid rgba(255,255,255,0.18) !important;
-        color: #f1f5f9 !important;
-      }
+        /* Dashboard : lui redonner le scroll s'il déborde */
+        #dashboard-screen {
+            overflow-y: auto;
+            flex: 1;
+        }
 
-      /* Tous les textes dans la sidebar */
-      .sidebar *, .sidebar-brand-name, .sidebar-brand-sub,
-      .sidebar-section-label, .nav-label, .nav-item {
-        color: #f1f5f9 !important;
-      }
+        /* Table CSS : elle occupe le reste et scrolle elle-même */
+        #table-card-wrap {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
 
-      /* Header glassmorphism */
-      .topbar, .header, header {
-        background: rgba(2, 132, 199, 0.25) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border-bottom: 1px solid rgba(255,255,255,0.18) !important;
-        color: #f1f5f9 !important;
-      }
+        .table-wrap {
+            flex: 1;
+            overflow: auto;
+        }
 
-      .topbar *, .header *, header * {
-        color: #f1f5f9 !important;
-      }
+        /* Fond dégradé bleu */
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #0284c7 50%, #6366f1 100%) !important;
+            background-attachment: fixed !important;
+            min-height: 100vh !important;
+        }
 
-      /* Bouton notification */
-      .btn-notif-global {
-        background: rgba(255,255,255,0.15) !important;
-        border: 1px solid rgba(255,255,255,0.3) !important;
-        border-radius: 8px !important;
-        color: #ffffff !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        position: relative !important;
-      }
+        /* Sidebar glassmorphism */
+        .sidebar {
+            background: rgba(2, 132, 199, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+            color: #f1f5f9 !important;
+        }
 
-      .btn-notif-global svg {
-        stroke: #ffffff !important;
-      }
+        /* Tous les textes dans la sidebar */
+        .sidebar *,
+        .sidebar-brand-name,
+        .sidebar-brand-sub,
+        .sidebar-section-label,
+        .nav-label,
+        .nav-item {
+            color: #f1f5f9 !important;
+        }
 
-      .notif-global-badge {
-        background: #ef4444 !important;
-        color: #ffffff !important;
-      }
+        /* Header glassmorphism */
+        .topbar,
+        .header,
+        header {
+            background: rgba(2, 132, 199, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
+            color: #f1f5f9 !important;
+        }
 
-      /* Header right alignement */
-      .header-right {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-      }
+        .topbar *,
+        .header *,
+        header * {
+            color: #f1f5f9 !important;
+        }
 
-      /* Filtres dashboard - texte visible */
-      .db-filter-search, .db-filter-select, .db-filter-reset,
-      #db-search, #db-client-filter, #db-saison-filter {
-        color: #0f172a !important;
-        background: rgba(255,255,255,0.92) !important;
-        border: 1px solid rgba(255,255,255,0.5) !important;
-      }
+        /* Bouton notification */
+        .btn-notif-global {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: relative !important;
+        }
 
-      .db-filter-search::placeholder {
-        color: #64748b !important;
-      }
+        .btn-notif-global svg {
+            stroke: #ffffff !important;
+        }
 
-      /* User avatar */
-      .user-avatar, .avatar {
-        border: 2px solid rgba(255,255,255,0.4) !important;
-      }
+        .notif-global-badge {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+        }
+
+        /* Header right alignement */
+        .header-right {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+        }
+
+        /* Filtres dashboard - texte visible */
+        .db-filter-search,
+        .db-filter-select,
+        .db-filter-reset,
+        #db-search,
+        #db-client-filter,
+        #db-saison-filter {
+            color: #0f172a !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        }
+
+        .db-filter-search::placeholder {
+            color: #64748b !important;
+        }
+
+        /* User avatar */
+        .user-avatar,
+        .avatar {
+            border: 2px solid rgba(255, 255, 255, 0.4) !important;
+        }
     </style>
 </head>
 
@@ -218,10 +263,13 @@
                     <!-- ═══ DASHBOARD FILTER BAR (sous le titre) ══════ -->
                     <div class="db-filter-bar" id="db-filter-bar">
                         <div class="db-filter-search-wrap">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="15" height="15">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" width="15" height="15">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
-                            <input class="db-filter-search" type="search" id="db-search" placeholder="Rechercher un style, client…" aria-label="Rechercher dans le dashboard"/>
+                            <input class="db-filter-search" type="search" id="db-search"
+                                placeholder="Rechercher un style, client…" aria-label="Rechercher dans le dashboard" />
                         </div>
                         <select class="db-filter-select" id="db-client-filter" aria-label="Filtrer par client">
                             <option value="">Tous les clients</option>
@@ -229,9 +277,12 @@
                         <select class="db-filter-select" id="db-saison-filter" aria-label="Filtrer par saison">
                             <option value="">Toutes les saisons</option>
                         </select>
-                        <button class="db-filter-reset" id="db-filter-reset" onclick="resetDashboardFilters()" title="Réinitialiser les filtres">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        <button class="db-filter-reset" id="db-filter-reset" onclick="resetDashboardFilters()"
+                            title="Réinitialiser les filtres">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" width="13" height="13">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
@@ -488,167 +539,168 @@
 
 </body>
 
-<canvas id="notif-particle-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
+<canvas id="notif-particle-container"
+    style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
 
 <script>
-(function() {
-  const canvas = document.getElementById('notif-particle-container');
-  const ctx = canvas.getContext('2d');
+    (function () {
+        const canvas = document.getElementById('notif-particle-container');
+        const ctx = canvas.getContext('2d');
 
-  function resize() {
-    canvas.width  = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
 
-  /* ── Types de particules professionnels ──────────────────────
-     1. ring   : onde circulaire qui s'élargit et s'estompe (halo d'alerte)
-     2. streak : fine ligne lumineuse qui monte lentement (donnée qui remonte)
-     3. dot    : micro-point discret, dérive vers le haut              */
+        /* ── Types de particules professionnels ──────────────────────
+           1. ring   : onde circulaire qui s'élargit et s'estompe (halo d'alerte)
+           2. streak : fine ligne lumineuse qui monte lentement (donnée qui remonte)
+           3. dot    : micro-point discret, dérive vers le haut              */
 
-  let particles = [];
+        let particles = [];
 
-  function spawnEffect(x, y) {
-    // 1 — Onde principale
-    particles.push({ type: 'ring', x, y, r: 4, maxR: 48, alpha: 0.7, color: '#38bdf8' });
-    // 2 — Onde secondaire (légèrement décalée)
-    particles.push({ type: 'ring', x, y, r: 4, maxR: 32, alpha: 0.4, color: '#6366f1', delay: 120 });
+        function spawnEffect(x, y) {
+            // 1 — Onde principale
+            particles.push({ type: 'ring', x, y, r: 4, maxR: 48, alpha: 0.7, color: '#38bdf8' });
+            // 2 — Onde secondaire (légèrement décalée)
+            particles.push({ type: 'ring', x, y, r: 4, maxR: 32, alpha: 0.4, color: '#6366f1', delay: 120 });
 
-    // 3 — Streaks (lignes fines qui montent)
-    const streakCount = 6;
-    for (let i = 0; i < streakCount; i++) {
-      const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.0; // vers le haut, léger étalement
-      const speed = 0.6 + Math.random() * 1.0;
-      const len   = 8 + Math.random() * 18;
-      particles.push({
-        type: 'streak',
-        x: x + (Math.random() - 0.5) * 14,
-        y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        len,
-        alpha: 0.65 + Math.random() * 0.25,
-        color: Math.random() > 0.5 ? '#7dd3fc' : '#a5b4fc',
-        life: 1
-      });
-    }
+            // 3 — Streaks (lignes fines qui montent)
+            const streakCount = 6;
+            for (let i = 0; i < streakCount; i++) {
+                const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.0; // vers le haut, léger étalement
+                const speed = 0.6 + Math.random() * 1.0;
+                const len = 8 + Math.random() * 18;
+                particles.push({
+                    type: 'streak',
+                    x: x + (Math.random() - 0.5) * 14,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    len,
+                    alpha: 0.65 + Math.random() * 0.25,
+                    color: Math.random() > 0.5 ? '#7dd3fc' : '#a5b4fc',
+                    life: 1
+                });
+            }
 
-    // 4 — Micro-dots (points 1 px qui dérivent)
-    for (let i = 0; i < 10; i++) {
-      const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
-      particles.push({
-        type: 'dot',
-        x: x + (Math.random() - 0.5) * 20,
-        y: y + (Math.random() - 0.5) * 8,
-        vx: Math.cos(a) * (0.3 + Math.random() * 0.5),
-        vy: Math.sin(a) * (0.3 + Math.random() * 0.5),
-        alpha: 0.9,
-        color: Math.random() > 0.6 ? '#e0f2fe' : '#c7d2fe',
-        life: 1
-      });
-    }
-  }
+            // 4 — Micro-dots (points 1 px qui dérivent)
+            for (let i = 0; i < 10; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+                particles.push({
+                    type: 'dot',
+                    x: x + (Math.random() - 0.5) * 20,
+                    y: y + (Math.random() - 0.5) * 8,
+                    vx: Math.cos(a) * (0.3 + Math.random() * 0.5),
+                    vy: Math.sin(a) * (0.3 + Math.random() * 0.5),
+                    alpha: 0.9,
+                    color: Math.random() > 0.6 ? '#e0f2fe' : '#c7d2fe',
+                    life: 1
+                });
+            }
+        }
 
-  let last = 0;
-  function loop(ts) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const dt = ts - last; last = ts;
+        let last = 0;
+        function loop(ts) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const dt = ts - last; last = ts;
 
-    particles = particles.filter(p => p.alpha > 0.01);
+            particles = particles.filter(p => p.alpha > 0.01);
 
-    particles.forEach(p => {
-      // — Délai optionnel
-      if (p.delay > 0) { p.delay -= dt; return; }
+            particles.forEach(p => {
+                // — Délai optionnel
+                if (p.delay > 0) { p.delay -= dt; return; }
 
-      ctx.save();
+                ctx.save();
 
-      if (p.type === 'ring') {
-        p.r += (p.maxR - p.r) * 0.07;
-        p.alpha *= 0.93;
-        const grad = ctx.createRadialGradient(p.x, p.y, p.r * 0.7, p.x, p.y, p.r);
-        grad.addColorStop(0, 'rgba(0,0,0,0)');
-        grad.addColorStop(0.8, hexAlpha(p.color, p.alpha * 0.6));
-        grad.addColorStop(1,   hexAlpha(p.color, p.alpha));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.strokeStyle = hexAlpha(p.color, p.alpha);
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+                if (p.type === 'ring') {
+                    p.r += (p.maxR - p.r) * 0.07;
+                    p.alpha *= 0.93;
+                    const grad = ctx.createRadialGradient(p.x, p.y, p.r * 0.7, p.x, p.y, p.r);
+                    grad.addColorStop(0, 'rgba(0,0,0,0)');
+                    grad.addColorStop(0.8, hexAlpha(p.color, p.alpha * 0.6));
+                    grad.addColorStop(1, hexAlpha(p.color, p.alpha));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.strokeStyle = hexAlpha(p.color, p.alpha);
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
 
-      } else if (p.type === 'streak') {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.vx *= 0.97;
-        p.vy *= 0.97;
-        p.alpha *= 0.955;
-        p.life  -= 0.022;
-        const ex = p.x - p.vx * p.len;
-        const ey = p.y - p.vy * p.len;
-        const g = ctx.createLinearGradient(ex, ey, p.x, p.y);
-        g.addColorStop(0, 'rgba(0,0,0,0)');
-        g.addColorStop(1, hexAlpha(p.color, p.alpha));
-        ctx.beginPath();
-        ctx.moveTo(ex, ey);
-        ctx.lineTo(p.x, p.y);
-        ctx.strokeStyle = g;
-        ctx.lineWidth = 1;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+                } else if (p.type === 'streak') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.97;
+                    p.vy *= 0.97;
+                    p.alpha *= 0.955;
+                    p.life -= 0.022;
+                    const ex = p.x - p.vx * p.len;
+                    const ey = p.y - p.vy * p.len;
+                    const g = ctx.createLinearGradient(ex, ey, p.x, p.y);
+                    g.addColorStop(0, 'rgba(0,0,0,0)');
+                    g.addColorStop(1, hexAlpha(p.color, p.alpha));
+                    ctx.beginPath();
+                    ctx.moveTo(ex, ey);
+                    ctx.lineTo(p.x, p.y);
+                    ctx.strokeStyle = g;
+                    ctx.lineWidth = 1;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
 
-      } else if (p.type === 'dot') {
-        p.x += p.vx;
-        p.y += p.vy;
-        p.alpha *= 0.945;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
-        ctx.fillStyle = hexAlpha(p.color, p.alpha);
-        ctx.fill();
-      }
+                } else if (p.type === 'dot') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha *= 0.945;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
+                    ctx.fillStyle = hexAlpha(p.color, p.alpha);
+                    ctx.fill();
+                }
 
-      ctx.restore();
-    });
+                ctx.restore();
+            });
 
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
 
-  // Utilitaire hex → rgba
-  function hexAlpha(hex, a) {
-    const r = parseInt(hex.slice(1,3),16);
-    const g = parseInt(hex.slice(3,5),16);
-    const b = parseInt(hex.slice(5,7),16);
-    return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
-  }
+        // Utilitaire hex → rgba
+        function hexAlpha(hex, a) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
+        }
 
-  // ── Déclencheurs ──────────────────────────────────────────────
-  const badge = document.getElementById('notif-global-badge');
-  const btn   = document.getElementById('btn-notif-global');
+        // ── Déclencheurs ──────────────────────────────────────────────
+        const badge = document.getElementById('notif-global-badge');
+        const btn = document.getElementById('btn-notif-global');
 
-  function triggerEffect() {
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
-  }
+        function triggerEffect() {
+            if (!btn) return;
+            const rect = btn.getBoundingClientRect();
+            spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        }
 
-  if (btn)   btn.addEventListener('click', triggerEffect);
+        if (btn) btn.addEventListener('click', triggerEffect);
 
-  if (badge) {
-    new MutationObserver(() => triggerEffect())
-      .observe(badge, { childList: true, characterData: true, subtree: true });
-  }
+        if (badge) {
+            new MutationObserver(() => triggerEffect())
+                .observe(badge, { childList: true, characterData: true, subtree: true });
+        }
 
-  if (btn) {
-    new MutationObserver(mutations => {
-      mutations.forEach(m => {
-        if (m.attributeName === 'style' && btn.style.display !== 'none') triggerEffect();
-      });
-    }).observe(btn, { attributes: true });
-  }
+        if (btn) {
+            new MutationObserver(mutations => {
+                mutations.forEach(m => {
+                    if (m.attributeName === 'style' && btn.style.display !== 'none') triggerEffect();
+                });
+            }).observe(btn, { attributes: true });
+        }
 
-  // ── Shake CSS (retenu, plus sobre) ───────────────────────────
-  const shakeStyle = document.createElement('style');
-  shakeStyle.textContent = `
+        // ── Shake CSS (retenu, plus sobre) ───────────────────────────
+        const shakeStyle = document.createElement('style');
+        shakeStyle.textContent = `
     @keyframes notif-shake {
       0%,100% { transform: translateY(0);    }
       20%      { transform: translateY(-3px); }
@@ -658,24 +710,24 @@
     }
     .notif-shaking { animation: notif-shake 0.45s ease !important; }
   `;
-  document.head.appendChild(shakeStyle);
+        document.head.appendChild(shakeStyle);
 
-  function pulseAndEffect() {
-    if (!btn) return;
-    btn.classList.remove('notif-shaking');
-    void btn.offsetWidth;
-    btn.classList.add('notif-shaking');
-    btn.addEventListener('animationend', () => btn.classList.remove('notif-shaking'), { once: true });
-    triggerEffect();
-  }
+        function pulseAndEffect() {
+            if (!btn) return;
+            btn.classList.remove('notif-shaking');
+            void btn.offsetWidth;
+            btn.classList.add('notif-shaking');
+            btn.addEventListener('animationend', () => btn.classList.remove('notif-shaking'), { once: true });
+            triggerEffect();
+        }
 
-  setInterval(() => {
-    if (btn && btn.style.display !== 'none' && badge && parseInt(badge.textContent) > 0) {
-      pulseAndEffect();
-    }
-  }, 4000);
+        setInterval(() => {
+            if (btn && btn.style.display !== 'none' && badge && parseInt(badge.textContent) > 0) {
+                pulseAndEffect();
+            }
+        }, 4000);
 
-})();
+    })();
 </script>
 
 </html>

@@ -758,21 +758,14 @@ select.filter-select:focus {
 
 /* ─── Table ──────────────────────────────────────────────── */
 /*
-  Stratégie : .table-wrap est le seul conteneur de scroll (x ET y).
-  → thead sticky top:0 fonctionne car le scroll-container est table-wrap lui-même.
-  → La scrollbar horizontale reste EN BAS de l'écran (bas de table-wrap)
-    et non à la fin de la liste.
-  La hauteur max est calculée pour remplir l'espace disponible sous le
-  header de page (--header-h) + le header du tableau (.table-header ~72px)
-  + les KPI bar (~70px) + marges.
+  Stratégie : Flexbox (défini dans index.html) gère la hauteur.
+  .table-wrap est le scroll-container.
 */
 .table-wrap {
     overflow-x: auto;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-gutter: stable;
-    /* Hauteur max = viewport - header page - header tableau - kpi bar - paddings */
-    max-height: calc(100vh - var(--header-h, 56px) - 72px - 78px - 3rem);
 }
 
 /* Scrollbar horizontale */
