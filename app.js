@@ -282,8 +282,14 @@ async function fetchAllData() {
         // ── Diagnostic images : affiche dans la console les lignes sans _imageUrl
         const detailsWithImg  = (state.data.details || []).filter(r => r._imageUrl).length;
         const detailsTotal    = (state.data.details || []).length;
-        const sampleImg       = (state.data.details || []).slice(0,1).map(r => ({ style: r.Style, _imageUrl: r._imageUrl, rawKeys: Object.keys(r).filter(k => /image|photo/i.test(k)) }));
-        console.info("[AW27] Images chargées :", detailsWithImg + "/" + detailsTotal, "| Exemple row[0] :", sampleImg[0] || "—");
+        const sampleImg       = (state.data.details || []).slice(0,3).map(r => {
+            const imgKeys = Object.keys(r).filter(k => /image|photo/i.test(k));
+            const allVals = {};
+            imgKeys.forEach(k => allVals[k] = r[k]);
+            return { style: r.Style, _imageUrl: r._imageUrl, imgKeys, allVals };
+        });
+        console.info("[AW27] Images chargées :", detailsWithImg + "/" + detailsTotal);
+        console.table(sampleImg);
 
         renderAll();
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
