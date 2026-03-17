@@ -476,4 +476,151 @@
 
 </body>
 
+<style>
+  /* Conteneur particules */
+  #notif-particle-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .notif-particle {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    animation: particle-fly 0.8s ease-out forwards;
+  }
+
+  @keyframes particle-fly {
+    0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+</style>
+
+<canvas id="notif-particle-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
+
+<script>
+(function() {
+  const canvas = document.getElementById('notif-particle-container');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  let particles = [];
+
+  function spawnParticles(x, y) {
+    const colors = ['#38bdf8','#6366f1','#f472b6','#facc15','#34d399','#ffffff'];
+    for (let i = 0; i < 18; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 2 + Math.random() * 5;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        radius: 3 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 1,
+        life: 0.8 + Math.random() * 0.4
+      });
+    }
+  }
+
+  function animateParticles() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles = particles.filter(p => p.alpha > 0);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.15; // gravité légère
+      p.alpha -= 0.025;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+      ctx.restore();
+    });
+    requestAnimationFrame(animateParticles);
+  }
+  animateParticles();
+
+  // Observer les mutations sur le badge pour détecter une mise à jour
+  const badge = document.getElementById('notif-global-badge');
+  const btn   = document.getElementById('btn-notif-global');
+
+  function triggerParticles() {
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top  + rect.height / 2;
+    spawnParticles(cx, cy);
+  }
+
+  // Particules au clic
+  if (btn) {
+    btn.addEventListener('click', triggerParticles);
+  }
+
+  // Particules quand le badge change de valeur
+  if (badge) {
+    const observer = new MutationObserver(() => triggerParticles());
+    observer.observe(badge, { childList: true, characterData: true, subtree: true });
+  }
+
+  // Particules quand le bouton apparaît (display change)
+  if (btn) {
+    const visObserver = new MutationObserver((mutations) => {
+      mutations.forEach(m => {
+        if (m.attributeName === 'style' && btn.style.display !== 'none') {
+          triggerParticles();
+        }
+      });
+    });
+    visObserver.observe(btn, { attributes: true });
+  }
+
+  // Shake CSS sur le bouton
+  const shakeStyle = document.createElement('style');
+  shakeStyle.textContent = `
+    @keyframes notif-shake {
+      0%,100% { transform: rotate(0deg); }
+      15%      { transform: rotate(-18deg); }
+      30%      { transform: rotate(18deg); }
+      45%      { transform: rotate(-12deg); }
+      60%      { transform: rotate(12deg); }
+      75%      { transform: rotate(-6deg); }
+      90%      { transform: rotate(6deg); }
+    }
+    .notif-shaking {
+      animation: notif-shake 0.6s ease !important;
+    }
+  `;
+  document.head.appendChild(shakeStyle);
+
+  function shakeAndParticle() {
+    if (!btn) return;
+    btn.classList.remove('notif-shaking');
+    void btn.offsetWidth;
+    btn.classList.add('notif-shaking');
+    btn.addEventListener('animationend', () => btn.classList.remove('notif-shaking'), { once: true });
+    triggerParticles();
+  }
+
+  // Déclencher shake + particules périodiquement si badge > 0
+  setInterval(() => {
+    if (btn && btn.style.display !== 'none' && badge && parseInt(badge.textContent) > 0) {
+      shakeAndParticle();
+    }
+  }, 4000);
+
+})();
+</script>
+
 </html>
