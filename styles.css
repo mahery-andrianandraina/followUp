@@ -776,7 +776,7 @@ thead tr {
 
 thead {
     position: sticky;
-    top: 0;
+    top: var(--header-h, 56px);
     z-index: 8;
 }
 
