@@ -22,35 +22,30 @@
 
       /* Sidebar glassmorphism */
       .sidebar {
-        background: rgba(15, 23, 42, 0.55) !important;
+        background: rgba(15, 23, 42, 0.75) !important;
         backdrop-filter: blur(16px) !important;
         -webkit-backdrop-filter: blur(16px) !important;
         border-right: 1px solid rgba(255,255,255,0.1) !important;
+        color: #f1f5f9 !important;
+      }
+
+      /* Tous les textes dans la sidebar */
+      .sidebar *, .sidebar-brand-name, .sidebar-brand-sub,
+      .sidebar-section-label, .nav-label, .nav-item {
+        color: #f1f5f9 !important;
       }
 
       /* Header glassmorphism */
       .topbar, .header, header {
-        background: rgba(15, 23, 42, 0.55) !important;
+        background: rgba(15, 23, 42, 0.75) !important;
         backdrop-filter: blur(16px) !important;
         -webkit-backdrop-filter: blur(16px) !important;
         border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+        color: #f1f5f9 !important;
       }
 
-      /* Cards et tableaux transparents */
-      .card, .table-card, .dashboard-card, .stat-card, .widget,
-      table, .table-wrapper, .table-container, .data-table {
-        background: rgba(255,255,255,0.08) !important;
-        backdrop-filter: blur(12px) !important;
-        -webkit-backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(255,255,255,0.12) !important;
-      }
-
-      /* Lignes du tableau */
-      thead, th {
-        background: rgba(255,255,255,0.1) !important;
-      }
-      tbody tr:hover {
-        background: rgba(255,255,255,0.06) !important;
+      .topbar *, .header *, header * {
+        color: #f1f5f9 !important;
       }
     </style>
 </head>
