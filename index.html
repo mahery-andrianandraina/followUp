@@ -10,12 +10,8 @@
     <link rel="stylesheet" href="color-tags.css">
     <style>
       /* Forcer display:flex sur layout-body et main (cascade safety) */
-      html, body { height: 100% !important; }
-      .layout-body { display: flex !important; flex-direction: column !important; overflow-y: auto !important; overflow-x: hidden !important; flex: 1 1 auto !important; min-height: 0 !important; }
-      main.main    { overflow: visible !important; flex: 1 1 auto !important; min-height: 0 !important; padding-bottom: 2rem !important; }
-      .table-card  { height: auto !important; min-height: 0 !important; }
-      .table-wrap  { overflow-x: auto !important; overflow-y: visible !important; }
-      #table-body tr:last-child td { border-bottom: none !important; }
+      .layout-body { display: flex !important; flex-direction: column !important; overflow-y: auto !important; overflow-x: hidden !important; }
+      main.main    { overflow: visible !important; }
 
       /* Fond dégradé bleu */
       body {
