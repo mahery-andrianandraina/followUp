@@ -5,8 +5,6 @@
 const SPREADSHEET_ID = "1l8etAWJxSZTrv-Z5umNBzW-HSy4rC8pm3Kr5CsF3OnY";
 
 // ─── Dossier Google Drive contenant les images des styles ────
-// Chemin : AW27 CHECKERS / PICTURES
-// Le GAS cherche les images par nom de fichier (ex: CKM10204.jpg)
 const PICTURES_FOLDER_NAME = "PICTURES";
 const PARENT_FOLDER_NAME   = "AW27 CHECKERS";
 
@@ -20,17 +18,12 @@ const SHEET_NAMES = {
 // ─── Helper : trouver le dossier PICTURES ────────────────────
 function getPicturesFolder() {
   try {
-    // Chercher le dossier parent "AW27 CHECKERS"
     const parentIter = DriveApp.getFoldersByName(PARENT_FOLDER_NAME);
     while (parentIter.hasNext()) {
       const parent = parentIter.next();
-      // Chercher le sous-dossier "PICTURES" dedans
       const childIter = parent.getFoldersByName(PICTURES_FOLDER_NAME);
-      if (childIter.hasNext()) {
-        return childIter.next();
-      }
+      if (childIter.hasNext()) return childIter.next();
     }
-    // Fallback : chercher directement "PICTURES"
     const directIter = DriveApp.getFoldersByName(PICTURES_FOLDER_NAME);
     if (directIter.hasNext()) return directIter.next();
   } catch(err) {
@@ -47,70 +40,80 @@ function getPicturesFolderCached() {
   return _picturesFolder;
 }
 
-// ─── Helper : trouver une image par nom de style et la convertir en base64 ──
-// Cherche : CKM10204.jpg / CKM10204.jpeg / CKM10204.png / CKM10204.webp
+// ─── Helper : trouver une image par nom de style → retourne une URL thumbnail ──
+// ⚠️  On NE convertit plus en base64 (lourd + dépendant des permissions du déployeur).
+//     On retourne directement l'URL thumbnail Drive, chargée par le navigateur du client.
+//     Prérequis : le dossier PICTURES doit être partagé "Tout le monde avec le lien".
+//
 // La colonne "Image" peut contenir :
-//   - Rien (vide) → cherche automatiquement par code Style
-//   - Un nom de fichier : "CKM10204.jpg"
-//   - Un ID Drive : "1a2b3c4dXXX"
-//   - Une URL Drive : "https://drive.google.com/file/d/..."
-function getStyleImageBase64(styleCode, imageCell) {
+//   - Rien (vide)                           → cherche automatiquement par code Style
+//   - Un nom de fichier : "CKM10204.jpg"    → cherche dans PICTURES
+//   - Un ID Drive     : "1a2b3c4dXXX"       → thumbnail direct
+//   - Une URL Drive   : "https://drive.google.com/file/d/..." → thumbnail direct
+function getStyleImageUrl(styleCode, imageCell) {
   try {
+    // ── Utilitaire : extraire un File ID depuis une URL ou un ID brut ──
+    function extractFileId(raw) {
+      const mFd = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      if (mFd) return mFd[1];
+      const mId = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (mId) return mId[1];
+      if (/^[a-zA-Z0-9_-]{25,}$/.test(raw)) return raw;
+      return null;
+    }
+
+    // ── Utilitaire : construire l'URL thumbnail depuis un File ID ──
+    function toThumbnailUrl(fileId) {
+      return "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400";
+    }
+
+    // ── Cas 1 : cellule Image contient une URL ou un ID Drive ──
+    if (imageCell) {
+      const raw = String(imageCell).trim();
+      if (raw) {
+        const fileId = extractFileId(raw);
+        if (fileId) return toThumbnailUrl(fileId);
+
+        // Cas 1b : nom de fichier explicite → chercher dans PICTURES
+        const folder = getPicturesFolderCached();
+        if (folder) {
+          const fileIter = folder.getFilesByName(raw);
+          if (fileIter.hasNext()) {
+            return toThumbnailUrl(fileIter.next().getId());
+          }
+        }
+      }
+    }
+
+    // ── Cas 2 : chercher automatiquement par code Style dans PICTURES ──
+    if (!styleCode) return "";
     const folder = getPicturesFolderCached();
     if (!folder) {
       Logger.log("Dossier PICTURES introuvable");
       return "";
     }
 
-    // ── Cas 1 : cellule Image contient un ID ou URL Drive
-    if (imageCell) {
-      const raw = String(imageCell).trim();
-      if (raw.startsWith("http") || raw.match(/^[a-zA-Z0-9_-]{25,}$/)) {
-        let fileId = raw;
-        const matchFd = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-        const matchId = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-        if      (matchFd) fileId = matchFd[1];
-        else if (matchId) fileId = matchId[1];
-        try {
-          const file  = DriveApp.getFileById(fileId);
-          const blob  = file.getBlob();
-          return "data:" + blob.getContentType() + ";base64," + Utilities.base64Encode(blob.getBytes());
-        } catch(e) {}
-      }
-      // Cas 1b : nom de fichier explicite dans la cellule
-      if (raw && !raw.startsWith("http")) {
-        const fileIter = folder.getFilesByName(raw);
-        if (fileIter.hasNext()) {
-          const blob = fileIter.next().getBlob();
-          return "data:" + blob.getContentType() + ";base64," + Utilities.base64Encode(blob.getBytes());
-        }
-      }
-    }
-
-    // ── Cas 2 : chercher automatiquement par code Style
-    if (!styleCode) return "";
     const extensions = ["jpg", "jpeg", "png", "webp", "JPG", "JPEG", "PNG"];
     for (const ext of extensions) {
       const fileIter = folder.getFilesByName(styleCode + "." + ext);
       if (fileIter.hasNext()) {
-        const blob = fileIter.next().getBlob();
-        return "data:" + blob.getContentType() + ";base64," + Utilities.base64Encode(blob.getBytes());
+        return toThumbnailUrl(fileIter.next().getId());
       }
     }
-    // Essai sans extension exacte : chercher tout fichier qui commence par styleCode
+
+    // Fallback : tout fichier qui commence par styleCode
     const allFiles = folder.getFiles();
     while (allFiles.hasNext()) {
       const file = allFiles.next();
       const name = file.getName().toLowerCase();
       if (name.startsWith(styleCode.toLowerCase() + ".") ||
           name.startsWith(styleCode.toLowerCase() + "_")) {
-        const blob = file.getBlob();
-        return "data:" + blob.getContentType() + ";base64," + Utilities.base64Encode(blob.getBytes());
+        return toThumbnailUrl(file.getId());
       }
     }
 
   } catch(err) {
-    Logger.log("getStyleImageBase64 error [" + styleCode + "]: " + err.message);
+    Logger.log("getStyleImageUrl error [" + styleCode + "]: " + err.message);
   }
   return "";
 }
@@ -129,7 +132,7 @@ function doGet(e) {
     // ── Injecter _imageUrl : cherche dans Drive/PICTURES par Style ──
     if (result.details && result.details.rows) {
       result.details.rows = result.details.rows.map(function(row) {
-        const imageData = getStyleImageBase64(row["Style"] || "", row["Image"] || "");
+        const imageData = getStyleImageUrl(row["Style"] || "", row["Image"] || "");
         return Object.assign({}, row, { _imageUrl: imageData });
       });
     }
@@ -322,8 +325,8 @@ function testPicturesFolder() {
 // ─── Test image d'un style précis ─────────────────────────────
 function testStyleImage() {
   const styleCode = "CKM10204"; // ← changez par un vrai code style
-  const result = getStyleImageBase64(styleCode, "");
-  Logger.log(result.startsWith("data:image")
-    ? "Image OK pour " + styleCode + " — taille base64: " + result.length
-    : "Pas d image trouvée pour : " + styleCode);
+  const result = getStyleImageUrl(styleCode, "");
+  Logger.log(result
+    ? "URL image OK pour " + styleCode + " → " + result
+    : "Pas d'image trouvée pour : " + styleCode);
 }

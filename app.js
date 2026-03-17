@@ -2255,9 +2255,10 @@ function collectAllAlerts() {
         const hasSending = !!(r["Sending Date"] && String(r["Sending Date"]).trim());
         const hasAwb = !!(r["AWB"] && String(r["AWB"]).trim());
         const isApproved = r.Approval === "Approved";
+        const isRejected = r.Approval === "Rejected";
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
 
-        if (isApproved) return;
+        if (isApproved || isRejected) return;
 
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
@@ -2352,7 +2353,7 @@ function collectAllAlerts() {
             const hasKeepSample = det.keepSample && !!(r[det.keepSample] && String(r[det.keepSample]).trim());
             const hasFsr = det.fsrDate && !!(r[det.fsrDate] && String(r[det.fsrDate]).trim());
 
-            if (approved) return;
+            if (approved || isRejected) return;
 
             if (isBulk) {
                 const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "Default Fabric";
@@ -2434,7 +2435,7 @@ function collectAllAlerts() {
                 const fsrDateVal = det.fsrDate && r[det.fsrDate] ? String(r[det.fsrDate]).trim() : "";
                 const prefix = [styleVal !== "—" ? styleVal : "", colorVal].filter(Boolean).join(" · ");
 
-                if (approved) return;
+                if (approved || isRejected) return;
 
                 // Étape 4 : Sending Date rempli → en attente approval
                 if (hasSending) {
