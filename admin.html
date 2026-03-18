@@ -393,7 +393,7 @@
     <div class="gate-card">
         <div class="gate-icon">🔐</div>
         <div class="gate-title">Admin — AW27 Checkers</div>
-        <div class="gate-sub">Connexion réservée à l'administrateur.<br>Seul <strong>mcformation1@gmail.com</strong> peut accéder.</div>
+        <div class="gate-sub">Connexion réservée à l'administrateur.<br>Seul <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0c616f6a637e616d786563623d4c6b616d6560226f6361">[email&#160;protected]</a></strong> peut accéder.</div>
         <div class="gate-error" id="gate-error">Accès refusé. Compte non autorisé.</div>
         <button class="btn-gate-login" id="btn-admin-login" onclick="adminLogin()">
             <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -508,7 +508,7 @@
 <div class="toast" id="toast"></div>
 
 <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
@@ -667,7 +667,8 @@ function renderRequests() {
             : req.status === "approved"
             ? `<span class="status-badge approved">approuvé</span>
                <button class="btn-revoke" onclick="revokeRequest('${req.email}')">Révoquer</button>`
-            : `<span class="status-badge rejected">refusé</span>`;
+            : `<span class="status-badge rejected">refusé</span>
+               <button class="btn-approve" onclick="approveRequest('${req.email}')">↩ Ré-approuver</button>`;
 
         return `
         <div class="request-card ${req.status}" id="card-${req.email.replace(/[@.]/g,'-')}">
@@ -686,16 +687,16 @@ function renderRequests() {
 // ── Approuver ─────────────────────────────────────────────────
 async function approveRequest(email) {
     try {
-        // Ajouter à la whitelist
+        // Ajouter / mettre à jour la whitelist
         await db.collection("whitelist").doc(email).set({
             status:     "approved",
             approvedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
-        // Mettre à jour la demande
-        await db.collection("access_requests").doc(email).update({
+        // Écraser le statut dans access_requests (y compris si "rejected")
+        await db.collection("access_requests").doc(email).set({
             status: "approved"
-        });
+        }, { merge: true });
 
         showToast("✓ " + email + " approuvé", "success");
         await loadData();
@@ -776,12 +777,4 @@ async function loadUsers() {
 }
 
 // ── Toast ─────────────────────────────────────────────────────
-function showToast(msg, type = "success") {
-    const t = document.getElementById("toast");
-    t.textContent = msg;
-    t.className   = "toast " + type + " show";
-    setTimeout(() => t.classList.remove("show"), 3000);
-}
-</script>
-</body>
-</html>
+function showTo
