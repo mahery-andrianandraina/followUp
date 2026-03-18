@@ -532,14 +532,25 @@
                 <div class="mb-cols-section">
                     <div class="mb-cols-header">
                         <span class="mb-cols-title">Colonnes</span>
-                        <button class="btn btn-ghost btn-sm" onclick="mbAddColumn()">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor" width="13" height="13">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 4v16m8-8H4" />
-                            </svg>
-                            Ajouter colonne
-                        </button>
+                        <div style="display: flex; gap: 0.5rem">
+                            <input type="file" id="mb-excel-upload" accept=".xlsx, .xls" style="display:none" onchange="handleExcelUpload(event)">
+                            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('mb-excel-upload').click()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" width="13" height="13">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Importer Excel
+                            </button>
+                            <button class="btn btn-ghost btn-sm" onclick="mbAddColumn()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" width="13" height="13">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Ajouter colonne
+                            </button>
+                        </div>
                     </div>
                     <div id="mb-cols-list"></div>
                 </div>

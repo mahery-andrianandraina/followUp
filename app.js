@@ -1983,6 +1983,93 @@ async function saveMenuBuilder() {
     closeMenuBuilder();
 }
 
+// ── Import from Excel ──────────────────────────────────────────
+async function handleExcelUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    event.target.value = ""; // reset
+    const nameRaw = prompt("Nom du nouveau menu (basé sur le fichier) ?", file.name.replace(/\.[^/.]+$/, ""));
+    if (!nameRaw) return;
+
+    // Build key from name
+    const key = "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20) + "_" + Date.now().toString(36);
+
+    const btn = document.getElementById("mb-save-btn");
+    btn.disabled = true; btn.textContent = "Importation…";
+    showToast("Lecture de l'Excel...", "info");
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            
+            const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            if (json.length === 0) throw new Error("Fichier vide");
+            
+            const headers = json[0].map(h => String(h).trim()).filter(Boolean);
+            if (headers.length === 0) throw new Error("Aucun en-tête trouvé");
+
+            const rowsData = [];
+            for (let i = 1; i < json.length; i++) {
+                const rowArray = json[i];
+                if (!rowArray || rowArray.length === 0) continue;
+                // Ignorer les lignes totalement vides
+                if (rowArray.every(c => c === undefined || c === null || c === "")) continue;
+
+                const rowObj = {};
+                headers.forEach((h, j) => {
+                    rowObj[h] = rowArray[j] !== undefined ? rowArray[j] : "";
+                });
+                rowsData.push(rowObj);
+            }
+
+            const validCols = headers.map(h => ({ label: h, type: "text" }));
+
+            const menuDef = {
+                key,
+                label: nameRaw,
+                cols: validCols.map(c => ({
+                    key: c.label,
+                    label: c.label,
+                    type: c.type,
+                    required: false,
+                    ...(c.label.length > 15 ? { full: true } : {})
+                }))
+            };
+
+            showToast(`Envoi des données (${rowsData.length} lignes)...`, "info");
+
+            await sendRequest("IMPORT_EXCEL", { 
+                sheetName: nameRaw, 
+                columns: headers, 
+                rows: rowsData 
+            }, "menu_builder");
+
+            showToast("Importation réussie ✓", "success", 4000);
+
+            closeMenuBuilder();
+            registerCustomMenu(menuDef, true);
+            
+            const navBtn = document.getElementById("tab-custom-" + key);
+            if (navBtn) navBtn.click();
+            
+            await fetchAllData();
+
+        } catch (err) {
+            console.error(err);
+            showToast("Erreur Excel: " + err.message, "error", 5000);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Créer le menu";
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
+
 
 // ═══════════════════════════════════════════════════════════════
 // ─── CUSTOM MENU – SMART ALERTS (drawer style) ────────────────

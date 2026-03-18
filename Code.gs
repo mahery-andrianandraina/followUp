@@ -257,6 +257,37 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (action === "IMPORT_EXCEL") {
+      const sheetName = payload.sheetName;
+      const columns   = payload.columns || [];
+      const rowsData  = payload.rows || [];
+      if (!sheetName) throw new Error("sheetName manquant");
+      if (columns.length === 0) throw new Error("columns manquants");
+
+      let sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        sheet = ss.insertSheet(sheetName);
+      } else {
+        sheet.clear();
+      }
+
+      sheet.getRange(1, 1, 1, columns.length).setValues([columns]);
+      applyHeaderStyle(sheet, columns.length);
+
+      if (rowsData.length > 0) {
+        const matrix = rowsData.map(rowObj => {
+          return columns.map(col => {
+            let val = rowObj[col];
+            return (val === null || val === undefined) ? "" : val;
+          });
+        });
+        sheet.getRange(2, 1, matrix.length, columns.length).setValues(matrix);
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", message: "Fichier importé sur : " + sheetName }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
     if (!sheetName) throw new Error("Feuille inconnue : " + sheetKey);
     const sheet = ss.getSheetByName(sheetName);
