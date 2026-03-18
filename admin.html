@@ -1,31 +1,40 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AW27 CHECKERS — Admin</title>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+        rel="stylesheet" />
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         :root {
-            --bg:           #0a0c10;
-            --bg2:          #111418;
-            --bg3:          #1a1f27;
-            --border:       #2a303d;
+            --bg: #0a0c10;
+            --bg2: #111418;
+            --bg3: #1a1f27;
+            --border: #2a303d;
             --border-light: #353d4d;
-            --text:         #e6edf3;
-            --text-muted:   #7d8590;
-            --text-dim:     #484f58;
-            --accent:       #58a6ff;
-            --accent-dim:   rgba(88,166,255,0.1);
-            --green:        #3fb950;
-            --green-dim:    rgba(63,185,80,0.12);
-            --red:          #f85149;
-            --red-dim:      rgba(248,81,73,0.12);
-            --yellow:       #d29922;
-            --yellow-dim:   rgba(210,153,34,0.12);
-            --radius:       8px;
+            --text: #e6edf3;
+            --text-muted: #7d8590;
+            --text-dim: #484f58;
+            --accent: #58a6ff;
+            --accent-dim: rgba(88, 166, 255, 0.1);
+            --green: #3fb950;
+            --green-dim: rgba(63, 185, 80, 0.12);
+            --red: #f85149;
+            --red-dim: rgba(248, 81, 73, 0.12);
+            --yellow: #d29922;
+            --yellow-dim: rgba(210, 153, 34, 0.12);
+            --radius: 8px;
         }
 
         body {
@@ -38,171 +47,305 @@
         /* ── Scanline overlay ── */
         body::before {
             content: "";
-            position: fixed; inset: 0; z-index: 0; pointer-events: none;
-            background: repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 2px,
-                rgba(0,0,0,0.03) 2px,
-                rgba(0,0,0,0.03) 4px
-            );
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 0, 0, 0.03) 2px,
+                    rgba(0, 0, 0, 0.03) 4px);
         }
 
         /* ── Layout ── */
-        .layout { position: relative; z-index: 1; display: flex; min-height: 100vh; }
+        .layout {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            min-height: 100vh;
+        }
 
         /* ── Sidebar ── */
         .sidebar {
-            width: 220px; flex-shrink: 0;
+            width: 220px;
+            flex-shrink: 0;
             background: var(--bg2);
             border-right: 1px solid var(--border);
             padding: 1.5rem 1rem;
-            display: flex; flex-direction: column; gap: 0.25rem;
-            position: sticky; top: 0; height: 100vh;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            position: sticky;
+            top: 0;
+            height: 100vh;
         }
+
         .sidebar-brand {
-            display: flex; align-items: center; gap: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
             padding: 0.5rem 0.75rem 1.25rem;
             border-bottom: 1px solid var(--border);
             margin-bottom: 0.5rem;
         }
+
         .sidebar-logo {
-            width: 30px; height: 30px;
+            width: 30px;
+            height: 30px;
             background: var(--accent);
             border-radius: 6px;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-family: "IBM Plex Mono", monospace;
-            font-size: 0.6rem; font-weight: 600;
-            color: var(--bg); flex-shrink: 0;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: var(--bg);
+            flex-shrink: 0;
         }
-        .sidebar-title { font-size: 0.82rem; font-weight: 600; color: var(--text); }
-        .sidebar-sub   { font-size: 0.62rem; color: var(--text-muted); font-family: "IBM Plex Mono", monospace; }
+
+        .sidebar-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .sidebar-sub {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            font-family: "IBM Plex Mono", monospace;
+        }
 
         .nav-item {
-            display: flex; align-items: center; gap: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
             padding: 0.5rem 0.75rem;
             border-radius: var(--radius);
-            font-size: 0.8rem; font-weight: 500;
+            font-size: 0.8rem;
+            font-weight: 500;
             color: var(--text-muted);
             cursor: pointer;
             transition: all 0.15s;
             border: 1px solid transparent;
         }
-        .nav-item:hover { background: var(--bg3); color: var(--text); }
+
+        .nav-item:hover {
+            background: var(--bg3);
+            color: var(--text);
+        }
+
         .nav-item.active {
             background: var(--accent-dim);
             color: var(--accent);
-            border-color: rgba(88,166,255,0.2);
+            border-color: rgba(88, 166, 255, 0.2);
         }
+
         .nav-item .badge {
             margin-left: auto;
             background: var(--red);
             color: #fff;
-            font-size: 0.6rem; font-weight: 700;
+            font-size: 0.6rem;
+            font-weight: 700;
             padding: 0.1rem 0.4rem;
             border-radius: 10px;
             font-family: "IBM Plex Mono", monospace;
             display: none;
         }
-        .nav-item .badge.visible { display: inline; }
+
+        .nav-item .badge.visible {
+            display: inline;
+        }
 
         .sidebar-footer {
             margin-top: auto;
             padding-top: 1rem;
             border-top: 1px solid var(--border);
         }
+
         .admin-info {
-            display: flex; align-items: center; gap: 0.6rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
             padding: 0.5rem 0.75rem;
         }
+
         .admin-avatar {
-            width: 28px; height: 28px; border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
             background: var(--accent);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.7rem; font-weight: 700; color: var(--bg);
-            flex-shrink: 0; overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--bg);
+            flex-shrink: 0;
+            overflow: hidden;
         }
-        .admin-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .admin-name  { font-size: 0.75rem; font-weight: 500; color: var(--text); }
-        .admin-role  { font-size: 0.62rem; color: var(--accent); font-family: "IBM Plex Mono", monospace; }
+
+        .admin-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .admin-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .admin-role {
+            font-size: 0.62rem;
+            color: var(--accent);
+            font-family: "IBM Plex Mono", monospace;
+        }
+
         .btn-signout {
-            width: 100%; padding: 0.45rem;
-            background: transparent; border: 1px solid var(--border);
+            width: 100%;
+            padding: 0.45rem;
+            background: transparent;
+            border: 1px solid var(--border);
             border-radius: var(--radius);
-            color: var(--text-muted); font-size: 0.75rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
             font-family: "IBM Plex Sans", sans-serif;
-            cursor: pointer; margin-top: 0.5rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
             transition: all 0.15s;
         }
-        .btn-signout:hover { border-color: var(--red); color: var(--red); }
+
+        .btn-signout:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
 
         /* ── Main ── */
         .main {
-            flex: 1; padding: 2rem;
-            display: flex; flex-direction: column; gap: 1.5rem;
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
             overflow-y: auto;
         }
 
         /* ── Page header ── */
         .page-header {
-            display: flex; align-items: flex-start; justify-content: space-between;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
             padding-bottom: 1.25rem;
             border-bottom: 1px solid var(--border);
         }
+
         .page-title {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 1.1rem; font-weight: 600;
-            color: var(--text); letter-spacing: -0.3px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: -0.3px;
         }
-        .page-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        .page-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.2rem;
+        }
+
         .last-refresh {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 0.68rem; color: var(--text-dim);
+            font-size: 0.68rem;
+            color: var(--text-dim);
         }
 
         /* ── Stats row ── */
         .stats-row {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
         }
+
         .stat-card {
             background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 1rem 1.25rem;
-            display: flex; flex-direction: column; gap: 0.35rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
         }
+
         .stat-label {
-            font-size: 0.68rem; font-weight: 500;
-            color: var(--text-muted); text-transform: uppercase;
-            letter-spacing: 0.08em; font-family: "IBM Plex Mono", monospace;
+            font-size: 0.68rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-family: "IBM Plex Mono", monospace;
         }
+
         .stat-value {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 1.6rem; font-weight: 600;
+            font-size: 1.6rem;
+            font-weight: 600;
             line-height: 1;
         }
-        .stat-value.yellow { color: var(--yellow); }
-        .stat-value.green  { color: var(--green); }
-        .stat-value.blue   { color: var(--accent); }
+
+        .stat-value.yellow {
+            color: var(--yellow);
+        }
+
+        .stat-value.green {
+            color: var(--green);
+        }
+
+        .stat-value.blue {
+            color: var(--accent);
+        }
 
         /* ── Section ── */
-        .section { display: flex; flex-direction: column; gap: 0.75rem; }
-        .section-header {
-            display: flex; align-items: center; justify-content: space-between;
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
         }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
         .section-title {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 0.78rem; font-weight: 600;
-            color: var(--text-muted); text-transform: uppercase;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
             letter-spacing: 0.1em;
-            display: flex; align-items: center; gap: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
+
         .section-title::before {
-            content: ""; width: 3px; height: 12px;
+            content: "";
+            width: 3px;
+            height: 12px;
             border-radius: 2px;
         }
-        .section-title.pending::before { background: var(--yellow); }
-        .section-title.approved::before { background: var(--green); }
+
+        .section-title.pending::before {
+            background: var(--yellow);
+        }
+
+        .section-title.approved::before {
+            background: var(--green);
+        }
 
         /* ── Request card ── */
         .request-card {
@@ -210,84 +353,182 @@
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 1rem 1.25rem;
-            display: flex; align-items: center; gap: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
             transition: border-color 0.15s;
             animation: fadeIn 0.3s ease;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        .request-card:hover { border-color: var(--border-light); }
-        .request-card.pending  { border-left: 3px solid var(--yellow); }
-        .request-card.approved { border-left: 3px solid var(--green); }
-        .request-card.rejected { border-left: 3px solid var(--red); opacity: 0.6; }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .request-card:hover {
+            border-color: var(--border-light);
+        }
+
+        .request-card.pending {
+            border-left: 3px solid var(--yellow);
+        }
+
+        .request-card.approved {
+            border-left: 3px solid var(--green);
+        }
+
+        .request-card.rejected {
+            border-left: 3px solid var(--red);
+            opacity: 0.6;
+        }
 
         .req-avatar {
-            width: 38px; height: 38px; border-radius: 50%;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
             background: var(--bg3);
             border: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem; font-weight: 600; color: var(--accent);
-            flex-shrink: 0; overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent);
+            flex-shrink: 0;
+            overflow: hidden;
             font-family: "IBM Plex Mono", monospace;
         }
-        .req-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
-        .req-info { flex: 1; min-width: 0; }
-        .req-name  { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+        .req-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .req-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .req-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
         .req-email {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 0.72rem; color: var(--text-muted); margin-top: 0.1rem;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 0.1rem;
         }
+
         .req-reason {
-            font-size: 0.75rem; color: var(--text-muted);
-            margin-top: 0.35rem; line-height: 1.5;
-            background: var(--bg3); padding: 0.35rem 0.6rem;
-            border-radius: 5px; border: 1px solid var(--border);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.35rem;
+            line-height: 1.5;
+            background: var(--bg3);
+            padding: 0.35rem 0.6rem;
+            border-radius: 5px;
+            border: 1px solid var(--border);
             font-style: italic;
         }
+
         .req-meta {
             font-family: "IBM Plex Mono", monospace;
-            font-size: 0.65rem; color: var(--text-dim);
+            font-size: 0.65rem;
+            color: var(--text-dim);
             margin-top: 0.3rem;
         }
 
-        .req-actions { display: flex; gap: 0.5rem; flex-shrink: 0; }
+        .req-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-shrink: 0;
+        }
 
-        .btn-approve, .btn-reject, .btn-revoke {
+        .btn-approve,
+        .btn-reject,
+        .btn-revoke {
             padding: 0.4rem 0.85rem;
-            border-radius: 6px; border: 1px solid;
-            font-size: 0.75rem; font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid;
+            font-size: 0.75rem;
+            font-weight: 600;
             font-family: "IBM Plex Sans", sans-serif;
-            cursor: pointer; transition: all 0.15s;
+            cursor: pointer;
+            transition: all 0.15s;
             white-space: nowrap;
         }
+
         .btn-approve {
-            background: var(--green-dim); border-color: var(--green);
+            background: var(--green-dim);
+            border-color: var(--green);
             color: var(--green);
         }
-        .btn-approve:hover { background: var(--green); color: var(--bg); }
+
+        .btn-approve:hover {
+            background: var(--green);
+            color: var(--bg);
+        }
 
         .btn-reject {
-            background: var(--red-dim); border-color: var(--red);
+            background: var(--red-dim);
+            border-color: var(--red);
             color: var(--red);
         }
-        .btn-reject:hover { background: var(--red); color: #fff; }
+
+        .btn-reject:hover {
+            background: var(--red);
+            color: #fff;
+        }
 
         .btn-revoke {
-            background: transparent; border-color: var(--border);
+            background: transparent;
+            border-color: var(--border);
             color: var(--text-muted);
         }
-        .btn-revoke:hover { border-color: var(--red); color: var(--red); }
+
+        .btn-revoke:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
 
         .status-badge {
             padding: 0.2rem 0.55rem;
             border-radius: 20px;
-            font-size: 0.65rem; font-weight: 600;
+            font-size: 0.65rem;
+            font-weight: 600;
             font-family: "IBM Plex Mono", monospace;
-            text-transform: uppercase; letter-spacing: 0.05em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-        .status-badge.approved { background: var(--green-dim); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
-        .status-badge.rejected { background: var(--red-dim);   color: var(--red);   border: 1px solid rgba(248,81,73,0.3); }
-        .status-badge.pending  { background: var(--yellow-dim);color: var(--yellow);border: 1px solid rgba(210,153,34,0.3); }
+
+        .status-badge.approved {
+            background: var(--green-dim);
+            color: var(--green);
+            border: 1px solid rgba(63, 185, 80, 0.3);
+        }
+
+        .status-badge.rejected {
+            background: var(--red-dim);
+            color: var(--red);
+            border: 1px solid rgba(248, 81, 73, 0.3);
+        }
+
+        .status-badge.pending {
+            background: var(--yellow-dim);
+            color: var(--yellow);
+            border: 1px solid rgba(210, 153, 34, 0.3);
+        }
 
         /* ── Empty state ── */
         .empty {
@@ -303,375 +544,486 @@
 
         /* ── Loading ── */
         .loading-row {
-            display: flex; align-items: center; gap: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
             padding: 1.5rem;
-            color: var(--text-muted); font-size: 0.8rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
             font-family: "IBM Plex Mono", monospace;
         }
+
         .spinner {
-            width: 16px; height: 16px;
+            width: 16px;
+            height: 16px;
             border: 2px solid var(--border);
             border-top-color: var(--accent);
             border-radius: 50%;
             animation: spin 0.7s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         /* ── Toast ── */
         .toast {
-            position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 999;
             padding: 0.7rem 1.1rem;
             border-radius: var(--radius);
-            font-size: 0.8rem; font-weight: 500;
-            background: var(--bg3); border: 1px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: 500;
+            background: var(--bg3);
+            border: 1px solid var(--border);
             color: var(--text);
-            transform: translateY(20px); opacity: 0;
+            transform: translateY(20px);
+            opacity: 0;
             transition: all 0.25s ease;
             pointer-events: none;
             font-family: "IBM Plex Mono", monospace;
         }
-        .toast.show { transform: none; opacity: 1; }
-        .toast.success { border-color: var(--green); color: var(--green); }
-        .toast.error   { border-color: var(--red);   color: var(--red); }
+
+        .toast.show {
+            transform: none;
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        .toast.error {
+            border-color: var(--red);
+            color: var(--red);
+        }
 
         /* ── Auth gate ── */
         #auth-gate {
-            position: fixed; inset: 0; z-index: 100;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
             background: var(--bg);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         .gate-card {
             background: var(--bg2);
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 2.5rem 2rem;
-            width: 100%; max-width: 380px;
+            width: 100%;
+            max-width: 380px;
             text-align: center;
-            display: flex; flex-direction: column; gap: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
             align-items: center;
         }
+
         .gate-icon {
             font-size: 2rem;
-            width: 64px; height: 64px;
-            background: var(--bg3); border-radius: 12px;
+            width: 64px;
+            height: 64px;
+            background: var(--bg3);
+            border-radius: 12px;
             border: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .gate-title { font-family: "IBM Plex Mono", monospace; font-size: 1rem; font-weight: 600; color: var(--text); }
-        .gate-sub   { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
-        .gate-error { font-size: 0.75rem; color: var(--red); display: none; }
+
+        .gate-title {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .gate-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .gate-error {
+            font-size: 0.75rem;
+            color: var(--red);
+            display: none;
+        }
 
         .btn-gate-login {
-            width: 100%; padding: 0.7rem;
-            background: var(--accent); border: none; border-radius: var(--radius);
-            color: var(--bg); font-size: 0.85rem; font-weight: 600;
+            width: 100%;
+            padding: 0.7rem;
+            background: var(--accent);
+            border: none;
+            border-radius: var(--radius);
+            color: var(--bg);
+            font-size: 0.85rem;
+            font-weight: 600;
             font-family: "IBM Plex Sans", sans-serif;
-            cursor: pointer; transition: opacity 0.15s;
-            display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
-        .btn-gate-login:hover { opacity: 0.85; }
-        .btn-gate-login:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-gate-login:hover {
+            opacity: 0.85;
+        }
+
+        .btn-gate-login:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
         /* Tabs */
-        .tabs { display: flex; gap: 0.25rem; }
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+        }
+
         .tab {
             padding: 0.35rem 0.85rem;
-            border-radius: 6px; border: 1px solid transparent;
-            font-size: 0.75rem; font-weight: 500;
-            color: var(--text-muted); cursor: pointer;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
             font-family: "IBM Plex Mono", monospace;
             transition: all 0.15s;
         }
-        .tab:hover { color: var(--text); }
-        .tab.active { background: var(--bg3); border-color: var(--border); color: var(--text); }
+
+        .tab:hover {
+            color: var(--text);
+        }
+
+        .tab.active {
+            background: var(--bg3);
+            border-color: var(--border);
+            color: var(--text);
+        }
     </style>
 </head>
+
 <body>
 
-<!-- Auth Gate -->
-<div id="auth-gate">
-    <div class="gate-card">
-        <div class="gate-icon">🔐</div>
-        <div class="gate-title">Admin — AW27 Checkers</div>
-        <div class="gate-sub">Connexion réservée à l'administrateur.<br>Seul <strong><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="0c616f6a637e616d786563623d4c6b616d6560226f6361">[email&#160;protected]</a></strong> peut accéder.</div>
-        <div class="gate-error" id="gate-error">Accès refusé. Compte non autorisé.</div>
-        <button class="btn-gate-login" id="btn-admin-login" onclick="adminLogin()">
-            <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-            </svg>
-            Se connecter avec Google
-        </button>
+    <!-- Auth Gate -->
+    <div id="auth-gate">
+        <div class="gate-card">
+            <div class="gate-icon">🔐</div>
+            <div class="gate-title">Admin — AW27 Checkers</div>
+            <div class="gate-sub">Connexion réservée à l'administrateur.<br>Seul <strong><a
+                        href="/cdn-cgi/l/email-protection" class="__cf_email__"
+                        data-cfemail="0c616f6a637e616d786563623d4c6b616d6560226f6361">[email&#160;protected]</a></strong>
+                peut accéder.</div>
+            <div class="gate-error" id="gate-error">Accès refusé. Compte non autorisé.</div>
+            <button class="btn-gate-login" id="btn-admin-login" onclick="adminLogin()">
+                <svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        fill="#4285F4" />
+                    <path
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        fill="#34A853" />
+                    <path
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                        fill="#FBBC05" />
+                    <path
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                        fill="#EA4335" />
+                </svg>
+                Se connecter avec Google
+            </button>
+        </div>
     </div>
-</div>
 
-<!-- App -->
-<div class="layout" id="app" style="display:none">
+    <!-- App -->
+    <div class="layout" id="app" style="display:none">
 
-    <!-- Sidebar -->
-    <aside class="sidebar">
-        <div class="sidebar-brand">
-            <div class="sidebar-logo">AW</div>
-            <div>
-                <div class="sidebar-title">AW27 Admin</div>
-                <div class="sidebar-sub">SOCOTA</div>
-            </div>
-        </div>
-
-        <div class="nav-item active" onclick="showSection('requests')">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-            Demandes d'accès
-            <span class="badge" id="badge-requests">0</span>
-        </div>
-
-        <div class="nav-item" onclick="showSection('users')">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            Utilisateurs actifs
-        </div>
-
-        <div class="sidebar-footer">
-            <div class="admin-info">
-                <div class="admin-avatar" id="admin-avatar">A</div>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <div class="sidebar-logo">AW</div>
                 <div>
-                    <div class="admin-name" id="admin-name">Admin</div>
-                    <div class="admin-role">// ADMIN</div>
+                    <div class="sidebar-title">AW27 Admin</div>
+                    <div class="sidebar-sub">SOCOTA</div>
                 </div>
             </div>
-            <button class="btn-signout" onclick="adminSignOut()">Déconnexion</button>
-        </div>
-    </aside>
 
-    <!-- Main -->
-    <main class="main">
-
-        <!-- Header -->
-        <div class="page-header">
-            <div>
-                <div class="page-title" id="page-title">// demandes_acces</div>
-                <div class="page-sub" id="page-sub">Gérer les demandes d'accès en attente</div>
+            <div class="nav-item active" onclick="showSection('requests')">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Demandes d'accès
+                <span class="badge" id="badge-requests">0</span>
             </div>
-            <div class="last-refresh" id="last-refresh">—</div>
-        </div>
 
-        <!-- Stats -->
-        <div class="stats-row">
-            <div class="stat-card">
-                <div class="stat-label">En attente</div>
-                <div class="stat-value yellow" id="stat-pending">—</div>
+            <div class="nav-item" onclick="showSection('users')">
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                Utilisateurs actifs
             </div>
-            <div class="stat-card">
-                <div class="stat-label">Approuvés</div>
-                <div class="stat-value green" id="stat-approved">—</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total demandes</div>
-                <div class="stat-value blue" id="stat-total">—</div>
-            </div>
-        </div>
 
-        <!-- Section: Demandes -->
-        <div id="section-requests">
-
-            <div class="section">
-                <div class="section-header">
-                    <div class="section-title pending">En attente d'approbation</div>
-                    <div class="tabs">
-                        <div class="tab active" onclick="filterRequests('pending', this)">En attente</div>
-                        <div class="tab" onclick="filterRequests('all', this)">Toutes</div>
+            <div class="sidebar-footer">
+                <div class="admin-info">
+                    <div class="admin-avatar" id="admin-avatar">A</div>
+                    <div>
+                        <div class="admin-name" id="admin-name">Admin</div>
+                        <div class="admin-role">// ADMIN</div>
                     </div>
                 </div>
-                <div id="requests-list">
-                    <div class="loading-row"><div class="spinner"></div> Chargement…</div>
+                <button class="btn-signout" onclick="adminSignOut()">Déconnexion</button>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <main class="main">
+
+            <!-- Header -->
+            <div class="page-header">
+                <div>
+                    <div class="page-title" id="page-title">// demandes_acces</div>
+                    <div class="page-sub" id="page-sub">Gérer les demandes d'accès en attente</div>
+                </div>
+                <div class="last-refresh" id="last-refresh">—</div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">En attente</div>
+                    <div class="stat-value yellow" id="stat-pending">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Approuvés</div>
+                    <div class="stat-value green" id="stat-approved">—</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total demandes</div>
+                    <div class="stat-value blue" id="stat-total">—</div>
                 </div>
             </div>
 
-        </div>
+            <!-- Section: Demandes -->
+            <div id="section-requests">
 
-        <!-- Section: Users actifs -->
-        <div id="section-users" style="display:none">
-            <div class="section">
-                <div class="section-header">
-                    <div class="section-title approved">Utilisateurs autorisés</div>
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-title pending">En attente d'approbation</div>
+                        <div class="tabs">
+                            <div class="tab active" onclick="filterRequests('pending', this)">En attente</div>
+                            <div class="tab" onclick="filterRequests('all', this)">Toutes</div>
+                        </div>
+                    </div>
+                    <div id="requests-list">
+                        <div class="loading-row">
+                            <div class="spinner"></div> Chargement…
+                        </div>
+                    </div>
                 </div>
-                <div id="users-list">
-                    <div class="loading-row"><div class="spinner"></div> Chargement…</div>
+
+            </div>
+
+            <!-- Section: Users actifs -->
+            <div id="section-users" style="display:none">
+                <div class="section">
+                    <div class="section-header">
+                        <div class="section-title approved">Utilisateurs autorisés</div>
+                    </div>
+                    <div id="users-list">
+                        <div class="loading-row">
+                            <div class="spinner"></div> Chargement…
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-    </main>
-</div>
+        </main>
+    </div>
 
-<!-- Toast -->
-<div class="toast" id="toast"></div>
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
 
-<!-- Firebase SDK -->
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK -->
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-<script>
-const ADMIN_EMAIL = "mcformation1@gmail.com";
+    <script>
+        const ADMIN_EMAIL = "mcformation1@gmail.com";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
-    authDomain: "aw27-checkers.firebaseapp.com",
-    projectId: "aw27-checkers",
-    storageBucket: "aw27-checkers.firebasestorage.app",
-    messagingSenderId: "122592404616",
-    appId: "1:122592404616:web:499d21cd64baf6bdea6b3d"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
+            authDomain: "aw27-checkers.firebaseapp.com",
+            projectId: "aw27-checkers",
+            storageBucket: "aw27-checkers.firebasestorage.app",
+            messagingSenderId: "122592404616",
+            appId: "1:122592404616:web:499d21cd64baf6bdea6b3d"
+        };
 
-firebase.initializeApp(firebaseConfig);
-const auth     = firebase.auth();
-const db       = firebase.firestore();
-const provider = new firebase.auth.GoogleAuthProvider();
-provider.setCustomParameters({ prompt: "select_account" });
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
 
-let allRequests = [];
-let currentFilter = "pending";
+        let allRequests = [];
+        let currentFilter = "pending";
 
-// ── Auth ──────────────────────────────────────────────────────
-async function adminLogin() {
-    const btn = document.getElementById("btn-admin-login");
-    btn.disabled = true; btn.textContent = "Connexion…";
-    try {
-        const result = await auth.signInWithPopup(provider);
-        if (result.user.email !== ADMIN_EMAIL) {
-            await auth.signOut();
-            document.getElementById("gate-error").style.display = "block";
-            btn.disabled = false;
-            btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Se connecter avec Google`;
-        }
-        // onAuthStateChanged prend le relais
-    } catch(err) {
-        console.error(err);
-        btn.disabled = false;
-        btn.textContent = "Réessayer";
-    }
-}
-
-auth.onAuthStateChanged(async (user) => {
-    if (user && user.email === ADMIN_EMAIL) {
-        // Afficher l'app
-        document.getElementById("auth-gate").style.display = "none";
-        document.getElementById("app").style.display = "flex";
-
-        // Infos admin
-        const nameEl   = document.getElementById("admin-name");
-        const avatarEl = document.getElementById("admin-avatar");
-        if (nameEl)   nameEl.textContent = user.displayName || user.email;
-        if (avatarEl) {
-            if (user.photoURL) {
-                avatarEl.innerHTML = `<img src="${user.photoURL}" alt=""/>`;
-            } else {
-                avatarEl.textContent = (user.displayName || user.email)[0].toUpperCase();
+        // ── Auth ──────────────────────────────────────────────────────
+        async function adminLogin() {
+            const btn = document.getElementById("btn-admin-login");
+            btn.disabled = true; btn.textContent = "Connexion…";
+            try {
+                const result = await auth.signInWithPopup(provider);
+                if (result.user.email !== ADMIN_EMAIL) {
+                    await auth.signOut();
+                    document.getElementById("gate-error").style.display = "block";
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg> Se connecter avec Google`;
+                }
+                // onAuthStateChanged prend le relais
+            } catch (err) {
+                console.error(err);
+                btn.disabled = false;
+                btn.textContent = "Réessayer";
             }
         }
 
-        await loadData();
-    }
-});
+        auth.onAuthStateChanged(async (user) => {
+            if (user && user.email === ADMIN_EMAIL) {
+                // Afficher l'app
+                document.getElementById("auth-gate").style.display = "none";
+                document.getElementById("app").style.display = "flex";
 
-async function adminSignOut() {
-    await auth.signOut();
-    document.getElementById("auth-gate").style.display = "flex";
-    document.getElementById("app").style.display = "none";
-}
+                // Infos admin
+                const nameEl = document.getElementById("admin-name");
+                const avatarEl = document.getElementById("admin-avatar");
+                if (nameEl) nameEl.textContent = user.displayName || user.email;
+                if (avatarEl) {
+                    if (user.photoURL) {
+                        avatarEl.innerHTML = `<img src="${user.photoURL}" alt=""/>`;
+                    } else {
+                        avatarEl.textContent = (user.displayName || user.email)[0].toUpperCase();
+                    }
+                }
 
-// ── Navigation ────────────────────────────────────────────────
-function showSection(name) {
-    document.getElementById("section-requests").style.display = name === "requests" ? "flex" : "none";
-    document.getElementById("section-users").style.display    = name === "users"    ? "flex" : "none";
+                await loadData();
+            }
+        });
 
-    document.querySelectorAll(".nav-item").forEach((el, i) => {
-        el.classList.toggle("active", (i === 0 && name === "requests") || (i === 1 && name === "users"));
-    });
+        async function adminSignOut() {
+            await auth.signOut();
+            document.getElementById("auth-gate").style.display = "flex";
+            document.getElementById("app").style.display = "none";
+        }
 
-    if (name === "requests") {
-        document.getElementById("page-title").textContent = "// demandes_acces";
-        document.getElementById("page-sub").textContent   = "Gérer les demandes d'accès en attente";
-        document.getElementById("section-requests").style.display = "flex";
-        document.getElementById("section-requests").style.flexDirection = "column";
-        document.getElementById("section-requests").style.gap = "1rem";
-    } else {
-        document.getElementById("page-title").textContent = "// utilisateurs_actifs";
-        document.getElementById("page-sub").textContent   = "Comptes ayant accès à l'application";
-        loadUsers();
-    }
-}
+        // ── Navigation ────────────────────────────────────────────────
+        function showSection(name) {
+            document.getElementById("section-requests").style.display = name === "requests" ? "flex" : "none";
+            document.getElementById("section-users").style.display = name === "users" ? "flex" : "none";
 
-// ── Charger les données ───────────────────────────────────────
-async function loadData() {
-    document.getElementById("last-refresh").textContent =
-        "Actualisé à " + new Date().toLocaleTimeString("fr-FR", {hour:"2-digit", minute:"2-digit"});
+            document.querySelectorAll(".nav-item").forEach((el, i) => {
+                el.classList.toggle("active", (i === 0 && name === "requests") || (i === 1 && name === "users"));
+            });
 
-    const snapshot = await db.collection("access_requests")
-        .orderBy("requestedAt", "desc")
-        .get();
+            if (name === "requests") {
+                document.getElementById("page-title").textContent = "// demandes_acces";
+                document.getElementById("page-sub").textContent = "Gérer les demandes d'accès en attente";
+                document.getElementById("section-requests").style.display = "flex";
+                document.getElementById("section-requests").style.flexDirection = "column";
+                document.getElementById("section-requests").style.gap = "1rem";
+            } else {
+                document.getElementById("page-title").textContent = "// utilisateurs_actifs";
+                document.getElementById("page-sub").textContent = "Comptes ayant accès à l'application";
+                loadUsers();
+            }
+        }
 
-    allRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // ── Charger les données ───────────────────────────────────────
+        async function loadData() {
+            document.getElementById("last-refresh").textContent =
+                "Actualisé à " + new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-    // Stats
-    const pending  = allRequests.filter(r => r.status === "pending").length;
-    const approved = allRequests.filter(r => r.status === "approved").length;
+            const snapshot = await db.collection("access_requests")
+                .orderBy("requestedAt", "desc")
+                .get();
 
-    document.getElementById("stat-pending").textContent  = pending;
-    document.getElementById("stat-approved").textContent = approved;
-    document.getElementById("stat-total").textContent    = allRequests.length;
+            allRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-    // Badge nav
-    const badge = document.getElementById("badge-requests");
-    badge.textContent = pending;
-    badge.classList.toggle("visible", pending > 0);
+            // Stats
+            const pending = allRequests.filter(r => r.status === "pending").length;
+            const approved = allRequests.filter(r => r.status === "approved").length;
 
-    renderRequests();
-}
+            document.getElementById("stat-pending").textContent = pending;
+            document.getElementById("stat-approved").textContent = approved;
+            document.getElementById("stat-total").textContent = allRequests.length;
 
-// ── Filtrer ───────────────────────────────────────────────────
-function filterRequests(filter, el) {
-    currentFilter = filter;
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    el.classList.add("active");
-    renderRequests();
-}
+            // Badge nav
+            const badge = document.getElementById("badge-requests");
+            badge.textContent = pending;
+            badge.classList.toggle("visible", pending > 0);
 
-// ── Render demandes ───────────────────────────────────────────
-function renderRequests() {
-    const list = document.getElementById("requests-list");
-    const filtered = currentFilter === "all"
-        ? allRequests
-        : allRequests.filter(r => r.status === currentFilter);
+            renderRequests();
+        }
 
-    if (filtered.length === 0) {
-        list.innerHTML = `<div class="empty">// aucune demande ${currentFilter === "pending" ? "en attente" : ""}</div>`;
-        return;
-    }
+        // ── Filtrer ───────────────────────────────────────────────────
+        function filterRequests(filter, el) {
+            currentFilter = filter;
+            document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+            el.classList.add("active");
+            renderRequests();
+        }
 
-    list.innerHTML = filtered.map(req => {
-        const initials = (req.name || req.email || "?")[0].toUpperCase();
-        const date     = req.requestedAt
-            ? new Date(req.requestedAt.seconds * 1000).toLocaleDateString("fr-FR", {day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"})
-            : "—";
-        const reasonHtml = req.reason
-            ? `<div class="req-reason">"${req.reason}"</div>`
-            : "";
-        const avatarHtml = req.photo
-            ? `<img src="${req.photo}" alt=""/>`
-            : initials;
-        const actionsHtml = req.status === "pending"
-            ? `<button class="btn-approve" onclick="approveRequest('${req.email}')">✓ Approuver</button>
+        // ── Render demandes ───────────────────────────────────────────
+        function renderRequests() {
+            const list = document.getElementById("requests-list");
+            const filtered = currentFilter === "all"
+                ? allRequests
+                : allRequests.filter(r => r.status === currentFilter);
+
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="empty">// aucune demande ${currentFilter === "pending" ? "en attente" : ""}</div>`;
+                return;
+            }
+
+            list.innerHTML = filtered.map(req => {
+                const initials = (req.name || req.email || "?")[0].toUpperCase();
+                const date = req.requestedAt
+                    ? new Date(req.requestedAt.seconds * 1000).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+                    : "—";
+                const reasonHtml = req.reason
+                    ? `<div class="req-reason">"${req.reason}"</div>`
+                    : "";
+                const avatarHtml = req.photo
+                    ? `<img src="${req.photo}" alt=""/>`
+                    : initials;
+                const actionsHtml = req.status === "pending"
+                    ? `<button class="btn-approve" onclick="approveRequest('${req.email}')">✓ Approuver</button>
                <button class="btn-reject"  onclick="rejectRequest('${req.email}')">✕ Refuser</button>`
-            : req.status === "approved"
-            ? `<span class="status-badge approved">approuvé</span>
+                    : req.status === "approved"
+                        ? `<span class="status-badge approved">approuvé</span>
                <button class="btn-revoke" onclick="revokeRequest('${req.email}')">Révoquer</button>`
-            : `<span class="status-badge rejected">refusé</span>
+                        : `<span class="status-badge rejected">refusé</span>
                <button class="btn-approve" onclick="approveRequest('${req.email}')">↩ Ré-approuver</button>`;
 
-        return `
-        <div class="request-card ${req.status}" id="card-${req.email.replace(/[@.]/g,'-')}">
+                return `
+        <div class="request-card ${req.status}" id="card-${req.email.replace(/[@.]/g, '-')}">
             <div class="req-avatar">${avatarHtml}</div>
             <div class="req-info">
                 <div class="req-name">${req.name || "—"}</div>
@@ -681,82 +1033,82 @@ function renderRequests() {
             </div>
             <div class="req-actions">${actionsHtml}</div>
         </div>`;
-    }).join("");
-}
-
-// ── Approuver ─────────────────────────────────────────────────
-async function approveRequest(email) {
-    try {
-        // Ajouter / mettre à jour la whitelist
-        await db.collection("whitelist").doc(email).set({
-            status:     "approved",
-            approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        // Écraser le statut dans access_requests (y compris si "rejected")
-        await db.collection("access_requests").doc(email).set({
-            status: "approved"
-        }, { merge: true });
-
-        showToast("✓ " + email + " approuvé", "success");
-        await loadData();
-    } catch(err) {
-        console.error(err);
-        showToast("Erreur lors de l'approbation", "error");
-    }
-}
-
-// ── Refuser ───────────────────────────────────────────────────
-async function rejectRequest(email) {
-    try {
-        await db.collection("access_requests").doc(email).update({ status: "rejected" });
-        // S'assurer qu'il n'est pas dans la whitelist
-        await db.collection("whitelist").doc(email).delete().catch(() => {});
-        showToast("✕ " + email + " refusé", "error");
-        await loadData();
-    } catch(err) {
-        console.error(err);
-        showToast("Erreur lors du refus", "error");
-    }
-}
-
-// ── Révoquer ──────────────────────────────────────────────────
-async function revokeRequest(email) {
-    if (!confirm("Révoquer l'accès de " + email + " ?")) return;
-    try {
-        await db.collection("whitelist").doc(email).delete();
-        await db.collection("access_requests").doc(email).update({ status: "revoked" });
-        showToast("Accès révoqué : " + email, "error");
-        await loadData();
-    } catch(err) {
-        console.error(err);
-        showToast("Erreur lors de la révocation", "error");
-    }
-}
-
-// ── Charger users actifs ──────────────────────────────────────
-async function loadUsers() {
-    const list = document.getElementById("users-list");
-    list.innerHTML = `<div class="loading-row"><div class="spinner"></div> Chargement…</div>`;
-
-    try {
-        const snapshot = await db.collection("whitelist").get();
-        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-            .filter(u => u.status === "approved");
-
-        document.getElementById("stat-approved").textContent = users.length;
-
-        if (users.length === 0) {
-            list.innerHTML = `<div class="empty">// aucun utilisateur approuvé</div>`;
-            return;
+            }).join("");
         }
 
-        list.innerHTML = users.map(u => {
-            const initials = (u.id || "?")[0].toUpperCase();
-            const date = u.approvedAt
-                ? new Date(u.approvedAt.seconds * 1000).toLocaleDateString("fr-FR")
-                : "—";
-            return `
+        // ── Approuver ─────────────────────────────────────────────────
+        async function approveRequest(email) {
+            try {
+                // Ajouter / mettre à jour la whitelist
+                await db.collection("whitelist").doc(email).set({
+                    status: "approved",
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+
+                // Écraser le statut dans access_requests (y compris si "rejected")
+                await db.collection("access_requests").doc(email).set({
+                    status: "approved"
+                }, { merge: true });
+
+                showToast("✓ " + email + " approuvé", "success");
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                showToast("Erreur lors de l'approbation", "error");
+            }
+        }
+
+        // ── Refuser ───────────────────────────────────────────────────
+        async function rejectRequest(email) {
+            try {
+                await db.collection("access_requests").doc(email).update({ status: "rejected" });
+                // S'assurer qu'il n'est pas dans la whitelist
+                await db.collection("whitelist").doc(email).delete().catch(() => { });
+                showToast("✕ " + email + " refusé", "error");
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                showToast("Erreur lors du refus", "error");
+            }
+        }
+
+        // ── Révoquer ──────────────────────────────────────────────────
+        async function revokeRequest(email) {
+            if (!confirm("Révoquer l'accès de " + email + " ?")) return;
+            try {
+                await db.collection("whitelist").doc(email).delete();
+                await db.collection("access_requests").doc(email).update({ status: "revoked" });
+                showToast("Accès révoqué : " + email, "error");
+                await loadData();
+            } catch (err) {
+                console.error(err);
+                showToast("Erreur lors de la révocation", "error");
+            }
+        }
+
+        // ── Charger users actifs ──────────────────────────────────────
+        async function loadUsers() {
+            const list = document.getElementById("users-list");
+            list.innerHTML = `<div class="loading-row"><div class="spinner"></div> Chargement…</div>`;
+
+            try {
+                const snapshot = await db.collection("whitelist").get();
+                const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                    .filter(u => u.status === "approved");
+
+                document.getElementById("stat-approved").textContent = users.length;
+
+                if (users.length === 0) {
+                    list.innerHTML = `<div class="empty">// aucun utilisateur approuvé</div>`;
+                    return;
+                }
+
+                list.innerHTML = users.map(u => {
+                    const initials = (u.id || "?")[0].toUpperCase();
+                    const date = u.approvedAt
+                        ? new Date(u.approvedAt.seconds * 1000).toLocaleDateString("fr-FR")
+                        : "—";
+                    return `
             <div class="request-card approved">
                 <div class="req-avatar">${initials}</div>
                 <div class="req-info">
@@ -768,13 +1120,22 @@ async function loadUsers() {
                     <button class="btn-revoke" onclick="revokeRequest('${u.id}')">Révoquer</button>
                 </div>
             </div>`;
-        }).join("");
+                }).join("");
 
-    } catch(err) {
-        console.error(err);
-        list.innerHTML = `<div class="empty">// erreur de chargement</div>`;
-    }
-}
+            } catch (err) {
+                console.error(err);
+                list.innerHTML = `<div class="empty">// erreur de chargement</div>`;
+            }
+        }
 
-// ── Toast ─────────────────────────────────────────────────────
-function showTo
+        // ── Toast ─────────────────────────────────────────────────────
+        function showToast(msg, type = "success") {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.className = "toast " + type + " show";
+            setTimeout(() => t.classList.remove("show"), 3000);
+        }
+    </script>
+</body>
+
+</html>
