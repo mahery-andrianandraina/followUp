@@ -1971,7 +1971,7 @@ function detectCustomCols(cols, menuLabel) {
         poDate: find(["po date", "po_date", "date po", "date commande", "order date"]),
         artworkReceived: find(["artwork received", "artwork receipt", "artwork recu", "artwork re\u00e7u", "received artwork", "art received"]),
         artworkSubmission: find(["artwork submission", "artwork submit", "submission artwork", "art submission", "artwork envoy"]),
-        artworkApproval: find(["artwork approval", "art approval", "artwork approved", "approval artwork"]),
+        artworkApproval: find(["artwork approval", "art approval", "artwork approved", "approval artwork", "approval", "approv", "approved", "validation"]),
     };
 }
 
