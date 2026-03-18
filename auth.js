@@ -3,19 +3,19 @@
 // ============================================================
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
-  authDomain: "aw27-checkers.firebaseapp.com",
-  projectId: "aw27-checkers",
-  storageBucket: "aw27-checkers.firebasestorage.app",
-  messagingSenderId: "122592404616",
-  appId: "1:122592404616:web:499d21cd64baf6bdea6b3d",
-  measurementId: "G-4MT37M3HGK"
+    apiKey: "AIzaSyDYJbYbux0k8yY5OknmxOpw_DwrP7VKVp8",
+    authDomain: "aw27-checkers.firebaseapp.com",
+    projectId: "aw27-checkers",
+    storageBucket: "aw27-checkers.firebasestorage.app",
+    messagingSenderId: "122592404616",
+    appId: "1:122592404616:web:499d21cd64baf6bdea6b3d",
+    measurementId: "G-4MT37M3HGK"
 };
 
 // ─── Initialisation Firebase ──────────────────────────────────
 firebase.initializeApp(firebaseConfig);
-const auth     = firebase.auth();
-const db       = firebase.firestore();
+const auth = firebase.auth();
+const db = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
@@ -100,13 +100,13 @@ async function handleUser(firebaseUser) {
     try {
         // ── Étape 1 : Vérifier whitelist ──────────────────────
         const whitelistDoc = await db.collection("whitelist").doc(email).get();
-        const isApproved   = whitelistDoc.exists && whitelistDoc.data().status === "approved";
+        const isApproved = whitelistDoc.exists && whitelistDoc.data().status === "approved";
 
         if (!isApproved) {
             // Non autorisé → déconnecter puis rediriger
             const url = "access-request.html"
                 + "?email=" + encodeURIComponent(email)
-                + "&name="  + encodeURIComponent(firebaseUser.displayName || "")
+                + "&name=" + encodeURIComponent(firebaseUser.displayName || "")
                 + "&photo=" + encodeURIComponent(firebaseUser.photoURL || "");
 
             await auth.signOut();
@@ -114,16 +114,31 @@ async function handleUser(firebaseUser) {
             return;
         }
 
-        // ── Étape 2 : Charger profil Firestore ────────────────
-        const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
+        // ── Étape 2 : Charger URL GAS globale ────────────────
+        const globalDoc = await db.collection("settings").doc("global").get();
+        let gasUrl = null;
 
-        if (userDoc.exists && userDoc.data().gasUrl) {
+        if (globalDoc.exists && globalDoc.data().gasUrl) {
+            gasUrl = globalDoc.data().gasUrl;
+        } else {
+            // Rétrocompatibilité : essayer de charger depuis l'utilisateur
+            const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
+            if (userDoc.exists && userDoc.data().gasUrl) {
+                gasUrl = userDoc.data().gasUrl;
+                // Promouvoir en global
+                try {
+                    await db.collection("settings").doc("global").set({ gasUrl: gasUrl }, { merge: true });
+                } catch (e) { console.warn("Could not save to global settings", e); }
+            }
+        }
+
+        if (gasUrl) {
             window.currentUser = {
-                uid:         firebaseUser.uid,
-                email:       firebaseUser.email,
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
                 displayName: firebaseUser.displayName,
-                photoURL:    firebaseUser.photoURL,
-                gasUrl:      userDoc.data().gasUrl
+                photoURL: firebaseUser.photoURL,
+                gasUrl: gasUrl
             };
 
             if (isPage("login.html")) {
@@ -133,7 +148,7 @@ async function handleUser(firebaseUser) {
             }
 
         } else {
-            // Pas de gasUrl → étape configuration
+            // Pas de gasUrl -> étape de configuration. On l'affiche, et le premier qui configure l'appliquera à tous.
             if (isPage("login.html")) {
                 showGasSetupStep(firebaseUser);
             } else {
@@ -159,21 +174,28 @@ async function saveGasUrl(firebaseUser, gasUrl) {
     }
 
     try {
+        await db.collection("settings").doc("global").set({
+            gasUrl: gasUrl,
+            updatedBy: firebaseUser.email,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        // Legacy compatibility
         await db.collection("users").doc(firebaseUser.uid).set({
-            email:       firebaseUser.email,
+            email: firebaseUser.email,
             displayName: firebaseUser.displayName,
-            photoURL:    firebaseUser.photoURL || "",
-            gasUrl:      gasUrl,
-            createdAt:   firebase.firestore.FieldValue.serverTimestamp(),
-            updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
+            photoURL: firebaseUser.photoURL || "",
+            gasUrl: gasUrl,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true });
 
         window.currentUser = {
-            uid:         firebaseUser.uid,
-            email:       firebaseUser.email,
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
             displayName: firebaseUser.displayName,
-            photoURL:    firebaseUser.photoURL,
-            gasUrl:      gasUrl
+            photoURL: firebaseUser.photoURL,
+            gasUrl: gasUrl
         };
 
         window.location.href = "index.html";
@@ -193,10 +215,11 @@ async function updateGasUrl(newUrl) {
         return;
     }
     try {
-        await db.collection("users").doc(window.currentUser.uid).update({
-            gasUrl:    newUrl,
+        await db.collection("settings").doc("global").set({
+            gasUrl: newUrl,
+            updatedBy: window.currentUser.email,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        }, { merge: true });
         window.currentUser.gasUrl = newUrl;
         showToast("URL Google Sheet mise à jour ✓", "success");
         await fetchAllData();
@@ -226,15 +249,15 @@ let _pendingFirebaseUser = null;
 function showGasSetupStep(firebaseUser) {
     _pendingFirebaseUser = firebaseUser;
     const stepLogin = document.getElementById("step-login");
-    const stepGas   = document.getElementById("step-gas");
-    const userName  = document.getElementById("setup-user-name");
+    const stepGas = document.getElementById("step-gas");
+    const userName = document.getElementById("setup-user-name");
     const userEmail = document.getElementById("setup-user-email");
     const userPhoto = document.getElementById("setup-user-photo");
 
     if (stepLogin) stepLogin.style.display = "none";
-    if (stepGas)   stepGas.style.display   = "flex";
-    if (userName)  userName.textContent     = firebaseUser.displayName || firebaseUser.email;
-    if (userEmail) userEmail.textContent    = firebaseUser.email;
+    if (stepGas) stepGas.style.display = "flex";
+    if (userName) userName.textContent = firebaseUser.displayName || firebaseUser.email;
+    if (userEmail) userEmail.textContent = firebaseUser.email;
     if (userPhoto && firebaseUser.photoURL) {
         userPhoto.src = firebaseUser.photoURL;
         userPhoto.style.display = "block";
