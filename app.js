@@ -156,6 +156,13 @@ async function initApp() {
     // Mettre à jour l'UI utilisateur dans le header
     renderUserBadge();
 
+    // ── Nouveau utilisateur sans GAS URL configuré ─────────────
+    // Ouvrir la modale de configuration et bloquer tant que non renseigné
+    if (!window.currentUser || !window.currentUser.gasUrl) {
+        _openFirstSetupModal();
+        return; // ne pas continuer tant que l'URL n'est pas enregistrée
+    }
+
     loadCustomMenus();
     setupTabListeners();
     setupSearchAndFilter();
@@ -165,6 +172,88 @@ async function initApp() {
     renderDashboard();
     updateGlobalNotifBadge();
     console.log("App Initialized. Fabric Analysis keywords updated.");
+}
+
+// ─── Modale premier démarrage (GAS URL manquant) ─────────────
+function _openFirstSetupModal() {
+    // Réutiliser openUserSettings() mais en mode "first setup" :
+    // - titre et description adaptés au nouvel utilisateur
+    // - backdrop non cliquable (ne peut pas fermer sans avoir enregistré)
+    // - pas de bouton déconnexion pour forcer la config
+
+    let modal = document.getElementById("user-settings-modal");
+    if (modal) modal.remove(); // reset si déjà présent
+
+    modal = document.createElement("div");
+    modal.id = "user-settings-modal";
+    modal.className = "usm-overlay";
+    modal.innerHTML = `
+    <div class="usm-backdrop"></div>
+    <div class="usm-panel">
+        <div class="usm-header">
+            <div class="usm-title">Bienvenue — Configuration requise</div>
+        </div>
+        <div class="usm-body">
+            <div class="usm-profile">
+                <div id="usm-avatar"></div>
+                <div>
+                    <div class="usm-name"  id="usm-name"></div>
+                    <div class="usm-email" id="usm-email"></div>
+                </div>
+            </div>
+            <div class="usm-section">
+                <div class="usm-section-title">Google Apps Script URL</div>
+                <div class="usm-section-desc" style="color:#e55;font-weight:600;margin-bottom:6px;">
+                    ⚠️ Votre compte n'a pas encore d'URL connectée.<br>
+                    Entrez l'URL de votre Google Apps Script pour accéder à vos données.
+                </div>
+                <input class="usm-input" id="usm-gas-input" type="url"
+                    placeholder="https://script.google.com/macros/s/…/exec"
+                    autofocus/>
+                <button class="usm-btn-save" onclick="_saveFirstSetupUrl()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    Connecter et démarrer
+                </button>
+            </div>
+            <div class="usm-section">
+                <button class="usm-btn-signout" onclick="signOut()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    Se déconnecter
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+
+    // Peupler le profil
+    const u = window.currentUser || {};
+    const initials = (u.displayName || u.email || "?").trim().split(" ").filter(Boolean).map(p => p[0].toUpperCase()).slice(0, 2).join("");
+    document.getElementById("usm-avatar").innerHTML = u.photoURL
+        ? `<img class="usm-photo" src="${u.photoURL}" alt="Photo"/>`
+        : `<div class="usm-initials">${initials}</div>`;
+    document.getElementById("usm-name").textContent  = u.displayName || "—";
+    document.getElementById("usm-email").textContent = u.email || "—";
+
+    requestAnimationFrame(() => modal.classList.add("open"));
+}
+
+async function _saveFirstSetupUrl() {
+    const input = document.getElementById("usm-gas-input");
+    if (!input) return;
+    const url = input.value.trim();
+    if (!url || !url.startsWith("https://")) {
+        showToast("Entrez une URL valide (https://…)", "error");
+        input.focus();
+        return;
+    }
+    const btn = input.nextElementSibling;
+    if (btn) { btn.disabled = true; btn.textContent = "Connexion…"; }
+    await updateGasUrl(url);
+    // updateGasUrl (dans auth.js) sauvegarde dans Firestore et met à jour window.currentUser.gasUrl
+    // On relance initApp() pour charger les données
+    const modal = document.getElementById("user-settings-modal");
+    if (modal) modal.remove();
+    await initApp();
 }
 
 // ─── Sidebar Toggle ──────────────────────────────────────
