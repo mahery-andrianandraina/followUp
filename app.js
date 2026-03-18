@@ -410,7 +410,7 @@ function showDashboardLoading() {
         container.id = "dashboard-spinner";
         container.className = "loading-spinner-container";
         container.innerHTML = `
-            <div class="spinner-circle"></div>
+            <div class="loader"></div>
             <div class="loading-text-glow">Synchronisation des données</div>
         `;
         main.appendChild(container);
