@@ -1924,6 +1924,10 @@ function detectCustomCols(cols, menuLabel) {
         FABRIC_DEVO_PHRASES.some(p => sheetNameHints.includes(p))
     );
 
+    // Detect Care Label
+    const CARE_LABEL_PATTERNS = ["care label", "carelabel", "care labels", "care_label", "etiquette soin", "label soin", "label care"];
+    const isCareLabel = CARE_LABEL_PATTERNS.some(p => menuHint.includes(p));
+
     // Detect Trims Devo
     const TRIMS_DEVO_PATTERNS = ["trims devo", "trim devo", "trims dev", "trim dev", "trims development", "trim development"];
     const isTrimsDevo = TRIMS_DEVO_PATTERNS.some(p => menuHint.includes(p));
@@ -1953,6 +1957,7 @@ function detectCustomCols(cols, menuLabel) {
         isFabricAnalysis,
         isFabricDevo, // Added
         isTrimsDevo,
+        isCareLabel,
         nlSubmission: find(["nl submission", "nl sub", "submission nl", "envoi nl", "send nl", "nl send", "nl date", "submission date"]),
         keepSample: find(["keep sample", "keep spl", "keep", "retain", "sample conserv", "echantillon conserv"]),
         trimsDetails: find(["trims detail", "trim detail", "trims details", "accessories detail", "detail trim"]),
@@ -1963,6 +1968,10 @@ function detectCustomCols(cols, menuLabel) {
         client: find(["client", "buyer", "brand", "marque"]),
         description: find(["description", "desc", "name", "nom", "fabric", "tissu", "mati\u00e8re"]),
         comments: find(["comment", "remarks", "note", "observation"]),
+        poDate: find(["po date", "po_date", "date po", "date commande", "order date"]),
+        artworkReceived: find(["artwork received", "artwork receipt", "artwork recu", "artwork re\u00e7u", "received artwork", "art received"]),
+        artworkSubmission: find(["artwork submission", "artwork submit", "submission artwork", "art submission", "artwork envoy"]),
+        artworkApproval: find(["artwork approval", "art approval", "artwork approved", "approval artwork"]),
     };
 }
 
@@ -2323,6 +2332,102 @@ function collectAllAlerts() {
 
     if (samItems.length) all["sample"] = { label: "Sample", items: samItems };
 
+    // ─── CARE LABEL ARTWORK ───────────────────────────────────
+    // Parcourt tous les menus custom identifiés comme Care Label
+    // et génère 3 alertes séquentielles mutuellement exclusives :
+    //   A : PO Date renseignée + Artwork Received vide → relancer supplier
+    //   B : Artwork Received renseignée + Artwork Submission vide → soumettre au client
+    //   C : Artwork Submission renseignée + Artwork Approval vide → relancer pour approval
+    Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(key => {
+        const cfg = SHEET_CONFIG[key];
+        const det = detectCustomCols(cfg.cols, cfg.label);
+        if (!det.isCareLabel) return;
+
+        const rows = state.data[key] || [];
+        const clItems = [];
+
+        const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
+        const getClient = r => det.client ? (r[det.client] || "")  : "";
+
+        rows.forEach(r => {
+            const hasPoDate          = det.poDate          && !!(r[det.poDate]          && String(r[det.poDate]).trim());
+            const hasArtworkReceived = det.artworkReceived && !!(r[det.artworkReceived] && String(r[det.artworkReceived]).trim());
+            const hasArtworkSub      = det.artworkSubmission && !!(r[det.artworkSubmission] && String(r[det.artworkSubmission]).trim());
+            const hasArtworkApproval = det.artworkApproval && !!(r[det.artworkApproval] && String(r[det.artworkApproval]).trim());
+
+            // Approval complété → aucune alerte pour cette ligne
+            if (hasArtworkApproval) return;
+
+            const styleMeta  = getStyle(r);
+            const clientMeta = getClient(r);
+
+            // ── État C : Artwork Submission renseignée + Approval vide ──
+            if (hasArtworkSub && !hasArtworkApproval) {
+                const days = Math.abs(_daysDiff(r[det.artworkSubmission]));
+                const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                clItems.push({
+                    dotCls: "dot-approve", tagCls: "tag-approve",
+                    tagLabel: `${ICONS.clock} Artwork soumis — approval en attente ${days}j${urgBadge}`,
+                    title: `${styleMeta} — Artwork soumis · approval en attente depuis ${days}j`,
+                    action: urgency === "high"
+                        ? `Soumis il y a ${days}j — relancer le client de toute urgence pour l’approval artwork`
+                        : urgency === "mid"
+                            ? `Soumis il y a ${days}j — envoyer un rappel au client pour l’approval artwork`
+                            : `Soumis il y a ${days}j — suivre l’approval artwork`,
+                    style: styleMeta, client: clientMeta,
+                    meta: `Artwork Submission : ${_fmtDate(r[det.artworkSubmission])}${hasArtworkReceived ? " · Reçu le : " + _fmtDate(r[det.artworkReceived]) : ""}`,
+                    urgency, sheet: key, rowIndex: r._rowIndex
+                });
+                return;
+            }
+
+            // ── État B : Artwork Received renseignée + Submission vide ──
+            if (hasArtworkReceived && !hasArtworkSub) {
+                const days = Math.abs(_daysDiff(r[det.artworkReceived]));
+                const urgency = days >= 7 ? "mid" : "low";
+                const urgBadge = urgency === "mid" ? " ⚡" : "";
+                clItems.push({
+                    dotCls: "dot-send", tagCls: "tag-send",
+                    tagLabel: `${ICONS.mail} Artwork reçu — à soumettre au client (${days}j)${urgBadge}`,
+                    title: `${styleMeta} — Artwork reçu il y a ${days}j · soumission client en attente`,
+                    action: `Artwork reçu il y a ${days}j — soumettre au client pour approval et renseigner Artwork Submission`,
+                    style: styleMeta, client: clientMeta,
+                    meta: `Artwork Reçu le : ${_fmtDate(r[det.artworkReceived])}${hasPoDate ? " · PO Date : " + _fmtDate(r[det.poDate]) : ""}`,
+                    urgency, sheet: key, rowIndex: r._rowIndex
+                });
+                return;
+            }
+
+            // ── État A : PO Date renseignée + Artwork Received vide ──
+            if (hasPoDate && !hasArtworkReceived) {
+                const days = Math.abs(_daysDiff(r[det.poDate]));
+                const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
+                const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
+                clItems.push({
+                    dotCls: days >= 14 ? "dot-late" : "dot-risk",
+                    tagCls: days >= 14 ? "tag-late" : "tag-risk",
+                    tagLabel: `${ICONS.alert} Artwork non reçu — ${days}j depuis PO${urgBadge}`,
+                    title: `${styleMeta} — PO passée · artwork non reçu du supplier depuis ${days}j`,
+                    action: `PO datée du ${_fmtDate(r[det.poDate])} — relancer le supplier pour obtenir l’artwork`,
+                    style: styleMeta, client: clientMeta,
+                    meta: `PO Date : ${_fmtDate(r[det.poDate])} · ${days}j sans artwork reçu`,
+                    urgency, sheet: key, rowIndex: r._rowIndex
+                });
+            }
+        });
+
+        if (clItems.length) {
+            const existingKey = all[key];
+            if (existingKey) {
+                existingKey.items.push(...clItems);
+            } else {
+                all[key] = { label: cfg.label, items: clItems };
+            }
+        }
+    });
+
+
     // ─── CUSTOM MENUS ─────────────────────────────────────────
     const _trimsDevoKeepAlerted = new Set();
 
@@ -2337,6 +2442,8 @@ function collectAllAlerts() {
         const getFsr = r => det.fsrNumber && r[det.fsrNumber] && !det.isFabricAnalysis ? ` \u00B7 FSR ${r[det.fsrNumber]}` : "";
 
         const menuLabelLower = cfg.label.toLowerCase();
+        // Care Label → traité par son bloc dédié, skip ici
+        if (det.isCareLabel) return;
         const isBulk = menuLabelLower.includes("bulk") || menuLabelLower.includes("shade");
         const isTrimsDevo = det.isTrimsDevo;
         const isFabricDevo = det.isFabricDevo;
