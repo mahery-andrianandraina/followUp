@@ -26,10 +26,30 @@
             padding-bottom: 1.5rem !important;
         }
 
-        /* Dashboard : lui redonner le scroll s'il déborde */
+        /* Dashboard : scroll vertical complet, cards jamais coupées */
         #dashboard-screen {
             overflow-y: auto;
+            overflow-x: hidden;
             flex: 1;
+            min-height: 0;
+        }
+
+        /* Blocs conteneurs : hauteur auto, jamais contrainte */
+        .dbs-szn-block,
+        .dbs-cli-block,
+        .dbs-main,
+        .dbs-dept-grp,
+        .dbs-cards-wrap {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+        }
+
+        /* Card individuelle : contenu visible + border-radius préservé */
+        .dbs-sc {
+            overflow: hidden !important;
+            height: auto !important;
+            max-height: none !important;
         }
 
         /* Table CSS : elle occupe le reste et scrolle elle-même */
