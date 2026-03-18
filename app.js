@@ -3530,7 +3530,11 @@ function showAppSpinner() {
     <div class="aas-backdrop">
         <div class="aas-card">
             <div class="aas-logo">AW</div>
-            <div class="aas-spinner"></div>
+            <div class="aas-spinner">
+                <div class="aas-dot"></div>
+                <div class="aas-dot"></div>
+                <div class="aas-dot"></div>
+            </div>
             <div class="aas-label">Vérification de la session…</div>
         </div>
     </div>`;
