@@ -3007,28 +3007,29 @@ function collectAllAlerts() {
         if (isBulk) {
             Object.keys(fabricGroups).forEach(f => {
                 const groupData = fabricGroups[f];
-                const stats = { late: 0, today: 0, toSend: 0, pending: 0, oldestSendDays: 0 };
+                const stats = { late: 0, today: 0, toSend: 0, pending: 0, oldestSendDays: 0, lateDates: [], todayDates: [], toSendDates: [], pendingDates: [] };
                 groupData.rows.forEach(r => {
                     const hasReceived = !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
                     const hasSending = !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
                     const hasReady = !!(r[det.readyDate] && String(r[det.readyDate]).trim());
                     if (hasReady && !hasReceived && !hasSending) {
                         const diff = _daysDiff(r[det.readyDate]);
-                        if (diff < 0) stats.late++;
-                        else if (diff === 0) stats.today++;
+                        if (diff < 0) { stats.late++; stats.lateDates.push(_fmtDate(r[det.readyDate])); }
+                        else if (diff === 0) { stats.today++; stats.todayDates.push(_fmtDate(r[det.readyDate])); }
                     } else if (hasReceived && !hasSending) {
-                        stats.toSend++;
+                        stats.toSend++; stats.toSendDates.push(_fmtDate(r[det.receivedDate]));
                     } else if (hasSending && !isApproved(r[det.approval])) {
-                        stats.pending++;
+                        stats.pending++; stats.pendingDates.push(_fmtDate(r[det.sendingDate]));
                         const sendDays = Math.abs(_daysDiff(r[det.sendingDate]));
                         if (sendDays > stats.oldestSendDays) stats.oldestSendDays = sendDays;
                     }
                 });
+                const uniqDates = arr => [...new Set(arr)].join(", ");
                 const groupStyleLabel = [...new Set(groupData.rows.map(r => getStyle(r)).filter(s => s && s !== "—"))].join(", ") || getStyle(groupData.rows[0]);
                 const groupClient = groupData.rows[0].Client || "";
-                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: groupStyleLabel, client: groupClient });
-                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: groupStyleLabel, client: groupClient });
-                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: groupStyleLabel, client: groupClient });
+                if (stats.late > 0) items.push({ dotCls: "dot-late", tagCls: "tag-late", tagLabel: `${ICONS.alert} ${f} — ${stats.late} Retards`, urgency: "high", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Retards détectés`, action: "Relancer supplier", style: groupStyleLabel, client: groupClient, meta: `Ready Date(s) : ${uniqDates(stats.lateDates)}` });
+                if (stats.today > 0) items.push({ dotCls: "dot-today", tagCls: "tag-today", tagLabel: `${ICONS.clock} ${f} — ${stats.today} Aujourd'hui`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Attendus aujourd'hui`, action: "Confirmer réception", style: groupStyleLabel, client: groupClient, meta: `Ready Date(s) : ${uniqDates(stats.todayDates)}` });
+                if (stats.toSend > 0) items.push({ dotCls: "dot-send", tagCls: "tag-send", tagLabel: `${ICONS.package} ${f} — ${stats.toSend} À envoyer`, urgency: "mid", sheet: key, rowIndex: groupData.rows[0]._rowIndex, title: `${f} : Prêts à l'envoi`, action: "Organiser envoi", style: groupStyleLabel, client: groupClient, meta: `Received Date(s) : ${uniqDates(stats.toSendDates)}` });
                 if (stats.pending > 0) {
                     const daysTxt = stats.oldestSendDays > 0 ? ` (envoyé il y a ${stats.oldestSendDays}j)` : "";
                     items.push({
@@ -3036,7 +3037,8 @@ function collectAllAlerts() {
                         tagLabel: `${ICONS.clock} ${f} — ${stats.pending} En attente Approval${daysTxt}`,
                         urgency: "low", sheet: key, rowIndex: groupData.rows[0]._rowIndex,
                         title: `${f} : Approbation client${daysTxt}`,
-                        action: "Suivi approval", style: groupStyleLabel, client: groupClient
+                        action: "Suivi approval", style: groupStyleLabel, client: groupClient,
+                        meta: `Sending Date(s) : ${uniqDates(stats.pendingDates)}`
                     });
                 }
             });
