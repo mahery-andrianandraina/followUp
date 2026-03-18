@@ -884,6 +884,7 @@
 
         let allRequests = [];
         let currentFilter = "pending";
+        let adminGasUrl = null;
 
         // ── Auth ──────────────────────────────────────────────────────
         async function adminLogin() {
@@ -907,6 +908,14 @@
 
         auth.onAuthStateChanged(async (user) => {
             if (user && user.email === ADMIN_EMAIL) {
+                // Récupérer l'URL GAS de l'admin
+                try {
+                    const adminDoc = await db.collection("users").doc(user.uid).get();
+                    if (adminDoc.exists && adminDoc.data().gasUrl) {
+                        adminGasUrl = adminDoc.data().gasUrl;
+                    }
+                } catch (e) { console.warn("Admin GAS URL fetch failed", e); }
+
                 // Afficher l'app
                 document.getElementById("auth-gate").style.display = "none";
                 document.getElementById("app").style.display = "flex";
@@ -1040,10 +1049,13 @@
         async function approveRequest(email) {
             try {
                 // Ajouter / mettre à jour la whitelist
-                await db.collection("whitelist").doc(email).set({
+                const whitelistData = {
                     status: "approved",
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+                };
+                if (adminGasUrl) whitelistData.gasUrl = adminGasUrl;
+
+                await db.collection("whitelist").doc(email).set(whitelistData, { merge: true });
 
                 // Écraser le statut dans access_requests (y compris si "rejected")
                 await db.collection("access_requests").doc(email).set({
@@ -1095,6 +1107,16 @@
                 const snapshot = await db.collection("whitelist").get();
                 const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .filter(u => u.status === "approved");
+
+                // Backfill gasUrl pour les utilisateurs existants
+                if (adminGasUrl) {
+                    users.forEach(u => {
+                        if (!u.gasUrl || u.gasUrl !== adminGasUrl) {
+                            db.collection("whitelist").doc(u.id).update({ gasUrl: adminGasUrl })
+                                .catch(e => console.warn("Backfill failed", e));
+                        }
+                    });
+                }
 
                 document.getElementById("stat-approved").textContent = users.length;
 

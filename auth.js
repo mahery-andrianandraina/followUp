@@ -114,22 +114,16 @@ async function handleUser(firebaseUser) {
             return;
         }
 
-        // ── Étape 2 : Charger URL GAS globale ────────────────
-        const globalDoc = await db.collection("settings").doc("global").get();
+        // ── Étape 2 : Charger URL GAS ─────────────────────────
+        const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
         let gasUrl = null;
 
-        if (globalDoc.exists && globalDoc.data().gasUrl) {
-            gasUrl = globalDoc.data().gasUrl;
-        } else {
-            // Rétrocompatibilité : essayer de charger depuis l'utilisateur
-            const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
-            if (userDoc.exists && userDoc.data().gasUrl) {
-                gasUrl = userDoc.data().gasUrl;
-                // Promouvoir en global
-                try {
-                    await db.collection("settings").doc("global").set({ gasUrl: gasUrl }, { merge: true });
-                } catch (e) { console.warn("Could not save to global settings", e); }
-            }
+        if (whitelistDoc.data().gasUrl) {
+            // L'URL a été injectée par l'admin dans la whitelist!
+            gasUrl = whitelistDoc.data().gasUrl;
+        } else if (userDoc.exists && userDoc.data().gasUrl) {
+            // Rétrocompatibilité : l'utilisateur l'avait déjà configurée
+            gasUrl = userDoc.data().gasUrl;
         }
 
         if (gasUrl) {
@@ -141,6 +135,18 @@ async function handleUser(firebaseUser) {
                 gasUrl: gasUrl
             };
 
+            // Sauvegarde dans le profil utilisateur pour consistance
+            if (!userDoc.exists || userDoc.data().gasUrl !== gasUrl) {
+                await db.collection("users").doc(firebaseUser.uid).set({
+                    email: firebaseUser.email,
+                    displayName: firebaseUser.displayName,
+                    photoURL: firebaseUser.photoURL || "",
+                    gasUrl: gasUrl,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).catch(err => console.warn("Could not sync user doc", err));
+            }
+
             if (isPage("login.html")) {
                 window.location.href = "index.html";
             } else {
@@ -148,7 +154,7 @@ async function handleUser(firebaseUser) {
             }
 
         } else {
-            // Pas de gasUrl -> étape de configuration. On l'affiche, et le premier qui configure l'appliquera à tous.
+            // Pas de gasUrl -> Etape de configuration
             if (isPage("login.html")) {
                 showGasSetupStep(firebaseUser);
             } else {
@@ -174,13 +180,6 @@ async function saveGasUrl(firebaseUser, gasUrl) {
     }
 
     try {
-        await db.collection("settings").doc("global").set({
-            gasUrl: gasUrl,
-            updatedBy: firebaseUser.email,
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
-
-        // Legacy compatibility
         await db.collection("users").doc(firebaseUser.uid).set({
             email: firebaseUser.email,
             displayName: firebaseUser.displayName,
@@ -215,11 +214,10 @@ async function updateGasUrl(newUrl) {
         return;
     }
     try {
-        await db.collection("settings").doc("global").set({
+        await db.collection("users").doc(window.currentUser.uid).update({
             gasUrl: newUrl,
-            updatedBy: window.currentUser.email,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        });
         window.currentUser.gasUrl = newUrl;
         showToast("URL Google Sheet mise à jour ✓", "success");
         await fetchAllData();
