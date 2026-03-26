@@ -4749,3 +4749,13 @@ tr.awb-active-row td { background:#fff8ec !important; }
   }
 
 })();
+const res = await fetch(API_URL, {
+  method: "POST",
+  headers: {
+    "Content-Type": "text/plain"
+  },
+  body: JSON.stringify({
+    prompt: question,
+    context: pageData
+  })
+});
