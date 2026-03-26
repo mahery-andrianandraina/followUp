@@ -4643,3 +4643,436 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
+
+(function () {
+  const API_KEY = "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"; // 
+
+  // ─── Styles ────────────────────────────────────────────────────────────────
+  const style = document.createElement("style");
+  style.textContent = `
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+
+    #fu-chatbot-btn {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(15,52,96,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #fu-chatbot-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 28px rgba(15,52,96,0.6);
+    }
+    #fu-chatbot-btn svg { width: 26px; height: 26px; }
+
+    #fu-chatbot-panel {
+      position: fixed;
+      bottom: 96px;
+      right: 28px;
+      width: 360px;
+      max-height: 520px;
+      background: #ffffff;
+      border-radius: 18px;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.16);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 9998;
+      font-family: 'DM Sans', sans-serif;
+      transform: scale(0.92) translateY(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s ease;
+    }
+    #fu-chatbot-panel.open {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #fu-chat-header {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      padding: 16px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #fu-chat-header .avatar {
+      width: 36px; height: 36px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #fu-chat-header .avatar svg { width: 18px; height: 18px; }
+    #fu-chat-header .info { flex: 1; }
+    #fu-chat-header .name { color: #fff; font-weight: 600; font-size: 14px; }
+    #fu-chat-header .status { color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 1px; }
+    #fu-chat-header .dot {
+      display: inline-block; width: 7px; height: 7px;
+      background: #4ade80; border-radius: 50%; margin-right: 5px;
+    }
+    #fu-close-btn {
+      background: none; border: none; cursor: pointer;
+      color: rgba(255,255,255,0.6); font-size: 20px; line-height: 1;
+      padding: 0; transition: color 0.15s;
+    }
+    #fu-close-btn:hover { color: #fff; }
+
+    #fu-chat-context-bar {
+      background: #f0f7ff;
+      border-bottom: 1px solid #dbeafe;
+      padding: 8px 14px;
+      font-size: 11px;
+      color: #3b82f6;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #fu-chat-context-bar svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    #fu-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      scroll-behavior: smooth;
+    }
+    #fu-chat-messages::-webkit-scrollbar { width: 4px; }
+    #fu-chat-messages::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+
+    .fu-msg {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      animation: fu-pop 0.2s ease;
+    }
+    @keyframes fu-pop {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fu-msg.bot {
+      background: #f1f5f9;
+      color: #1e293b;
+      border-bottom-left-radius: 4px;
+      align-self: flex-start;
+    }
+    .fu-msg.user {
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+      align-self: flex-end;
+    }
+
+    .fu-typing {
+      display: flex; gap: 5px; align-items: center;
+      padding: 12px 14px;
+      background: #f1f5f9;
+      border-radius: 14px;
+      border-bottom-left-radius: 4px;
+      align-self: flex-start;
+      width: fit-content;
+    }
+    .fu-typing span {
+      width: 7px; height: 7px;
+      background: #94a3b8;
+      border-radius: 50%;
+      animation: fu-bounce 1.2s infinite;
+    }
+    .fu-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .fu-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes fu-bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30% { transform: translateY(-5px); }
+    }
+
+    #fu-chat-suggestions {
+      padding: 0 14px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .fu-suggestion {
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .fu-suggestion:hover {
+      background: #0f3460;
+      color: #fff;
+      border-color: #0f3460;
+    }
+
+    #fu-chat-input-area {
+      padding: 12px 14px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+    #fu-chat-input {
+      flex: 1;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 13.5px;
+      font-family: 'DM Sans', sans-serif;
+      resize: none;
+      outline: none;
+      max-height: 80px;
+      line-height: 1.4;
+      color: #1e293b;
+      transition: border-color 0.15s;
+    }
+    #fu-chat-input:focus { border-color: #0f3460; }
+    #fu-chat-input::placeholder { color: #94a3b8; }
+
+    #fu-send-btn {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      border: none; border-radius: 10px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+    #fu-send-btn:hover { opacity: 0.85; }
+    #fu-send-btn svg { width: 16px; height: 16px; }
+  `;
+  document.head.appendChild(style);
+
+  // ─── HTML ──────────────────────────────────────────────────────────────────
+  document.body.insertAdjacentHTML("beforeend", `
+    <button id="fu-chatbot-btn" title="Assistant FollowUp">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </button>
+
+    <div id="fu-chatbot-panel">
+      <div id="fu-chat-header">
+        <div class="avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4l3 3"/>
+          </svg>
+        </div>
+        <div class="info">
+          <div class="name">Assistant FollowUp</div>
+          <div class="status"><span class="dot"></span>En ligne · données de la page</div>
+        </div>
+        <button id="fu-close-btn">×</button>
+      </div>
+
+      <div id="fu-chat-context-bar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Je lis les données affichées sur cette page en temps réel.
+      </div>
+
+      <div id="fu-chat-messages"></div>
+
+      <div id="fu-chat-suggestions">
+        <button class="fu-suggestion">📦 Commandes en attente ?</button>
+        <button class="fu-suggestion">✅ Commandes livrées ?</button>
+        <button class="fu-suggestion">📊 Résumé général</button>
+        <button class="fu-suggestion">⚠️ Retards ?</button>
+      </div>
+
+      <div id="fu-chat-input-area">
+        <textarea id="fu-chat-input" rows="1" placeholder="Posez une question sur vos commandes…"></textarea>
+        <button id="fu-send-btn">
+          <svg viewBox="0 0 24 24" fill="white">
+            <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  `);
+
+  // ─── Logic ─────────────────────────────────────────────────────────────────
+  const panel = document.getElementById("fu-chatbot-panel");
+  const btn = document.getElementById("fu-chatbot-btn");
+  const closeBtn = document.getElementById("fu-close-btn");
+  const messagesEl = document.getElementById("fu-chat-messages");
+  const input = document.getElementById("fu-chat-input");
+  const sendBtn = document.getElementById("fu-send-btn");
+  const suggestions = document.querySelectorAll(".fu-suggestion");
+
+  let isOpen = false;
+  let history = []; // conversation history
+
+  btn.addEventListener("click", () => togglePanel(true));
+  closeBtn.addEventListener("click", () => togglePanel(false));
+
+  function togglePanel(open) {
+    isOpen = open;
+    panel.classList.toggle("open", open);
+    if (open && messagesEl.children.length === 0) {
+      addMessage("bot", "👋 Bonjour ! Je suis votre assistant FollowUp. Posez-moi n'importe quelle question sur vos commandes affichées sur cette page.");
+    }
+  }
+
+  suggestions.forEach(s => {
+    s.addEventListener("click", () => {
+      input.value = s.textContent.replace(/^[^\s]+\s/, "");
+      sendMessage();
+    });
+  });
+
+  sendBtn.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  // Auto-resize textarea
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 80) + "px";
+  });
+
+  function addMessage(role, text) {
+    const div = document.createElement("div");
+    div.className = `fu-msg ${role}`;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement("div");
+    div.className = "fu-typing";
+    div.id = "fu-typing-indicator";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function hideTyping() {
+    const t = document.getElementById("fu-typing-indicator");
+    if (t) t.remove();
+  }
+
+  /**
+   * Extrait tout le texte visible de la page (hors le chatbot lui-même).
+   * Adapté aux tableaux de commandes HTML.
+   */
+  function extractPageData() {
+    // Masquer le panneau chatbot temporairement pour ne pas l'inclure
+    panel.style.visibility = "hidden";
+
+    let data = "";
+
+    // Tableaux HTML → format lisible
+    document.querySelectorAll("table").forEach(table => {
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(row => {
+        const cells = [...row.querySelectorAll("th, td")].map(c => c.innerText.trim());
+        data += cells.join(" | ") + "\n";
+      });
+      data += "\n";
+    });
+
+    // Texte général (headings, paragraphes, listes)
+    const textNodes = document.querySelectorAll("h1,h2,h3,h4,p,li,span,div");
+    textNodes.forEach(el => {
+      if (el.closest("#fu-chatbot-panel, #fu-chatbot-btn")) return;
+      const t = el.innerText?.trim();
+      if (t && t.length > 2 && !data.includes(t)) {
+        data += t + "\n";
+      }
+    });
+
+    panel.style.visibility = "";
+    return data.slice(0, 6000); // limite raisonnable pour le contexte
+  }
+
+  async function sendMessage() {
+    const question = input.value.trim();
+    if (!question) return;
+
+    addMessage("user", question);
+    history.push({ role: "user", content: question });
+    input.value = "";
+    input.style.height = "auto";
+
+    // Suggestions disparaissent après 1ère question
+    document.getElementById("fu-chat-suggestions").style.display = "none";
+
+    showTyping();
+
+    const pageData = extractPageData();
+
+    const systemPrompt = `Tu es un assistant intégré à l'application "FollowUp" de suivi de commandes.
+Tu réponds UNIQUEMENT en te basant sur les données de la page fournies ci-dessous.
+Si l'information n'est pas présente dans les données, dis-le clairement.
+Réponds en français, de façon concise et structurée.
+N'invente aucune donnée.
+
+=== DONNÉES DE LA PAGE ===
+${pageData}
+=== FIN DES DONNÉES ===`;
+
+    try {
+      const messages = [
+        ...history.slice(-6), // garde les 6 derniers échanges
+      ];
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 600,
+          system: systemPrompt,
+          messages: messages,
+        }),
+      });
+
+      const data = await res.json();
+      hideTyping();
+
+      if (data.error) {
+        addMessage("bot", "⚠️ Erreur API : " + data.error.message);
+        return;
+      }
+
+      const reply = data.content?.[0]?.text || "Je n'ai pas pu obtenir une réponse.";
+      addMessage("bot", reply);
+      history.push({ role: "assistant", content: reply });
+
+    } catch (err) {
+      hideTyping();
+      addMessage("bot", "⚠️ Erreur de connexion à l'API. Vérifiez votre clé API.");
+      console.error("FollowUp Chatbot error:", err);
+    }
+  }
+
+})();
