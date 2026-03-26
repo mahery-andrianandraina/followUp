@@ -1,8 +1,3 @@
-// ============================================================
-// AW27 – PATCH : Animation de chargement pro au clic "Enregistrer"
-// À insérer APRÈS le chargement de app.js dans votre HTML :
-//   <script src="save-loader-patch.js"></script>
-// ============================================================
 
 (function () {
 
@@ -225,19 +220,19 @@
     // ─────────────────────────────────────────────────────────
     // 3. SHOW / HIDE
     // ─────────────────────────────────────────────────────────
-    let _subCycle = null;
+    let _subTimers = [];
 
     const SUB_MESSAGES_UPDATE = [
-        "Connexion à la base de données…",
-        "Mise à jour de la ligne…",
-        "Vérification des données…",
-        "Synchronisation en cours…",
+        "Connexion à la base de données…",   // 0 ms  — affiché immédiatement
+        "Mise à jour de la ligne…",           // 800 ms
+        "Vérification des données…",          // 1 600 ms
+        "Synchronisation en cours…",          // 2 400 ms — reste affiché jusqu'au succès
     ];
     const SUB_MESSAGES_CREATE = [
-        "Connexion à la base de données…",
-        "Création de la ligne…",
-        "Validation des champs…",
-        "Synchronisation en cours…",
+        "Connexion à la base de données…",   // 0 ms
+        "Création de la ligne…",              // 800 ms
+        "Validation des champs…",             // 1 600 ms
+        "Synchronisation en cours…",          // 2 400 ms
     ];
 
     function showSaveLoader(isUpdate) {
@@ -254,7 +249,6 @@
 
         card.classList.remove("success");
         if (labelEl) labelEl.textContent = isUpdate ? "Mise à jour…" : "Enregistrement…";
-        if (subEl)   subEl.textContent   = isUpdate ? SUB_MESSAGES_UPDATE[0] : SUB_MESSAGES_CREATE[0];
 
         if (barEl) {
             barEl.className = "aw27-progress-bar";
@@ -266,16 +260,23 @@
         overlay.classList.add("visible");
         if (saveBtn) saveBtn.classList.add("aw27-btn-loading");
 
+        // Afficher les messages dans l'ordre, avec délai fixe entre chacun.
+        // On s'arrête au dernier message — pas de boucle.
         const msgs = isUpdate ? SUB_MESSAGES_UPDATE : SUB_MESSAGES_CREATE;
-        let i = 0;
-        _subCycle = setInterval(() => {
-            i = (i + 1) % msgs.length;
-            if (subEl) subEl.textContent = msgs[i];
-        }, 900);
+        _subTimers.forEach(clearTimeout);
+        _subTimers = [];
+
+        msgs.forEach((msg, i) => {
+            const t = setTimeout(() => {
+                if (subEl) subEl.textContent = msg;
+            }, i * 800);
+            _subTimers.push(t);
+        });
     }
 
     function hideSaveLoader(success) {
-        clearInterval(_subCycle);
+        _subTimers.forEach(clearTimeout);
+        _subTimers = [];
 
         const overlay = document.getElementById("aw27-save-overlay");
         const card    = document.getElementById("aw27-loader-card");
