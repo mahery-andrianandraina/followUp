@@ -4643,10 +4643,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-
+//CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbzuI0oFpOn1h34QiCJ8m-Y83vk0zWeIGb4pi52gsqCYymRG7aO2OjpByl6B701slawB/exec"; // 
+  const API_URL = "https://script.google.com/macros/s/AKfycbwWLXRdDNLeNM-XOFN9GdRqJVEiCw6KIBoXYAdj0rBEtZDDVL-CIb8ZIh4Z_ASC_Umd/exec"; // 
 
   // ─── Styles ────────────────────────────────────────────────────────────────
   const style = document.createElement("style");
