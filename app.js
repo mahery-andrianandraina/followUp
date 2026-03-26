@@ -4644,9 +4644,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT
+//CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbx9XH-EM2JpjITIZQCc4ZlmlPRDZtM8znVLIyvLr6OyG6Da43JOA05_SS03456iO_Fr/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxTzmBF-FLlip3oAXOfjloGyy1tHsUzX2EgECSjyY3rWLp7b8PjAcMdvcmL7UZN878/exec";
 
   const style = document.createElement("style");
   style.textContent = `
@@ -4654,21 +4655,24 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-chatbot-btn { position: fixed; bottom: 28px; right: 28px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(15,52,96,0.45); display: flex; align-items: center; justify-content: center; z-index: 9999; }
     #fu-chatbot-panel { position: fixed; bottom: 96px; right: 28px; width: 360px; max-height: 520px; background: #ffffff; border-radius: 18px; box-shadow: 0 12px 48px rgba(0,0,0,0.16); display: flex; flex-direction: column; overflow: hidden; z-index: 9998; font-family: 'DM Sans', sans-serif; transform: scale(0.92); opacity: 0; pointer-events: none; transition: 0.2s; }
     #fu-chatbot-panel.open { transform: scale(1); opacity: 1; pointer-events: all; }
+    #fu-chat-header { padding: 14px 16px; background: linear-gradient(135deg, #1a1a2e, #0f3460); color: white; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
     #fu-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .fu-msg { padding: 10px 14px; border-radius: 14px; font-size: 13.5px; max-width: 85%; line-height: 1.5; }
-    .fu-msg.bot { background: #f1f5f9; }
+    .fu-msg { padding: 10px 14px; border-radius: 14px; font-size: 13.5px; max-width: 85%; line-height: 1.5; white-space: pre-wrap; }
+    .fu-msg.bot { background: #f1f5f9; color: #1a1a2e; }
     .fu-msg.user { background: #0f3460; color: white; align-self: flex-end; }
     .fu-msg.loading { color: #999; font-style: italic; }
     #fu-chat-input-area { padding: 10px; display: flex; gap: 8px; border-top: 1px solid #f0f0f0; }
     #fu-chat-input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; resize: none; outline: none; }
-    #fu-send-btn { width: 40px; background: #0f3460; border: none; color: white; border-radius: 10px; cursor: pointer; font-size: 16px; }
-    #fu-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    #fu-chat-input:focus { border-color: #0f3460; }
+    #fu-send-btn { width: 40px; background: #0f3460; border: none; color: white; border-radius: 10px; cursor: pointer; font-size: 16px; transition: opacity .2s; }
+    #fu-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   `;
   document.head.appendChild(style);
 
   document.body.insertAdjacentHTML("beforeend", `
     <button id="fu-chatbot-btn">💬</button>
     <div id="fu-chatbot-panel">
+      <div id="fu-chat-header">🤖 Assistant AW27</div>
       <div id="fu-chat-messages"></div>
       <div id="fu-chat-input-area">
         <textarea id="fu-chat-input" placeholder="Pose ta question..." rows="1"></textarea>
@@ -4683,17 +4687,13 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const input    = document.getElementById("fu-chat-input");
   const sendBtn  = document.getElementById("fu-send-btn");
 
-  let history = [];
-  let loading = false;
+  let chatHistory = [];
+  let isLoading   = false;
 
   btn.onclick = () => panel.classList.toggle("open");
-
   sendBtn.onclick = sendMessage;
   input.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   function addMessage(role, text) {
@@ -4711,11 +4711,11 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const cells = [...row.children].map(c => c.innerText.trim());
       data += cells.join(" | ") + "\n";
     });
-    return data.slice(0, 1500); // réduit pour rester dans la limite URL
+    return data.slice(0, 3000);
   }
 
   async function sendMessage() {
-    if (loading) return;
+    if (isLoading) return;
     const question = input.value.trim();
     if (!question) return;
 
@@ -4723,43 +4723,39 @@ tr.awb-active-row td { background:#fff8ec !important; }
     input.value = "";
 
     const loadingDiv = addMessage("bot loading", "⏳ Réflexion en cours...");
-    loading = true;
+    isLoading = true;
     sendBtn.disabled = true;
 
-    const pageData = extractPageData();
-
     try {
-      // ✅ GET request — pas de CORS avec GAS
-      const params = new URLSearchParams({
-        prompt:  question,
-        context: pageData
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" }, // évite le preflight
+        body: JSON.stringify({
+          prompt:  question,
+          context: extractPageData(),
+          history: chatHistory.slice(-6)
+        })
       });
 
-      const res  = await fetch(`${API_URL}?${params.toString()}`);
       const data = await res.json();
-
       loadingDiv.remove();
 
-      const reply =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        data.content?.[0]?.text ||
-        "Pas de réponse.";
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Pas de réponse.";
 
       addMessage("bot", reply);
-      history.push({ role: "user",      content: question });
-      history.push({ role: "assistant", content: reply    });
+      chatHistory.push({ role: "user",      content: question });
+      chatHistory.push({ role: "assistant", content: reply    });
 
     } catch (err) {
       loadingDiv.remove();
-      addMessage("bot", "❌ Erreur de connexion. Réessayez.");
+      addMessage("bot", "❌ Erreur. Vérifiez votre connexion.");
       console.error(err);
     } finally {
-      loading = false;
+      isLoading = false;
       sendBtn.disabled = false;
     }
   }
 
-  // Message de bienvenue
   addMessage("bot", "👋 Bonjour ! Je suis votre assistant AW27. Posez-moi une question sur vos données.");
 
 })();
