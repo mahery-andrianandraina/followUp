@@ -4644,9 +4644,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT
+//CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbwWLXRdDNLeNM-XOFN9GdRqJVEiCw6KIBoXYAdj0rBEtZDDVL-CIb8ZIh4Z_ASC_Umd/exec"; // 
+  const API_URL = "https://script.google.com/macros/s/AKfycbxpo5-orTlwZzUjLnlySjCOhnHebxjvGVj7PbAjBLovriOk0yAwjjmrz_dD3NNg8VBF/exec";
 
   // ─── Styles ────────────────────────────────────────────────────────────────
   const style = document.createElement("style");
@@ -4722,8 +4723,12 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const pageData = extractPageData();
 
     try {
+      // ✅ FIX CORS : utiliser text/plain évite le preflight OPTIONS bloqué par GAS
       const res = await fetch(API_URL, {
         method: "POST",
+        headers: {
+          "Content-Type": "text/plain"  // ← clé du fix !
+        },
         body: JSON.stringify({
           prompt: question,
           context: pageData,
@@ -4749,13 +4754,3 @@ tr.awb-active-row td { background:#fff8ec !important; }
   }
 
 })();
-const res = await fetch(API_URL, {
-  method: "POST",
-  headers: {
-    "Content-Type": "text/plain"
-  },
-  body: JSON.stringify({
-    prompt: question,
-    context: pageData
-  })
-});
