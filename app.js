@@ -4644,10 +4644,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT
-//CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxTzmBF-FLlip3oAXOfjloGyy1tHsUzX2EgECSjyY3rWLp7b8PjAcMdvcmL7UZN878/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbw2F8t-uF_IlP1G9C60N-ReS3y-DRlHyVN_dkjy4oVH-Lhz1nMjATRc3-VdGPFofEDC/exec";
 
   const style = document.createElement("style");
   style.textContent = `
@@ -4729,7 +4728,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     try {
       const res = await fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" }, // évite le preflight
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           prompt:  question,
           context: extractPageData(),
@@ -4740,7 +4739,25 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const data = await res.json();
       loadingDiv.remove();
 
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Pas de réponse.";
+      // Log pour debug
+      console.log("Réponse GAS:", data);
+
+      // Gestion des erreurs remontées par le GAS
+      if (data.error) {
+        addMessage("bot", "❌ Erreur API : " + data.error);
+        return;
+      }
+
+      const reply =
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+        null;
+
+      if (!reply) {
+        console.warn("Structure inattendue :", JSON.stringify(data));
+        addMessage("bot", "⚠️ Réponse vide ou format inattendu. Voir console.");
+        return;
+      }
 
       addMessage("bot", reply);
       chatHistory.push({ role: "user",      content: question });
@@ -4748,8 +4765,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
     } catch (err) {
       loadingDiv.remove();
-      addMessage("bot", "❌ Erreur. Vérifiez votre connexion.");
-      console.error(err);
+      addMessage("bot", "❌ Erreur réseau. Vérifiez votre connexion.");
+      console.error("Erreur fetch:", err);
     } finally {
       isLoading = false;
       sendBtn.disabled = false;
