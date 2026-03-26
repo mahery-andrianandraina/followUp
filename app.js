@@ -4705,12 +4705,44 @@ tr.awb-active-row td { background:#fff8ec !important; }
   }
 
   function extractPageData() {
-    let data = "";
-    document.querySelectorAll("table tr").forEach(row => {
-      const cells = [...row.children].map(c => c.innerText.trim());
-      data += cells.join(" | ") + "\n";
+    let result = "";
+
+    // Titre de la page
+    result += "=== PAGE : " + document.title + " ===\n\n";
+
+    // Tous les tableaux avec leurs titres
+    const tables = document.querySelectorAll("table");
+    tables.forEach((table, tableIndex) => {
+
+      // Chercher un titre proche du tableau (h1, h2, h3, caption)
+      const caption = table.querySelector("caption");
+      const prevHeading = table.closest("section, div")
+        ?.querySelector("h1, h2, h3, h4");
+
+      const tableTitle = caption?.innerText
+        || prevHeading?.innerText
+        || ("Tableau " + (tableIndex + 1));
+
+      result += "--- " + tableTitle + " ---\n";
+
+      const rows = table.querySelectorAll("tr");
+      rows.forEach(row => {
+        const cells = [...row.children].map(c => c.innerText.trim().replace(/\n/g, " "));
+        if (cells.some(c => c !== "")) {
+          result += cells.join(" | ") + "\n";
+        }
+      });
+
+      result += "\n";
     });
-    return data.slice(0, 3000);
+
+    // Si aucun tableau trouvé
+    if (tables.length === 0) {
+      result += "Aucun tableau détecté sur la page.\n";
+    }
+
+    // Limiter à 6000 caractères (Groq accepte plus que Gemini)
+    return result.slice(0, 6000);
   }
 
   async function sendMessage() {
@@ -4721,17 +4753,19 @@ tr.awb-active-row td { background:#fff8ec !important; }
     addMessage("user", question);
     input.value = "";
 
-    const loadingDiv = addMessage("bot loading", "⏳ Réflexion en cours...");
+    const loadingDiv = addMessage("bot loading", "⏳ Analyse en cours...");
     isLoading = true;
     sendBtn.disabled = true;
 
     try {
+      const pageData = extractPageData();
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
-          prompt:  question,
-          context: extractPageData(),
+          prompt: question,
+          context: pageData,
           history: chatHistory.slice(-6)
         })
       });
@@ -4739,23 +4773,18 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const data = await res.json();
       loadingDiv.remove();
 
-      // Log pour debug
       console.log("Réponse GAS:", data);
 
-      // Gestion des erreurs remontées par le GAS
       if (data.error) {
         addMessage("bot", "❌ Erreur API : " + data.error);
         return;
       }
 
-      const reply =
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-        null;
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
 
       if (!reply) {
         console.warn("Structure inattendue :", JSON.stringify(data));
-        addMessage("bot", "⚠️ Réponse vide ou format inattendu. Voir console.");
+        addMessage("bot", "⚠️ Réponse vide. Voir console.");
         return;
       }
 
@@ -4773,6 +4802,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
   }
 
-  addMessage("bot", "👋 Bonjour ! Je suis votre assistant AW27. Posez-moi une question sur vos données.");
+  // Message de bienvenue avec résumé des données détectées
+  const tables = document.querySelectorAll("table");
+  const nbRows = [...document.querySelectorAll("table tr")].length;
+  addMessage("bot", `👋 Bonjour ! Je suis votre assistant AW27.\n\n📊 J'ai détecté ${tables.length} tableau(x) avec ${nbRows} lignes sur cette page.\n\nPosez-moi une question sur vos données !`);
 
 })();
