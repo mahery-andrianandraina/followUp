@@ -4644,12 +4644,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT
-//CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxpo5-orTlwZzUjLnlySjCOhnHebxjvGVj7PbAjBLovriOk0yAwjjmrz_dD3NNg8VBF/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbx9XH-EM2JpjITIZQCc4ZlmlPRDZtM8znVLIyvLr6OyG6Da43JOA05_SS03456iO_Fr/exec";
 
-  // ─── Styles ────────────────────────────────────────────────────────────────
   const style = document.createElement("style");
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
@@ -4657,34 +4655,36 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-chatbot-panel { position: fixed; bottom: 96px; right: 28px; width: 360px; max-height: 520px; background: #ffffff; border-radius: 18px; box-shadow: 0 12px 48px rgba(0,0,0,0.16); display: flex; flex-direction: column; overflow: hidden; z-index: 9998; font-family: 'DM Sans', sans-serif; transform: scale(0.92); opacity: 0; pointer-events: none; transition: 0.2s; }
     #fu-chatbot-panel.open { transform: scale(1); opacity: 1; pointer-events: all; }
     #fu-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .fu-msg { padding: 10px 14px; border-radius: 14px; font-size: 13.5px; max-width: 85%; }
+    .fu-msg { padding: 10px 14px; border-radius: 14px; font-size: 13.5px; max-width: 85%; line-height: 1.5; }
     .fu-msg.bot { background: #f1f5f9; }
     .fu-msg.user { background: #0f3460; color: white; align-self: flex-end; }
-    #fu-chat-input-area { padding: 10px; display: flex; gap: 8px; }
-    #fu-chat-input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 10px; }
-    #fu-send-btn { width: 40px; background: #0f3460; border: none; color: white; border-radius: 10px; cursor: pointer; }
+    .fu-msg.loading { color: #999; font-style: italic; }
+    #fu-chat-input-area { padding: 10px; display: flex; gap: 8px; border-top: 1px solid #f0f0f0; }
+    #fu-chat-input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; resize: none; outline: none; }
+    #fu-send-btn { width: 40px; background: #0f3460; border: none; color: white; border-radius: 10px; cursor: pointer; font-size: 16px; }
+    #fu-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   `;
   document.head.appendChild(style);
 
-  // ─── HTML ──────────────────────────────────────────────────────────────────
   document.body.insertAdjacentHTML("beforeend", `
     <button id="fu-chatbot-btn">💬</button>
     <div id="fu-chatbot-panel">
       <div id="fu-chat-messages"></div>
       <div id="fu-chat-input-area">
-        <textarea id="fu-chat-input" placeholder="Pose ta question..."></textarea>
+        <textarea id="fu-chat-input" placeholder="Pose ta question..." rows="1"></textarea>
         <button id="fu-send-btn">➤</button>
       </div>
     </div>
   `);
 
-  const panel = document.getElementById("fu-chatbot-panel");
-  const btn = document.getElementById("fu-chatbot-btn");
-  const messagesEl = document.getElementById("fu-chat-messages");
-  const input = document.getElementById("fu-chat-input");
-  const sendBtn = document.getElementById("fu-send-btn");
+  const panel    = document.getElementById("fu-chatbot-panel");
+  const btn      = document.getElementById("fu-chatbot-btn");
+  const messages = document.getElementById("fu-chat-messages");
+  const input    = document.getElementById("fu-chat-input");
+  const sendBtn  = document.getElementById("fu-send-btn");
 
   let history = [];
+  let loading = false;
 
   btn.onclick = () => panel.classList.toggle("open");
 
@@ -4700,8 +4700,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const div = document.createElement("div");
     div.className = "fu-msg " + role;
     div.textContent = text;
-    messagesEl.appendChild(div);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
   }
 
   function extractPageData() {
@@ -4710,33 +4711,34 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const cells = [...row.children].map(c => c.innerText.trim());
       data += cells.join(" | ") + "\n";
     });
-    return data.slice(0, 5000);
+    return data.slice(0, 1500); // réduit pour rester dans la limite URL
   }
 
   async function sendMessage() {
+    if (loading) return;
     const question = input.value.trim();
     if (!question) return;
 
     addMessage("user", question);
     input.value = "";
 
+    const loadingDiv = addMessage("bot loading", "⏳ Réflexion en cours...");
+    loading = true;
+    sendBtn.disabled = true;
+
     const pageData = extractPageData();
 
     try {
-      // ✅ FIX CORS : utiliser text/plain évite le preflight OPTIONS bloqué par GAS
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain"  // ← clé du fix !
-        },
-        body: JSON.stringify({
-          prompt: question,
-          context: pageData,
-          history: history.slice(-6)
-        })
+      // ✅ GET request — pas de CORS avec GAS
+      const params = new URLSearchParams({
+        prompt:  question,
+        context: pageData
       });
 
+      const res  = await fetch(`${API_URL}?${params.toString()}`);
       const data = await res.json();
+
+      loadingDiv.remove();
 
       const reply =
         data.candidates?.[0]?.content?.parts?.[0]?.text ||
@@ -4744,13 +4746,20 @@ tr.awb-active-row td { background:#fff8ec !important; }
         "Pas de réponse.";
 
       addMessage("bot", reply);
-      history.push({ role: "user", content: question });
-      history.push({ role: "assistant", content: reply });
+      history.push({ role: "user",      content: question });
+      history.push({ role: "assistant", content: reply    });
 
     } catch (err) {
-      addMessage("bot", "Erreur de connexion.");
+      loadingDiv.remove();
+      addMessage("bot", "❌ Erreur de connexion. Réessayez.");
       console.error(err);
+    } finally {
+      loading = false;
+      sendBtn.disabled = false;
     }
   }
+
+  // Message de bienvenue
+  addMessage("bot", "👋 Bonjour ! Je suis votre assistant AW27. Posez-moi une question sur vos données.");
 
 })();
