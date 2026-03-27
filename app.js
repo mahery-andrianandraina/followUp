@@ -4851,7 +4851,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <div id="fu-header-info">
           <div id="fu-header-title">Assistant AW27</div>
           <div id="fu-header-sub">
-            <span id="fu-online-dot"></span> En ligne · Analyse votre page
+            <span id="fu-online-dot"></span> En ligne · Analyse vos données
           </div>
         </div>
         <button id="fu-close-btn">✕</button>
@@ -4900,7 +4900,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const tables = document.querySelectorAll("table");
       const nbRows = [...document.querySelectorAll("table tr")].length;
       setTimeout(() => {
-        addBotMessage(`${greeting} **${userName}** 👋\n\nJe suis votre assistant AW27. J'ai détecté **${tables.length} tableau(x)** avec **${nbRows} lignes** sur cette page.\n\nQue souhaitez-vous savoir ?`);
+        addBotMessage(`${greeting} **${userName}** ✨\n\nVotre collection AW27 est chargée — **${nbRows} entrées** détectées sur cette page.\n\nPostez votre question, je m'occupe du reste `);
       }, 300);
     }
   };
