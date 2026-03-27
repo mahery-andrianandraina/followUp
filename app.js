@@ -4646,7 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxk5GT5WbXcERZ9rQdbKXlhbyrqmTp8-AEH_CwXs_zRlkazFvGOays2IMJ5dx0IUiG8/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbwxQMoclB991Rp0VcnufFvM5T95EnaJhqA7t9m2xhtLBwJqXtgefbWf7Teg23CCmHle/exec";
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
   function getUserName() {
