@@ -4979,22 +4979,41 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Extraction données page ───────────────────────────────────
   function extractPageData() {
-    let result = "=== PAGE : " + document.title + " ===\n\n";
-    const tables = document.querySelectorAll("table");
-    tables.forEach((table, i) => {
-      const caption = table.querySelector("caption");
-      const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
-      const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
-      result += "--- " + title + " ---\n";
-      table.querySelectorAll("tr").forEach(row => {
-        const cells = [...row.children].map(c => c.innerText.trim().replace(/\n/g, " "));
-        if (cells.some(c => c)) result += cells.join(" | ") + "\n";
-      });
-      result += "\n";
-    });
-    return result.slice(0, 6000);
-  }
+  let result = "=== PAGE : " + document.title + " ===\n\n";
+  const tables = document.querySelectorAll("table");
 
+  tables.forEach((table, i) => {
+    const caption = table.querySelector("caption");
+    const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
+    const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
+    result += "--- " + title + " ---\n";
+
+    table.querySelectorAll("tr").forEach(row => {
+      const cells = [...row.children].map(c => getCellValue(c));
+      if (cells.some(c => c)) result += cells.join(" | ") + "\n";
+    });
+    result += "\n";
+  });
+
+  return result.slice(0, 6000);
+}
+
+function getCellValue(cell) {
+  // Select → valeur sélectionnée uniquement
+  const select = cell.querySelector("select");
+  if (select) {
+    const val = select.options[select.selectedIndex];
+    return (val && val.value && val.value !== "") ? val.text.trim() : "—";
+  }
+  // Input texte
+  const input = cell.querySelector("input[type='text'], input:not([type])");
+  if (input) return input.value.trim() || "—";
+  // Checkbox
+  const checkbox = cell.querySelector("input[type='checkbox']");
+  if (checkbox) return checkbox.checked ? "✓" : "✗";
+  // Defaut
+  return cell.innerText.trim().replace(/\n/g, " ");
+}
   // ── Envoi message ─────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
