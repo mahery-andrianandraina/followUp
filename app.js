@@ -4674,7 +4674,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border: none; cursor: pointer;
       box-shadow: 0 4px 24px rgba(83,52,131,0.5);
       display: flex; align-items: center; justify-content: center;
-      z-index: 9999; transition: transform 0.2s, box-shadow 0.2s;
+      z-index: 10001; transition: transform 0.2s, box-shadow 0.2s;
     }
     #fu-chatbot-btn:hover {
       transform: scale(1.08);
@@ -4696,7 +4696,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 20px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.18);
       display: flex; flex-direction: column;
-      overflow: hidden; z-index: 9998;
+      overflow: hidden; z-index: 10000;
       font-family: 'Inter', sans-serif;
       transform: translateY(20px) scale(0.95);
       opacity: 0; pointer-events: none;
@@ -4736,6 +4736,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 8px; cursor: pointer; font-size: 14px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
+      position: relative; z-index: 10001;
+      pointer-events: all !important;
     }
     #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
 
@@ -4792,6 +4794,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-suggestions {
       padding: 0 12px 10px;
       display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    #fu-suggestions.hidden {
+      display: none;
     }
     .fu-suggestion {
       padding: 5px 11px; border-radius: 20px;
@@ -4908,6 +4914,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
   suggestions.forEach(s => {
     s.onclick = () => {
       input.value = s.innerText.replace(/^[\s\S]{0,3}/, "").trim();
+      const suggestionsEl = document.getElementById("fu-suggestions");
+      if (suggestionsEl) suggestionsEl.classList.add("hidden");
       sendMessage();
     };
   });
@@ -4994,6 +5002,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const question = input.value.trim();
     if (!question) return;
 
+    // Cacher les suggestions après le premier message
+    const suggestionsEl = document.getElementById("fu-suggestions");
+    if (suggestionsEl) suggestionsEl.classList.add("hidden");
+
     addUserMessage(question);
     input.value = "";
     input.style.height = "auto";
@@ -5043,3 +5055,4 @@ tr.awb-active-row td { background:#fff8ec !important; }
   }
 
 })();
+
