@@ -4648,163 +4648,398 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   const API_URL = "https://script.google.com/macros/s/AKfycbxk5GT5WbXcERZ9rQdbKXlhbyrqmTp8-AEH_CwXs_zRlkazFvGOays2IMJ5dx0IUiG8/exec";
 
+  // ── Récupérer le nom utilisateur ──────────────────────────────
+  function getUserName() {
+    // Source principale : Firebase window.currentUser.displayName
+    if (window.currentUser && window.currentUser.displayName) {
+      return window.currentUser.displayName.trim().split(" ")[0];
+    }
+    // Fallback : élément HTML #usm-name (modal "Mon compte")
+    const el = document.getElementById("usm-name");
+    if (el && el.textContent.trim() && el.textContent.trim() !== "—") {
+      return el.textContent.trim().split(" ")[0];
+    }
+    return "vous";
+  }
+
+  // ── Styles ────────────────────────────────────────────────────
   const style = document.createElement("style");
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-    #fu-chatbot-btn { position: fixed; bottom: 28px; right: 28px; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%); border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(15,52,96,0.45); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-    #fu-chatbot-panel { position: fixed; bottom: 96px; right: 28px; width: 360px; max-height: 520px; background: #ffffff; border-radius: 18px; box-shadow: 0 12px 48px rgba(0,0,0,0.16); display: flex; flex-direction: column; overflow: hidden; z-index: 9998; font-family: 'DM Sans', sans-serif; transform: scale(0.92); opacity: 0; pointer-events: none; transition: 0.2s; }
-    #fu-chatbot-panel.open { transform: scale(1); opacity: 1; pointer-events: all; }
-    #fu-chat-header { padding: 14px 16px; background: linear-gradient(135deg, #1a1a2e, #0f3460); color: white; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-    #fu-chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .fu-msg { padding: 10px 14px; border-radius: 14px; font-size: 13.5px; max-width: 85%; line-height: 1.5; white-space: pre-wrap; }
-    .fu-msg.bot { background: #f1f5f9; color: #1a1a2e; }
-    .fu-msg.user { background: #0f3460; color: white; align-self: flex-end; }
-    .fu-msg.loading { color: #999; font-style: italic; }
-    #fu-chat-input-area { padding: 10px; display: flex; gap: 8px; border-top: 1px solid #f0f0f0; }
-    #fu-chat-input { flex: 1; border: 1px solid #ddd; border-radius: 10px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 13px; resize: none; outline: none; }
-    #fu-chat-input:focus { border-color: #0f3460; }
-    #fu-send-btn { width: 40px; background: #0f3460; border: none; color: white; border-radius: 10px; cursor: pointer; font-size: 16px; transition: opacity .2s; }
-    #fu-send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    #fu-chatbot-btn {
+      position: fixed; bottom: 28px; right: 28px;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, #0f3460, #533483);
+      border: none; cursor: pointer;
+      box-shadow: 0 4px 24px rgba(83,52,131,0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #fu-chatbot-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 6px 32px rgba(83,52,131,0.65);
+    }
+    #fu-chatbot-btn svg { width: 24px; height: 24px; }
+
+    #fu-notif-badge {
+      position: absolute; top: -2px; right: -2px;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #e74c3c; border: 2px solid white;
+      display: none;
+    }
+
+    #fu-chatbot-panel {
+      position: fixed; bottom: 96px; right: 28px;
+      width: 380px; height: 560px;
+      background: #f8f9fc;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      display: flex; flex-direction: column;
+      overflow: hidden; z-index: 9998;
+      font-family: 'Inter', sans-serif;
+      transform: translateY(20px) scale(0.95);
+      opacity: 0; pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    #fu-chatbot-panel.open {
+      transform: translateY(0) scale(1);
+      opacity: 1; pointer-events: all;
+    }
+
+    #fu-chat-header {
+      padding: 16px 18px;
+      background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
+      color: white;
+      display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
+    }
+    #fu-header-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; flex-shrink: 0;
+    }
+    #fu-header-info { flex: 1; }
+    #fu-header-title { font-weight: 600; font-size: 14px; }
+    #fu-header-sub {
+      font-size: 11px; opacity: 0.75; margin-top: 1px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    #fu-online-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #2ecc71; display: inline-block;
+    }
+    #fu-close-btn {
+      background: rgba(255,255,255,0.15); border: none;
+      color: white; width: 28px; height: 28px;
+      border-radius: 8px; cursor: pointer; font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s;
+    }
+    #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
+
+    #fu-chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+      scroll-behavior: smooth;
+    }
+    #fu-chat-messages::-webkit-scrollbar { width: 4px; }
+    #fu-chat-messages::-webkit-scrollbar-track { background: transparent; }
+    #fu-chat-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+    .fu-msg-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .fu-msg-wrap.user { align-items: flex-end; }
+    .fu-msg-wrap.bot { align-items: flex-start; }
+
+    .fu-msg {
+      padding: 10px 14px; border-radius: 16px;
+      font-size: 13px; max-width: 82%; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .fu-msg.bot {
+      background: white; color: #1a1a2e;
+      border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .fu-msg.user {
+      background: linear-gradient(135deg, #0f3460, #533483);
+      color: white; border-bottom-right-radius: 4px;
+    }
+    .fu-msg-time {
+      font-size: 10px; color: #aaa; padding: 0 4px;
+    }
+
+    .fu-typing {
+      display: flex; align-items: center; gap: 4px;
+      padding: 12px 16px; background: white;
+      border-radius: 16px; border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      width: fit-content;
+    }
+    .fu-typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #0f3460; opacity: 0.4;
+      animation: fu-bounce 1.2s infinite;
+    }
+    .fu-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .fu-typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes fu-bounce {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    #fu-suggestions {
+      padding: 0 12px 10px;
+      display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
+    }
+    .fu-suggestion {
+      padding: 5px 11px; border-radius: 20px;
+      border: 1px solid #dde; background: white;
+      font-size: 11.5px; color: #0f3460; cursor: pointer;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.15s;
+    }
+    .fu-suggestion:hover {
+      background: #0f3460; color: white; border-color: #0f3460;
+    }
+
+    #fu-chat-input-area {
+      padding: 10px 12px; display: flex; gap: 8px;
+      border-top: 1px solid #eef; background: white;
+      flex-shrink: 0; align-items: flex-end;
+    }
+    #fu-chat-input {
+      flex: 1; border: 1.5px solid #e8e8f0;
+      border-radius: 12px; padding: 9px 13px;
+      font-family: 'Inter', sans-serif; font-size: 13px;
+      resize: none; outline: none; max-height: 80px;
+      transition: border-color 0.2s; line-height: 1.4;
+      background: #f8f9fc;
+    }
+    #fu-chat-input:focus { border-color: #533483; background: white; }
+    #fu-send-btn {
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: linear-gradient(135deg, #0f3460, #533483);
+      border: none; color: white; border-radius: 12px;
+      cursor: pointer; font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.2s, transform 0.15s;
+    }
+    #fu-send-btn:hover { transform: scale(1.05); }
+    #fu-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
   `;
   document.head.appendChild(style);
 
+  // ── HTML ──────────────────────────────────────────────────────
   document.body.insertAdjacentHTML("beforeend", `
-    <button id="fu-chatbot-btn">💬</button>
+    <button id="fu-chatbot-btn">
+      <div id="fu-notif-badge"></div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    </button>
     <div id="fu-chatbot-panel">
-      <div id="fu-chat-header">🤖 Assistant AW27</div>
+      <div id="fu-chat-header">
+        <div id="fu-header-avatar">🤖</div>
+        <div id="fu-header-info">
+          <div id="fu-header-title">Assistant AW27</div>
+          <div id="fu-header-sub">
+            <span id="fu-online-dot"></span> En ligne · Analyse votre page
+          </div>
+        </div>
+        <button id="fu-close-btn">✕</button>
+      </div>
       <div id="fu-chat-messages"></div>
+      <div id="fu-suggestions">
+        <button class="fu-suggestion">📊 Résumé</button>
+        <button class="fu-suggestion">⚠️ Alertes</button>
+        <button class="fu-suggestion">📦 Statut PO</button>
+        <button class="fu-suggestion">🧵 Fabrics</button>
+      </div>
       <div id="fu-chat-input-area">
-        <textarea id="fu-chat-input" placeholder="Pose ta question..." rows="1"></textarea>
-        <button id="fu-send-btn">➤</button>
+        <textarea id="fu-chat-input" placeholder="Posez votre question..." rows="1"></textarea>
+        <button id="fu-send-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+            <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
       </div>
     </div>
   `);
 
-  const panel    = document.getElementById("fu-chatbot-panel");
-  const btn      = document.getElementById("fu-chatbot-btn");
-  const messages = document.getElementById("fu-chat-messages");
-  const input    = document.getElementById("fu-chat-input");
-  const sendBtn  = document.getElementById("fu-send-btn");
+  // ── Refs ──────────────────────────────────────────────────────
+  const panel       = document.getElementById("fu-chatbot-panel");
+  const btn         = document.getElementById("fu-chatbot-btn");
+  const closeBtn    = document.getElementById("fu-close-btn");
+  const messagesEl  = document.getElementById("fu-chat-messages");
+  const input       = document.getElementById("fu-chat-input");
+  const sendBtn     = document.getElementById("fu-send-btn");
+  const badge       = document.getElementById("fu-notif-badge");
+  const suggestions = document.querySelectorAll(".fu-suggestion");
 
   let chatHistory = [];
   let isLoading   = false;
+  let hasOpened   = false;
 
-  btn.onclick = () => panel.classList.toggle("open");
-  sendBtn.onclick = sendMessage;
+  // ── Ouverture / fermeture ─────────────────────────────────────
+  btn.onclick = () => {
+    panel.classList.add("open");
+    badge.style.display = "none";
+    if (!hasOpened) {
+      hasOpened = true;
+      const userName = getUserName();
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+      const tables = document.querySelectorAll("table");
+      const nbRows = [...document.querySelectorAll("table tr")].length;
+      setTimeout(() => {
+        addBotMessage(`${greeting} **${userName}** 👋\n\nJe suis votre assistant AW27. J'ai détecté **${tables.length} tableau(x)** avec **${nbRows} lignes** sur cette page.\n\nQue souhaitez-vous savoir ?`);
+      }, 300);
+    }
+  };
+
+  closeBtn.onclick = () => panel.classList.remove("open");
+
+  // Badge notification après 3s
+  setTimeout(() => { badge.style.display = "block"; }, 3000);
+
+  // ── Suggestions rapides ───────────────────────────────────────
+  suggestions.forEach(s => {
+    s.onclick = () => {
+      input.value = s.innerText.replace(/^[\s\S]{0,3}/, "").trim();
+      sendMessage();
+    };
+  });
+
+  // ── Auto-resize textarea ──────────────────────────────────────
+  input.addEventListener("input", () => {
+    input.style.height = "auto";
+    input.style.height = Math.min(input.scrollHeight, 80) + "px";
+  });
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
+  sendBtn.onclick = sendMessage;
 
-  function addMessage(role, text) {
-    const div = document.createElement("div");
-    div.className = "fu-msg " + role;
-    div.textContent = text;
-    messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
-    return div;
+  // ── Helpers messages ─────────────────────────────────────────
+  function getTime() {
+    return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
 
+  function addBotMessage(text) {
+    const wrap = document.createElement("div");
+    wrap.className = "fu-msg-wrap bot";
+    const msg = document.createElement("div");
+    msg.className = "fu-msg bot";
+    msg.innerHTML = text
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>");
+    const time = document.createElement("div");
+    time.className = "fu-msg-time";
+    time.textContent = getTime();
+    wrap.appendChild(msg);
+    wrap.appendChild(time);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return wrap;
+  }
+
+  function addUserMessage(text) {
+    const wrap = document.createElement("div");
+    wrap.className = "fu-msg-wrap user";
+    const msg = document.createElement("div");
+    msg.className = "fu-msg user";
+    msg.textContent = text;
+    const time = document.createElement("div");
+    time.className = "fu-msg-time";
+    time.textContent = getTime();
+    wrap.appendChild(msg);
+    wrap.appendChild(time);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addTyping() {
+    const wrap = document.createElement("div");
+    wrap.className = "fu-msg-wrap bot";
+    wrap.id = "fu-typing";
+    wrap.innerHTML = `<div class="fu-typing"><span></span><span></span><span></span></div>`;
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return wrap;
+  }
+
+  // ── Extraction données page ───────────────────────────────────
   function extractPageData() {
-    let result = "";
-
-    // Titre de la page
-    result += "=== PAGE : " + document.title + " ===\n\n";
-
-    // Tous les tableaux avec leurs titres
+    let result = "=== PAGE : " + document.title + " ===\n\n";
     const tables = document.querySelectorAll("table");
-    tables.forEach((table, tableIndex) => {
-
-      // Chercher un titre proche du tableau (h1, h2, h3, caption)
+    tables.forEach((table, i) => {
       const caption = table.querySelector("caption");
-      const prevHeading = table.closest("section, div")
-        ?.querySelector("h1, h2, h3, h4");
-
-      const tableTitle = caption?.innerText
-        || prevHeading?.innerText
-        || ("Tableau " + (tableIndex + 1));
-
-      result += "--- " + tableTitle + " ---\n";
-
-      const rows = table.querySelectorAll("tr");
-      rows.forEach(row => {
+      const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
+      const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
+      result += "--- " + title + " ---\n";
+      table.querySelectorAll("tr").forEach(row => {
         const cells = [...row.children].map(c => c.innerText.trim().replace(/\n/g, " "));
-        if (cells.some(c => c !== "")) {
-          result += cells.join(" | ") + "\n";
-        }
+        if (cells.some(c => c)) result += cells.join(" | ") + "\n";
       });
-
       result += "\n";
     });
-
-    // Si aucun tableau trouvé
-    if (tables.length === 0) {
-      result += "Aucun tableau détecté sur la page.\n";
-    }
-
-    // Limiter à 6000 caractères (Groq accepte plus que Gemini)
     return result.slice(0, 6000);
   }
 
+  // ── Envoi message ─────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
     const question = input.value.trim();
     if (!question) return;
 
-    addMessage("user", question);
+    addUserMessage(question);
     input.value = "";
+    input.style.height = "auto";
 
-    const loadingDiv = addMessage("bot loading", "⏳ Analyse en cours...");
+    const typingEl = addTyping();
     isLoading = true;
     sendBtn.disabled = true;
 
     try {
-      const pageData = extractPageData();
-
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
-          prompt: question,
-          context: pageData,
+          prompt:  question,
+          context: extractPageData(),
           history: chatHistory.slice(-6)
         })
       });
 
       const data = await res.json();
-      loadingDiv.remove();
-
-      console.log("Réponse GAS:", data);
+      typingEl.remove();
 
       if (data.error) {
-        addMessage("bot", "❌ Erreur API : " + data.error);
+        addBotMessage("❌ Erreur : " + data.error);
         return;
       }
 
       const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-
       if (!reply) {
+        addBotMessage("⚠️ Réponse vide. Vérifiez la console.");
         console.warn("Structure inattendue :", JSON.stringify(data));
-        addMessage("bot", "⚠️ Réponse vide. Voir console.");
         return;
       }
 
-      addMessage("bot", reply);
+      addBotMessage(reply);
       chatHistory.push({ role: "user",      content: question });
       chatHistory.push({ role: "assistant", content: reply    });
 
     } catch (err) {
-      loadingDiv.remove();
-      addMessage("bot", "❌ Erreur réseau. Vérifiez votre connexion.");
-      console.error("Erreur fetch:", err);
+      typingEl.remove();
+      addBotMessage("❌ Erreur réseau. Vérifiez votre connexion.");
+      console.error(err);
     } finally {
       isLoading = false;
       sendBtn.disabled = false;
     }
   }
-
-  // Message de bienvenue avec résumé des données détectées
-  const tables = document.querySelectorAll("table");
-  const nbRows = [...document.querySelectorAll("table tr")].length;
-  addMessage("bot", `👋 Bonjour ! Je suis votre assistant AW27.\n\n📊 J'ai détecté ${tables.length} tableau(x) avec ${nbRows} lignes sur cette page.\n\nPosez-moi une question sur vos données !`);
 
 })();
