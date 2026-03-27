@@ -4646,7 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbwd7Bme3_XaSnVDr0-YyHj2UDgzR39lelhcaLQci4V7pDtHWeEnR1ajEnDmcWnucbiV/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxk5GT5WbXcERZ9rQdbKXlhbyrqmTp8-AEH_CwXs_zRlkazFvGOays2IMJ5dx0IUiG8/exec";
 
   const style = document.createElement("style");
   style.textContent = `
