@@ -4649,11 +4649,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
   function getUserName() {
-    // Source principale : Firebase window.currentUser.displayName
     if (window.currentUser && window.currentUser.displayName) {
       return window.currentUser.displayName.trim().split(" ")[0];
     }
-    // Fallback : élément HTML #usm-name (modal "Mon compte")
     const el = document.getElementById("usm-name");
     if (el && el.textContent.trim() && el.textContent.trim() !== "—") {
       return el.textContent.trim().split(" ")[0];
@@ -4883,6 +4881,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const badge       = document.getElementById("fu-notif-badge");
   const suggestions = document.querySelectorAll(".fu-suggestion");
 
+  // ✅ FIX : historique étendu à 10 messages (5 échanges) pour meilleure mémoire
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
@@ -4898,8 +4897,14 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
       const tables = document.querySelectorAll("table");
       const nbRows = [...document.querySelectorAll("table tr")].length;
+
       setTimeout(() => {
-        addBotMessage(`${greeting} **${userName}** 👋\n\nJe suis votre assistant AW27. J'ai détecté **${tables.length} tableau(x)** avec **${nbRows} lignes** sur cette page.\n\nQue souhaitez-vous savoir ?`);
+        const welcomeMsg = `${greeting} **${userName}** 👋\n\nJe suis votre assistant AW27. J'ai détecté **${tables.length} tableau(x)** avec **${nbRows} lignes** sur cette page.\n\nQue souhaitez-vous savoir ?`;
+        addBotMessage(welcomeMsg);
+
+        // ✅ FIX 1 : Sauvegarder le message de bienvenue dans l'historique
+        // Ainsi l'IA se souvient de ce qu'elle a dit en premier
+        chatHistory.push({ role: "assistant", content: welcomeMsg });
       }, 300);
     }
   };
@@ -4979,48 +4984,44 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Extraction données page ───────────────────────────────────
   function extractPageData() {
-  let result = "=== PAGE : " + document.title + " ===\n\n";
-  const tables = document.querySelectorAll("table");
+    let result = "=== PAGE : " + document.title + " ===\n\n";
+    const tables = document.querySelectorAll("table");
 
-  tables.forEach((table, i) => {
-    const caption = table.querySelector("caption");
-    const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
-    const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
-    result += "--- " + title + " ---\n";
+    tables.forEach((table, i) => {
+      const caption = table.querySelector("caption");
+      const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
+      const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
+      result += "--- " + title + " ---\n";
 
-    table.querySelectorAll("tr").forEach(row => {
-      const cells = [...row.children].map(c => getCellValue(c));
-      if (cells.some(c => c)) result += cells.join(" | ") + "\n";
+      table.querySelectorAll("tr").forEach(row => {
+        const cells = [...row.children].map(c => getCellValue(c));
+        if (cells.some(c => c)) result += cells.join(" | ") + "\n";
+      });
+      result += "\n";
     });
-    result += "\n";
-  });
 
-  return result.slice(0, 6000);
-}
-
-function getCellValue(cell) {
-  // Select → valeur sélectionnée uniquement
-  const select = cell.querySelector("select");
-  if (select) {
-    const val = select.options[select.selectedIndex];
-    return (val && val.value && val.value !== "") ? val.text.trim() : "—";
+    return result.slice(0, 6000);
   }
-  // Input texte
-  const input = cell.querySelector("input[type='text'], input:not([type])");
-  if (input) return input.value.trim() || "—";
-  // Checkbox
-  const checkbox = cell.querySelector("input[type='checkbox']");
-  if (checkbox) return checkbox.checked ? "✓" : "✗";
-  // Defaut
-  return cell.innerText.trim().replace(/\n/g, " ");
-}
+
+  function getCellValue(cell) {
+    const select = cell.querySelector("select");
+    if (select) {
+      const val = select.options[select.selectedIndex];
+      return (val && val.value && val.value !== "") ? val.text.trim() : "—";
+    }
+    const input = cell.querySelector("input[type='text'], input:not([type])");
+    if (input) return input.value.trim() || "—";
+    const checkbox = cell.querySelector("input[type='checkbox']");
+    if (checkbox) return checkbox.checked ? "✓" : "✗";
+    return cell.innerText.trim().replace(/\n/g, " ");
+  }
+
   // ── Envoi message ─────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
     const question = input.value.trim();
     if (!question) return;
 
-    // Cacher les suggestions après le premier message
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.add("hidden");
 
@@ -5039,7 +5040,8 @@ function getCellValue(cell) {
         body: JSON.stringify({
           prompt:  question,
           context: extractPageData(),
-          history: chatHistory.slice(-6)
+          // ✅ FIX 2 : 10 messages au lieu de 6 = 5 échanges complets en mémoire
+          history: chatHistory.slice(-10)
         })
       });
 
@@ -5059,6 +5061,9 @@ function getCellValue(cell) {
       }
 
       addBotMessage(reply);
+
+      // ✅ FIX 3 : Sauvegarder dans l'historique DANS LE BON ORDRE
+      // D'abord la question utilisateur, ensuite la réponse IA
       chatHistory.push({ role: "user",      content: question });
       chatHistory.push({ role: "assistant", content: reply    });
 
