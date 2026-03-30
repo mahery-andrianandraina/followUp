@@ -4793,9 +4793,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
       transition: all 0.2s;
     }
-    #fu-suggestions.hidden {
-      display: none;
-    }
+    #fu-suggestions.hidden { display: none; }
     .fu-suggestion {
       padding: 5px 11px; border-radius: 20px;
       border: 1px solid #dde; background: white;
@@ -4881,7 +4879,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const badge       = document.getElementById("fu-notif-badge");
   const suggestions = document.querySelectorAll(".fu-suggestion");
 
-  // ✅ FIX : historique étendu à 10 messages (5 échanges) pour meilleure mémoire
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
@@ -4890,22 +4887,54 @@ tr.awb-active-row td { background:#fff8ec !important; }
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
+
     if (!hasOpened) {
       hasOpened = true;
       const userName = getUserName();
       const hour = new Date().getHours();
       const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-      const tables = document.querySelectorAll("table");
-      const nbRows = [...document.querySelectorAll("table tr")].length;
 
-      setTimeout(() => {
-        const welcomeMsg = `${greeting} **${userName}** 👋\n\nJe suis votre assistant AW27. J'ai détecté **${tables.length} tableau(x)** avec **${nbRows} lignes** sur cette page.\n\nQue souhaitez-vous savoir ?`;
+      // ✅ Afficher le typing pendant que l'IA analyse la page
+      addTyping();
+
+      // ✅ Message de bienvenue généré par l'IA en analysant les données réelles
+      fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          prompt: `You are greeting the user for the first time when they open the chat.
+The user's first name is "${userName}". Use the greeting "${greeting}".
+Analyze the page data provided and write a smart, natural welcome message in French that:
+1. Greets them by first name warmly
+2. Mentions which module they are on (detect from page title or data)
+3. Gives 1-2 key observations from the data (e.g. number of pending items, any late/blocked styles flagged with ⚠️, total POs, approvals waiting, etc.)
+4. Ends with a short natural invitation to ask a question
+
+Rules:
+- Max 3 lines total
+- Casual and human tone, like a sharp colleague — NOT a robot
+- Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"
+- Use **bold** for names, numbers and module name
+- If no meaningful data is found, just greet warmly and invite them to ask`,
+          context: extractPageData(),
+          history: []
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        document.getElementById("fu-typing")?.remove();
+        const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
+          || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
         addBotMessage(welcomeMsg);
-
-        // ✅ FIX 1 : Sauvegarder le message de bienvenue dans l'historique
-        // Ainsi l'IA se souvient de ce qu'elle a dit en premier
+        // ✅ Sauvegarder dans l'historique pour que les suivis fonctionnent
         chatHistory.push({ role: "assistant", content: welcomeMsg });
-      }, 300);
+      })
+      .catch(() => {
+        document.getElementById("fu-typing")?.remove();
+        const fallback = `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+        addBotMessage(fallback);
+        chatHistory.push({ role: "assistant", content: fallback });
+      });
     }
   };
 
@@ -5009,8 +5038,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const val = select.options[select.selectedIndex];
       return (val && val.value && val.value !== "") ? val.text.trim() : "—";
     }
-    const input = cell.querySelector("input[type='text'], input:not([type])");
-    if (input) return input.value.trim() || "—";
+    const inp = cell.querySelector("input[type='text'], input:not([type])");
+    if (inp) return inp.value.trim() || "—";
     const checkbox = cell.querySelector("input[type='checkbox']");
     if (checkbox) return checkbox.checked ? "✓" : "✗";
     return cell.innerText.trim().replace(/\n/g, " ");
@@ -5040,7 +5069,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
         body: JSON.stringify({
           prompt:  question,
           context: extractPageData(),
-          // ✅ FIX 2 : 10 messages au lieu de 6 = 5 échanges complets en mémoire
+          // ✅ 10 messages = 5 échanges complets en mémoire
           history: chatHistory.slice(-10)
         })
       });
@@ -5061,9 +5090,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
       }
 
       addBotMessage(reply);
-
-      // ✅ FIX 3 : Sauvegarder dans l'historique DANS LE BON ORDRE
-      // D'abord la question utilisateur, ensuite la réponse IA
       chatHistory.push({ role: "user",      content: question });
       chatHistory.push({ role: "assistant", content: reply    });
 
