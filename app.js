@@ -4642,7 +4642,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-//CHATBOT
+//CHATBOT — VERSION CORRIGÉE
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbweo3Jqfu1waobSyMM0k_YUOE05I54v9pNy8YD_0HH1UvElI90HezYXHaQCtVujNjp6/exec";
@@ -4705,12 +4705,15 @@ tr.awb-active-row td { background:#fff8ec !important; }
       opacity: 1; pointer-events: all;
     }
 
+    /* FIX PRINCIPAL : le header ne doit pas bloquer les clics sur les boutons */
     #fu-chat-header {
       padding: 16px 18px;
       background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
       color: white;
       display: flex; align-items: center; gap: 12px;
       flex-shrink: 0;
+      position: relative;       /* ← FIX : nécessaire pour z-index enfants */
+      z-index: 1;               /* ← FIX : établit un contexte d'empilement */
     }
     #fu-header-avatar {
       width: 38px; height: 38px; border-radius: 50%;
@@ -4729,15 +4732,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
       background: #2ecc71; display: inline-block;
     }
 
-    /* ✅ NOUVEAU : bouton reset conversation */
+    /* FIX : boutons avec z-index élevé et position relative */
     #fu-reset-btn {
       background: rgba(255,255,255,0.15); border: none;
       color: white; width: 28px; height: 28px;
-      border-radius: 8px; cursor: pointer; font-size: 13px;
+      border-radius: 8px; cursor: pointer; font-size: 16px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; margin-right: 4px;
-      pointer-events: all !important;
-      title: "Nouvelle conversation";
+      position: relative;       /* ← FIX */
+      z-index: 10002;           /* ← FIX : au-dessus du panel */
+      flex-shrink: 0;
     }
     #fu-reset-btn:hover { background: rgba(255,255,255,0.3); }
 
@@ -4747,8 +4751,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 8px; cursor: pointer; font-size: 14px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
-      position: relative; z-index: 10001;
-      pointer-events: all !important;
+      position: relative;       /* ← FIX */
+      z-index: 10002;           /* ← FIX : au-dessus du panel */
+      flex-shrink: 0;
     }
     #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
 
@@ -4783,7 +4788,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       font-size: 10px; color: #aaa; padding: 0 4px;
     }
 
-    /* ✅ NOUVEAU : curseur clignotant pour streaming */
+    /* Curseur clignotant pour streaming */
     .fu-cursor {
       display: inline-block;
       width: 2px; height: 13px;
@@ -4816,7 +4821,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       30% { transform: translateY(-5px); opacity: 1; }
     }
 
-    /* ✅ NOUVEAU : séparateur "Nouvelle conversation" */
+    /* Séparateur "Nouvelle conversation" */
     .fu-divider {
       display: flex; align-items: center; gap: 8px;
       font-size: 10px; color: #bbb; margin: 4px 0;
@@ -4886,7 +4891,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
           </div>
         </div>
         <button id="fu-reset-btn" title="Nouvelle conversation">↺</button>
-        <button id="fu-close-btn">✕</button>
+        <button id="fu-close-btn" title="Fermer">✕</button>
       </div>
       <div id="fu-chat-messages"></div>
       <div id="fu-suggestions">
@@ -4921,13 +4926,12 @@ tr.awb-active-row td { background:#fff8ec !important; }
   let isLoading   = false;
   let hasOpened   = false;
 
-  // ── ✅ PERSISTANCE SESSION : charger l'historique sauvegardé ──
+  // ── Persistance session ───────────────────────────────────────
   function loadSession() {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
       if (!saved) return null;
       const session = JSON.parse(saved);
-      // Vérifier que la session est de la même page
       if (session.page !== document.title) return null;
       return session;
     } catch (e) {
@@ -4949,7 +4953,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
   }
 
-  // ── Ouverture / fermeture ─────────────────────────────────────
+  // ── Ouverture ─────────────────────────────────────────────────
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
@@ -4957,10 +4961,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
     if (!hasOpened) {
       hasOpened = true;
 
-      // ✅ Essayer de restaurer la session précédente
       const session = loadSession();
       if (session && session.messages && session.messages.length > 0) {
-        // Restaurer les messages visuellement
         session.messages.forEach(html => {
           const div = document.createElement("div");
           div.innerHTML = html;
@@ -4968,17 +4970,15 @@ tr.awb-active-row td { background:#fff8ec !important; }
         });
         chatHistory = session.history || [];
         messagesEl.scrollTop = messagesEl.scrollHeight;
-
-        // Petit message de reprise
         addDivider("Session restaurée");
         return;
       }
 
-      // Sinon, lancer le welcome message IA
       startWelcome();
     }
   };
 
+  // ── FIX : startWelcome() sans dépendance à hasOpened ─────────
   function startWelcome() {
     const userName = getUserName();
     const hour = new Date().getHours();
@@ -5028,24 +5028,31 @@ Rules:
     });
   }
 
-  closeBtn.onclick = () => panel.classList.remove("open");
+  // ── Fermeture ─────────────────────────────────────────────────
+  closeBtn.onclick = (e) => {
+    e.stopPropagation();          // ← FIX : empêche la propagation vers btn
+    panel.classList.remove("open");
+  };
 
-  // ✅ NOUVEAU : bouton reset conversation
-  resetBtn.onclick = () => {
+  // ── FIX PRINCIPAL : Reset conversation ────────────────────────
+  resetBtn.onclick = (e) => {
+    e.stopPropagation();          // ← FIX : empêche la propagation vers btn
     if (isLoading) return;
-    // Vider l'affichage
+
+    // Vider l'affichage et l'état
     messagesEl.innerHTML = "";
-    // Reset état
     chatHistory = [];
-    hasOpened = false;
     clearSession();
-    // Afficher séparateur puis relancer welcome
+
+    // Séparateur visuel
     addDivider("Nouvelle conversation");
-    hasOpened = true;
-    startWelcome();
+
     // Réafficher les suggestions
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.remove("hidden");
+
+    // FIX : appel direct à startWelcome(), sans manipuler hasOpened
+    startWelcome();
   };
 
   // Badge notification après 3s
@@ -5071,7 +5078,7 @@ Rules:
   });
   sendBtn.onclick = sendMessage;
 
-  // ── Helpers messages ─────────────────────────────────────────
+  // ── Helpers messages ──────────────────────────────────────────
   function getTime() {
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
@@ -5082,7 +5089,7 @@ Rules:
       .replace(/\n/g, "<br>");
   }
 
-  // ✅ NOUVEAU : streaming effect — affiche le texte lettre par lettre
+  // Streaming : affiche le texte mot par mot avec curseur clignotant
   function streamBotMessage(text, onDone) {
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
@@ -5099,14 +5106,12 @@ Rules:
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    // Découper le texte en tokens (mots + espaces) pour un rendu naturel
     const tokens = text.match(/(\*\*.*?\*\*|\S+|\s+)/g) || [];
     let i = 0;
     let displayed = "";
 
     function next() {
       if (i >= tokens.length) {
-        // Fin : retirer le curseur et afficher le texte final formaté
         msg.innerHTML = renderText(displayed);
         if (onDone) onDone(wrap);
         saveSession();
@@ -5116,7 +5121,6 @@ Rules:
       msg.innerHTML = renderText(displayed);
       msg.appendChild(cursor);
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      // Vitesse variable : plus rapide sur les espaces, plus lente sur les mots
       const delay = tokens[i - 1].trim() === "" ? 10 : 28;
       setTimeout(next, delay);
     }
@@ -5165,7 +5169,7 @@ Rules:
     return wrap;
   }
 
-  // ✅ NOUVEAU : séparateur visuel entre sessions
+  // Séparateur visuel entre sessions
   function addDivider(label) {
     const div = document.createElement("div");
     div.className = "fu-divider";
@@ -5251,7 +5255,6 @@ Rules:
         return;
       }
 
-      // ✅ Utiliser le streaming pour toutes les réponses
       streamBotMessage(reply, () => {
         chatHistory.push({ role: "user",      content: question });
         chatHistory.push({ role: "assistant", content: reply    });
