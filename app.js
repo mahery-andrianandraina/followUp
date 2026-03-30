@@ -4643,9 +4643,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT — VERSION CORRIGÉE
+//CHATBOT — VERSION CORRIGÉE
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxfE_GBm7chy8p9gRB_fJgFqv9OYMpg__3e_eJ43wlEz4vrPIt82p7lVsmfIuhDknNh/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbzq96O_ea9iTtVcYEWOIwCHyr-gP-wQihYhUM29qalqcEoTdTEr1-kJZBmVZtXYqu8x/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
@@ -4705,15 +4706,14 @@ tr.awb-active-row td { background:#fff8ec !important; }
       opacity: 1; pointer-events: all;
     }
 
-    /* FIX PRINCIPAL : le header ne doit pas bloquer les clics sur les boutons */
     #fu-chat-header {
       padding: 16px 18px;
       background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
       color: white;
       display: flex; align-items: center; gap: 12px;
       flex-shrink: 0;
-      position: relative;       /* ← FIX : nécessaire pour z-index enfants */
-      z-index: 1;               /* ← FIX : établit un contexte d'empilement */
+      position: relative;
+      z-index: 1;
     }
     #fu-header-avatar {
       width: 38px; height: 38px; border-radius: 50%;
@@ -4732,15 +4732,14 @@ tr.awb-active-row td { background:#fff8ec !important; }
       background: #2ecc71; display: inline-block;
     }
 
-    /* FIX : boutons avec z-index élevé et position relative */
     #fu-reset-btn {
       background: rgba(255,255,255,0.15); border: none;
       color: white; width: 28px; height: 28px;
       border-radius: 8px; cursor: pointer; font-size: 16px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; margin-right: 4px;
-      position: relative;       /* ← FIX */
-      z-index: 10002;           /* ← FIX : au-dessus du panel */
+      position: relative;
+      z-index: 10002;
       flex-shrink: 0;
     }
     #fu-reset-btn:hover { background: rgba(255,255,255,0.3); }
@@ -4751,8 +4750,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 8px; cursor: pointer; font-size: 14px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
-      position: relative;       /* ← FIX */
-      z-index: 10002;           /* ← FIX : au-dessus du panel */
+      position: relative;
+      z-index: 10002;
       flex-shrink: 0;
     }
     #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
@@ -4788,7 +4787,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
       font-size: 10px; color: #aaa; padding: 0 4px;
     }
 
-    /* Curseur clignotant pour streaming */
+    /* ── NOUVEAU : style des liens dans les messages bot ── */
+    .fu-msg.bot a {
+      color: #533483;
+      text-decoration: underline;
+      word-break: break-all;
+    }
+    .fu-msg.bot a:hover {
+      color: #0f3460;
+    }
+
     .fu-cursor {
       display: inline-block;
       width: 2px; height: 13px;
@@ -4821,7 +4829,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
       30% { transform: translateY(-5px); opacity: 1; }
     }
 
-    /* Séparateur "Nouvelle conversation" */
     .fu-divider {
       display: flex; align-items: center; gap: 8px;
       font-size: 10px; color: #bbb; margin: 4px 0;
@@ -4978,7 +4985,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
   };
 
-  // ── FIX : startWelcome() sans dépendance à hasOpened ─────────
+  // ── startWelcome() ────────────────────────────────────────────
   function startWelcome() {
     const userName = getUserName();
     const hour = new Date().getHours();
@@ -5030,28 +5037,24 @@ Rules:
 
   // ── Fermeture ─────────────────────────────────────────────────
   closeBtn.onclick = (e) => {
-    e.stopPropagation();          // ← FIX : empêche la propagation vers btn
+    e.stopPropagation();
     panel.classList.remove("open");
   };
 
-  // ── FIX PRINCIPAL : Reset conversation ────────────────────────
+  // ── Reset conversation ────────────────────────────────────────
   resetBtn.onclick = (e) => {
-    e.stopPropagation();          // ← FIX : empêche la propagation vers btn
+    e.stopPropagation();
     if (isLoading) return;
 
-    // Vider l'affichage et l'état
     messagesEl.innerHTML = "";
     chatHistory = [];
     clearSession();
 
-    // Séparateur visuel
     addDivider("Nouvelle conversation");
 
-    // Réafficher les suggestions
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.remove("hidden");
 
-    // FIX : appel direct à startWelcome(), sans manipuler hasOpened
     startWelcome();
   };
 
@@ -5083,9 +5086,11 @@ Rules:
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
 
+  // ── CORRECTION : renderText supporte maintenant les liens HTML ──
   function renderText(text) {
     return text
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/<a\s+href="([^"]*)"([^>]*)>(.*?)<\/a>/g, '<a href="$1"$2>$3</a>')
       .replace(/\n/g, "<br>");
   }
 
@@ -5106,7 +5111,8 @@ Rules:
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    const tokens = text.match(/(\*\*.*?\*\*|\S+|\s+)/g) || [];
+    // ── CORRECTION : tokenizer préserve les balises <a>...</a> entières ──
+    const tokens = text.match(/(<a\s[^>]*>.*?<\/a>|\*\*.*?\*\*|\S+|\s+)/gs) || [];
     let i = 0;
     let displayed = "";
 
@@ -5169,7 +5175,6 @@ Rules:
     return wrap;
   }
 
-  // Séparateur visuel entre sessions
   function addDivider(label) {
     const div = document.createElement("div");
     div.className = "fu-divider";
