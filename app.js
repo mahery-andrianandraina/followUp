@@ -4645,7 +4645,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT — VERSION CORRIGÉE
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbw137n2osnLsbMD9R_ffiIHxOmnepyjnpdNEvVXGQLgu0qr-TSHvTDzvbXv7g7E0Mdv/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxfE_GBm7chy8p9gRB_fJgFqv9OYMpg__3e_eJ43wlEz4vrPIt82p7lVsmfIuhDknNh/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
