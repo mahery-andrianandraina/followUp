@@ -4646,6 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbweo3Jqfu1waobSyMM0k_YUOE05I54v9pNy8YD_0HH1UvElI90HezYXHaQCtVujNjp6/exec";
+  const SESSION_KEY = "aw27_chat_session";
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
   function getUserName() {
@@ -4727,6 +4728,19 @@ tr.awb-active-row td { background:#fff8ec !important; }
       width: 6px; height: 6px; border-radius: 50%;
       background: #2ecc71; display: inline-block;
     }
+
+    /* ✅ NOUVEAU : bouton reset conversation */
+    #fu-reset-btn {
+      background: rgba(255,255,255,0.15); border: none;
+      color: white; width: 28px; height: 28px;
+      border-radius: 8px; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; margin-right: 4px;
+      pointer-events: all !important;
+      title: "Nouvelle conversation";
+    }
+    #fu-reset-btn:hover { background: rgba(255,255,255,0.3); }
+
     #fu-close-btn {
       background: rgba(255,255,255,0.15); border: none;
       color: white; width: 28px; height: 28px;
@@ -4769,6 +4783,20 @@ tr.awb-active-row td { background:#fff8ec !important; }
       font-size: 10px; color: #aaa; padding: 0 4px;
     }
 
+    /* ✅ NOUVEAU : curseur clignotant pour streaming */
+    .fu-cursor {
+      display: inline-block;
+      width: 2px; height: 13px;
+      background: #533483;
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: fu-blink 0.7s infinite;
+    }
+    @keyframes fu-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
     .fu-typing {
       display: flex; align-items: center; gap: 4px;
       padding: 12px 16px; background: white;
@@ -4788,10 +4816,18 @@ tr.awb-active-row td { background:#fff8ec !important; }
       30% { transform: translateY(-5px); opacity: 1; }
     }
 
+    /* ✅ NOUVEAU : séparateur "Nouvelle conversation" */
+    .fu-divider {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 10px; color: #bbb; margin: 4px 0;
+    }
+    .fu-divider::before, .fu-divider::after {
+      content: ''; flex: 1; height: 1px; background: #eee;
+    }
+
     #fu-suggestions {
       padding: 0 12px 10px;
       display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
-      transition: all 0.2s;
     }
     #fu-suggestions.hidden { display: none; }
     .fu-suggestion {
@@ -4849,6 +4885,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
             <span id="fu-online-dot"></span> En ligne · Analyse votre page
           </div>
         </div>
+        <button id="fu-reset-btn" title="Nouvelle conversation">↺</button>
         <button id="fu-close-btn">✕</button>
       </div>
       <div id="fu-chat-messages"></div>
@@ -4873,6 +4910,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const panel       = document.getElementById("fu-chatbot-panel");
   const btn         = document.getElementById("fu-chatbot-btn");
   const closeBtn    = document.getElementById("fu-close-btn");
+  const resetBtn    = document.getElementById("fu-reset-btn");
   const messagesEl  = document.getElementById("fu-chat-messages");
   const input       = document.getElementById("fu-chat-input");
   const sendBtn     = document.getElementById("fu-send-btn");
@@ -4883,6 +4921,34 @@ tr.awb-active-row td { background:#fff8ec !important; }
   let isLoading   = false;
   let hasOpened   = false;
 
+  // ── ✅ PERSISTANCE SESSION : charger l'historique sauvegardé ──
+  function loadSession() {
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (!saved) return null;
+      const session = JSON.parse(saved);
+      // Vérifier que la session est de la même page
+      if (session.page !== document.title) return null;
+      return session;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveSession() {
+    try {
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        page: document.title,
+        history: chatHistory,
+        messages: [...messagesEl.children].map(el => el.outerHTML)
+      }));
+    } catch (e) {}
+  }
+
+  function clearSession() {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+
   // ── Ouverture / fermeture ─────────────────────────────────────
   btn.onclick = () => {
     panel.classList.add("open");
@@ -4890,19 +4956,41 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
     if (!hasOpened) {
       hasOpened = true;
-      const userName = getUserName();
-      const hour = new Date().getHours();
-      const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
 
-      // ✅ Afficher le typing pendant que l'IA analyse la page
-      addTyping();
+      // ✅ Essayer de restaurer la session précédente
+      const session = loadSession();
+      if (session && session.messages && session.messages.length > 0) {
+        // Restaurer les messages visuellement
+        session.messages.forEach(html => {
+          const div = document.createElement("div");
+          div.innerHTML = html;
+          if (div.firstChild) messagesEl.appendChild(div.firstChild);
+        });
+        chatHistory = session.history || [];
+        messagesEl.scrollTop = messagesEl.scrollHeight;
 
-      // ✅ Message de bienvenue généré par l'IA en analysant les données réelles
-      fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          prompt: `You are greeting the user for the first time when they open the chat.
+        // Petit message de reprise
+        addDivider("Session restaurée");
+        return;
+      }
+
+      // Sinon, lancer le welcome message IA
+      startWelcome();
+    }
+  };
+
+  function startWelcome() {
+    const userName = getUserName();
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+
+    addTyping();
+
+    fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({
+        prompt: `You are greeting the user for the first time when they open the chat.
 The user's first name is "${userName}". Use the greeting "${greeting}".
 Analyze the page data provided and write a smart, natural welcome message in French that:
 1. Greets them by first name warmly
@@ -4916,29 +5004,49 @@ Rules:
 - Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"
 - Use **bold** for names, numbers and module name
 - If no meaningful data is found, just greet warmly and invite them to ask`,
-          context: extractPageData(),
-          history: []
-        })
+        context: extractPageData(),
+        history: []
       })
-      .then(r => r.json())
-      .then(data => {
-        document.getElementById("fu-typing")?.remove();
-        const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
-          || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
-        addBotMessage(welcomeMsg);
-        // ✅ Sauvegarder dans l'historique pour que les suivis fonctionnent
+    })
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById("fu-typing")?.remove();
+      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+      streamBotMessage(welcomeMsg, () => {
         chatHistory.push({ role: "assistant", content: welcomeMsg });
-      })
-      .catch(() => {
-        document.getElementById("fu-typing")?.remove();
-        const fallback = `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
-        addBotMessage(fallback);
-        chatHistory.push({ role: "assistant", content: fallback });
+        saveSession();
       });
-    }
-  };
+    })
+    .catch(() => {
+      document.getElementById("fu-typing")?.remove();
+      const fallback = `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+      streamBotMessage(fallback, () => {
+        chatHistory.push({ role: "assistant", content: fallback });
+        saveSession();
+      });
+    });
+  }
 
   closeBtn.onclick = () => panel.classList.remove("open");
+
+  // ✅ NOUVEAU : bouton reset conversation
+  resetBtn.onclick = () => {
+    if (isLoading) return;
+    // Vider l'affichage
+    messagesEl.innerHTML = "";
+    // Reset état
+    chatHistory = [];
+    hasOpened = false;
+    clearSession();
+    // Afficher séparateur puis relancer welcome
+    addDivider("Nouvelle conversation");
+    hasOpened = true;
+    startWelcome();
+    // Réafficher les suggestions
+    const suggestionsEl = document.getElementById("fu-suggestions");
+    if (suggestionsEl) suggestionsEl.classList.remove("hidden");
+  };
 
   // Badge notification après 3s
   setTimeout(() => { badge.style.display = "block"; }, 3000);
@@ -4968,14 +5076,60 @@ Rules:
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
 
+  function renderText(text) {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\n/g, "<br>");
+  }
+
+  // ✅ NOUVEAU : streaming effect — affiche le texte lettre par lettre
+  function streamBotMessage(text, onDone) {
+    const wrap = document.createElement("div");
+    wrap.className = "fu-msg-wrap bot";
+    const msg = document.createElement("div");
+    msg.className = "fu-msg bot";
+    const cursor = document.createElement("span");
+    cursor.className = "fu-cursor";
+    msg.appendChild(cursor);
+    const time = document.createElement("div");
+    time.className = "fu-msg-time";
+    time.textContent = getTime();
+    wrap.appendChild(msg);
+    wrap.appendChild(time);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    // Découper le texte en tokens (mots + espaces) pour un rendu naturel
+    const tokens = text.match(/(\*\*.*?\*\*|\S+|\s+)/g) || [];
+    let i = 0;
+    let displayed = "";
+
+    function next() {
+      if (i >= tokens.length) {
+        // Fin : retirer le curseur et afficher le texte final formaté
+        msg.innerHTML = renderText(displayed);
+        if (onDone) onDone(wrap);
+        saveSession();
+        return;
+      }
+      displayed += tokens[i++];
+      msg.innerHTML = renderText(displayed);
+      msg.appendChild(cursor);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      // Vitesse variable : plus rapide sur les espaces, plus lente sur les mots
+      const delay = tokens[i - 1].trim() === "" ? 10 : 28;
+      setTimeout(next, delay);
+    }
+    next();
+    return wrap;
+  }
+
   function addBotMessage(text) {
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
     const msg = document.createElement("div");
     msg.className = "fu-msg bot";
-    msg.innerHTML = text
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\n/g, "<br>");
+    msg.innerHTML = renderText(text);
     const time = document.createElement("div");
     time.className = "fu-msg-time";
     time.textContent = getTime();
@@ -5009,6 +5163,15 @@ Rules:
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return wrap;
+  }
+
+  // ✅ NOUVEAU : séparateur visuel entre sessions
+  function addDivider(label) {
+    const div = document.createElement("div");
+    div.className = "fu-divider";
+    div.textContent = label;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   // ── Extraction données page ───────────────────────────────────
@@ -5069,7 +5232,6 @@ Rules:
         body: JSON.stringify({
           prompt:  question,
           context: extractPageData(),
-          // ✅ 10 messages = 5 échanges complets en mémoire
           history: chatHistory.slice(-10)
         })
       });
@@ -5089,9 +5251,12 @@ Rules:
         return;
       }
 
-      addBotMessage(reply);
-      chatHistory.push({ role: "user",      content: question });
-      chatHistory.push({ role: "assistant", content: reply    });
+      // ✅ Utiliser le streaming pour toutes les réponses
+      streamBotMessage(reply, () => {
+        chatHistory.push({ role: "user",      content: question });
+        chatHistory.push({ role: "assistant", content: reply    });
+        saveSession();
+      });
 
     } catch (err) {
       typingEl.remove();
