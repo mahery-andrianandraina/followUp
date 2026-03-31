@@ -4645,7 +4645,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT — VERSION CORRIGÉE + BANNIÈRE CONTEXTE
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbzq96O_ea9iTtVcYEWOIwCHyr-gP-wQihYhUM29qalqcEoTdTEr1-kJZBmVZtXYqu8x/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   // ── Seuils contexte ───────────────────────────────────────────
@@ -4818,12 +4818,25 @@ tr.awb-active-row td { background:#fff8ec !important; }
       content: ''; flex: 1; height: 1px; background: #eee;
     }
 
-    /* ── Barre de progression tokens ── */
+    /* ── Barre de progression tokens (toujours visible) ── */
     #fu-token-bar-wrap {
-      height: 3px; background: #e8e8f0; flex-shrink: 0;
+      flex-shrink: 0;
+      padding: 6px 14px 5px;
+      background: white;
+      border-bottom: 1px solid #eef;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    #fu-token-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: #aaa;
+      font-family: 'Inter', sans-serif;
+    }
+    #fu-token-bar-track {
+      height: 5px; background: #eee; border-radius: 99px; overflow: hidden;
     }
     #fu-token-bar {
       height: 100%; width: 0%;
+      border-radius: 99px;
       transition: width 0.5s ease, background 0.5s ease;
       background: #2ecc71;
     }
@@ -4931,8 +4944,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <button id="fu-close-btn" title="Fermer">✕</button>
       </div>
 
-      <!-- Barre de progression tokens (fine ligne sous le header) -->
-      <div id="fu-token-bar-wrap"><div id="fu-token-bar"></div></div>
+      <!-- Barre de progression tokens (toujours visible) -->
+      <div id="fu-token-bar-wrap">
+        <div id="fu-token-bar-label">
+          <span>Contexte utilisé</span>
+          <span id="fu-token-pct">0%</span>
+        </div>
+        <div id="fu-token-bar-track">
+          <div id="fu-token-bar"></div>
+        </div>
+      </div>
 
       <div id="fu-chat-messages"></div>
 
@@ -4990,7 +5011,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const ratio = Math.min(used / TOKEN_LIMIT, 1);
     const pct   = Math.round(ratio * 100);
 
-    // Barre colorée sous le header
+    // Barre + label toujours visibles
+    const pctEl = document.getElementById("fu-token-pct");
+    if (pctEl) pctEl.textContent = pct + "%";
     tokenBar.style.width = pct + "%";
     if      (ratio < WARN_AT)     tokenBar.style.background = "#2ecc71"; // vert
     else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12"; // orange
@@ -5205,6 +5228,8 @@ Rules:
     banner.className = "";
     tokenBar.style.width = "0%";
     tokenBar.style.background = "#2ecc71";
+    const pctElReset = document.getElementById("fu-token-pct");
+    if (pctElReset) pctElReset.textContent = "0%";
 
     addDivider("Nouvelle conversation");
     const suggestionsEl = document.getElementById("fu-suggestions");
