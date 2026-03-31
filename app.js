@@ -4642,18 +4642,22 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-//CHATBOT — VERSION CORRIGÉE + BANNIÈRE CONTEXTE
+//CHATBOT 
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
   const SESSION_KEY = "aw27_chat_session";
 
-  // ── Seuils contexte ───────────────────────────────────────────
   const TOKEN_LIMIT  = 128000;
-  const WARN_AT      = 0.75;   // bannière jaune à 75%
-  const CRITICAL_AT  = 0.90;   // bannière rouge à 90%
+  const WARN_AT      = 0.75;
+  const CRITICAL_AT  = 0.90;
 
-  // ── Récupérer le nom utilisateur ──────────────────────────────
+  // SVG logo Groq (G stylisé rouge)
+  const GROQ_LOGO_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="48" fill="#f55036"/>
+    <path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/>
+  </svg>`;
+
   function getUserName() {
     if (window.currentUser && window.currentUser.displayName) {
       return window.currentUser.displayName.trim().split(" ")[0];
@@ -4665,7 +4669,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
     return "vous";
   }
 
-  // ── Styles ────────────────────────────────────────────────────
   const style = document.createElement("style");
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
@@ -4694,8 +4697,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
     #fu-chatbot-panel {
       position: fixed; bottom: 96px; right: 28px;
-      width: 380px; height: 560px;
-      background: #f8f9fc;
+      width: 380px; height: 580px;
+      background: #f4f5f8;
       border-radius: 20px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.18);
       display: flex; flex-direction: column;
@@ -4710,43 +4713,46 @@ tr.awb-active-row td { background:#fff8ec !important; }
       opacity: 1; pointer-events: all;
     }
 
+    /* ── HEADER ── */
     #fu-chat-header {
-      padding: 16px 18px;
-      background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
       color: white;
       display: flex; align-items: center; gap: 12px;
       flex-shrink: 0; position: relative; z-index: 1;
     }
     #fu-header-avatar {
       width: 38px; height: 38px; border-radius: 50%;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.15);
+      border: 1.5px solid rgba(255,255,255,0.25);
       display: flex; align-items: center; justify-content: center;
       font-size: 18px; flex-shrink: 0;
     }
     #fu-header-info { flex: 1; }
     #fu-header-title { font-weight: 600; font-size: 14px; }
     #fu-header-sub {
-      font-size: 11px; opacity: 0.75; margin-top: 1px;
-      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; opacity: 0.65; margin-top: 2px;
+      display: flex; align-items: center; gap: 5px;
     }
     #fu-online-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #2ecc71; display: inline-block;
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e; display: inline-block;
+      box-shadow: 0 0 0 2px rgba(34,197,94,0.3);
     }
 
     #fu-reset-btn {
-      background: rgba(255,255,255,0.15); border: none;
-      color: white; width: 28px; height: 28px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+      color: white; width: 30px; height: 30px;
       border-radius: 8px; cursor: pointer; font-size: 16px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; margin-right: 4px;
       position: relative; z-index: 10002; flex-shrink: 0;
     }
-    #fu-reset-btn:hover { background: rgba(255,255,255,0.3); }
+    #fu-reset-btn:hover { background: rgba(255,255,255,0.25); }
 
     #fu-close-btn {
-      background: rgba(255,255,255,0.15); border: none;
-      color: white; width: 28px; height: 28px;
+      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+      color: white; width: 30px; height: 30px;
       border-radius: 8px; cursor: pointer; font-size: 14px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
@@ -4754,18 +4760,56 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
 
+    /* ── TOKEN BAR ── */
+    #fu-token-bar-wrap {
+      flex-shrink: 0;
+      padding: 6px 14px 5px;
+      background: #0f3460;
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    #fu-token-bar-label {
+      display: flex; justify-content: space-between;
+      font-size: 10px; color: rgba(255,255,255,0.5);
+      font-family: 'Inter', sans-serif;
+    }
+    #fu-token-pct { color: #22c55e; font-weight: 500; }
+    #fu-token-bar-track {
+      height: 3px; background: rgba(255,255,255,0.12); border-radius: 99px; overflow: hidden;
+    }
+    #fu-token-bar {
+      height: 100%; width: 0%;
+      border-radius: 99px;
+      transition: width 0.5s ease, background 0.5s ease;
+      background: #22c55e;
+    }
+
+    /* ── MESSAGES ── */
     #fu-chat-messages {
-      flex: 1; overflow-y: auto; padding: 16px;
-      display: flex; flex-direction: column; gap: 12px;
+      flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+      display: flex; flex-direction: column; gap: 10px;
       scroll-behavior: smooth;
+      background: #f4f5f8;
     }
     #fu-chat-messages::-webkit-scrollbar { width: 4px; }
     #fu-chat-messages::-webkit-scrollbar-track { background: transparent; }
     #fu-chat-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
 
-    .fu-msg-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .fu-msg-wrap { display: flex; flex-direction: column; gap: 3px; }
     .fu-msg-wrap.user { align-items: flex-end; }
     .fu-msg-wrap.bot  { align-items: flex-start; }
+
+    /* Bot messages: row avec avatar Groq */
+    .fu-bot-row {
+      display: flex; align-items: flex-end; gap: 7px;
+    }
+    .fu-groq-avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: #1a1a1a;
+      border: 1.5px solid rgba(245,80,54,0.3);
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
 
     .fu-msg {
       padding: 10px 14px; border-radius: 16px;
@@ -4775,13 +4819,21 @@ tr.awb-active-row td { background:#fff8ec !important; }
     .fu-msg.bot {
       background: white; color: #1a1a2e;
       border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
     }
     .fu-msg.user {
-      background: linear-gradient(135deg, #0f3460, #533483);
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
       color: white; border-bottom-right-radius: 4px;
     }
-    .fu-msg-time { font-size: 10px; color: #aaa; padding: 0 4px; }
+
+    .fu-msg-meta {
+      display: flex; align-items: center; gap: 5px;
+      padding: 0 4px;
+    }
+    .fu-msg-time { font-size: 10px; color: #bbb; }
+    .fu-groq-tag { font-size: 10px; color: #f55036; font-weight: 500; }
+    .fu-check { font-size: 10px; color: #bbb; }
+
     .fu-msg.bot a { color: #533483; text-decoration: underline; word-break: break-all; }
     .fu-msg.bot a:hover { color: #0f3460; }
 
@@ -4796,7 +4848,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       display: flex; align-items: center; gap: 4px;
       padding: 12px 16px; background: white;
       border-radius: 16px; border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07); width: fit-content;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07); width: fit-content;
     }
     .fu-typing span {
       width: 7px; height: 7px; border-radius: 50%;
@@ -4815,33 +4867,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
       font-size: 10px; color: #bbb; margin: 4px 0;
     }
     .fu-divider::before, .fu-divider::after {
-      content: ''; flex: 1; height: 1px; background: #eee;
+      content: ''; flex: 1; height: 1px; background: #e4e4e4;
     }
 
-    /* ── Barre de progression tokens (toujours visible) ── */
-    #fu-token-bar-wrap {
-      flex-shrink: 0;
-      padding: 6px 14px 5px;
-      background: white;
-      border-bottom: 1px solid #eef;
-      display: flex; flex-direction: column; gap: 3px;
-    }
-    #fu-token-bar-label {
-      display: flex; justify-content: space-between;
-      font-size: 10px; color: #aaa;
-      font-family: 'Inter', sans-serif;
-    }
-    #fu-token-bar-track {
-      height: 5px; background: #eee; border-radius: 99px; overflow: hidden;
-    }
-    #fu-token-bar {
-      height: 100%; width: 0%;
-      border-radius: 99px;
-      transition: width 0.5s ease, background 0.5s ease;
-      background: #2ecc71;
-    }
-
-    /* ── Bannière contexte ── */
+    /* ── BANNIÈRE CONTEXTE ── */
     #fu-context-banner {
       display: none;
       padding: 9px 14px 10px;
@@ -4883,6 +4912,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       color: inherit;
     }
 
+    /* ── SUGGESTIONS ── */
     #fu-suggestions {
       padding: 0 12px 10px;
       display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
@@ -4896,34 +4926,47 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     .fu-suggestion:hover { background: #0f3460; color: white; border-color: #0f3460; }
 
+    /* ── INPUT AREA ── */
     #fu-chat-input-area {
-      padding: 10px 12px; display: flex; gap: 8px;
-      border-top: 1px solid #eef; background: white;
-      flex-shrink: 0; align-items: flex-end;
+      padding: 10px 12px;
+      background: white;
+      border-top: 1px solid #eef;
+      flex-shrink: 0;
+    }
+    #fu-input-row {
+      display: flex; gap: 8px; align-items: flex-end;
     }
     #fu-chat-input {
       flex: 1; border: 1.5px solid #e8e8f0;
-      border-radius: 12px; padding: 9px 13px;
+      border-radius: 24px; padding: 9px 16px;
       font-family: 'Inter', sans-serif; font-size: 13px;
       resize: none; outline: none; max-height: 80px;
       transition: border-color 0.2s; line-height: 1.4;
-      background: #f8f9fc;
+      background: #f8f9fc; color: #1a1a2e;
     }
     #fu-chat-input:focus { border-color: #533483; background: white; }
     #fu-send-btn {
       width: 38px; height: 38px; flex-shrink: 0;
-      background: linear-gradient(135deg, #0f3460, #533483);
-      border: none; color: white; border-radius: 12px;
+      background: linear-gradient(135deg, #1a1a2e, #0f3460);
+      border: none; color: white; border-radius: 50%;
       cursor: pointer; font-size: 15px;
       display: flex; align-items: center; justify-content: center;
       transition: opacity 0.2s, transform 0.15s;
     }
     #fu-send-btn:hover { transform: scale(1.05); }
     #fu-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    /* ── FOOTER GROQ ── */
+    #fu-footer-groq {
+      text-align: center;
+      padding: 5px 0 2px;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+    }
+    #fu-footer-groq span { font-size: 10px; color: #bbb; }
+    #fu-footer-groq .groq-name { color: #f55036; font-weight: 600; font-size: 10px; }
   `;
   document.head.appendChild(style);
 
-  // ── HTML ──────────────────────────────────────────────────────
   document.body.insertAdjacentHTML("beforeend", `
     <button id="fu-chatbot-btn">
       <div id="fu-notif-badge"></div>
@@ -4944,7 +4987,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <button id="fu-close-btn" title="Fermer">✕</button>
       </div>
 
-      <!-- Barre de progression tokens (toujours visible) -->
       <div id="fu-token-bar-wrap">
         <div id="fu-token-bar-label">
           <span>Contexte utilisé</span>
@@ -4957,7 +4999,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
       <div id="fu-chat-messages"></div>
 
-      <!-- Bannière contexte : apparaît à 75% et 90% -->
       <div id="fu-context-banner"></div>
 
       <div id="fu-suggestions">
@@ -4966,18 +5007,24 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <button class="fu-suggestion">📦 Statut PO</button>
         <button class="fu-suggestion">🧵 Fabrics</button>
       </div>
+
       <div id="fu-chat-input-area">
-        <textarea id="fu-chat-input" placeholder="Posez votre question..." rows="1"></textarea>
-        <button id="fu-send-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-            <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
-          </svg>
-        </button>
+        <div id="fu-input-row">
+          <textarea id="fu-chat-input" placeholder="Posez votre question..." rows="1"></textarea>
+          <button id="fu-send-btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+              <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
+            </svg>
+          </button>
+        </div>
+        <div id="fu-footer-groq">
+          <span>Propulsé par</span>
+          <span class="groq-name">Groq</span>
+        </div>
       </div>
     </div>
   `);
 
-  // ── Refs ──────────────────────────────────────────────────────
   const panel       = document.getElementById("fu-chatbot-panel");
   const btn         = document.getElementById("fu-chatbot-btn");
   const closeBtn    = document.getElementById("fu-close-btn");
@@ -4994,7 +5041,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
   let isLoading   = false;
   let hasOpened   = false;
 
-  // ── Estimation tokens (1 token ≈ 4 caractères) ───────────────
   function estimateTokens(text) {
     return Math.ceil((text || "").length / 4);
   }
@@ -5005,21 +5051,18 @@ tr.awb-active-row td { background:#fff8ec !important; }
     return estimateTokens(historyText) + estimateTokens(pageData);
   }
 
-  // ── Mise à jour bannière + barre de progression ───────────────
   function updateContextBanner() {
     const used  = getTotalContextTokens();
     const ratio = Math.min(used / TOKEN_LIMIT, 1);
     const pct   = Math.round(ratio * 100);
 
-    // Barre + label toujours visibles
     const pctEl = document.getElementById("fu-token-pct");
     if (pctEl) pctEl.textContent = pct + "%";
     tokenBar.style.width = pct + "%";
-    if      (ratio < WARN_AT)     tokenBar.style.background = "#2ecc71"; // vert
-    else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12"; // orange
-    else                          tokenBar.style.background = "#e74c3c"; // rouge
+    if      (ratio < WARN_AT)     tokenBar.style.background = "#22c55e";
+    else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12";
+    else                          tokenBar.style.background = "#e74c3c";
 
-    // Bannière
     if (ratio >= CRITICAL_AT) {
       banner.style.display = "block";
       banner.className = "critical";
@@ -5031,7 +5074,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
           <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
         </div>`;
       _attachBannerListeners();
-
     } else if (ratio >= WARN_AT) {
       banner.style.display = "block";
       banner.className = "warn";
@@ -5043,7 +5085,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
           <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
         </div>`;
       _attachBannerListeners();
-
     } else {
       banner.style.display = "none";
       banner.className = "";
@@ -5057,7 +5098,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
     if (btnNew) btnNew.onclick = () => resetBtn.click();
   }
 
-  // ── Résumer la conversation et repartir allégé ────────────────
   async function summarizeAndReset() {
     if (isLoading) return;
     isLoading = true;
@@ -5084,7 +5124,6 @@ Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
 
       const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Résumé indisponible.";
 
-      // Réinitialiser l'historique avec le résumé comme seule mémoire
       messagesEl.innerHTML = "";
       chatHistory = [{ role: "assistant", content: "📝 **Résumé :**\n" + summary }];
       clearSession();
@@ -5105,7 +5144,6 @@ Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
     }
   }
 
-  // ── Persistance session ───────────────────────────────────────
   function loadSession() {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
@@ -5130,7 +5168,6 @@ Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
     try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
   }
 
-  // ── Ouverture ─────────────────────────────────────────────────
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
@@ -5156,7 +5193,6 @@ Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
     }
   };
 
-  // ── startWelcome() ────────────────────────────────────────────
   function startWelcome() {
     const userName = getUserName();
     const hour = new Date().getHours();
@@ -5208,13 +5244,11 @@ Rules:
     });
   }
 
-  // ── Fermeture ─────────────────────────────────────────────────
   closeBtn.onclick = (e) => {
     e.stopPropagation();
     panel.classList.remove("open");
   };
 
-  // ── Reset conversation ────────────────────────────────────────
   resetBtn.onclick = (e) => {
     e.stopPropagation();
     if (isLoading) return;
@@ -5223,11 +5257,10 @@ Rules:
     chatHistory = [];
     clearSession();
 
-    // Réinitialiser la barre et la bannière
     banner.style.display = "none";
     banner.className = "";
     tokenBar.style.width = "0%";
-    tokenBar.style.background = "#2ecc71";
+    tokenBar.style.background = "#22c55e";
     const pctElReset = document.getElementById("fu-token-pct");
     if (pctElReset) pctElReset.textContent = "0%";
 
@@ -5238,10 +5271,8 @@ Rules:
     startWelcome();
   };
 
-  // Badge notification après 3s
   setTimeout(() => { badge.style.display = "block"; }, 3000);
 
-  // ── Suggestions rapides ───────────────────────────────────────
   suggestions.forEach(s => {
     s.onclick = () => {
       input.value = s.innerText.replace(/^[\s\S]{0,3}/, "").trim();
@@ -5251,7 +5282,6 @@ Rules:
     };
   });
 
-  // ── Auto-resize textarea ──────────────────────────────────────
   input.addEventListener("input", () => {
     input.style.height = "auto";
     input.style.height = Math.min(input.scrollHeight, 80) + "px";
@@ -5261,7 +5291,6 @@ Rules:
   });
   sendBtn.onclick = sendMessage;
 
-  // ── Helpers messages ──────────────────────────────────────────
   function getTime() {
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
@@ -5273,19 +5302,34 @@ Rules:
       .replace(/\n/g, "<br>");
   }
 
+  // ── streamBotMessage avec logo Groq ──────────────────────────
   function streamBotMessage(text, onDone) {
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
+
+    // Rangée avatar + bulle
+    const row = document.createElement("div");
+    row.className = "fu-bot-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "fu-groq-avatar";
+    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
+
     const msg = document.createElement("div");
     msg.className = "fu-msg bot";
     const cursor = document.createElement("span");
     cursor.className = "fu-cursor";
     msg.appendChild(cursor);
-    const time = document.createElement("div");
-    time.className = "fu-msg-time";
-    time.textContent = getTime();
-    wrap.appendChild(msg);
-    wrap.appendChild(time);
+
+    row.appendChild(avatar);
+    row.appendChild(msg);
+
+    const meta = document.createElement("div");
+    meta.className = "fu-msg-meta";
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#bbb">·</span><span class="fu-groq-tag">via Groq</span>`;
+
+    wrap.appendChild(row);
+    wrap.appendChild(meta);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -5311,17 +5355,31 @@ Rules:
     return wrap;
   }
 
+  // ── addBotMessage avec logo Groq ──────────────────────────────
   function addBotMessage(text) {
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
+
+    const row = document.createElement("div");
+    row.className = "fu-bot-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "fu-groq-avatar";
+    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
+
     const msg = document.createElement("div");
     msg.className = "fu-msg bot";
     msg.innerHTML = renderText(text);
-    const time = document.createElement("div");
-    time.className = "fu-msg-time";
-    time.textContent = getTime();
-    wrap.appendChild(msg);
-    wrap.appendChild(time);
+
+    row.appendChild(avatar);
+    row.appendChild(msg);
+
+    const meta = document.createElement("div");
+    meta.className = "fu-msg-meta";
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#bbb">·</span><span class="fu-groq-tag">via Groq</span>`;
+
+    wrap.appendChild(row);
+    wrap.appendChild(meta);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return wrap;
@@ -5333,11 +5391,11 @@ Rules:
     const msg = document.createElement("div");
     msg.className = "fu-msg user";
     msg.textContent = text;
-    const time = document.createElement("div");
-    time.className = "fu-msg-time";
-    time.textContent = getTime();
+    const meta = document.createElement("div");
+    meta.className = "fu-msg-meta";
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span class="fu-check">✓✓</span>`;
     wrap.appendChild(msg);
-    wrap.appendChild(time);
+    wrap.appendChild(meta);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -5346,7 +5404,21 @@ Rules:
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
     wrap.id = "fu-typing";
-    wrap.innerHTML = `<div class="fu-typing"><span></span><span></span><span></span></div>`;
+
+    const row = document.createElement("div");
+    row.className = "fu-bot-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "fu-groq-avatar";
+    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
+
+    const typing = document.createElement("div");
+    typing.className = "fu-typing";
+    typing.innerHTML = `<span></span><span></span><span></span>`;
+
+    row.appendChild(avatar);
+    row.appendChild(typing);
+    wrap.appendChild(row);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return wrap;
@@ -5360,7 +5432,6 @@ Rules:
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
-  // ── Extraction données page ───────────────────────────────────
   function extractPageData() {
     let result = "=== PAGE : " + document.title + " ===\n\n";
     const tables = document.querySelectorAll("table");
@@ -5394,7 +5465,6 @@ Rules:
     return cell.innerText.trim().replace(/\n/g, " ");
   }
 
-  // ── Envoi message ─────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
     const question = input.value.trim();
@@ -5441,7 +5511,7 @@ Rules:
         chatHistory.push({ role: "user",      content: question });
         chatHistory.push({ role: "assistant", content: reply    });
         saveSession();
-        updateContextBanner(); // ✅ mise à jour après chaque échange
+        updateContextBanner();
       });
 
     } catch (err) {
