@@ -4642,12 +4642,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-//CHATBOT — VERSION CORRIGÉE
-//CHATBOT — VERSION CORRIGÉE
+//CHATBOT — VERSION CORRIGÉE + BANNIÈRE CONTEXTE
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbzq96O_ea9iTtVcYEWOIwCHyr-gP-wQihYhUM29qalqcEoTdTEr1-kJZBmVZtXYqu8x/exec";
   const SESSION_KEY = "aw27_chat_session";
+
+  // ── Seuils contexte ───────────────────────────────────────────
+  const TOKEN_LIMIT  = 128000;
+  const WARN_AT      = 0.75;   // bannière jaune à 75%
+  const CRITICAL_AT  = 0.90;   // bannière rouge à 90%
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
   function getUserName() {
@@ -4711,9 +4715,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       background: linear-gradient(135deg, #0f3460 0%, #533483 100%);
       color: white;
       display: flex; align-items: center; gap: 12px;
-      flex-shrink: 0;
-      position: relative;
-      z-index: 1;
+      flex-shrink: 0; position: relative; z-index: 1;
     }
     #fu-header-avatar {
       width: 38px; height: 38px; border-radius: 50%;
@@ -4738,9 +4740,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 8px; cursor: pointer; font-size: 16px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; margin-right: 4px;
-      position: relative;
-      z-index: 10002;
-      flex-shrink: 0;
+      position: relative; z-index: 10002; flex-shrink: 0;
     }
     #fu-reset-btn:hover { background: rgba(255,255,255,0.3); }
 
@@ -4750,9 +4750,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       border-radius: 8px; cursor: pointer; font-size: 14px;
       display: flex; align-items: center; justify-content: center;
       transition: background 0.2s;
-      position: relative;
-      z-index: 10002;
-      flex-shrink: 0;
+      position: relative; z-index: 10002; flex-shrink: 0;
     }
     #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
 
@@ -4767,7 +4765,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
     .fu-msg-wrap { display: flex; flex-direction: column; gap: 2px; }
     .fu-msg-wrap.user { align-items: flex-end; }
-    .fu-msg-wrap.bot { align-items: flex-start; }
+    .fu-msg-wrap.bot  { align-items: flex-start; }
 
     .fu-msg {
       padding: 10px 14px; border-radius: 16px;
@@ -4783,39 +4781,22 @@ tr.awb-active-row td { background:#fff8ec !important; }
       background: linear-gradient(135deg, #0f3460, #533483);
       color: white; border-bottom-right-radius: 4px;
     }
-    .fu-msg-time {
-      font-size: 10px; color: #aaa; padding: 0 4px;
-    }
-
-    /* ── NOUVEAU : style des liens dans les messages bot ── */
-    .fu-msg.bot a {
-      color: #533483;
-      text-decoration: underline;
-      word-break: break-all;
-    }
-    .fu-msg.bot a:hover {
-      color: #0f3460;
-    }
+    .fu-msg-time { font-size: 10px; color: #aaa; padding: 0 4px; }
+    .fu-msg.bot a { color: #533483; text-decoration: underline; word-break: break-all; }
+    .fu-msg.bot a:hover { color: #0f3460; }
 
     .fu-cursor {
-      display: inline-block;
-      width: 2px; height: 13px;
-      background: #533483;
-      margin-left: 2px;
-      vertical-align: middle;
-      animation: fu-blink 0.7s infinite;
+      display: inline-block; width: 2px; height: 13px;
+      background: #533483; margin-left: 2px;
+      vertical-align: middle; animation: fu-blink 0.7s infinite;
     }
-    @keyframes fu-blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
-    }
+    @keyframes fu-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     .fu-typing {
       display: flex; align-items: center; gap: 4px;
       padding: 12px 16px; background: white;
       border-radius: 16px; border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
-      width: fit-content;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07); width: fit-content;
     }
     .fu-typing span {
       width: 7px; height: 7px; border-radius: 50%;
@@ -4837,6 +4818,58 @@ tr.awb-active-row td { background:#fff8ec !important; }
       content: ''; flex: 1; height: 1px; background: #eee;
     }
 
+    /* ── Barre de progression tokens ── */
+    #fu-token-bar-wrap {
+      height: 3px; background: #e8e8f0; flex-shrink: 0;
+    }
+    #fu-token-bar {
+      height: 100%; width: 0%;
+      transition: width 0.5s ease, background 0.5s ease;
+      background: #2ecc71;
+    }
+
+    /* ── Bannière contexte ── */
+    #fu-context-banner {
+      display: none;
+      padding: 9px 14px 10px;
+      font-size: 11.5px;
+      font-family: 'Inter', sans-serif;
+      flex-shrink: 0;
+      line-height: 1.5;
+      animation: fu-banner-in 0.3s ease;
+    }
+    @keyframes fu-banner-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #fu-context-banner.warn {
+      background: #fff8e1;
+      color: #8a6000;
+      border-top: 1px solid #ffe082;
+    }
+    #fu-context-banner.critical {
+      background: #fdecea;
+      color: #b71c1c;
+      border-top: 1px solid #f5c6cb;
+    }
+    #fu-context-banner .fu-banner-actions {
+      display: flex; gap: 8px; margin-top: 7px;
+    }
+    #fu-context-banner button {
+      font-family: 'Inter', sans-serif;
+      font-size: 11px; padding: 5px 11px;
+      border-radius: 6px; cursor: pointer;
+      border: none; font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    #fu-context-banner button:hover { opacity: 0.8; }
+    #fu-btn-summarize  { background: #533483; color: white; }
+    #fu-btn-new-conv   {
+      background: transparent;
+      border: 1px solid currentColor !important;
+      color: inherit;
+    }
+
     #fu-suggestions {
       padding: 0 12px 10px;
       display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
@@ -4846,12 +4879,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
       padding: 5px 11px; border-radius: 20px;
       border: 1px solid #dde; background: white;
       font-size: 11.5px; color: #0f3460; cursor: pointer;
-      font-family: 'Inter', sans-serif;
-      transition: all 0.15s;
+      font-family: 'Inter', sans-serif; transition: all 0.15s;
     }
-    .fu-suggestion:hover {
-      background: #0f3460; color: white; border-color: #0f3460;
-    }
+    .fu-suggestion:hover { background: #0f3460; color: white; border-color: #0f3460; }
 
     #fu-chat-input-area {
       padding: 10px 12px; display: flex; gap: 8px;
@@ -4900,7 +4930,15 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <button id="fu-reset-btn" title="Nouvelle conversation">↺</button>
         <button id="fu-close-btn" title="Fermer">✕</button>
       </div>
+
+      <!-- Barre de progression tokens (fine ligne sous le header) -->
+      <div id="fu-token-bar-wrap"><div id="fu-token-bar"></div></div>
+
       <div id="fu-chat-messages"></div>
+
+      <!-- Bannière contexte : apparaît à 75% et 90% -->
+      <div id="fu-context-banner"></div>
+
       <div id="fu-suggestions">
         <button class="fu-suggestion">📊 Résumé</button>
         <button class="fu-suggestion">⚠️ Alertes</button>
@@ -4928,10 +4966,121 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const sendBtn     = document.getElementById("fu-send-btn");
   const badge       = document.getElementById("fu-notif-badge");
   const suggestions = document.querySelectorAll(".fu-suggestion");
+  const banner      = document.getElementById("fu-context-banner");
+  const tokenBar    = document.getElementById("fu-token-bar");
 
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
+
+  // ── Estimation tokens (1 token ≈ 4 caractères) ───────────────
+  function estimateTokens(text) {
+    return Math.ceil((text || "").length / 4);
+  }
+
+  function getTotalContextTokens() {
+    const historyText = chatHistory.map(m => m.content).join(" ");
+    const pageData    = extractPageData();
+    return estimateTokens(historyText) + estimateTokens(pageData);
+  }
+
+  // ── Mise à jour bannière + barre de progression ───────────────
+  function updateContextBanner() {
+    const used  = getTotalContextTokens();
+    const ratio = Math.min(used / TOKEN_LIMIT, 1);
+    const pct   = Math.round(ratio * 100);
+
+    // Barre colorée sous le header
+    tokenBar.style.width = pct + "%";
+    if      (ratio < WARN_AT)     tokenBar.style.background = "#2ecc71"; // vert
+    else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12"; // orange
+    else                          tokenBar.style.background = "#e74c3c"; // rouge
+
+    // Bannière
+    if (ratio >= CRITICAL_AT) {
+      banner.style.display = "block";
+      banner.className = "critical";
+      banner.innerHTML = `
+        <strong>⛔ Contexte épuisé à ${pct}%</strong><br>
+        Le bot risque d'oublier le début de la conversation.
+        <div class="fu-banner-actions">
+          <button id="fu-btn-summarize">📝 Résumer et continuer</button>
+          <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
+        </div>`;
+      _attachBannerListeners();
+
+    } else if (ratio >= WARN_AT) {
+      banner.style.display = "block";
+      banner.className = "warn";
+      banner.innerHTML = `
+        <strong>⚠️ Contexte utilisé à ${pct}%</strong><br>
+        Pensez à résumer ou démarrer une nouvelle conversation bientôt.
+        <div class="fu-banner-actions">
+          <button id="fu-btn-summarize">📝 Résumer et continuer</button>
+          <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
+        </div>`;
+      _attachBannerListeners();
+
+    } else {
+      banner.style.display = "none";
+      banner.className = "";
+    }
+  }
+
+  function _attachBannerListeners() {
+    const btnSum = document.getElementById("fu-btn-summarize");
+    const btnNew = document.getElementById("fu-btn-new-conv");
+    if (btnSum) btnSum.onclick = summarizeAndReset;
+    if (btnNew) btnNew.onclick = () => resetBtn.click();
+  }
+
+  // ── Résumer la conversation et repartir allégé ────────────────
+  async function summarizeAndReset() {
+    if (isLoading) return;
+    isLoading = true;
+    sendBtn.disabled = true;
+    banner.innerHTML = `<em>⏳ Résumé en cours...</em>`;
+
+    const typingEl = addTyping();
+
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+          prompt: `Fais un résumé compact en français de cette conversation.
+Garde uniquement : les refs importantes, les statuts clés, les alertes, les décisions prises.
+Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
+          context: extractPageData(),
+          history: chatHistory
+        })
+      });
+
+      const data = await res.json();
+      typingEl.remove();
+
+      const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Résumé indisponible.";
+
+      // Réinitialiser l'historique avec le résumé comme seule mémoire
+      messagesEl.innerHTML = "";
+      chatHistory = [{ role: "assistant", content: "📝 **Résumé :**\n" + summary }];
+      clearSession();
+
+      addDivider("Conversation résumée — contexte libéré");
+      streamBotMessage("📝 **Résumé de la session précédente :**\n" + summary, () => {
+        saveSession();
+        updateContextBanner();
+      });
+
+    } catch (err) {
+      typingEl.remove();
+      addBotMessage("❌ Erreur lors du résumé. Essayez une nouvelle conversation.");
+      console.error(err);
+    } finally {
+      isLoading = false;
+      sendBtn.disabled = false;
+    }
+  }
 
   // ── Persistance session ───────────────────────────────────────
   function loadSession() {
@@ -4941,9 +5090,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       const session = JSON.parse(saved);
       if (session.page !== document.title) return null;
       return session;
-    } catch (e) {
-      return null;
-    }
+    } catch (e) { return null; }
   }
 
   function saveSession() {
@@ -4978,6 +5125,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
         chatHistory = session.history || [];
         messagesEl.scrollTop = messagesEl.scrollHeight;
         addDivider("Session restaurée");
+        updateContextBanner();
         return;
       }
 
@@ -5023,6 +5171,7 @@ Rules:
       streamBotMessage(welcomeMsg, () => {
         chatHistory.push({ role: "assistant", content: welcomeMsg });
         saveSession();
+        updateContextBanner();
       });
     })
     .catch(() => {
@@ -5031,6 +5180,7 @@ Rules:
       streamBotMessage(fallback, () => {
         chatHistory.push({ role: "assistant", content: fallback });
         saveSession();
+        updateContextBanner();
       });
     });
   }
@@ -5050,8 +5200,13 @@ Rules:
     chatHistory = [];
     clearSession();
 
-    addDivider("Nouvelle conversation");
+    // Réinitialiser la barre et la bannière
+    banner.style.display = "none";
+    banner.className = "";
+    tokenBar.style.width = "0%";
+    tokenBar.style.background = "#2ecc71";
 
+    addDivider("Nouvelle conversation");
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.remove("hidden");
 
@@ -5086,7 +5241,6 @@ Rules:
     return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   }
 
-  // ── CORRECTION : renderText supporte maintenant les liens HTML ──
   function renderText(text) {
     return text
       .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -5094,7 +5248,6 @@ Rules:
       .replace(/\n/g, "<br>");
   }
 
-  // Streaming : affiche le texte mot par mot avec curseur clignotant
   function streamBotMessage(text, onDone) {
     const wrap = document.createElement("div");
     wrap.className = "fu-msg-wrap bot";
@@ -5111,7 +5264,6 @@ Rules:
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    // ── CORRECTION : tokenizer préserve les balises <a>...</a> entières ──
     const tokens = text.match(/(<a\s[^>]*>.*?<\/a>|\*\*.*?\*\*|\S+|\s+)/gs) || [];
     let i = 0;
     let displayed = "";
@@ -5184,8 +5336,6 @@ Rules:
   }
 
   // ── Extraction données page ───────────────────────────────────
-  // ✅ CORRIGÉ : capture TOUTES les lignes du DOM (même hors scroll)
-  //              limite portée à 20000 caractères au lieu de 6000
   function extractPageData() {
     let result = "=== PAGE : " + document.title + " ===\n\n";
     const tables = document.querySelectorAll("table");
@@ -5196,9 +5346,6 @@ Rules:
       const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
       result += "--- " + title + " ---\n";
 
-      // querySelectorAll("tr") sélectionne TOUS les tr du tableau,
-      // y compris ceux qui sont hors de la zone visible (scroll).
-      // Aucun filtre de visibilité n'est appliqué → données complètes.
       table.querySelectorAll("tr").forEach(row => {
         const cells = [...row.children].map(c => getCellValue(c));
         if (cells.some(c => c)) result += cells.join(" | ") + "\n";
@@ -5206,8 +5353,6 @@ Rules:
       result += "\n";
     });
 
-    // ✅ CORRIGÉ : limite augmentée de 6000 → 20000 caractères
-    //   pour ne pas tronquer les longues listes de PO / styles
     return result.slice(0, 20000);
   }
 
@@ -5271,6 +5416,7 @@ Rules:
         chatHistory.push({ role: "user",      content: question });
         chatHistory.push({ role: "assistant", content: reply    });
         saveSession();
+        updateContextBanner(); // ✅ mise à jour après chaque échange
       });
 
     } catch (err) {
