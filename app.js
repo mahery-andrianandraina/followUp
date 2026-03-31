@@ -4646,7 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT — VERSION CORRIGÉE
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbzq96O_ea9iTtVcYEWOIwCHyr-gP-wQihYhUM29qalqcEoTdTEr1-kJZBmVZtXYqu8x/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   // ── Récupérer le nom utilisateur ──────────────────────────────
@@ -5184,6 +5184,8 @@ Rules:
   }
 
   // ── Extraction données page ───────────────────────────────────
+  // ✅ CORRIGÉ : capture TOUTES les lignes du DOM (même hors scroll)
+  //              limite portée à 20000 caractères au lieu de 6000
   function extractPageData() {
     let result = "=== PAGE : " + document.title + " ===\n\n";
     const tables = document.querySelectorAll("table");
@@ -5194,6 +5196,9 @@ Rules:
       const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
       result += "--- " + title + " ---\n";
 
+      // querySelectorAll("tr") sélectionne TOUS les tr du tableau,
+      // y compris ceux qui sont hors de la zone visible (scroll).
+      // Aucun filtre de visibilité n'est appliqué → données complètes.
       table.querySelectorAll("tr").forEach(row => {
         const cells = [...row.children].map(c => getCellValue(c));
         if (cells.some(c => c)) result += cells.join(" | ") + "\n";
@@ -5201,7 +5206,9 @@ Rules:
       result += "\n";
     });
 
-    return result.slice(0, 6000);
+    // ✅ CORRIGÉ : limite augmentée de 6000 → 20000 caractères
+    //   pour ne pas tronquer les longues listes de PO / styles
+    return result.slice(0, 20000);
   }
 
   function getCellValue(cell) {
