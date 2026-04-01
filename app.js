@@ -4642,7 +4642,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-//CHATBOT 
+//CHATBOT
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
@@ -4652,11 +4652,13 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const WARN_AT      = 0.75;
   const CRITICAL_AT  = 0.90;
 
-  // SVG logo Groq (G stylisé rouge)
-  const GROQ_LOGO_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="48" fill="#f55036"/>
-    <path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/>
-  </svg>`;
+  const GROQ_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
+
+  const SUGGESTIONS = [
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`, text: "Quelles sont les échantillons en attente d'approbation ?" },
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
+  ];
 
   function getUserName() {
     if (window.currentUser && window.currentUser.displayName) {
@@ -4671,7 +4673,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   const style = document.createElement("style");
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Mono&display=swap');
 
     #fu-chatbot-btn {
       position: fixed; bottom: 28px; right: 28px;
@@ -4682,132 +4684,100 @@ tr.awb-active-row td { background:#fff8ec !important; }
       display: flex; align-items: center; justify-content: center;
       z-index: 10001; transition: transform 0.2s, box-shadow 0.2s;
     }
-    #fu-chatbot-btn:hover {
-      transform: scale(1.08);
-      box-shadow: 0 6px 32px rgba(83,52,131,0.65);
-    }
+    #fu-chatbot-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(83,52,131,0.65); }
     #fu-chatbot-btn svg { width: 24px; height: 24px; }
 
     #fu-notif-badge {
       position: absolute; top: -2px; right: -2px;
       width: 14px; height: 14px; border-radius: 50%;
-      background: #e74c3c; border: 2px solid white;
-      display: none;
+      background: #e74c3c; border: 2px solid white; display: none;
     }
 
     #fu-chatbot-panel {
       position: fixed; bottom: 96px; right: 28px;
-      width: 380px; height: 580px;
-      background: #f4f5f8;
-      border-radius: 20px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      width: 380px; height: 600px;
+      background: #0d0d1a;
+      border-radius: 24px;
+      border: 1px solid rgba(83,52,131,0.3);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px #1a1a3e;
       display: flex; flex-direction: column;
       overflow: hidden; z-index: 10000;
-      font-family: 'Inter', sans-serif;
+      font-family: 'DM Sans', sans-serif;
       transform: translateY(20px) scale(0.95);
       opacity: 0; pointer-events: none;
       transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    #fu-chatbot-panel.open {
-      transform: translateY(0) scale(1);
-      opacity: 1; pointer-events: all;
-    }
+    #fu-chatbot-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
 
-    /* ── HEADER ── */
+    /* HEADER */
     #fu-chat-header {
       padding: 14px 16px;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
-      color: white;
-      display: flex; align-items: center; gap: 12px;
-      flex-shrink: 0; position: relative; z-index: 1;
+      border-bottom: 1px solid rgba(83,52,131,0.3);
+      color: white; display: flex; align-items: center; gap: 12px;
+      flex-shrink: 0;
     }
     #fu-header-avatar {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      border: 1.5px solid rgba(255,255,255,0.25);
+      width: 38px; height: 38px; border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(83,52,131,0.5);
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0;
+      font-size: 18px; flex-shrink: 0; position: relative;
+    }
+    #fu-online-dot-wrap {
+      position: absolute; top: -2px; right: -2px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #22c55e; border: 2px solid #1a1a2e;
     }
     #fu-header-info { flex: 1; }
-    #fu-header-title { font-weight: 600; font-size: 14px; }
-    #fu-header-sub {
-      font-size: 11px; opacity: 0.65; margin-top: 2px;
-      display: flex; align-items: center; gap: 5px;
-    }
-    #fu-online-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: #22c55e; display: inline-block;
-      box-shadow: 0 0 0 2px rgba(34,197,94,0.3);
-    }
+    #fu-header-title { font-weight: 500; font-size: 14px; color: #fff; }
+    #fu-header-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; font-family: 'Space Mono', monospace; }
 
-    #fu-reset-btn {
-      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
-      color: white; width: 30px; height: 30px;
-      border-radius: 8px; cursor: pointer; font-size: 16px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s; margin-right: 4px;
-      position: relative; z-index: 10002; flex-shrink: 0;
+    #fu-reset-btn, #fu-close-btn {
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      color: white; width: 30px; height: 30px; border-radius: 8px;
+      cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s; flex-shrink: 0; position: relative; z-index: 10002;
     }
-    #fu-reset-btn:hover { background: rgba(255,255,255,0.25); }
+    #fu-reset-btn { margin-right: 4px; font-size: 16px; }
+    #fu-reset-btn:hover, #fu-close-btn:hover { background: rgba(255,255,255,0.2); }
 
-    #fu-close-btn {
-      background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
-      color: white; width: 30px; height: 30px;
-      border-radius: 8px; cursor: pointer; font-size: 14px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.2s;
-      position: relative; z-index: 10002; flex-shrink: 0;
-    }
-    #fu-close-btn:hover { background: rgba(255,255,255,0.25); }
-
-    /* ── TOKEN BAR ── */
+    /* TOKEN BAR */
     #fu-token-bar-wrap {
-      flex-shrink: 0;
-      padding: 6px 14px 5px;
-      background: #0f3460;
+      flex-shrink: 0; padding: 6px 14px 5px;
+      background: rgba(15,52,96,0.8);
+      border-bottom: 1px solid rgba(83,52,131,0.2);
       display: flex; flex-direction: column; gap: 3px;
     }
     #fu-token-bar-label {
       display: flex; justify-content: space-between;
-      font-size: 10px; color: rgba(255,255,255,0.5);
-      font-family: 'Inter', sans-serif;
+      font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.3);
     }
-    #fu-token-pct { color: #22c55e; font-weight: 500; }
-    #fu-token-bar-track {
-      height: 3px; background: rgba(255,255,255,0.12); border-radius: 99px; overflow: hidden;
-    }
+    #fu-token-pct { color: #22c55e; }
+    #fu-token-bar-track { height: 3px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
     #fu-token-bar {
-      height: 100%; width: 0%;
-      border-radius: 99px;
-      transition: width 0.5s ease, background 0.5s ease;
-      background: #22c55e;
+      height: 100%; width: 0%; border-radius: 99px;
+      transition: width 0.5s ease, background 0.5s ease; background: #22c55e;
     }
 
-    /* ── MESSAGES ── */
+    /* MESSAGES */
     #fu-chat-messages {
       flex: 1; overflow-y: auto; padding: 14px 14px 8px;
       display: flex; flex-direction: column; gap: 10px;
-      scroll-behavior: smooth;
-      background: #f4f5f8;
+      scroll-behavior: smooth; background: #0d0d1a;
     }
-    #fu-chat-messages::-webkit-scrollbar { width: 4px; }
-    #fu-chat-messages::-webkit-scrollbar-track { background: transparent; }
-    #fu-chat-messages::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+    #fu-chat-messages::-webkit-scrollbar { width: 3px; }
+    #fu-chat-messages::-webkit-scrollbar-thumb { background: rgba(83,52,131,0.4); border-radius: 4px; }
 
     .fu-msg-wrap { display: flex; flex-direction: column; gap: 3px; }
     .fu-msg-wrap.user { align-items: flex-end; }
     .fu-msg-wrap.bot  { align-items: flex-start; }
 
-    /* Bot messages: row avec avatar Groq */
-    .fu-bot-row {
-      display: flex; align-items: flex-end; gap: 7px;
-    }
+    .fu-bot-row { display: flex; align-items: flex-end; gap: 7px; }
     .fu-groq-avatar {
-      width: 26px; height: 26px; border-radius: 50%;
-      background: #1a1a1a;
-      border: 1.5px solid rgba(245,80,54,0.3);
-      flex-shrink: 0;
-      display: flex; align-items: center; justify-content: center;
+      width: 26px; height: 26px; border-radius: 8px;
+      background: #1a0a08; border: 1px solid rgba(245,80,54,0.3);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
       margin-bottom: 16px;
     }
 
@@ -4817,153 +4787,160 @@ tr.awb-active-row td { background:#fff8ec !important; }
       white-space: pre-wrap; word-break: break-word;
     }
     .fu-msg.bot {
-      background: white; color: #1a1a2e;
+      background: #16162a; color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(83,52,131,0.25);
       border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
     }
     .fu-msg.user {
-      background: linear-gradient(135deg, #1a1a2e, #0f3460);
-      color: white; border-bottom-right-radius: 4px;
+      background: #533483; color: white;
+      border-bottom-right-radius: 4px;
     }
+    .fu-msg.bot strong { color: #a78bfa; }
+    .fu-msg.bot a { color: #a78bfa; text-decoration: underline; word-break: break-all; }
+    .fu-msg.bot a:hover { color: #c4b5fd; }
 
-    .fu-msg-meta {
-      display: flex; align-items: center; gap: 5px;
-      padding: 0 4px;
-    }
-    .fu-msg-time { font-size: 10px; color: #bbb; }
-    .fu-groq-tag { font-size: 10px; color: #f55036; font-weight: 500; }
-    .fu-check { font-size: 10px; color: #bbb; }
-
-    .fu-msg.bot a { color: #533483; text-decoration: underline; word-break: break-all; }
-    .fu-msg.bot a:hover { color: #0f3460; }
+    .fu-msg-meta { display: flex; align-items: center; gap: 5px; padding: 0 4px; }
+    .fu-msg-time { font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.2); }
+    .fu-groq-tag { font-family: 'Space Mono', monospace; font-size: 9px; color: #f55036; }
+    .fu-check { font-size: 9px; color: #a78bfa; }
 
     .fu-cursor {
       display: inline-block; width: 2px; height: 13px;
-      background: #533483; margin-left: 2px;
+      background: #a78bfa; margin-left: 2px;
       vertical-align: middle; animation: fu-blink 0.7s infinite;
     }
     @keyframes fu-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     .fu-typing {
       display: flex; align-items: center; gap: 4px;
-      padding: 12px 16px; background: white;
+      padding: 12px 16px; background: #16162a;
+      border: 1px solid rgba(83,52,131,0.25);
       border-radius: 16px; border-bottom-left-radius: 4px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.07); width: fit-content;
+      width: fit-content;
     }
     .fu-typing span {
       width: 7px; height: 7px; border-radius: 50%;
-      background: #0f3460; opacity: 0.4;
+      background: #533483; opacity: 0.4;
       animation: fu-bounce 1.2s infinite;
     }
     .fu-typing span:nth-child(2) { animation-delay: 0.2s; }
     .fu-typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes fu-bounce {
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-5px); opacity: 1; }
+      30% { transform: translateY(-5px); opacity: 1; background: #a78bfa; }
     }
 
     .fu-divider {
       display: flex; align-items: center; gap: 8px;
-      font-size: 10px; color: #bbb; margin: 4px 0;
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      color: rgba(255,255,255,0.2); margin: 4px 0;
     }
     .fu-divider::before, .fu-divider::after {
-      content: ''; flex: 1; height: 1px; background: #e4e4e4;
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
     }
 
-    /* ── BANNIÈRE CONTEXTE ── */
+    /* BANNIÈRE CONTEXTE */
     #fu-context-banner {
-      display: none;
-      padding: 9px 14px 10px;
-      font-size: 11.5px;
-      font-family: 'Inter', sans-serif;
-      flex-shrink: 0;
-      line-height: 1.5;
+      display: none; padding: 9px 14px 10px;
+      font-size: 11.5px; font-family: 'DM Sans', sans-serif;
+      flex-shrink: 0; line-height: 1.5;
       animation: fu-banner-in 0.3s ease;
     }
-    @keyframes fu-banner-in {
-      from { opacity: 0; transform: translateY(-4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    #fu-context-banner.warn {
-      background: #fff8e1;
-      color: #8a6000;
-      border-top: 1px solid #ffe082;
-    }
-    #fu-context-banner.critical {
-      background: #fdecea;
-      color: #b71c1c;
-      border-top: 1px solid #f5c6cb;
-    }
-    #fu-context-banner .fu-banner-actions {
-      display: flex; gap: 8px; margin-top: 7px;
-    }
+    @keyframes fu-banner-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    #fu-context-banner.warn { background: #fff8e1; color: #8a6000; border-top: 1px solid #ffe082; }
+    #fu-context-banner.critical { background: #fdecea; color: #b71c1c; border-top: 1px solid #f5c6cb; }
+    #fu-context-banner .fu-banner-actions { display: flex; gap: 8px; margin-top: 7px; }
     #fu-context-banner button {
-      font-family: 'Inter', sans-serif;
-      font-size: 11px; padding: 5px 11px;
-      border-radius: 6px; cursor: pointer;
-      border: none; font-weight: 500;
-      transition: opacity 0.15s;
+      font-family: 'DM Sans', sans-serif; font-size: 11px; padding: 5px 11px;
+      border-radius: 6px; cursor: pointer; border: none; font-weight: 500; transition: opacity 0.15s;
     }
     #fu-context-banner button:hover { opacity: 0.8; }
-    #fu-btn-summarize  { background: #533483; color: white; }
-    #fu-btn-new-conv   {
-      background: transparent;
-      border: 1px solid currentColor !important;
-      color: inherit;
-    }
+    #fu-btn-summarize { background: #533483; color: white; }
+    #fu-btn-new-conv { background: transparent; border: 1px solid currentColor !important; color: inherit; }
 
-    /* ── SUGGESTIONS ── */
+    /* SUGGESTIONS SLIDER */
     #fu-suggestions {
-      padding: 0 12px 10px;
-      display: flex; gap: 6px; flex-wrap: wrap; flex-shrink: 0;
-    }
-    #fu-suggestions.hidden { display: none; }
-    .fu-suggestion {
-      padding: 5px 11px; border-radius: 20px;
-      border: 1px solid #dde; background: white;
-      font-size: 11.5px; color: #0f3460; cursor: pointer;
-      font-family: 'Inter', sans-serif; transition: all 0.15s;
-    }
-    .fu-suggestion:hover { background: #0f3460; color: white; border-color: #0f3460; }
-
-    /* ── INPUT AREA ── */
-    #fu-chat-input-area {
-      padding: 10px 12px;
-      background: white;
-      border-top: 1px solid #eef;
+      padding: 10px 14px 12px;
+      background: #0d0d1a;
+      border-top: 1px solid rgba(83,52,131,0.15);
       flex-shrink: 0;
     }
-    #fu-input-row {
-      display: flex; gap: 8px; align-items: flex-end;
+    #fu-suggestions.hidden { display: none; }
+    #fu-sugg-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
     }
+    #fu-sugg-label {
+      font-family: 'Space Mono', monospace; font-size: 9px;
+      color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    #fu-sugg-dots { display: flex; gap: 5px; align-items: center; }
+    .fu-dot-ind {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: rgba(83,52,131,0.35); transition: all 0.3s; cursor: pointer;
+    }
+    .fu-dot-ind.active { background: #a78bfa; width: 16px; border-radius: 4px; }
+    #fu-slider-wrap { overflow: hidden; border-radius: 14px; }
+    #fu-slider-track { display: flex; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
+    .fu-slide { min-width: 100%; box-sizing: border-box; }
+    .fu-suggestion {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: 14px;
+      background: rgba(83,52,131,0.1);
+      border: 1px solid rgba(83,52,131,0.3);
+      cursor: pointer; transition: all 0.2s; width: 100%; box-sizing: border-box;
+    }
+    .fu-suggestion:hover { background: rgba(83,52,131,0.25); border-color: rgba(167,139,250,0.5); }
+    .fu-sugg-icon {
+      width: 24px; height: 24px; border-radius: 8px;
+      background: rgba(83,52,131,0.25); border: 1px solid rgba(167,139,250,0.2);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .fu-sugg-text {
+      font-family: 'DM Sans', sans-serif; font-size: 12px;
+      color: rgba(167,139,250,0.9); font-style: italic; line-height: 1.4; flex: 1; text-align: left;
+    }
+    .fu-sugg-arrow { flex-shrink: 0; font-size: 11px; color: rgba(83,52,131,0.6); }
+    #fu-sugg-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
+    .fu-nav-btn {
+      width: 24px; height: 24px; border-radius: 8px;
+      background: rgba(83,52,131,0.15); border: 1px solid rgba(83,52,131,0.25);
+      display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s;
+    }
+    .fu-nav-btn:hover { background: rgba(83,52,131,0.35); }
+
+    /* INPUT AREA */
+    #fu-chat-input-area {
+      padding: 10px 12px 12px; background: #0d0d1a;
+      border-top: 1px solid rgba(83,52,131,0.2); flex-shrink: 0;
+    }
+    #fu-input-row { display: flex; gap: 8px; align-items: center; }
     #fu-chat-input {
-      flex: 1; border: 1.5px solid #e8e8f0;
+      flex: 1; border: 1px solid rgba(83,52,131,0.35);
       border-radius: 24px; padding: 9px 16px;
-      font-family: 'Inter', sans-serif; font-size: 13px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
       resize: none; outline: none; max-height: 80px;
       transition: border-color 0.2s; line-height: 1.4;
-      background: #f8f9fc; color: #1a1a2e;
+      background: #16162a; color: rgba(255,255,255,0.85);
     }
-    #fu-chat-input:focus { border-color: #533483; background: white; }
+    #fu-chat-input::placeholder { color: rgba(255,255,255,0.2); }
+    #fu-chat-input:focus { border-color: #a78bfa; }
     #fu-send-btn {
       width: 38px; height: 38px; flex-shrink: 0;
-      background: linear-gradient(135deg, #1a1a2e, #0f3460);
-      border: none; color: white; border-radius: 50%;
-      cursor: pointer; font-size: 15px;
+      background: #533483; border: none; color: white;
+      border-radius: 50%; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       transition: opacity 0.2s, transform 0.15s;
     }
-    #fu-send-btn:hover { transform: scale(1.05); }
+    #fu-send-btn:hover { transform: scale(1.05); background: #6d45a8; }
     #fu-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 
-    /* ── FOOTER GROQ ── */
+    /* FOOTER */
     #fu-footer-groq {
-      text-align: center;
-      padding: 5px 0 2px;
+      text-align: center; padding: 6px 0 0;
       display: flex; align-items: center; justify-content: center; gap: 5px;
     }
-    #fu-footer-groq span { font-size: 10px; color: #bbb; }
-    #fu-footer-groq .groq-name { color: #f55036; font-weight: 600; font-size: 10px; }
+    #fu-footer-groq span { font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.18); }
+    #fu-footer-groq .groq-name { color: #f55036; }
   `;
   document.head.appendChild(style);
 
@@ -4974,14 +4951,13 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
       </svg>
     </button>
+
     <div id="fu-chatbot-panel">
       <div id="fu-chat-header">
-        <div id="fu-header-avatar">🤖</div>
+        <div id="fu-header-avatar">🤖<div id="fu-online-dot-wrap"></div></div>
         <div id="fu-header-info">
           <div id="fu-header-title">Assistant AW27</div>
-          <div id="fu-header-sub">
-            <span id="fu-online-dot"></span> En ligne · Analyse votre page
-          </div>
+          <div id="fu-header-sub">En ligne · Analyse votre page</div>
         </div>
         <button id="fu-reset-btn" title="Nouvelle conversation">↺</button>
         <button id="fu-close-btn" title="Fermer">✕</button>
@@ -4989,12 +4965,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
       <div id="fu-token-bar-wrap">
         <div id="fu-token-bar-label">
-          <span>Contexte utilisé</span>
+          <span>CONTEXTE</span>
           <span id="fu-token-pct">0%</span>
         </div>
-        <div id="fu-token-bar-track">
-          <div id="fu-token-bar"></div>
-        </div>
+        <div id="fu-token-bar-track"><div id="fu-token-bar"></div></div>
       </div>
 
       <div id="fu-chat-messages"></div>
@@ -5002,10 +4976,47 @@ tr.awb-active-row td { background:#fff8ec !important; }
       <div id="fu-context-banner"></div>
 
       <div id="fu-suggestions">
-        <button class="fu-suggestion">📊 Résumé</button>
-        <button class="fu-suggestion">⚠️ Alertes</button>
-        <button class="fu-suggestion">📦 Statut PO</button>
-        <button class="fu-suggestion">🧵 Fabrics</button>
+        <div id="fu-sugg-header">
+          <span id="fu-sugg-label">Suggestion</span>
+          <div id="fu-sugg-dots">
+            <div class="fu-dot-ind active" data-idx="0"></div>
+            <div class="fu-dot-ind" data-idx="1"></div>
+            <div class="fu-dot-ind" data-idx="2"></div>
+          </div>
+        </div>
+        <div id="fu-slider-wrap">
+          <div id="fu-slider-track">
+            <div class="fu-slide">
+              <button class="fu-suggestion">
+                <div class="fu-sugg-icon">${SUGGESTIONS[0].icon}</div>
+                <span class="fu-sugg-text">${SUGGESTIONS[0].text}</span>
+                <span class="fu-sugg-arrow">↗</span>
+              </button>
+            </div>
+            <div class="fu-slide">
+              <button class="fu-suggestion">
+                <div class="fu-sugg-icon">${SUGGESTIONS[1].icon}</div>
+                <span class="fu-sugg-text">${SUGGESTIONS[1].text}</span>
+                <span class="fu-sugg-arrow">↗</span>
+              </button>
+            </div>
+            <div class="fu-slide">
+              <button class="fu-suggestion">
+                <div class="fu-sugg-icon">${SUGGESTIONS[2].icon}</div>
+                <span class="fu-sugg-text">${SUGGESTIONS[2].text}</span>
+                <span class="fu-sugg-arrow">↗</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div id="fu-sugg-nav">
+          <div class="fu-nav-btn" id="fu-sugg-prev">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.7)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </div>
+          <div class="fu-nav-btn" id="fu-sugg-next">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.7)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
       </div>
 
       <div id="fu-chat-input-area">
@@ -5025,30 +5036,58 @@ tr.awb-active-row td { background:#fff8ec !important; }
     </div>
   `);
 
-  const panel       = document.getElementById("fu-chatbot-panel");
-  const btn         = document.getElementById("fu-chatbot-btn");
-  const closeBtn    = document.getElementById("fu-close-btn");
-  const resetBtn    = document.getElementById("fu-reset-btn");
-  const messagesEl  = document.getElementById("fu-chat-messages");
-  const input       = document.getElementById("fu-chat-input");
-  const sendBtn     = document.getElementById("fu-send-btn");
-  const badge       = document.getElementById("fu-notif-badge");
-  const suggestions = document.querySelectorAll(".fu-suggestion");
-  const banner      = document.getElementById("fu-context-banner");
-  const tokenBar    = document.getElementById("fu-token-bar");
+  // ── Refs ──────────────────────────────────────────────────────
+  const panel      = document.getElementById("fu-chatbot-panel");
+  const btn        = document.getElementById("fu-chatbot-btn");
+  const closeBtn   = document.getElementById("fu-close-btn");
+  const resetBtn   = document.getElementById("fu-reset-btn");
+  const messagesEl = document.getElementById("fu-chat-messages");
+  const input      = document.getElementById("fu-chat-input");
+  const sendBtn    = document.getElementById("fu-send-btn");
+  const badge      = document.getElementById("fu-notif-badge");
+  const banner     = document.getElementById("fu-context-banner");
+  const tokenBar   = document.getElementById("fu-token-bar");
 
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
 
-  function estimateTokens(text) {
-    return Math.ceil((text || "").length / 4);
+  // ── SLIDER LOGIC ──────────────────────────────────────────────
+  let sliderCurrent = 0;
+  const sliderTotal = 3;
+  const sliderTrack = document.getElementById("fu-slider-track");
+  const dots        = document.querySelectorAll(".fu-dot-ind");
+
+  function sliderGoTo(idx) {
+    sliderCurrent = idx;
+    sliderTrack.style.transform = "translateX(-" + (idx * 100) + "%)";
+    dots.forEach((d, i) => d.classList.toggle("active", i === idx));
   }
 
+  document.getElementById("fu-sugg-next").onclick = () => sliderGoTo((sliderCurrent + 1) % sliderTotal);
+  document.getElementById("fu-sugg-prev").onclick = () => sliderGoTo((sliderCurrent - 1 + sliderTotal) % sliderTotal);
+  dots.forEach(d => { d.onclick = () => sliderGoTo(parseInt(d.dataset.idx)); });
+
+  // Auto-slide toutes les 4s
+  let sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000);
+
+  // Clic sur une suggestion → envoie le message
+  document.querySelectorAll(".fu-suggestion").forEach(s => {
+    s.onclick = () => {
+      const text = s.querySelector(".fu-sugg-text").innerText.trim();
+      input.value = text;
+      const suggestionsEl = document.getElementById("fu-suggestions");
+      if (suggestionsEl) suggestionsEl.classList.add("hidden");
+      clearInterval(sliderInterval);
+      sendMessage();
+    };
+  });
+
+  // ── Tokens ────────────────────────────────────────────────────
+  function estimateTokens(text) { return Math.ceil((text || "").length / 4); }
+
   function getTotalContextTokens() {
-    const historyText = chatHistory.map(m => m.content).join(" ");
-    const pageData    = extractPageData();
-    return estimateTokens(historyText) + estimateTokens(pageData);
+    return estimateTokens(chatHistory.map(m => m.content).join(" ")) + estimateTokens(extractPageData());
   }
 
   function updateContextBanner() {
@@ -5064,30 +5103,15 @@ tr.awb-active-row td { background:#fff8ec !important; }
     else                          tokenBar.style.background = "#e74c3c";
 
     if (ratio >= CRITICAL_AT) {
-      banner.style.display = "block";
-      banner.className = "critical";
-      banner.innerHTML = `
-        <strong>⛔ Contexte épuisé à ${pct}%</strong><br>
-        Le bot risque d'oublier le début de la conversation.
-        <div class="fu-banner-actions">
-          <button id="fu-btn-summarize">📝 Résumer et continuer</button>
-          <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
-        </div>`;
+      banner.style.display = "block"; banner.className = "critical";
+      banner.innerHTML = `<strong>⛔ Contexte épuisé à ${pct}%</strong><br>Le bot risque d'oublier le début de la conversation.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
       _attachBannerListeners();
     } else if (ratio >= WARN_AT) {
-      banner.style.display = "block";
-      banner.className = "warn";
-      banner.innerHTML = `
-        <strong>⚠️ Contexte utilisé à ${pct}%</strong><br>
-        Pensez à résumer ou démarrer une nouvelle conversation bientôt.
-        <div class="fu-banner-actions">
-          <button id="fu-btn-summarize">📝 Résumer et continuer</button>
-          <button id="fu-btn-new-conv">↺ Nouvelle conversation</button>
-        </div>`;
+      banner.style.display = "block"; banner.className = "warn";
+      banner.innerHTML = `<strong>⚠️ Contexte utilisé à ${pct}%</strong><br>Pensez à résumer ou démarrer une nouvelle conversation bientôt.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
       _attachBannerListeners();
     } else {
-      banner.style.display = "none";
-      banner.className = "";
+      banner.style.display = "none"; banner.className = "";
     }
   }
 
@@ -5098,52 +5122,29 @@ tr.awb-active-row td { background:#fff8ec !important; }
     if (btnNew) btnNew.onclick = () => resetBtn.click();
   }
 
+  // ── Résumer ───────────────────────────────────────────────────
   async function summarizeAndReset() {
     if (isLoading) return;
-    isLoading = true;
-    sendBtn.disabled = true;
+    isLoading = true; sendBtn.disabled = true;
     banner.innerHTML = `<em>⏳ Résumé en cours...</em>`;
-
     const typingEl = addTyping();
-
     try {
       const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          prompt: `Fais un résumé compact en français de cette conversation.
-Garde uniquement : les refs importantes, les statuts clés, les alertes, les décisions prises.
-Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
-          context: extractPageData(),
-          history: chatHistory
-        })
+        method: "POST", headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ prompt: `Fais un résumé compact en français de cette conversation.\nGarde uniquement : les refs importantes, les statuts clés, les alertes, les décisions prises.\nMax 10 lignes. Ce résumé servira de mémoire pour la suite.`, context: extractPageData(), history: chatHistory })
       });
-
-      const data = await res.json();
-      typingEl.remove();
-
+      const data = await res.json(); typingEl.remove();
       const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Résumé indisponible.";
-
       messagesEl.innerHTML = "";
       chatHistory = [{ role: "assistant", content: "📝 **Résumé :**\n" + summary }];
       clearSession();
-
       addDivider("Conversation résumée — contexte libéré");
-      streamBotMessage("📝 **Résumé de la session précédente :**\n" + summary, () => {
-        saveSession();
-        updateContextBanner();
-      });
-
-    } catch (err) {
-      typingEl.remove();
-      addBotMessage("❌ Erreur lors du résumé. Essayez une nouvelle conversation.");
-      console.error(err);
-    } finally {
-      isLoading = false;
-      sendBtn.disabled = false;
-    }
+      streamBotMessage("📝 **Résumé de la session précédente :**\n" + summary, () => { saveSession(); updateContextBanner(); });
+    } catch (err) { typingEl.remove(); addBotMessage("❌ Erreur lors du résumé."); console.error(err); }
+    finally { isLoading = false; sendBtn.disabled = false; }
   }
 
+  // ── Session ───────────────────────────────────────────────────
   function loadSession() {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
@@ -5157,143 +5158,82 @@ Max 10 lignes. Ce résumé servira de mémoire pour la suite.`,
   function saveSession() {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        page: document.title,
-        history: chatHistory,
+        page: document.title, history: chatHistory,
         messages: [...messagesEl.children].map(el => el.outerHTML)
       }));
     } catch (e) {}
   }
 
-  function clearSession() {
-    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
-  }
+  function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
 
+  // ── Ouverture ─────────────────────────────────────────────────
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
-
     if (!hasOpened) {
       hasOpened = true;
-
       const session = loadSession();
       if (session && session.messages && session.messages.length > 0) {
-        session.messages.forEach(html => {
-          const div = document.createElement("div");
-          div.innerHTML = html;
-          if (div.firstChild) messagesEl.appendChild(div.firstChild);
-        });
+        session.messages.forEach(html => { const div = document.createElement("div"); div.innerHTML = html; if (div.firstChild) messagesEl.appendChild(div.firstChild); });
         chatHistory = session.history || [];
         messagesEl.scrollTop = messagesEl.scrollHeight;
-        addDivider("Session restaurée");
-        updateContextBanner();
-        return;
+        addDivider("Session restaurée"); updateContextBanner(); return;
       }
-
       startWelcome();
     }
   };
 
+  // ── Welcome ───────────────────────────────────────────────────
   function startWelcome() {
     const userName = getUserName();
     const hour = new Date().getHours();
     const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-
     addTyping();
-
     fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain" },
+      method: "POST", headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
-        prompt: `You are greeting the user for the first time when they open the chat.
-The user's first name is "${userName}". Use the greeting "${greeting}".
-Analyze the page data provided and write a smart, natural welcome message in French that:
-1. Greets them by first name warmly
-2. Mentions which module they are on (detect from page title or data)
-3. Gives 1-2 key observations from the data (e.g. number of pending items, any late/blocked styles flagged with ⚠️, total POs, approvals waiting, etc.)
-4. Ends with a short natural invitation to ask a question
-
-Rules:
-- Max 3 lines total
-- Casual and human tone, like a sharp colleague — NOT a robot
-- Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"
-- Use **bold** for names, numbers and module name
-- If no meaningful data is found, just greet warmly and invite them to ask`,
-        context: extractPageData(),
-        history: []
+        prompt: `You are greeting the user for the first time when they open the chat.\nThe user's first name is "${userName}". Use the greeting "${greeting}".\nAnalyze the page data provided and write a smart, natural welcome message in French that:\n1. Greets them by first name warmly\n2. Mentions which module they are on (detect from page title or data)\n3. Gives 1-2 key observations from the data (e.g. number of pending items, any late/blocked styles flagged with ⚠️, total POs, approvals waiting, etc.)\n4. Ends with a short natural invitation to ask a question\n\nRules:\n- Max 3 lines total\n- Casual and human tone, like a sharp colleague — NOT a robot\n- Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"\n- Use **bold** for names, numbers and module name\n- If no meaningful data is found, just greet warmly and invite them to ask`,
+        context: extractPageData(), history: []
       })
     })
     .then(r => r.json())
     .then(data => {
       document.getElementById("fu-typing")?.remove();
-      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
-        || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
-      streamBotMessage(welcomeMsg, () => {
-        chatHistory.push({ role: "assistant", content: welcomeMsg });
-        saveSession();
-        updateContextBanner();
-      });
+      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+      streamBotMessage(welcomeMsg, () => { chatHistory.push({ role: "assistant", content: welcomeMsg }); saveSession(); updateContextBanner(); });
     })
     .catch(() => {
       document.getElementById("fu-typing")?.remove();
       const fallback = `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
-      streamBotMessage(fallback, () => {
-        chatHistory.push({ role: "assistant", content: fallback });
-        saveSession();
-        updateContextBanner();
-      });
+      streamBotMessage(fallback, () => { chatHistory.push({ role: "assistant", content: fallback }); saveSession(); updateContextBanner(); });
     });
   }
 
-  closeBtn.onclick = (e) => {
-    e.stopPropagation();
-    panel.classList.remove("open");
-  };
+  // ── Fermeture / Reset ─────────────────────────────────────────
+  closeBtn.onclick = (e) => { e.stopPropagation(); panel.classList.remove("open"); };
 
   resetBtn.onclick = (e) => {
-    e.stopPropagation();
-    if (isLoading) return;
-
-    messagesEl.innerHTML = "";
-    chatHistory = [];
-    clearSession();
-
-    banner.style.display = "none";
-    banner.className = "";
-    tokenBar.style.width = "0%";
-    tokenBar.style.background = "#22c55e";
+    e.stopPropagation(); if (isLoading) return;
+    messagesEl.innerHTML = ""; chatHistory = []; clearSession();
+    banner.style.display = "none"; banner.className = "";
+    tokenBar.style.width = "0%"; tokenBar.style.background = "#22c55e";
     const pctElReset = document.getElementById("fu-token-pct");
     if (pctElReset) pctElReset.textContent = "0%";
-
     addDivider("Nouvelle conversation");
     const suggestionsEl = document.getElementById("fu-suggestions");
-    if (suggestionsEl) suggestionsEl.classList.remove("hidden");
-
+    if (suggestionsEl) { suggestionsEl.classList.remove("hidden"); sliderGoTo(0); clearInterval(sliderInterval); sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000); }
     startWelcome();
   };
 
   setTimeout(() => { badge.style.display = "block"; }, 3000);
 
-  suggestions.forEach(s => {
-    s.onclick = () => {
-      input.value = s.innerText.replace(/^[\s\S]{0,3}/, "").trim();
-      const suggestionsEl = document.getElementById("fu-suggestions");
-      if (suggestionsEl) suggestionsEl.classList.add("hidden");
-      sendMessage();
-    };
-  });
-
-  input.addEventListener("input", () => {
-    input.style.height = "auto";
-    input.style.height = Math.min(input.scrollHeight, 80) + "px";
-  });
-  input.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-  });
+  // ── Input ─────────────────────────────────────────────────────
+  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 80) + "px"; });
+  input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
   sendBtn.onclick = sendMessage;
 
-  function getTime() {
-    return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  }
+  // ── Helpers ───────────────────────────────────────────────────
+  function getTime() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
 
   function renderText(text) {
     return text
@@ -5302,162 +5242,86 @@ Rules:
       .replace(/\n/g, "<br>");
   }
 
-  // ── streamBotMessage avec logo Groq ──────────────────────────
   function streamBotMessage(text, onDone) {
-    const wrap = document.createElement("div");
-    wrap.className = "fu-msg-wrap bot";
-
-    // Rangée avatar + bulle
-    const row = document.createElement("div");
-    row.className = "fu-bot-row";
-
-    const avatar = document.createElement("div");
-    avatar.className = "fu-groq-avatar";
-    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
-
-    const msg = document.createElement("div");
-    msg.className = "fu-msg bot";
-    const cursor = document.createElement("span");
-    cursor.className = "fu-cursor";
+    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
+    const row  = document.createElement("div"); row.className = "fu-bot-row";
+    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+    const msg  = document.createElement("div"); msg.className = "fu-msg bot";
+    const cursor = document.createElement("span"); cursor.className = "fu-cursor";
     msg.appendChild(cursor);
-
-    row.appendChild(avatar);
-    row.appendChild(msg);
-
-    const meta = document.createElement("div");
-    meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#bbb">·</span><span class="fu-groq-tag">via Groq</span>`;
-
-    wrap.appendChild(row);
-    wrap.appendChild(meta);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    row.appendChild(avatar); row.appendChild(msg);
+    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:rgba(255,255,255,0.15)">·</span><span class="fu-groq-tag">via Groq</span>`;
+    wrap.appendChild(row); wrap.appendChild(meta);
+    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
 
     const tokens = text.match(/(<a\s[^>]*>.*?<\/a>|\*\*.*?\*\*|\S+|\s+)/gs) || [];
-    let i = 0;
-    let displayed = "";
-
+    let i = 0, displayed = "";
     function next() {
-      if (i >= tokens.length) {
-        msg.innerHTML = renderText(displayed);
-        if (onDone) onDone(wrap);
-        saveSession();
-        return;
-      }
+      if (i >= tokens.length) { msg.innerHTML = renderText(displayed); if (onDone) onDone(wrap); saveSession(); return; }
       displayed += tokens[i++];
-      msg.innerHTML = renderText(displayed);
-      msg.appendChild(cursor);
+      msg.innerHTML = renderText(displayed); msg.appendChild(cursor);
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      const delay = tokens[i - 1].trim() === "" ? 10 : 28;
-      setTimeout(next, delay);
+      setTimeout(next, tokens[i - 1].trim() === "" ? 10 : 28);
     }
-    next();
-    return wrap;
+    next(); return wrap;
   }
 
-  // ── addBotMessage avec logo Groq ──────────────────────────────
   function addBotMessage(text) {
-    const wrap = document.createElement("div");
-    wrap.className = "fu-msg-wrap bot";
-
-    const row = document.createElement("div");
-    row.className = "fu-bot-row";
-
-    const avatar = document.createElement("div");
-    avatar.className = "fu-groq-avatar";
-    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
-
-    const msg = document.createElement("div");
-    msg.className = "fu-msg bot";
-    msg.innerHTML = renderText(text);
-
-    row.appendChild(avatar);
-    row.appendChild(msg);
-
-    const meta = document.createElement("div");
-    meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#bbb">·</span><span class="fu-groq-tag">via Groq</span>`;
-
-    wrap.appendChild(row);
-    wrap.appendChild(meta);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return wrap;
+    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
+    const row  = document.createElement("div"); row.className = "fu-bot-row";
+    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+    const msg  = document.createElement("div"); msg.className = "fu-msg bot"; msg.innerHTML = renderText(text);
+    row.appendChild(avatar); row.appendChild(msg);
+    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:rgba(255,255,255,0.15)">·</span><span class="fu-groq-tag">via Groq</span>`;
+    wrap.appendChild(row); wrap.appendChild(meta);
+    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
   }
 
   function addUserMessage(text) {
-    const wrap = document.createElement("div");
-    wrap.className = "fu-msg-wrap user";
-    const msg = document.createElement("div");
-    msg.className = "fu-msg user";
-    msg.textContent = text;
-    const meta = document.createElement("div");
-    meta.className = "fu-msg-meta";
+    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap user";
+    const msg  = document.createElement("div"); msg.className = "fu-msg user"; msg.textContent = text;
+    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
     meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span class="fu-check">✓✓</span>`;
-    wrap.appendChild(msg);
-    wrap.appendChild(meta);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    wrap.appendChild(msg); wrap.appendChild(meta);
+    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
   function addTyping() {
-    const wrap = document.createElement("div");
-    wrap.className = "fu-msg-wrap bot";
-    wrap.id = "fu-typing";
-
-    const row = document.createElement("div");
-    row.className = "fu-bot-row";
-
-    const avatar = document.createElement("div");
-    avatar.className = "fu-groq-avatar";
-    avatar.innerHTML = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
-
-    const typing = document.createElement("div");
-    typing.className = "fu-typing";
-    typing.innerHTML = `<span></span><span></span><span></span>`;
-
-    row.appendChild(avatar);
-    row.appendChild(typing);
-    wrap.appendChild(row);
-    messagesEl.appendChild(wrap);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-    return wrap;
+    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot"; wrap.id = "fu-typing";
+    const row  = document.createElement("div"); row.className = "fu-bot-row";
+    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+    const typing = document.createElement("div"); typing.className = "fu-typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    row.appendChild(avatar); row.appendChild(typing); wrap.appendChild(row);
+    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
   }
 
   function addDivider(label) {
-    const div = document.createElement("div");
-    div.className = "fu-divider";
-    div.textContent = label;
-    messagesEl.appendChild(div);
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    const div = document.createElement("div"); div.className = "fu-divider"; div.textContent = label;
+    messagesEl.appendChild(div); messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // ── Page data ─────────────────────────────────────────────────
   function extractPageData() {
     let result = "=== PAGE : " + document.title + " ===\n\n";
-    const tables = document.querySelectorAll("table");
-
-    tables.forEach((table, i) => {
+    document.querySelectorAll("table").forEach((table, i) => {
       const caption = table.querySelector("caption");
       const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
-      const title = caption?.innerText || heading?.innerText || ("Tableau " + (i + 1));
-      result += "--- " + title + " ---\n";
-
+      result += "--- " + (caption?.innerText || heading?.innerText || ("Tableau " + (i + 1))) + " ---\n";
       table.querySelectorAll("tr").forEach(row => {
         const cells = [...row.children].map(c => getCellValue(c));
         if (cells.some(c => c)) result += cells.join(" | ") + "\n";
       });
       result += "\n";
     });
-
     return result.slice(0, 20000);
   }
 
   function getCellValue(cell) {
     const select = cell.querySelector("select");
-    if (select) {
-      const val = select.options[select.selectedIndex];
-      return (val && val.value && val.value !== "") ? val.text.trim() : "—";
-    }
+    if (select) { const val = select.options[select.selectedIndex]; return (val && val.value && val.value !== "") ? val.text.trim() : "—"; }
     const inp = cell.querySelector("input[type='text'], input:not([type])");
     if (inp) return inp.value.trim() || "—";
     const checkbox = cell.querySelector("input[type='checkbox']");
@@ -5465,63 +5329,30 @@ Rules:
     return cell.innerText.trim().replace(/\n/g, " ");
   }
 
+  // ── Send ──────────────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
-    const question = input.value.trim();
-    if (!question) return;
-
+    const question = input.value.trim(); if (!question) return;
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.add("hidden");
-
-    addUserMessage(question);
-    input.value = "";
-    input.style.height = "auto";
-
-    const typingEl = addTyping();
-    isLoading = true;
-    sendBtn.disabled = true;
-
+    addUserMessage(question); input.value = ""; input.style.height = "auto";
+    const typingEl = addTyping(); isLoading = true; sendBtn.disabled = true;
     try {
       const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          prompt:  question,
-          context: extractPageData(),
-          history: chatHistory.slice(-10)
-        })
+        method: "POST", headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({ prompt: question, context: extractPageData(), history: chatHistory.slice(-10) })
       });
-
-      const data = await res.json();
-      typingEl.remove();
-
-      if (data.error) {
-        addBotMessage("❌ Erreur : " + data.error);
-        return;
-      }
-
+      const data = await res.json(); typingEl.remove();
+      if (data.error) { addBotMessage("❌ Erreur : " + data.error); return; }
       const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-      if (!reply) {
-        addBotMessage("⚠️ Réponse vide. Vérifiez la console.");
-        console.warn("Structure inattendue :", JSON.stringify(data));
-        return;
-      }
-
+      if (!reply) { addBotMessage("⚠️ Réponse vide. Vérifiez la console."); console.warn("Structure inattendue :", JSON.stringify(data)); return; }
       streamBotMessage(reply, () => {
-        chatHistory.push({ role: "user",      content: question });
-        chatHistory.push({ role: "assistant", content: reply    });
-        saveSession();
-        updateContextBanner();
+        chatHistory.push({ role: "user", content: question });
+        chatHistory.push({ role: "assistant", content: reply });
+        saveSession(); updateContextBanner();
       });
-
-    } catch (err) {
-      typingEl.remove();
-      addBotMessage("❌ Erreur réseau. Vérifiez votre connexion.");
-      console.error(err);
-    } finally {
-      isLoading = false;
-      sendBtn.disabled = false;
-    }
+    } catch (err) { typingEl.remove(); addBotMessage("❌ Erreur réseau. Vérifiez votre connexion."); console.error(err); }
+    finally { isLoading = false; sendBtn.disabled = false; }
   }
 
 })();
