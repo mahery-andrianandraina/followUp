@@ -4643,6 +4643,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     document.head.appendChild(s);
 }
 //CHATBOT
+//CHATBOT 
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
@@ -4655,9 +4656,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const GROQ_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
 
   const SUGGESTIONS = [
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`, text: "Quelles sont les échantillons en attente d'approbation ?" },
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`, text: "Quelles sont les échantillons en attente d'approbation ?" },
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
+    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
   ];
 
   function getUserName() {
@@ -4673,101 +4674,102 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   const style = document.createElement("style");
   style.textContent = `
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=Space+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
+    /* ── FAB BUTTON ── */
     #fu-chatbot-btn {
       position: fixed; bottom: 28px; right: 28px;
-      width: 56px; height: 56px; border-radius: 50%;
-      background: linear-gradient(135deg, #0f3460, #533483);
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #1565c0, #1e88e5);
       border: none; cursor: pointer;
-      box-shadow: 0 4px 24px rgba(83,52,131,0.5);
+      box-shadow: 0 4px 16px rgba(21,101,192,0.45);
       display: flex; align-items: center; justify-content: center;
       z-index: 10001; transition: transform 0.2s, box-shadow 0.2s;
     }
-    #fu-chatbot-btn:hover { transform: scale(1.08); box-shadow: 0 6px 32px rgba(83,52,131,0.65); }
-    #fu-chatbot-btn svg { width: 24px; height: 24px; }
-
+    #fu-chatbot-btn:hover { transform: scale(1.07); box-shadow: 0 6px 24px rgba(21,101,192,0.55); }
+    #fu-chatbot-btn svg { width: 22px; height: 22px; }
     #fu-notif-badge {
       position: absolute; top: -2px; right: -2px;
-      width: 14px; height: 14px; border-radius: 50%;
-      background: #e74c3c; border: 2px solid white; display: none;
+      width: 13px; height: 13px; border-radius: 50%;
+      background: #e53935; border: 2px solid white; display: none;
     }
 
+    /* ── PANEL ── */
     #fu-chatbot-panel {
-      position: fixed; bottom: 96px; right: 28px;
-      width: 380px; height: 600px;
-      background: #0d0d1a;
-      border-radius: 24px;
-      border: 1px solid rgba(83,52,131,0.3);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px #1a1a3e;
+      position: fixed; bottom: 92px; right: 28px;
+      width: 375px; height: 590px;
+      background: #ffffff;
+      border-radius: 20px;
+      border: 1px solid #dce8f8;
+      box-shadow: 0 8px 40px rgba(21,101,192,0.15), 0 2px 8px rgba(0,0,0,0.08);
       display: flex; flex-direction: column;
       overflow: hidden; z-index: 10000;
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Inter', sans-serif;
       transform: translateY(20px) scale(0.95);
       opacity: 0; pointer-events: none;
       transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
     #fu-chatbot-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
 
-    /* HEADER */
+    /* ── HEADER ── */
     #fu-chat-header {
-      padding: 14px 16px;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 60%, #0f3460 100%);
-      border-bottom: 1px solid rgba(83,52,131,0.3);
-      color: white; display: flex; align-items: center; gap: 12px;
+      padding: 13px 15px;
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #1e88e5 100%);
+      color: white; display: flex; align-items: center; gap: 11px;
       flex-shrink: 0;
     }
     #fu-header-avatar {
-      width: 38px; height: 38px; border-radius: 12px;
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(83,52,131,0.5);
+      width: 36px; height: 36px; border-radius: 10px;
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.3);
       display: flex; align-items: center; justify-content: center;
-      font-size: 18px; flex-shrink: 0; position: relative;
+      font-size: 17px; flex-shrink: 0; position: relative;
     }
     #fu-online-dot-wrap {
       position: absolute; top: -2px; right: -2px;
-      width: 10px; height: 10px; border-radius: 50%;
-      background: #22c55e; border: 2px solid #1a1a2e;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4caf50; border: 2px solid #1565c0;
     }
     #fu-header-info { flex: 1; }
-    #fu-header-title { font-weight: 500; font-size: 14px; color: #fff; }
-    #fu-header-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; font-family: 'Space Mono', monospace; }
+    #fu-header-title { font-weight: 600; font-size: 13.5px; color: #fff; letter-spacing: 0.01em; }
+    #fu-header-sub { font-size: 10.5px; color: rgba(255,255,255,0.7); margin-top: 1px; }
 
     #fu-reset-btn, #fu-close-btn {
-      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
-      color: white; width: 30px; height: 30px; border-radius: 8px;
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+      color: white; width: 28px; height: 28px; border-radius: 7px;
       cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
       transition: background 0.2s; flex-shrink: 0; position: relative; z-index: 10002;
     }
-    #fu-reset-btn { margin-right: 4px; font-size: 16px; }
-    #fu-reset-btn:hover, #fu-close-btn:hover { background: rgba(255,255,255,0.2); }
+    #fu-reset-btn { margin-right: 4px; font-size: 15px; }
+    #fu-reset-btn:hover, #fu-close-btn:hover { background: rgba(255,255,255,0.28); }
 
-    /* TOKEN BAR */
+    /* ── TOKEN BAR ── */
     #fu-token-bar-wrap {
-      flex-shrink: 0; padding: 6px 14px 5px;
-      background: rgba(15,52,96,0.8);
-      border-bottom: 1px solid rgba(83,52,131,0.2);
+      flex-shrink: 0; padding: 5px 13px 4px;
+      background: #1565c0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
       display: flex; flex-direction: column; gap: 3px;
     }
     #fu-token-bar-label {
       display: flex; justify-content: space-between;
-      font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.3);
+      font-size: 9.5px; color: rgba(255,255,255,0.55);
+      font-family: 'Inter', sans-serif; letter-spacing: 0.04em;
     }
-    #fu-token-pct { color: #22c55e; }
-    #fu-token-bar-track { height: 3px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; }
+    #fu-token-pct { color: #81d4fa; font-weight: 600; }
+    #fu-token-bar-track { height: 3px; background: rgba(255,255,255,0.15); border-radius: 99px; overflow: hidden; }
     #fu-token-bar {
       height: 100%; width: 0%; border-radius: 99px;
-      transition: width 0.5s ease, background 0.5s ease; background: #22c55e;
+      transition: width 0.5s ease, background 0.5s ease; background: #4caf50;
     }
 
-    /* MESSAGES */
+    /* ── MESSAGES ── */
     #fu-chat-messages {
-      flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+      flex: 1; overflow-y: auto; padding: 14px 13px 8px;
       display: flex; flex-direction: column; gap: 10px;
-      scroll-behavior: smooth; background: #0d0d1a;
+      scroll-behavior: smooth; background: #f0f6ff;
     }
-    #fu-chat-messages::-webkit-scrollbar { width: 3px; }
-    #fu-chat-messages::-webkit-scrollbar-thumb { background: rgba(83,52,131,0.4); border-radius: 4px; }
+    #fu-chat-messages::-webkit-scrollbar { width: 4px; }
+    #fu-chat-messages::-webkit-scrollbar-thumb { background: #b3cef0; border-radius: 4px; }
 
     .fu-msg-wrap { display: flex; flex-direction: column; gap: 3px; }
     .fu-msg-wrap.user { align-items: flex-end; }
@@ -4776,73 +4778,73 @@ tr.awb-active-row td { background:#fff8ec !important; }
     .fu-bot-row { display: flex; align-items: flex-end; gap: 7px; }
     .fu-groq-avatar {
       width: 26px; height: 26px; border-radius: 8px;
-      background: #1a0a08; border: 1px solid rgba(245,80,54,0.3);
+      background: #fff3f0; border: 1px solid rgba(245,80,54,0.25);
       flex-shrink: 0; display: flex; align-items: center; justify-content: center;
       margin-bottom: 16px;
     }
 
     .fu-msg {
-      padding: 10px 14px; border-radius: 16px;
+      padding: 9px 13px; border-radius: 14px;
       font-size: 13px; max-width: 82%; line-height: 1.55;
       white-space: pre-wrap; word-break: break-word;
     }
     .fu-msg.bot {
-      background: #16162a; color: rgba(255,255,255,0.85);
-      border: 1px solid rgba(83,52,131,0.25);
+      background: #ffffff; color: #1a2a3a;
+      border: 1px solid #dce8f8;
       border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(21,101,192,0.08);
     }
     .fu-msg.user {
-      background: #533483; color: white;
-      border-bottom-right-radius: 4px;
+      background: linear-gradient(135deg, #1565c0, #1e88e5);
+      color: white; border-bottom-right-radius: 4px;
     }
-    .fu-msg.bot strong { color: #a78bfa; }
-    .fu-msg.bot a { color: #a78bfa; text-decoration: underline; word-break: break-all; }
-    .fu-msg.bot a:hover { color: #c4b5fd; }
+    .fu-msg.bot strong { color: #1565c0; }
+    .fu-msg.bot a { color: #1565c0; text-decoration: underline; word-break: break-all; }
+    .fu-msg.bot a:hover { color: #0d47a1; }
 
-    .fu-msg-meta { display: flex; align-items: center; gap: 5px; padding: 0 4px; }
-    .fu-msg-time { font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.2); }
-    .fu-groq-tag { font-family: 'Space Mono', monospace; font-size: 9px; color: #f55036; }
-    .fu-check { font-size: 9px; color: #a78bfa; }
+    .fu-msg-meta { display: flex; align-items: center; gap: 5px; padding: 0 3px; }
+    .fu-msg-time { font-size: 10px; color: #9ab3cc; }
+    .fu-groq-tag { font-size: 10px; color: #f55036; font-weight: 500; }
+    .fu-check { font-size: 10px; color: #90caf9; }
 
     .fu-cursor {
       display: inline-block; width: 2px; height: 13px;
-      background: #a78bfa; margin-left: 2px;
+      background: #1565c0; margin-left: 2px;
       vertical-align: middle; animation: fu-blink 0.7s infinite;
     }
     @keyframes fu-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
     .fu-typing {
       display: flex; align-items: center; gap: 4px;
-      padding: 12px 16px; background: #16162a;
-      border: 1px solid rgba(83,52,131,0.25);
-      border-radius: 16px; border-bottom-left-radius: 4px;
-      width: fit-content;
+      padding: 10px 14px; background: #ffffff;
+      border: 1px solid #dce8f8;
+      border-radius: 14px; border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 3px rgba(21,101,192,0.08); width: fit-content;
     }
     .fu-typing span {
       width: 7px; height: 7px; border-radius: 50%;
-      background: #533483; opacity: 0.4;
+      background: #1e88e5; opacity: 0.4;
       animation: fu-bounce 1.2s infinite;
     }
     .fu-typing span:nth-child(2) { animation-delay: 0.2s; }
     .fu-typing span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes fu-bounce {
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-5px); opacity: 1; background: #a78bfa; }
+      30% { transform: translateY(-5px); opacity: 1; }
     }
 
     .fu-divider {
       display: flex; align-items: center; gap: 8px;
-      font-family: 'Space Mono', monospace; font-size: 9px;
-      color: rgba(255,255,255,0.2); margin: 4px 0;
+      font-size: 10px; color: #9ab3cc; margin: 4px 0;
     }
     .fu-divider::before, .fu-divider::after {
-      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
+      content: ''; flex: 1; height: 1px; background: #d0e4f7;
     }
 
-    /* BANNIÈRE CONTEXTE */
+    /* ── BANNIÈRE CONTEXTE ── */
     #fu-context-banner {
-      display: none; padding: 9px 14px 10px;
-      font-size: 11.5px; font-family: 'DM Sans', sans-serif;
+      display: none; padding: 9px 13px 10px;
+      font-size: 11.5px; font-family: 'Inter', sans-serif;
       flex-shrink: 0; line-height: 1.5;
       animation: fu-banner-in 0.3s ease;
     }
@@ -4851,96 +4853,92 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-context-banner.critical { background: #fdecea; color: #b71c1c; border-top: 1px solid #f5c6cb; }
     #fu-context-banner .fu-banner-actions { display: flex; gap: 8px; margin-top: 7px; }
     #fu-context-banner button {
-      font-family: 'DM Sans', sans-serif; font-size: 11px; padding: 5px 11px;
+      font-family: 'Inter', sans-serif; font-size: 11px; padding: 5px 11px;
       border-radius: 6px; cursor: pointer; border: none; font-weight: 500; transition: opacity 0.15s;
     }
     #fu-context-banner button:hover { opacity: 0.8; }
-    #fu-btn-summarize { background: #533483; color: white; }
+    #fu-btn-summarize { background: #1565c0; color: white; }
     #fu-btn-new-conv { background: transparent; border: 1px solid currentColor !important; color: inherit; }
 
-    /* SUGGESTIONS SLIDER */
+    /* ── SUGGESTIONS SLIDER ── */
     #fu-suggestions {
-      padding: 10px 14px 12px;
-      background: #0d0d1a;
-      border-top: 1px solid rgba(83,52,131,0.15);
+      padding: 9px 13px 11px;
+      background: #ffffff;
+      border-top: 1px solid #dce8f8;
       flex-shrink: 0;
     }
     #fu-suggestions.hidden { display: none; }
-    #fu-sugg-header {
-      display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
-    }
-    #fu-sugg-label {
-      font-family: 'Space Mono', monospace; font-size: 9px;
-      color: rgba(255,255,255,0.2); text-transform: uppercase; letter-spacing: 0.05em;
-    }
+    #fu-sugg-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    #fu-sugg-label { font-size: 9.5px; color: #9ab3cc; text-transform: uppercase; letter-spacing: 0.06em; }
     #fu-sugg-dots { display: flex; gap: 5px; align-items: center; }
     .fu-dot-ind {
       width: 5px; height: 5px; border-radius: 50%;
-      background: rgba(83,52,131,0.35); transition: all 0.3s; cursor: pointer;
+      background: #cce0f5; transition: all 0.3s; cursor: pointer;
     }
-    .fu-dot-ind.active { background: #a78bfa; width: 16px; border-radius: 4px; }
-    #fu-slider-wrap { overflow: hidden; border-radius: 14px; }
+    .fu-dot-ind.active { background: #1565c0; width: 14px; border-radius: 4px; }
+    #fu-slider-wrap { overflow: hidden; border-radius: 12px; }
     #fu-slider-track { display: flex; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
     .fu-slide { min-width: 100%; box-sizing: border-box; }
     .fu-suggestion {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px; border-radius: 14px;
-      background: rgba(83,52,131,0.1);
-      border: 1px solid rgba(83,52,131,0.3);
-      cursor: pointer; transition: all 0.2s; width: 100%; box-sizing: border-box;
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 13px; border-radius: 12px;
+      background: #f0f6ff;
+      border: 1px solid #cce0f5;
+      cursor: pointer; transition: all 0.18s; width: 100%; box-sizing: border-box;
     }
-    .fu-suggestion:hover { background: rgba(83,52,131,0.25); border-color: rgba(167,139,250,0.5); }
+    .fu-suggestion:hover { background: #deedfb; border-color: #1e88e5; }
     .fu-sugg-icon {
-      width: 24px; height: 24px; border-radius: 8px;
-      background: rgba(83,52,131,0.25); border: 1px solid rgba(167,139,250,0.2);
+      width: 24px; height: 24px; border-radius: 7px;
+      background: #deedfb; border: 1px solid #b3d4f0;
       display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
     .fu-sugg-text {
-      font-family: 'DM Sans', sans-serif; font-size: 12px;
-      color: rgba(167,139,250,0.9); font-style: italic; line-height: 1.4; flex: 1; text-align: left;
+      font-family: 'Inter', sans-serif; font-size: 11.5px;
+      color: #1a5296; font-style: italic; line-height: 1.4; flex: 1; text-align: left;
     }
-    .fu-sugg-arrow { flex-shrink: 0; font-size: 11px; color: rgba(83,52,131,0.6); }
-    #fu-sugg-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; }
+    .fu-sugg-arrow { flex-shrink: 0; font-size: 11px; color: #90bae0; }
+    #fu-sugg-nav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 7px; }
     .fu-nav-btn {
-      width: 24px; height: 24px; border-radius: 8px;
-      background: rgba(83,52,131,0.15); border: 1px solid rgba(83,52,131,0.25);
+      width: 22px; height: 22px; border-radius: 7px;
+      background: #f0f6ff; border: 1px solid #cce0f5;
       display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s;
     }
-    .fu-nav-btn:hover { background: rgba(83,52,131,0.35); }
+    .fu-nav-btn:hover { background: #deedfb; border-color: #1e88e5; }
 
-    /* INPUT AREA */
+    /* ── INPUT AREA ── */
     #fu-chat-input-area {
-      padding: 10px 12px 12px; background: #0d0d1a;
-      border-top: 1px solid rgba(83,52,131,0.2); flex-shrink: 0;
+      padding: 9px 12px 11px; background: #ffffff;
+      border-top: 1px solid #dce8f8; flex-shrink: 0;
     }
     #fu-input-row { display: flex; gap: 8px; align-items: center; }
     #fu-chat-input {
-      flex: 1; border: 1px solid rgba(83,52,131,0.35);
-      border-radius: 24px; padding: 9px 16px;
-      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      flex: 1; border: 1.5px solid #cce0f5;
+      border-radius: 22px; padding: 9px 15px;
+      font-family: 'Inter', sans-serif; font-size: 13px;
       resize: none; outline: none; max-height: 80px;
       transition: border-color 0.2s; line-height: 1.4;
-      background: #16162a; color: rgba(255,255,255,0.85);
+      background: #f7fbff; color: #1a2a3a;
     }
-    #fu-chat-input::placeholder { color: rgba(255,255,255,0.2); }
-    #fu-chat-input:focus { border-color: #a78bfa; }
+    #fu-chat-input::placeholder { color: #a0b8cc; }
+    #fu-chat-input:focus { border-color: #1e88e5; background: #fff; }
     #fu-send-btn {
-      width: 38px; height: 38px; flex-shrink: 0;
-      background: #533483; border: none; color: white;
-      border-radius: 50%; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: linear-gradient(135deg, #1565c0, #1e88e5);
+      border: none; color: white; border-radius: 50%;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
       transition: opacity 0.2s, transform 0.15s;
+      box-shadow: 0 2px 8px rgba(21,101,192,0.35);
     }
-    #fu-send-btn:hover { transform: scale(1.05); background: #6d45a8; }
+    #fu-send-btn:hover { transform: scale(1.06); }
     #fu-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 
-    /* FOOTER */
+    /* ── FOOTER ── */
     #fu-footer-groq {
-      text-align: center; padding: 6px 0 0;
-      display: flex; align-items: center; justify-content: center; gap: 5px;
+      text-align: center; padding: 5px 0 1px;
+      display: flex; align-items: center; justify-content: center; gap: 4px;
     }
-    #fu-footer-groq span { font-family: 'Space Mono', monospace; font-size: 9px; color: rgba(255,255,255,0.18); }
-    #fu-footer-groq .groq-name { color: #f55036; }
+    #fu-footer-groq span { font-size: 9.5px; color: #b0c8e0; }
+    #fu-footer-groq .groq-name { color: #f55036; font-weight: 600; }
   `;
   document.head.appendChild(style);
 
@@ -5011,10 +5009,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
         </div>
         <div id="fu-sugg-nav">
           <div class="fu-nav-btn" id="fu-sugg-prev">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.7)" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </div>
           <div class="fu-nav-btn" id="fu-sugg-next">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.7)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>
       </div>
@@ -5023,7 +5021,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <div id="fu-input-row">
           <textarea id="fu-chat-input" placeholder="Posez votre question..." rows="1"></textarea>
           <button id="fu-send-btn">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="white">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
               <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/>
             </svg>
           </button>
@@ -5052,7 +5050,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
   let isLoading   = false;
   let hasOpened   = false;
 
-  // ── SLIDER LOGIC ──────────────────────────────────────────────
+  // ── SLIDER ────────────────────────────────────────────────────
   let sliderCurrent = 0;
   const sliderTotal = 3;
   const sliderTrack = document.getElementById("fu-slider-track");
@@ -5067,11 +5065,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
   document.getElementById("fu-sugg-next").onclick = () => sliderGoTo((sliderCurrent + 1) % sliderTotal);
   document.getElementById("fu-sugg-prev").onclick = () => sliderGoTo((sliderCurrent - 1 + sliderTotal) % sliderTotal);
   dots.forEach(d => { d.onclick = () => sliderGoTo(parseInt(d.dataset.idx)); });
-
-  // Auto-slide toutes les 4s
   let sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000);
 
-  // Clic sur une suggestion → envoie le message
   document.querySelectorAll(".fu-suggestion").forEach(s => {
     s.onclick = () => {
       const text = s.querySelector(".fu-sugg-text").innerText.trim();
@@ -5085,7 +5080,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Tokens ────────────────────────────────────────────────────
   function estimateTokens(text) { return Math.ceil((text || "").length / 4); }
-
   function getTotalContextTokens() {
     return estimateTokens(chatHistory.map(m => m.content).join(" ")) + estimateTokens(extractPageData());
   }
@@ -5094,13 +5088,12 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const used  = getTotalContextTokens();
     const ratio = Math.min(used / TOKEN_LIMIT, 1);
     const pct   = Math.round(ratio * 100);
-
     const pctEl = document.getElementById("fu-token-pct");
     if (pctEl) pctEl.textContent = pct + "%";
     tokenBar.style.width = pct + "%";
-    if      (ratio < WARN_AT)     tokenBar.style.background = "#22c55e";
+    if      (ratio < WARN_AT)     tokenBar.style.background = "#4caf50";
     else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12";
-    else                          tokenBar.style.background = "#e74c3c";
+    else                          tokenBar.style.background = "#e53935";
 
     if (ratio >= CRITICAL_AT) {
       banner.style.display = "block"; banner.className = "critical";
@@ -5154,7 +5147,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
       return session;
     } catch (e) { return null; }
   }
-
   function saveSession() {
     try {
       sessionStorage.setItem(SESSION_KEY, JSON.stringify({
@@ -5163,7 +5155,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
       }));
     } catch (e) {}
   }
-
   function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
 
   // ── Ouverture ─────────────────────────────────────────────────
@@ -5216,7 +5207,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     e.stopPropagation(); if (isLoading) return;
     messagesEl.innerHTML = ""; chatHistory = []; clearSession();
     banner.style.display = "none"; banner.className = "";
-    tokenBar.style.width = "0%"; tokenBar.style.background = "#22c55e";
+    tokenBar.style.width = "0%"; tokenBar.style.background = "#4caf50";
     const pctElReset = document.getElementById("fu-token-pct");
     if (pctElReset) pctElReset.textContent = "0%";
     addDivider("Nouvelle conversation");
@@ -5251,7 +5242,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     msg.appendChild(cursor);
     row.appendChild(avatar); row.appendChild(msg);
     const meta = document.createElement("div"); meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:rgba(255,255,255,0.15)">·</span><span class="fu-groq-tag">via Groq</span>`;
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
     wrap.appendChild(row); wrap.appendChild(meta);
     messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -5274,7 +5265,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     const msg  = document.createElement("div"); msg.className = "fu-msg bot"; msg.innerHTML = renderText(text);
     row.appendChild(avatar); row.appendChild(msg);
     const meta = document.createElement("div"); meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:rgba(255,255,255,0.15)">·</span><span class="fu-groq-tag">via Groq</span>`;
+    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
     wrap.appendChild(row); wrap.appendChild(meta);
     messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
   }
