@@ -4646,7 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT 
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbyUoqKoBLvtfEspI4cP6HG95F5VLEb2aSe6ou5V_nkeDRRFUqYaNKeh16QOG1jeIz0/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbz6bWzbfoFZJbG3lcAekr-8yPrFK32U8YdP4H2Yb4U-NS0icqiAAlKe4kJgQLDhvsjJ/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   const TOKEN_LIMIT  = 128000;
@@ -4660,6 +4660,80 @@ tr.awb-active-row td { background:#fff8ec !important; }
     { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
     { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
   ];
+
+  // ── MODULE DETECTION ──────────────────────────────────────────
+  /**
+   * Détecte le module actif de l'application.
+   * Priorité : 1) attribut data-module sur body/main, 2) variable globale,
+   * 3) titre de page, 4) analyse du DOM (titres h1/h2, nav actif).
+   */
+  function detectActiveModule() {
+    const MODULE_KEYWORDS = {
+      "Dashboard":        ["dashboard", "tableau de bord", "overview"],
+      "Details":          ["details", "détails", "style detail", "tech pack"],
+      "Sample":           ["sample", "échantillon", "fitting", "approval", "approbation"],
+      "Ordering":         ["ordering", "order", "commande", "po ", "purchase order", "supplier", "fournisseur", "delivery", "livraison", "quantity", "quantité"],
+      "Fabric Devo":      ["fabric devo", "fabric development", "tissu", "fabric ref", "mill", "composition", "lead time"],
+      "Fabric Analysis":  ["fabric analysis", "analyse tissu", "fabric report"],
+      "Bulk A4 & Shade Band": ["bulk", "shade band", "a4", "couleur", "color standard", "shade"],
+      "Pre Shipment":     ["pre shipment", "preshipment", "inspection", "qc", "aql", "defect", "pass", "fail"],
+      "Marketing":        ["marketing", "photo", "visual", "campaign", "content", "model", "lookbook"],
+      "Trims Devo":       ["trims", "trim", "accessories", "accessoires", "label", "button", "zipper", "bouton", "fermeture"]
+    };
+
+    // 1. Attribut HTML explicite sur body ou élément principal
+    const dataModule = document.body?.dataset?.module
+      || document.querySelector("[data-active-module]")?.dataset?.activeModule
+      || document.querySelector("[data-module]")?.dataset?.module;
+    if (dataModule) return dataModule.trim();
+
+    // 2. Variable globale JS (ex: window.activeModule = "Sample")
+    if (window.activeModule && typeof window.activeModule === "string") {
+      return window.activeModule.trim();
+    }
+    if (window.currentModule && typeof window.currentModule === "string") {
+      return window.currentModule.trim();
+    }
+    if (window.currentPage && typeof window.currentPage === "string") {
+      return window.currentPage.trim();
+    }
+
+    // 3. Élément de navigation actif (li.active, a.active, .nav-item.active, etc.)
+    const activeNavItem = document.querySelector(
+      ".nav-item.active, .menu-item.active, nav li.active, nav a.active, [aria-current='page']"
+    );
+    if (activeNavItem) {
+      const navText = activeNavItem.innerText?.trim().toLowerCase() || "";
+      for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+        if (keywords.some(k => navText.includes(k))) return module;
+      }
+    }
+
+    // 4. Titre de page (document.title) et premiers h1/h2
+    const titleSources = [
+      document.title,
+      document.querySelector("h1")?.innerText || "",
+      document.querySelector("h2")?.innerText || "",
+      document.querySelector(".page-title")?.innerText || "",
+      document.querySelector(".module-title")?.innerText || "",
+    ].join(" ").toLowerCase();
+
+    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+      if (keywords.some(k => titleSources.includes(k))) return module;
+    }
+
+    // 5. Analyse des en-têtes de colonnes de tableaux visibles
+    const headers = [...document.querySelectorAll("table th")]
+      .map(th => th.innerText?.trim().toLowerCase())
+      .join(" ");
+
+    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+      if (keywords.some(k => headers.includes(k))) return module;
+    }
+
+    // 6. Fallback — module inconnu
+    return "Unknown";
+  }
 
   function getUserName() {
     if (window.currentUser && window.currentUser.displayName) {
@@ -4742,6 +4816,24 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     #fu-reset-btn { margin-right: 4px; font-size: 15px; }
     #fu-reset-btn:hover, #fu-close-btn:hover { background: rgba(255,255,255,0.28); }
+
+    /* ── MODULE BADGE ── */
+    #fu-module-badge {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 13px 6px;
+      background: rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      flex-shrink: 0;
+    }
+    #fu-module-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #4caf50; flex-shrink: 0;
+    }
+    #fu-module-name {
+      font-size: 10.5px; color: rgba(255,255,255,0.75);
+      font-family: 'Inter', sans-serif; letter-spacing: 0.05em;
+      font-weight: 500; text-transform: uppercase;
+    }
 
     /* ── TOKEN BAR ── */
     #fu-token-bar-wrap {
@@ -4961,6 +5053,11 @@ tr.awb-active-row td { background:#fff8ec !important; }
         <button id="fu-close-btn" title="Fermer">✕</button>
       </div>
 
+      <div id="fu-module-badge">
+        <div id="fu-module-dot"></div>
+        <span id="fu-module-name">Détection du module...</span>
+      </div>
+
       <div id="fu-token-bar-wrap">
         <div id="fu-token-bar-label">
           <span>CONTEXTE</span>
@@ -5045,10 +5142,19 @@ tr.awb-active-row td { background:#fff8ec !important; }
   const badge      = document.getElementById("fu-notif-badge");
   const banner     = document.getElementById("fu-context-banner");
   const tokenBar   = document.getElementById("fu-token-bar");
+  const moduleBadgeEl = document.getElementById("fu-module-name");
 
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
+
+  // ── Mise à jour du badge module ───────────────────────────────
+  function refreshModuleBadge() {
+    const mod = detectActiveModule();
+    if (moduleBadgeEl) {
+      moduleBadgeEl.textContent = mod === "Unknown" ? "Module inconnu" : mod;
+    }
+  }
 
   // ── SLIDER ────────────────────────────────────────────────────
   let sliderCurrent = 0;
@@ -5161,6 +5267,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
+    refreshModuleBadge(); // ← met à jour le badge à chaque ouverture
     if (!hasOpened) {
       hasOpened = true;
       const session = loadSession();
@@ -5176,26 +5283,44 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Welcome ───────────────────────────────────────────────────
   function startWelcome() {
-    const userName = getUserName();
-    const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const userName    = getUserName();
+    const hour        = new Date().getHours();
+    const greeting    = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const activeModule = detectActiveModule(); // ← détection explicite
+
     addTyping();
     fetch(API_URL, {
       method: "POST", headers: { "Content-Type": "text/plain" },
       body: JSON.stringify({
-        prompt: `You are greeting the user for the first time when they open the chat.\nThe user's first name is "${userName}". Use the greeting "${greeting}".\nAnalyze the page data provided and write a smart, natural welcome message in French that:\n1. Greets them by first name warmly\n2. Mentions which module they are on (detect from page title or data)\n3. Gives 1-2 key observations from the data (e.g. number of pending items, any late/blocked styles flagged with ⚠️, total POs, approvals waiting, etc.)\n4. Ends with a short natural invitation to ask a question\n\nRules:\n- Max 3 lines total\n- Casual and human tone, like a sharp colleague — NOT a robot\n- Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"\n- Use **bold** for names, numbers and module name\n- If no meaningful data is found, just greet warmly and invite them to ask`,
+        prompt: `You are greeting the user for the first time when they open the chat.
+The user's first name is "${userName}". Use the greeting "${greeting}".
+The user is currently on the module: "${activeModule}".
+Analyze the page data provided and write a smart, natural welcome message in French that:
+1. Greets them by first name warmly
+2. Explicitly names the active module in bold: **${activeModule}**
+3. Gives 1-2 key observations from the data (e.g. number of pending items, any late/blocked styles flagged with ⚠️, total POs, approvals waiting, etc.)
+4. Ends with a short natural invitation to ask a question
+
+Rules:
+- Max 3 lines total
+- Casual and human tone, like a sharp colleague — NOT a robot
+- Never say "Selon les données" or "D'après le tableau" or "Je suis votre assistant"
+- Use **bold** for the module name, names, numbers
+- ALWAYS name the module explicitly — never omit it or say "Dashboard" if the module is "${activeModule}"
+- If no meaningful data is found, just greet warmly, name the module, and invite them to ask`,
         context: extractPageData(), history: []
       })
     })
     .then(r => r.json())
     .then(data => {
       document.getElementById("fu-typing")?.remove();
-      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text || `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
+        || `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
       streamBotMessage(welcomeMsg, () => { chatHistory.push({ role: "assistant", content: welcomeMsg }); saveSession(); updateContextBanner(); });
     })
     .catch(() => {
       document.getElementById("fu-typing")?.remove();
-      const fallback = `${greeting} **${userName}** 👋 — Que souhaitez-vous savoir ?`;
+      const fallback = `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
       streamBotMessage(fallback, () => { chatHistory.push({ role: "assistant", content: fallback }); saveSession(); updateContextBanner(); });
     });
   }
@@ -5213,6 +5338,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     addDivider("Nouvelle conversation");
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) { suggestionsEl.classList.remove("hidden"); sliderGoTo(0); clearInterval(sliderInterval); sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000); }
+    refreshModuleBadge();
     startWelcome();
   };
 
@@ -5295,8 +5421,17 @@ tr.awb-active-row td { background:#fff8ec !important; }
   }
 
   // ── Page data ─────────────────────────────────────────────────
+  /**
+   * Extrait les données de la page et inclut le module actif
+   * en première ligne — c'est la source de vérité pour l'IA.
+   */
   function extractPageData() {
-    let result = "=== PAGE : " + document.title + " ===\n\n";
+    const activeModule = detectActiveModule();
+
+    let result = "";
+    result += "ACTIVE MODULE: " + activeModule + "\n";
+    result += "PAGE TITLE: " + document.title + "\n\n";
+
     document.querySelectorAll("table").forEach((table, i) => {
       const caption = table.querySelector("caption");
       const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
@@ -5307,6 +5442,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
       });
       result += "\n";
     });
+
     return result.slice(0, 20000);
   }
 
