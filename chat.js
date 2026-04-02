@@ -2,36 +2,27 @@
 //  CHAT WIDGET — chat.js (Version Finale Corrigée)
 //  Projet : messenger-dm
 // ════════════════════════════════════════════════════════════════════════════
-
 (function () {
   'use strict';
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyDW2PiF8hImM5BP_Bu6WdEWIj2JmBnnhCc",
-  authDomain: "messenger-dm-9c709.firebaseapp.com",
-  projectId: "messenger-dm-9c709",
-  storageBucket: "messenger-dm-9c709.firebasestorage.app",
-  messagingSenderId: "147694824892",
-  appId: "1:147694824892:web:2c800cca1ff4c2b111cfb9"
-};
 
-  // ── ÉTAT GLOBAL ───────────────────────────────────────────────────────────
-  let cpDb = null, cpUser = null;
-  let cpConvId = null, cpOtherId = null, cpOtherName = null;
-  let cpMsgUnsub = null, cpConvsUnsub = null, cpStatusUnsub = null, cpTypingUnsub = null;
-  let cpAllConvs = [], cpAllUsers = [], cpOnlineMap = {};
-  let cpPopupOpen = false, cpReady = false, cpTypingTimeout = null;
+  // ── CONFIGURATION FORCEE ──────────────────────────────────────────────────
+  const CP_CONFIG = {
+    apiKey: "AIzaSyCxzZnNJyvBpOKubQmEmhcZOXk8IdLsEyc",
+    authDomain: "messenger-dm.firebaseapp.com",
+    projectId: "messenger-dm",
+    storageBucket: "messenger-dm.firebasestorage.app",
+    messagingSenderId: "420241788990",
+    appId: "1:420241788990:web:117e6ee57619b2a08dc16f"
+  };
 
-  // ══════════════════════════════════════════════════════════════════════════
-  //  INITIALISATION
-  // ══════════════════════════════════════════════════════════════════════════
   function cpInit() {
     if (!window.firebase) return;
     
-    // Vérifier si l'app est déjà initialisée pour éviter les erreurs de doublons
-    var app = firebase.apps.find(function(a){ return a.options.projectId === CP_CONFIG.projectId; });
+    // CE LOG VA NOUS DIRE SI LE FICHIER EST BIEN MIS A JOUR
+    console.log("Tentative de connexion à :", CP_CONFIG.projectId);
+
+    var app = firebase.apps.find(a => a.options.projectId === CP_CONFIG.projectId);
     if (!app) app = firebase.initializeApp(CP_CONFIG, "chat-app");
-    
     cpDb = app.firestore();
     cpCheckUser();
   }
