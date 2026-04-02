@@ -6,16 +6,15 @@
 (function () {
   'use strict';
 
-  // ── Config Firebase projet CHAT ───────────────────────────────────────────
-// ── Config Firebase projet CHAT ───────────────────────────────────────────
-const firebaseConfig = {
-  apiKey: "AIzaSyCxzZnNJyvBpOKubQmEmhcZOXk8IdLsEyc",
-  authDomain: "messenger-dm.firebaseapp.com",
-  projectId: "messenger-dm",
-  storageBucket: "messenger-dm.firebasestorage.app",
-  messagingSenderId: "420241788990",
-  appId: "1:420241788990:web:117e6ee57619b2a08dc16f"
-};
+// ── Config Firebase projet CHAT corrigée pour messenger-dm ────────────────
+  const CP_CONFIG = {
+    apiKey:            "AIzaSyCxzZnNJyvBpOKubQmEmhcZOXk8IdLsEyc",
+    authDomain:        "messenger-dm.firebaseapp.com",
+    projectId:         "messenger-dm",
+    storageBucket:     "messenger-dm.firebasestorage.app",
+    messagingSenderId: "420241788990",
+    appId:             "1:420241788990:web:117e6ee57619b2a08dc16f"
+  };
 
   // ── État ──────────────────────────────────────────────────────────────────
   let cpDb = null, cpUser = null;
