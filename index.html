@@ -159,6 +159,201 @@
             border: 2px solid rgba(255, 255, 255, 0.4) !important;
         }
     </style>
+
+  <!-- Firebase SDK (chat widget) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+  /* ══════════════════════════════════════════
+     CHAT WIDGET
+  ══════════════════════════════════════════ */
+  #chat-fab {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    color: #fff;
+    width: 36px; height: 36px;
+    cursor: pointer;
+    position: relative;
+    transition: background .15s;
+  }
+  #chat-fab:hover { background: rgba(255,255,255,0.25); }
+  #chat-fab svg { width: 17px; height: 17px; fill: white; }
+  #chat-fab-badge {
+    position: absolute; top: -5px; right: -5px;
+    background: #ef4444; color: #fff;
+    font-size: 9px; font-weight: 700;
+    min-width: 16px; height: 16px; border-radius: 8px;
+    padding: 0 3px; display: none;
+    align-items: center; justify-content: center;
+    border: 1.5px solid rgba(15,23,42,0.8);
+  }
+  #chat-popup {
+    position: fixed;
+    bottom: 60px; right: 16px;
+    width: 340px; height: 500px;
+    background: rgba(15,23,42,0.95);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+    display: none; flex-direction: column;
+    z-index: 9998; overflow: hidden;
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+    transition: opacity .18s, transform .18s;
+  }
+  #chat-popup.open {
+    display: flex; opacity: 1; transform: translateY(0) scale(1);
+  }
+  /* Header popup */
+  #cp-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.09);
+    background: rgba(2,132,199,0.18);
+    flex-shrink: 0;
+  }
+  #cp-header h3 { flex:1; color:#f1f5f9; font-size:.9rem; font-weight:600; margin:0; }
+  .cp-btn-icon {
+    background:none; border:none; cursor:pointer; color:#94a3b8;
+    padding:4px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    transition:color .15s, background .15s;
+  }
+  .cp-btn-icon:hover { color:#f1f5f9; background:rgba(255,255,255,0.08); }
+  .cp-btn-icon svg { width:15px; height:15px; fill:currentColor; }
+  /* Vues */
+  #cp-view-list { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+  #cp-view-chat { display:none; flex-direction:column; flex:1; overflow:hidden; }
+  /* Barre recherche */
+  #cp-search-bar {
+    display:flex; align-items:center; gap:7px;
+    padding:9px 11px; border-bottom:1px solid rgba(255,255,255,0.07);
+    flex-shrink:0;
+  }
+  #cp-search-bar input {
+    flex:1; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.11); border-radius:7px;
+    padding:5px 9px; color:#f1f5f9; font-size:.8rem; outline:none;
+  }
+  #cp-search-bar input::placeholder { color:#475569; }
+  #cp-search-bar input:focus { border-color:rgba(2,132,199,0.55); }
+  #cp-new-dm-btn {
+    background:rgba(2,132,199,0.22); border:1px solid rgba(2,132,199,0.38);
+    border-radius:7px; color:#7dd3fc; padding:5px 9px; cursor:pointer;
+    font-size:16px; line-height:1; transition:background .15s;
+  }
+  #cp-new-dm-btn:hover { background:rgba(2,132,199,0.38); }
+  /* Liste convs */
+  #cp-conv-list { flex:1; overflow-y:auto; padding:5px 7px; }
+  #cp-conv-list::-webkit-scrollbar { width:3px; }
+  #cp-conv-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  .cp-conv-item {
+    display:flex; align-items:center; gap:9px;
+    padding:8px 9px; border-radius:9px; cursor:pointer; transition:background .15s;
+  }
+  .cp-conv-item:hover { background:rgba(255,255,255,0.07); }
+  .cp-conv-item.active { background:rgba(2,132,199,0.2); }
+  .cp-avatar {
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(99,102,241,0.3); color:#c7d2fe;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.72rem; font-weight:700; flex-shrink:0; position:relative;
+  }
+  .cp-online-dot {
+    position:absolute; bottom:0; right:0;
+    width:8px; height:8px; border-radius:50%;
+    background:#22c55e; border:1.5px solid #0f172a;
+  }
+  .cp-conv-info { flex:1; min-width:0; }
+  .cp-conv-name { font-size:.85rem; font-weight:500; color:#f1f5f9; }
+  .cp-conv-preview { font-size:.73rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cp-conv-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+  .cp-conv-time { font-size:.66rem; color:#475569; }
+  .cp-unread-badge {
+    background:#0284c7; color:#fff; font-size:.63rem; font-weight:700;
+    border-radius:7px; padding:1px 5px; min-width:15px; text-align:center;
+  }
+  .cp-empty { color:#475569; font-size:.8rem; text-align:center; padding:20px 14px; line-height:1.5; }
+  /* Panel nouveau DM */
+  #cp-user-panel {
+    position:absolute; bottom:0; left:0; right:0;
+    background:rgba(10,18,35,0.98);
+    border-top:1px solid rgba(255,255,255,0.11);
+    border-radius:0 0 16px 16px;
+    padding:11px; max-height:70%; display:none;
+    flex-direction:column; gap:7px; z-index:10;
+  }
+  #cp-user-panel.open { display:flex; }
+  #cp-user-panel-title { color:#94a3b8; font-size:.74rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  #cp-user-search {
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.11);
+    border-radius:7px; padding:6px 10px; color:#f1f5f9;
+    font-size:.8rem; outline:none; width:100%;
+  }
+  #cp-user-search::placeholder { color:#475569; }
+  #cp-user-list { overflow-y:auto; max-height:170px; display:flex; flex-direction:column; gap:1px; }
+  #cp-user-list::-webkit-scrollbar { width:3px; }
+  #cp-user-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  .cp-user-item {
+    display:flex; align-items:center; gap:9px;
+    padding:6px 8px; border-radius:7px; cursor:pointer; transition:background .15s;
+  }
+  .cp-user-item:hover { background:rgba(255,255,255,0.07); }
+  .cp-user-name { font-size:.83rem; color:#f1f5f9; font-weight:500; }
+  .cp-user-email { font-size:.71rem; color:#64748b; }
+  /* Chat actif */
+  #cp-chat-header {
+    display:flex; align-items:center; gap:9px;
+    padding:10px 13px; border-bottom:1px solid rgba(255,255,255,0.08);
+    background:rgba(2,132,199,0.1); flex-shrink:0;
+  }
+  #cp-chat-name { color:#f1f5f9; font-size:.87rem; font-weight:600; }
+  #cp-chat-status { font-size:.7rem; color:#64748b; }
+  #cp-messages { flex:1; overflow-y:auto; padding:11px; display:flex; flex-direction:column; gap:5px; }
+  #cp-messages::-webkit-scrollbar { width:3px; }
+  #cp-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:3px; }
+  .cp-msg { display:flex; flex-direction:column; max-width:80%; }
+  .cp-msg.own { align-items:flex-end; align-self:flex-end; }
+  .cp-msg.other { align-items:flex-start; align-self:flex-start; }
+  .cp-bubble {
+    padding:6px 11px; border-radius:13px;
+    font-size:.83rem; line-height:1.45; word-break:break-word;
+  }
+  .cp-msg.own .cp-bubble { background:#0284c7; color:#fff; border-bottom-right-radius:3px; }
+  .cp-msg.other .cp-bubble {
+    background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.1);
+    color:#e2e8f0; border-bottom-left-radius:3px;
+  }
+  .cp-msg-time { font-size:.63rem; color:#475569; margin-top:2px; padding:0 3px; }
+  #cp-input-bar {
+    display:flex; align-items:flex-end; gap:7px;
+    padding:9px 11px; border-top:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.02); flex-shrink:0;
+  }
+  #cp-msg-input {
+    flex:1; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.11); border-radius:9px;
+    padding:7px 11px; color:#f1f5f9; font-size:.83rem;
+    outline:none; resize:none; max-height:72px; font-family:inherit; line-height:1.4;
+  }
+  #cp-msg-input::placeholder { color:#475569; }
+  #cp-msg-input:focus { border-color:rgba(2,132,199,0.5); }
+  #cp-send-btn {
+    width:32px; height:32px; border-radius:8px;
+    background:#0284c7; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition:opacity .15s;
+  }
+  #cp-send-btn:hover { opacity:.85; }
+  #cp-send-btn svg { width:15px; height:15px; fill:white; }
+  </style>
+
 </head>
 
 <body>
@@ -310,7 +505,10 @@
                 </div>
             </div>
             <div class="header-right">
-                <span class="status-badge">Live</span>
+                <button id="chat-fab" onclick="cpToggle()" title="Messagerie">
+                  <span id="chat-fab-badge"></span>
+                  <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+                </button>
                 <button class="btn-notif-global" id="btn-notif-global" onclick="openGlobalNotifDrawer()"
                     title="Alertes globales" style="display:none;">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -760,6 +958,316 @@
         }, 4000);
 
     })();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     CHAT WIDGET POPUP
+════════════════════════════════════════════════════════ -->
+<div id="chat-popup">
+  <div id="cp-header">
+    <h3>Messages</h3>
+    <button class="cp-btn-icon" onclick="cpLogout()" title="Déconnexion chat">
+      <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+    </button>
+    <button class="cp-btn-icon" onclick="cpToggle()" title="Fermer">
+      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+  </div>
+
+  <!-- Vue liste conversations -->
+  <div id="cp-view-list">
+    <div id="cp-search-bar">
+      <input type="text" placeholder="Rechercher…" oninput="cpFilterConvs(this.value)"/>
+      <button id="cp-new-dm-btn" onclick="cpToggleUserPanel()" title="Nouveau message">+</button>
+    </div>
+    <div id="cp-conv-list"><div class="cp-empty">Chargement…</div></div>
+    <!-- Panel liste users -->
+    <div id="cp-user-panel">
+      <div id="cp-user-panel-title">Nouvelle conversation</div>
+      <input id="cp-user-search" type="text" placeholder="Rechercher un utilisateur…" oninput="cpFilterUsers(this.value)"/>
+      <div id="cp-user-list"></div>
+    </div>
+  </div>
+
+  <!-- Vue chat actif -->
+  <div id="cp-view-chat">
+    <div id="cp-chat-header">
+      <button class="cp-btn-icon" onclick="cpBackToList()" title="Retour">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div style="flex:1">
+        <div id="cp-chat-name">-</div>
+        <div id="cp-chat-status">-</div>
+      </div>
+    </div>
+    <div id="cp-messages"></div>
+    <div id="cp-input-bar">
+      <textarea id="cp-msg-input" rows="1" placeholder="Écrire un message…"
+        onkeydown="cpHandleKey(event)" oninput="cpAutoResize(this)"></textarea>
+      <button id="cp-send-btn" onclick="cpSend()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  CHAT WIDGET — utilise l'auth existante (window.currentUser)
+// ════════════════════════════════════════════════════════
+const CP_CONFIG = {
+  apiKey: "AIzaSyAjUD1IqsLsEl0o-FJvEV15kZ36BkMced8",
+  authDomain: "messages-b1e1a.firebaseapp.com",
+  projectId: "messages-b1e1a",
+  storageBucket: "messages-b1e1a.firebasestorage.app",
+  messagingSenderId: "1042430233451",
+  appId: "1:1042430233451:web:8769e50e85f36830805a2e"
+};
+
+let cpDb = null;
+let cpUser = null;
+let cpConvId = null, cpOtherId = null;
+let cpMsgUnsub = null, cpConvsUnsub = null;
+let cpAllConvs = [], cpAllUsers = [];
+let cpPopupOpen = false;
+let cpReady = false;
+
+// Init Firestore dès que possible (pas besoin d'une 2e auth)
+(function cpInit() {
+  try {
+    const cpApp = firebase.apps.find(a => a.name === 'chat-widget') ||
+                  firebase.initializeApp(CP_CONFIG, 'chat-widget');
+    cpDb = cpApp.firestore();
+  } catch(e) { console.error('[chat] init error', e); }
+})();
+
+// Appelée par auth.js (ou renderUserBadge) une fois l'user connu
+// On surveille window.currentUser via polling léger
+(function cpWaitForAuth() {
+  const check = () => {
+    if (window.currentUser && cpDb && !cpReady) {
+      cpReady = true;
+      cpUser = window.currentUser;
+      // Enregistre / met à jour le profil dans Firestore chat
+      cpDb.collection('users').doc(cpUser.uid).set({
+        displayName: cpUser.displayName || cpUser.email.split('@')[0],
+        email: cpUser.email,
+        photoURL: cpUser.photoURL || null,
+        online: true,
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      window.addEventListener('beforeunload', () => {
+        cpDb.collection('users').doc(cpUser.uid)
+          .update({ online: false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() })
+          .catch(()=>{});
+      });
+      cpLoadConvs();
+    }
+  };
+  check();
+  const id = setInterval(() => { check(); if (cpReady) clearInterval(id); }, 300);
+})();
+
+// ── Toggle popup ──────────────────────────────────────
+function cpToggle() {
+  cpPopupOpen = !cpPopupOpen;
+  document.getElementById('chat-popup').classList.toggle('open', cpPopupOpen);
+}
+
+// ── Déconnexion uniquement du chat (pas du dashboard) ─
+async function cpLogout() {
+  if (cpConvsUnsub) cpConvsUnsub();
+  if (cpMsgUnsub)   cpMsgUnsub();
+  if (cpUser && cpDb) {
+    await cpDb.collection('users').doc(cpUser.uid)
+      .update({ online: false }).catch(()=>{});
+  }
+  cpReady = false; cpUser = null; cpAllConvs = [];
+  document.getElementById('cp-conv-list').innerHTML = '<div class="cp-empty">Déconnecté.</div>';
+}
+
+// ── Conversations ─────────────────────────────────────
+function cpConvKey(a, b) { return [a, b].sort().join('_'); }
+
+function cpLoadConvs() {
+  if (!cpUser || !cpDb) return;
+  if (cpConvsUnsub) cpConvsUnsub();
+  cpConvsUnsub = cpDb.collection('conversations')
+    .where('participants', 'array-contains', cpUser.uid)
+    .orderBy('lastMessageAt', 'desc')
+    .onSnapshot(snap => {
+      cpAllConvs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cpRenderConvs(cpAllConvs);
+      cpUpdateFabBadge();
+    });
+}
+
+function cpRenderConvs(convs) {
+  const el = document.getElementById('cp-conv-list');
+  if (!convs.length) {
+    el.innerHTML = '<div class="cp-empty">Aucune conversation.<br>Cliquez + pour démarrer.</div>';
+    return;
+  }
+  el.innerHTML = convs.map(c => {
+    const name = c.otherNames?.[cpUser.uid] || 'Inconnu';
+    const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const otherId = c.participants.find(p => p !== cpUser.uid);
+    const unread = c.unread?.[cpUser.uid] || 0;
+    const preview = c.lastMessage
+      ? (c.lastMessage.length > 35 ? c.lastMessage.slice(0,35)+'…' : c.lastMessage)
+      : 'Nouvelle conversation';
+    const time = c.lastMessageAt?.toDate ? cpTimeAgo(c.lastMessageAt.toDate()) : '';
+    return `<div class="cp-conv-item" onclick="cpOpenConv('${c.id}','${otherId}','${name.replace(/'/g,"&apos;")}')">
+      <div class="cp-avatar">${initials}</div>
+      <div class="cp-conv-info">
+        <div class="cp-conv-name">${cpEsc(name)}</div>
+        <div class="cp-conv-preview">${cpEsc(preview)}</div>
+      </div>
+      <div class="cp-conv-meta">
+        <div class="cp-conv-time">${time}</div>
+        ${unread ? `<div class="cp-unread-badge">${unread}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function cpFilterConvs(q) {
+  const f = cpAllConvs.filter(c =>
+    (c.otherNames?.[cpUser.uid] || '').toLowerCase().includes(q.toLowerCase())
+  );
+  cpRenderConvs(f);
+}
+
+function cpUpdateFabBadge() {
+  const total = cpAllConvs.reduce((s, c) => s + (c.unread?.[cpUser.uid] || 0), 0);
+  const b = document.getElementById('chat-fab-badge');
+  b.textContent = total || '';
+  b.style.display = total ? 'flex' : 'none';
+}
+
+// ── Ouvrir conversation ───────────────────────────────
+async function cpOpenConv(convId, otherId, otherName) {
+  cpConvId = convId; cpOtherId = otherId;
+  document.getElementById('cp-chat-name').textContent = otherName;
+  document.getElementById('cp-chat-status').textContent = '…';
+  document.getElementById('cp-view-list').style.display = 'none';
+  document.getElementById('cp-view-chat').style.display = 'flex';
+  if (cpMsgUnsub) cpMsgUnsub();
+  cpMsgUnsub = cpDb.collection('conversations').doc(convId)
+    .collection('messages').orderBy('createdAt')
+    .onSnapshot(snap => cpRenderMessages(snap.docs));
+  await cpDb.collection('conversations').doc(convId)
+    .update({ [`unread.${cpUser.uid}`]: 0 }).catch(()=>{});
+  cpDb.collection('users').doc(otherId).onSnapshot(doc => {
+    const d = doc.data();
+    document.getElementById('cp-chat-status').textContent = d?.online ? 'En ligne' : 'Hors ligne';
+  });
+}
+
+function cpBackToList() {
+  if (cpMsgUnsub) { cpMsgUnsub(); cpMsgUnsub = null; }
+  cpConvId = null; cpOtherId = null;
+  document.getElementById('cp-view-chat').style.display = 'none';
+  document.getElementById('cp-view-list').style.display = 'flex';
+}
+
+function cpRenderMessages(docs) {
+  const el = document.getElementById('cp-messages');
+  if (!docs.length) { el.innerHTML = '<div class="cp-empty">Dites bonjour !</div>'; return; }
+  el.innerHTML = docs.map(d => {
+    const m = d.data();
+    const own = m.senderId === cpUser.uid;
+    const time = m.createdAt?.toDate
+      ? m.createdAt.toDate().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="cp-msg ${own?'own':'other'}">
+      <div class="cp-bubble">${cpEsc(m.text)}</div>
+      <div class="cp-msg-time">${time}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Envoyer ───────────────────────────────────────────
+async function cpSend() {
+  const input = document.getElementById('cp-msg-input');
+  const text = input.value.trim();
+  if (!text || !cpConvId || !cpUser) return;
+  input.value = ''; input.style.height = 'auto';
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  await cpDb.collection('conversations').doc(cpConvId)
+    .collection('messages').add({ text, senderId: cpUser.uid, createdAt: now });
+  await cpDb.collection('conversations').doc(cpConvId).update({
+    lastMessage: text, lastMessageAt: now,
+    [`unread.${cpOtherId}`]: firebase.firestore.FieldValue.increment(1)
+  });
+}
+function cpHandleKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();cpSend();} }
+function cpAutoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,72)+'px'; }
+
+// ── Nouveau DM – liste users ──────────────────────────
+function cpToggleUserPanel() {
+  const p = document.getElementById('cp-user-panel');
+  const opening = !p.classList.contains('open');
+  p.classList.toggle('open');
+  if (opening) { document.getElementById('cp-user-search').value=''; cpLoadUsers(); }
+}
+async function cpLoadUsers() {
+  const snap = await cpDb.collection('users').get();
+  cpAllUsers = [];
+  snap.forEach(d => { if (d.id !== cpUser.uid) cpAllUsers.push({ id:d.id, ...d.data() }); });
+  cpRenderUsers(cpAllUsers);
+}
+function cpFilterUsers(q) {
+  cpRenderUsers(cpAllUsers.filter(u =>
+    (u.displayName||'').toLowerCase().includes(q.toLowerCase()) ||
+    (u.email||'').toLowerCase().includes(q.toLowerCase())
+  ));
+}
+function cpRenderUsers(users) {
+  const el = document.getElementById('cp-user-list');
+  if (!users.length) { el.innerHTML='<div class="cp-empty">Aucun utilisateur</div>'; return; }
+  el.innerHTML = users.map(u => {
+    const initials=(u.displayName||u.email||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    return `<div class="cp-user-item" onclick="cpStartDM('${u.id}','${(u.displayName||u.email).replace(/'/g,"&apos;")}')">
+      <div class="cp-avatar" style="width:28px;height:28px;font-size:.68rem">${initials}</div>
+      <div>
+        <div class="cp-user-name">${cpEsc(u.displayName||'')}</div>
+        <div class="cp-user-email">${cpEsc(u.email||'')}</div>
+      </div>
+      ${u.online?'<div class="cp-online-dot" style="position:static;width:7px;height:7px;margin-left:auto;border-radius:50%;background:#22c55e"></div>':''}
+    </div>`;
+  }).join('');
+}
+async function cpStartDM(otherId, otherName) {
+  const convId = cpConvKey(cpUser.uid, otherId);
+  const ref = cpDb.collection('conversations').doc(convId);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    const displayName = cpUser.displayName || cpUser.email.split('@')[0];
+    await ref.set({
+      participants: [cpUser.uid, otherId],
+      otherNames: { [cpUser.uid]: displayName, [otherId]: otherName },
+      lastMessage: '', lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+      unread: { [cpUser.uid]: 0, [otherId]: 0 },
+      typing: { [cpUser.uid]: false, [otherId]: false }
+    });
+  }
+  document.getElementById('cp-user-panel').classList.remove('open');
+  cpOpenConv(convId, otherId, otherName);
+}
+
+// ── Utilitaires ───────────────────────────────────────
+function cpEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function cpTimeAgo(d) {
+  const s = Math.floor((Date.now()-d)/1000);
+  if (s<60) return 'maintenant';
+  if (s<3600) return Math.floor(s/60)+'min';
+  if (s<86400) return Math.floor(s/3600)+'h';
+  return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+}
 </script>
 
 </html>
