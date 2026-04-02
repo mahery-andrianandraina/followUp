@@ -15,16 +15,14 @@
     appId: "1:420241788990:web:117e6ee57619b2a08dc16f"
   };
 
-  function cpInit() {
-    if (!window.firebase) return;
-    
-    // CE LOG VA NOUS DIRE SI LE FICHIER EST BIEN MIS A JOUR
-    console.log("Tentative de connexion à :", CP_CONFIG.projectId);
-
-    var app = firebase.apps.find(a => a.options.projectId === CP_CONFIG.projectId);
-    if (!app) app = firebase.initializeApp(CP_CONFIG, "chat-app");
-    cpDb = app.firestore();
-    cpCheckUser();
+    function cpInit() {
+    try {
+      // Utilise firebaseConfig (le nom de ta constante à la ligne 10)
+      const app = firebase.apps.find(function(a){ return a.name === 'chat-widget'; })
+                  || firebase.initializeApp(firebaseConfig, 'chat-widget'); 
+      cpDb = app.firestore();
+      console.log('[chat] Firestore chat prêt sur messenger-dm');
+    } catch(e) { console.error('[chat] init error', e); }
   }
 
   function cpCheckUser() {
