@@ -964,53 +964,192 @@
 <!-- ═══════════════════════════════════════════════════════
      CHAT WIDGET POPUP
 ════════════════════════════════════════════════════════ -->
+
+<!-- Context menu supprimer conv -->
+<div id="cp-ctx-menu">
+  <button onclick="cpDeleteConv()">
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    Supprimer la conversation
+  </button>
+</div>
+
 <div id="chat-popup">
+
+  <!-- ── Header ── -->
   <div id="cp-header">
+    <div id="cp-header-me">
+      <div id="cp-me-avatar" class="cp-avatar" style="width:28px;height:28px;font-size:.68rem">?</div>
+      <div id="cp-me-dot" class="cp-status-dot cp-dot-online"></div>
+    </div>
     <h3>Messages</h3>
-    <button class="cp-btn-icon" onclick="cpLogout()" title="Déconnexion chat">
-      <svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-    </button>
     <button class="cp-btn-icon" onclick="cpToggle()" title="Fermer">
       <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
     </button>
   </div>
 
-  <!-- Vue liste conversations -->
+  <!-- ── Vue liste conversations ── -->
   <div id="cp-view-list">
     <div id="cp-search-bar">
-      <input type="text" placeholder="Rechercher…" oninput="cpFilterConvs(this.value)"/>
-      <button id="cp-new-dm-btn" onclick="cpToggleUserPanel()" title="Nouveau message">+</button>
+      <div id="cp-search-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" placeholder="Rechercher…" oninput="cpFilterConvs(this.value)"/>
+      </div>
+      <button id="cp-new-dm-btn" onclick="cpToggleUserPanel()" title="Nouveau message">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+      </button>
     </div>
+
     <div id="cp-conv-list"><div class="cp-empty">Chargement…</div></div>
+
     <!-- Panel liste users -->
     <div id="cp-user-panel">
-      <div id="cp-user-panel-title">Nouvelle conversation</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span id="cp-user-panel-title">Nouvelle conversation</span>
+        <button class="cp-btn-icon" onclick="cpToggleUserPanel()" style="padding:2px">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
       <input id="cp-user-search" type="text" placeholder="Rechercher un utilisateur…" oninput="cpFilterUsers(this.value)"/>
       <div id="cp-user-list"></div>
     </div>
   </div>
 
-  <!-- Vue chat actif -->
+  <!-- ── Vue chat actif ── -->
   <div id="cp-view-chat">
     <div id="cp-chat-header">
       <button class="cp-btn-icon" onclick="cpBackToList()" title="Retour">
         <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
       </button>
-      <div style="flex:1">
-        <div id="cp-chat-name">-</div>
-        <div id="cp-chat-status">-</div>
+      <div id="cp-chat-avatar" class="cp-avatar" style="width:30px;height:30px;font-size:.7rem;position:relative;">
+        ?
+        <div id="cp-chat-online-dot" class="cp-status-dot" style="display:none"></div>
       </div>
+      <div style="flex:1;min-width:0;">
+        <div id="cp-chat-name" style="font-size:.87rem;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
+        <div id="cp-chat-status" style="font-size:.69rem;color:#64748b;">-</div>
+      </div>
+      <button class="cp-btn-icon" onclick="cpShowOptions(event)" title="Options">
+        <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      </button>
     </div>
+
+    <div id="cp-typing-bar" style="display:none;">
+      <div class="cp-typing-dots"><span></span><span></span><span></span></div>
+      <span id="cp-typing-name"></span> est en train d'écrire…
+    </div>
+
     <div id="cp-messages"></div>
+
     <div id="cp-input-bar">
       <textarea id="cp-msg-input" rows="1" placeholder="Écrire un message…"
-        onkeydown="cpHandleKey(event)" oninput="cpAutoResize(this)"></textarea>
+        onkeydown="cpHandleKey(event)" oninput="cpAutoResize(this); cpOnTyping()"></textarea>
       <button id="cp-send-btn" onclick="cpSend()">
         <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
       </button>
     </div>
   </div>
-</div>
+
+</div><!-- /#chat-popup -->
+
+<style>
+/* ── Context menu ── */
+#cp-ctx-menu {
+  position: fixed; z-index: 10001;
+  background: rgba(15,23,42,0.97);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 9px; padding: 5px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  display: none; min-width: 190px;
+}
+#cp-ctx-menu.open { display: block; }
+#cp-ctx-menu button {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; background: none; border: none;
+  color: #f87171; font-size: .83rem; padding: 8px 10px;
+  border-radius: 6px; cursor: pointer; text-align: left;
+  transition: background .12s;
+}
+#cp-ctx-menu button:hover { background: rgba(248,113,113,0.12); }
+#cp-ctx-menu button svg { width: 14px; height: 14px; fill: #f87171; flex-shrink: 0; }
+
+/* ── Status dots ── */
+.cp-status-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid #0f172a;
+  position: absolute; bottom: 0; right: 0;
+}
+.cp-dot-online { background: #22c55e; }
+.cp-dot-offline { background: #475569; }
+#cp-me-avatar { position: relative; }
+#cp-me-dot { position: absolute; bottom: -1px; right: -1px; }
+
+/* ── Header me zone ── */
+#cp-header-me { position: relative; flex-shrink: 0; }
+
+/* ── Search wrap ── */
+#cp-search-wrap {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11); border-radius: 7px;
+  padding: 5px 9px;
+}
+#cp-search-wrap svg { width: 13px; height: 13px; fill: #475569; flex-shrink: 0; }
+#cp-search-wrap input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: .8rem;
+}
+#cp-search-wrap input::placeholder { color: #475569; }
+#cp-new-dm-btn {
+  background: rgba(2,132,199,0.22); border: 1px solid rgba(2,132,199,0.38);
+  border-radius: 7px; color: #7dd3fc; padding: 7px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s; flex-shrink: 0;
+}
+#cp-new-dm-btn:hover { background: rgba(2,132,199,0.38); }
+#cp-new-dm-btn svg { width: 15px; height: 15px; fill: #7dd3fc; }
+
+/* ── Typing indicator ── */
+#cp-typing-bar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 14px 0;
+  font-size: .72rem; color: #64748b; flex-shrink: 0;
+}
+.cp-typing-dots { display: flex; gap: 3px; align-items: center; }
+.cp-typing-dots span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #475569; animation: cpBounce 1.2s infinite;
+}
+.cp-typing-dots span:nth-child(2) { animation-delay: .2s; }
+.cp-typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes cpBounce {
+  0%,80%,100% { transform: translateY(0); opacity:.5; }
+  40% { transform: translateY(-4px); opacity:1; }
+}
+
+/* ── Conv item with online dot ── */
+.cp-conv-item { position: relative; }
+.cp-conv-avatar-wrap { position: relative; flex-shrink: 0; }
+.cp-conv-online { position: absolute; bottom:0; right:0; width:9px; height:9px; border-radius:50%; background:#22c55e; border:1.5px solid #0f172a; }
+
+/* ── Message réactions / hover ── */
+.cp-msg:hover .cp-msg-time { opacity: 1; }
+.cp-msg-time { opacity: 0; transition: opacity .15s; }
+
+  /* ── Online label dans conv list ── */
+  .cp-online-label { color: #22c55e; font-size: .68rem; margin-left: 4px; }
+  .cp-preview-bold { color: #94a3b8 !important; font-weight: 500; }
+
+  /* ── Day separator ── */
+  .cp-day-sep {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 4px; font-size: .68rem; color: #475569;
+  }
+  .cp-day-sep::before, .cp-day-sep::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+  }
+  .cp-day-sep span { white-space: nowrap; }
+
+</style>
 
 <script>
 // ════════════════════════════════════════════════════════
@@ -1027,13 +1166,13 @@ const CP_CONFIG = {
 
 let cpDb = null;
 let cpUser = null;
-let cpConvId = null, cpOtherId = null;
-let cpMsgUnsub = null, cpConvsUnsub = null;
-let cpAllConvs = [], cpAllUsers = [];
-let cpPopupOpen = false;
-let cpReady = false;
+let cpConvId = null, cpOtherId = null, cpOtherName = null;
+let cpMsgUnsub = null, cpConvsUnsub = null, cpStatusUnsub = null, cpTypingUnsub = null;
+let cpAllConvs = [], cpAllUsers = [], cpOnlineMap = {};
+let cpPopupOpen = false, cpReady = false;
+let cpTypingTimeout = null;
 
-// Init Firestore dès que possible (pas besoin d'une 2e auth)
+// ── Init Firestore ────────────────────────────────────
 (function cpInit() {
   try {
     const cpApp = firebase.apps.find(a => a.name === 'chat-widget') ||
@@ -1042,14 +1181,13 @@ let cpReady = false;
   } catch(e) { console.error('[chat] init error', e); }
 })();
 
-// Appelée par auth.js (ou renderUserBadge) une fois l'user connu
-// On surveille window.currentUser via polling léger
+// ── Attendre window.currentUser (défini par auth.js) ─
 (function cpWaitForAuth() {
   const check = () => {
     if (window.currentUser && cpDb && !cpReady) {
       cpReady = true;
       cpUser = window.currentUser;
-      // Enregistre / met à jour le profil dans Firestore chat
+      // Init profil Firestore
       cpDb.collection('users').doc(cpUser.uid).set({
         displayName: cpUser.displayName || cpUser.email.split('@')[0],
         email: cpUser.email,
@@ -1057,12 +1195,18 @@ let cpReady = false;
         online: true,
         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
       }, { merge: true });
+      // Avatar header
+      const initials = (cpUser.displayName || cpUser.email).split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+      document.getElementById('cp-me-avatar').textContent = initials;
+      document.getElementById('cp-me-dot').className = 'cp-status-dot cp-dot-online';
+      // Presence offline au départ
       window.addEventListener('beforeunload', () => {
         cpDb.collection('users').doc(cpUser.uid)
           .update({ online: false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() })
           .catch(()=>{});
       });
       cpLoadConvs();
+      cpWatchAllOnline();
     }
   };
   check();
@@ -1073,18 +1217,17 @@ let cpReady = false;
 function cpToggle() {
   cpPopupOpen = !cpPopupOpen;
   document.getElementById('chat-popup').classList.toggle('open', cpPopupOpen);
+  // Fermer ctx menu si ouvert
+  document.getElementById('cp-ctx-menu').classList.remove('open');
 }
 
-// ── Déconnexion uniquement du chat (pas du dashboard) ─
-async function cpLogout() {
-  if (cpConvsUnsub) cpConvsUnsub();
-  if (cpMsgUnsub)   cpMsgUnsub();
-  if (cpUser && cpDb) {
-    await cpDb.collection('users').doc(cpUser.uid)
-      .update({ online: false }).catch(()=>{});
-  }
-  cpReady = false; cpUser = null; cpAllConvs = [];
-  document.getElementById('cp-conv-list').innerHTML = '<div class="cp-empty">Déconnecté.</div>';
+// ── Surveiller le statut online de tous les users ────
+function cpWatchAllOnline() {
+  cpDb.collection('users').onSnapshot(snap => {
+    snap.forEach(d => { cpOnlineMap[d.id] = d.data()?.online || false; });
+    // Re-render la liste si visible
+    if (cpAllConvs.length) cpRenderConvs(cpAllConvs);
+  });
 }
 
 // ── Conversations ─────────────────────────────────────
@@ -1106,7 +1249,7 @@ function cpLoadConvs() {
 function cpRenderConvs(convs) {
   const el = document.getElementById('cp-conv-list');
   if (!convs.length) {
-    el.innerHTML = '<div class="cp-empty">Aucune conversation.<br>Cliquez + pour démarrer.</div>';
+    el.innerHTML = '<div class="cp-empty">Aucune conversation.<br>Cliquez <strong>+</strong> pour démarrer.</div>';
     return;
   }
   el.innerHTML = convs.map(c => {
@@ -1114,15 +1257,21 @@ function cpRenderConvs(convs) {
     const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
     const otherId = c.participants.find(p => p !== cpUser.uid);
     const unread = c.unread?.[cpUser.uid] || 0;
+    const isOnline = cpOnlineMap[otherId] || false;
     const preview = c.lastMessage
-      ? (c.lastMessage.length > 35 ? c.lastMessage.slice(0,35)+'…' : c.lastMessage)
+      ? (c.lastMessage.length > 36 ? c.lastMessage.slice(0,36)+'…' : c.lastMessage)
       : 'Nouvelle conversation';
     const time = c.lastMessageAt?.toDate ? cpTimeAgo(c.lastMessageAt.toDate()) : '';
-    return `<div class="cp-conv-item" onclick="cpOpenConv('${c.id}','${otherId}','${name.replace(/'/g,"&apos;")}')">
-      <div class="cp-avatar">${initials}</div>
+    return `<div class="cp-conv-item ${cpConvId===c.id?'active':''}"
+        onclick="cpOpenConv('${c.id}','${otherId}','${name.replace(/'/g,"&apos;")}')"
+        oncontextmenu="cpCtxMenu(event,'${c.id}')">
+      <div class="cp-conv-avatar-wrap">
+        <div class="cp-avatar">${initials}</div>
+        ${isOnline ? '<div class="cp-conv-online"></div>' : ''}
+      </div>
       <div class="cp-conv-info">
-        <div class="cp-conv-name">${cpEsc(name)}</div>
-        <div class="cp-conv-preview">${cpEsc(preview)}</div>
+        <div class="cp-conv-name">${cpEsc(name)}${isOnline ? '<span class="cp-online-label">• en ligne</span>' : ''}</div>
+        <div class="cp-conv-preview ${unread?'cp-preview-bold':''}">${cpEsc(preview)}</div>
       </div>
       <div class="cp-conv-meta">
         <div class="cp-conv-time">${time}</div>
@@ -1148,44 +1297,100 @@ function cpUpdateFabBadge() {
 
 // ── Ouvrir conversation ───────────────────────────────
 async function cpOpenConv(convId, otherId, otherName) {
-  cpConvId = convId; cpOtherId = otherId;
+  cpConvId = convId; cpOtherId = otherId; cpOtherName = otherName;
+  // Header infos
   document.getElementById('cp-chat-name').textContent = otherName;
   document.getElementById('cp-chat-status').textContent = '…';
+  const initials = otherName.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('cp-chat-avatar').firstChild.textContent = initials;
+  // Switch vues
   document.getElementById('cp-view-list').style.display = 'none';
   document.getElementById('cp-view-chat').style.display = 'flex';
+  // Messages
   if (cpMsgUnsub) cpMsgUnsub();
   cpMsgUnsub = cpDb.collection('conversations').doc(convId)
     .collection('messages').orderBy('createdAt')
     .onSnapshot(snap => cpRenderMessages(snap.docs));
+  // Marquer lu
   await cpDb.collection('conversations').doc(convId)
     .update({ [`unread.${cpUser.uid}`]: 0 }).catch(()=>{});
-  cpDb.collection('users').doc(otherId).onSnapshot(doc => {
+  // Statut online en temps réel
+  if (cpStatusUnsub) cpStatusUnsub();
+  cpStatusUnsub = cpDb.collection('users').doc(otherId).onSnapshot(doc => {
     const d = doc.data();
-    document.getElementById('cp-chat-status').textContent = d?.online ? 'En ligne' : 'Hors ligne';
+    const online = d?.online || false;
+    const dot = document.getElementById('cp-chat-online-dot');
+    dot.style.display = 'block';
+    dot.className = 'cp-status-dot ' + (online ? 'cp-dot-online' : 'cp-dot-offline');
+    document.getElementById('cp-chat-status').textContent = online
+      ? 'En ligne'
+      : d?.lastSeen?.toDate ? 'Vu ' + cpTimeAgo(d.lastSeen.toDate()) : 'Hors ligne';
+  });
+  // Typing indicator
+  if (cpTypingUnsub) cpTypingUnsub();
+  cpTypingUnsub = cpDb.collection('conversations').doc(convId).onSnapshot(doc => {
+    const d = doc.data();
+    const isTyping = d?.typing?.[otherId] || false;
+    const bar = document.getElementById('cp-typing-bar');
+    document.getElementById('cp-typing-name').textContent = otherName.split(' ')[0];
+    bar.style.display = isTyping ? 'flex' : 'none';
   });
 }
 
 function cpBackToList() {
-  if (cpMsgUnsub) { cpMsgUnsub(); cpMsgUnsub = null; }
-  cpConvId = null; cpOtherId = null;
+  if (cpMsgUnsub)    { cpMsgUnsub();    cpMsgUnsub = null; }
+  if (cpStatusUnsub) { cpStatusUnsub(); cpStatusUnsub = null; }
+  if (cpTypingUnsub) { cpTypingUnsub(); cpTypingUnsub = null; }
+  // Reset typing
+  if (cpConvId && cpUser) {
+    cpDb.collection('conversations').doc(cpConvId)
+      .update({ [`typing.${cpUser.uid}`]: false }).catch(()=>{});
+  }
+  cpConvId = null; cpOtherId = null; cpOtherName = null;
   document.getElementById('cp-view-chat').style.display = 'none';
   document.getElementById('cp-view-list').style.display = 'flex';
+  document.getElementById('cp-typing-bar').style.display = 'none';
+  cpRenderConvs(cpAllConvs);
 }
 
 function cpRenderMessages(docs) {
   const el = document.getElementById('cp-messages');
-  if (!docs.length) { el.innerHTML = '<div class="cp-empty">Dites bonjour !</div>'; return; }
-  el.innerHTML = docs.map(d => {
+  if (!docs.length) { el.innerHTML = '<div class="cp-empty">Dites bonjour 👋</div>'; return; }
+  let html = '';
+  let prevDate = null;
+  docs.forEach(d => {
     const m = d.data();
     const own = m.senderId === cpUser.uid;
-    const time = m.createdAt?.toDate
-      ? m.createdAt.toDate().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
-    return `<div class="cp-msg ${own?'own':'other'}">
+    const date = m.createdAt?.toDate ? m.createdAt.toDate() : null;
+    const time = date ? date.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '';
+    // Séparateur de date
+    if (date) {
+      const dayStr = date.toDateString();
+      if (dayStr !== prevDate) {
+        const label = cpDayLabel(date);
+        html += `<div class="cp-day-sep"><span>${label}</span></div>`;
+        prevDate = dayStr;
+      }
+    }
+    html += `<div class="cp-msg ${own?'own':'other'}">
       <div class="cp-bubble">${cpEsc(m.text)}</div>
       <div class="cp-msg-time">${time}</div>
     </div>`;
-  }).join('');
+  });
+  el.innerHTML = html;
   el.scrollTop = el.scrollHeight;
+}
+
+// ── Typing indicator ──────────────────────────────────
+function cpOnTyping() {
+  if (!cpConvId || !cpUser) return;
+  cpDb.collection('conversations').doc(cpConvId)
+    .update({ [`typing.${cpUser.uid}`]: true }).catch(()=>{});
+  clearTimeout(cpTypingTimeout);
+  cpTypingTimeout = setTimeout(() => {
+    cpDb.collection('conversations').doc(cpConvId)
+      .update({ [`typing.${cpUser.uid}`]: false }).catch(()=>{});
+  }, 2000);
 }
 
 // ── Envoyer ───────────────────────────────────────────
@@ -1194,7 +1399,11 @@ async function cpSend() {
   const text = input.value.trim();
   if (!text || !cpConvId || !cpUser) return;
   input.value = ''; input.style.height = 'auto';
+  clearTimeout(cpTypingTimeout);
   const now = firebase.firestore.FieldValue.serverTimestamp();
+  // Stop typing
+  cpDb.collection('conversations').doc(cpConvId)
+    .update({ [`typing.${cpUser.uid}`]: false }).catch(()=>{});
   await cpDb.collection('conversations').doc(cpConvId)
     .collection('messages').add({ text, senderId: cpUser.uid, createdAt: now });
   await cpDb.collection('conversations').doc(cpConvId).update({
@@ -1204,6 +1413,47 @@ async function cpSend() {
 }
 function cpHandleKey(e) { if (e.key==='Enter'&&!e.shiftKey){e.preventDefault();cpSend();} }
 function cpAutoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,72)+'px'; }
+
+// ── Context menu (clic droit sur conv) ───────────────
+let cpCtxConvId = null;
+function cpCtxMenu(e, convId) {
+  e.preventDefault();
+  cpCtxConvId = convId;
+  const m = document.getElementById('cp-ctx-menu');
+  m.style.left = Math.min(e.clientX, window.innerWidth-200) + 'px';
+  m.style.top  = Math.min(e.clientY, window.innerHeight-80) + 'px';
+  m.classList.add('open');
+}
+async function cpDeleteConv() {
+  document.getElementById('cp-ctx-menu').classList.remove('open');
+  if (!cpCtxConvId) return;
+  // Si c'est la conv ouverte, revenir à la liste
+  if (cpCtxConvId === cpConvId) cpBackToList();
+  // Supprimer les messages en batch
+  const msgs = await cpDb.collection('conversations').doc(cpCtxConvId)
+    .collection('messages').get();
+  const batch = cpDb.batch();
+  msgs.forEach(d => batch.delete(d.ref));
+  batch.delete(cpDb.collection('conversations').doc(cpCtxConvId));
+  await batch.commit();
+  cpCtxConvId = null;
+}
+// Fermer ctx menu si clic ailleurs
+document.addEventListener('click', () => {
+  document.getElementById('cp-ctx-menu').classList.remove('open');
+});
+
+// ── Options (⋮ dans le chat actif) ───────────────────
+function cpShowOptions(e) {
+  e.stopPropagation();
+  if (!cpConvId) return;
+  cpCtxConvId = cpConvId;
+  const m = document.getElementById('cp-ctx-menu');
+  const rect = e.currentTarget.getBoundingClientRect();
+  m.style.left = (rect.right - 195) + 'px';
+  m.style.top  = (rect.bottom + 4) + 'px';
+  m.classList.add('open');
+}
 
 // ── Nouveau DM – liste users ──────────────────────────
 function cpToggleUserPanel() {
@@ -1227,15 +1477,20 @@ function cpFilterUsers(q) {
 function cpRenderUsers(users) {
   const el = document.getElementById('cp-user-list');
   if (!users.length) { el.innerHTML='<div class="cp-empty">Aucun utilisateur</div>'; return; }
+  // Trier : online d'abord
+  users.sort((a,b) => (cpOnlineMap[b.id]?1:0) - (cpOnlineMap[a.id]?1:0));
   el.innerHTML = users.map(u => {
     const initials=(u.displayName||u.email||'?').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const online = cpOnlineMap[u.id] || false;
     return `<div class="cp-user-item" onclick="cpStartDM('${u.id}','${(u.displayName||u.email).replace(/'/g,"&apos;")}')">
-      <div class="cp-avatar" style="width:28px;height:28px;font-size:.68rem">${initials}</div>
-      <div>
-        <div class="cp-user-name">${cpEsc(u.displayName||'')}</div>
-        <div class="cp-user-email">${cpEsc(u.email||'')}</div>
+      <div style="position:relative;flex-shrink:0;">
+        <div class="cp-avatar" style="width:30px;height:30px;font-size:.7rem">${initials}</div>
+        <div class="cp-status-dot ${online?'cp-dot-online':'cp-dot-offline'}" style="width:8px;height:8px;border-color:#0a1223"></div>
       </div>
-      ${u.online?'<div class="cp-online-dot" style="position:static;width:7px;height:7px;margin-left:auto;border-radius:50%;background:#22c55e"></div>':''}
+      <div style="flex:1;min-width:0;">
+        <div class="cp-user-name">${cpEsc(u.displayName||'')}</div>
+        <div class="cp-user-email">${online ? '<span style="color:#22c55e;font-size:.7rem">● En ligne</span>' : cpEsc(u.email||'')}</div>
+      </div>
     </div>`;
   }).join('');
 }
@@ -1268,6 +1523,12 @@ function cpTimeAgo(d) {
   if (s<86400) return Math.floor(s/3600)+'h';
   return d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
 }
+function cpDayLabel(d) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yest = new Date(today); yest.setDate(today.getDate()-1);
+  if (d >= today) return "Aujourd'hui";
+  if (d >= yest)  return "Hier";
+  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+}
 </script>
-
 </html>
