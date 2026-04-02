@@ -7,14 +7,14 @@
   'use strict';
 
   // ── Config Firebase projet CHAT ───────────────────────────────────────────
-  const CP_CONFIG = {
-    apiKey:            "AIzaSyAjUD1IqsLsEl0o-FJvEV15kZ36BkMced8",
-    authDomain:        "messenger-dm.firebaseapp.com",
-    projectId:         "messenger-dm",
-    storageBucket:     "messenger-dm.firebasestorage.app",
-    messagingSenderId: "1042430233451",
-    appId:             "1:1042430233451:web:8769e50e85f36830805a2e"
-  };
+const firebaseConfig = {
+  apiKey: "AIzaSyCxzZnNJyvBpOKubQmEmhcZOXk8IdLsEyc",
+  authDomain: "messenger-dm.firebaseapp.com",
+  projectId: "messenger-dm",
+  storageBucket: "messenger-dm.firebasestorage.app",
+  messagingSenderId: "420241788990",
+  appId: "1:420241788990:web:117e6ee57619b2a08dc16f"
+};
 
   // ── État ──────────────────────────────────────────────────────────────────
   let cpDb = null, cpUser = null;
