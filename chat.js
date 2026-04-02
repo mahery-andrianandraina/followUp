@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  // ── CONFIGURATION CORRECTE ──
+  // ── CONFIGURATION ──
   const firebaseConfig = {
  apiKey: "AIzaSyDW2PiF8hImM5BP_Bu6WdEWIj2JmBnnhCc",
   authDomain: "messenger-dm-9c709.firebaseapp.com",
@@ -14,18 +14,16 @@
   let cpDb = null, cpUser = null, cpReady = false;
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  INITIALISATION SÉCURISÉE
+  //  INIT FIREBASE (CORRIGÉ)
   // ══════════════════════════════════════════════════════════════════════════
   function cpInit() {
     try {
-      // CORRECTION : Utilisation de firebaseConfig au lieu de CP_CONFIG
-      const app = firebase.apps.find(a => a.name === 'chat-widget')
+      // FIX CRITIQUE : Utilisation de firebaseConfig au lieu de CP_CONFIG
+      const app = firebase.apps.find(function(a){ return a.name === 'chat-widget'; })
                   || firebase.initializeApp(firebaseConfig, 'chat-widget');
       
       cpDb = app.firestore();
       console.log('[chat] Firestore connecté avec succès');
-      
-      // On lance l'attente de l'utilisateur
       cpWaitForAuth();
     } catch(e) { 
       console.error('[chat] Erreur fatale init:', e); 
@@ -33,73 +31,75 @@
   }
 
   function cpWaitForAuth() {
-    const id = setInterval(() => {
+    var id = setInterval(function() {
       if (window.currentUser && cpDb && !cpReady) {
         cpReady = true;
-        cpUser = window.currentUser;
+        cpUser  = window.currentUser;
         clearInterval(id);
-        console.log('[chat] Utilisateur prêt:', cpUser.email);
         _cpSetupUser();
       }
-    }, 500);
+    }, 400);
   }
 
   function _cpSetupUser() {
     cpDb.collection('users').doc(cpUser.uid).set({
       displayName: cpUser.displayName || cpUser.email.split('@')[0],
-      email: cpUser.email,
-      online: true,
-      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      email:       cpUser.email,
+      online:      true,
+      lastSeen:    firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  FONCTIONS PUBLIQUES (Attachées à window pour le HTML)
+  //  FONCTIONS EXPORTÉES (Pour vos boutons HTML)
   // ══════════════════════════════════════════════════════════════════════════
-  
-  // Cette fonction gère l'ouverture/fermeture du widget principal
+
+  // Pour le bouton principal du chat
   window.cpToggle = function() {
-    const p = document.getElementById('chat-popup');
+    var p = document.getElementById('chat-popup');
     if (p) p.classList.toggle('open');
   };
 
-  // Cette fonction gère le bouton "Nouveau message"
+  // Pour le bouton "Nouveau message"
   window.cpToggleUserPanel = function() {
     if (!cpDb) {
-      console.warn("[chat] Attente de la connexion Firestore...");
+      console.error("Firestore n'est pas prêt. Vérifiez la console pour l'erreur d'init.");
       return;
     }
-    const p = document.getElementById('cp-user-panel');
+    var p = document.getElementById('cp-user-panel'); 
     if (!p) return;
+    
+    var opening = !p.classList.contains('open');
     p.classList.toggle('open');
-    if (p.classList.contains('open')) cpLoadUsers();
+    if (opening) {
+      cpLoadUsers();
+    }
   };
 
   async function cpLoadUsers() {
-    const el = document.getElementById('cp-user-list');
-    if (!el) return;
-    el.innerHTML = '<div class="cp-empty">Chargement...</div>';
+    var el = document.getElementById('cp-user-list');
+    if (el) el.innerHTML = '<div class="cp-empty">Chargement...</div>';
 
     try {
-      const snap = await cpDb.collection('users').get();
-      let html = '';
-      snap.forEach(doc => {
+      // On récupère la liste des utilisateurs pour démarrer un message
+      var snap = await cpDb.collection('users').get();
+      var html = '';
+      snap.forEach(function(doc) {
         if (doc.id !== cpUser.uid) {
-          const u = doc.data();
-          const name = u.displayName || u.email;
+          var u = doc.data();
+          var name = u.displayName || u.email;
           html += `<div class="cp-user-item" onclick="cpStartDM('${u.email}','${name}','${doc.id}')">
-                     ${name}
-                   </div>`;
+                    <div class="cp-user-name">${name}</div>
+                  </div>`;
         }
       });
-      el.innerHTML = html || '<div class="cp-empty">Aucun utilisateur trouvé</div>';
+      if (el) el.innerHTML = html || '<div class="cp-empty">Aucun contact</div>';
     } catch(e) {
-      console.error("[chat] Erreur chargement users:", e);
-      el.innerHTML = '<div class="cp-empty">Erreur de permission</div>';
+      console.error("Erreur de lecture Firestore:", e);
     }
   }
 
-  // Lancement manuel du démarrage
+  // Lancement
   cpInit();
 
 })();
