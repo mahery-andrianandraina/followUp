@@ -6,17 +6,16 @@
 (function () {
   'use strict';
 
-  // ── CONFIGURATION FIREBASE (MESSENGER-DM) ──────────────────────────────────
   const firebaseConfig = {
-  apiKey: "AIzaSyDW2PiF8hImM5BP_Bu6WdEWIj2JmBnnhCc",
-  authDomain: "messenger-dm-9c709.firebaseapp.com",
-  projectId: "messenger-dm-9c709",
-  storageBucket: "messenger-dm-9c709.firebasestorage.app",
-  messagingSenderId: "147694824892",
-  appId: "1:147694824892:web:2c800cca1ff4c2b111cfb9"
-};
+    apiKey: "AIzaSyCxzZnNJyvBpOKubQmEmhcZOXk8IdLsEyc",
+    authDomain: "messenger-dm.firebaseapp.com",
+    projectId: "messenger-dm",
+    storageBucket: "messenger-dm.firebasestorage.app",
+    messagingSenderId: "420241788990",
+    appId: "1:420241788990:web:117e6ee57619b2a08dc16f"
+  };
 
-  // ── ÉTAT GLOBAL ───────────────────────────────────────────────────────────
+  // ── État ──
   let cpDb = null, cpUser = null;
   let cpConvId = null, cpOtherId = null, cpOtherName = null;
   let cpMsgUnsub = null, cpConvsUnsub = null, cpStatusUnsub = null, cpTypingUnsub = null;
@@ -28,20 +27,16 @@
   // ══════════════════════════════════════════════════════════════════════════
   function cpInit() {
     try {
-      // Vérifie si l'app est déjà initialisée sous le nom 'chat-widget'
       const app = firebase.apps.find(function(a){ return a.name === 'chat-widget'; })
                   || firebase.initializeApp(firebaseConfig, 'chat-widget');
-      
-      cpDb = app.firestore(); // Initialisation de la variable globale cpDb
+      cpDb = app.firestore();
       console.log('[chat] Firestore chat prêt sur messenger-dm');
       cpWaitForAuth();
-    } catch(e) { 
-      console.error('[chat] init error', e); 
-    }
+    } catch(e) { console.error('[chat] init error', e); }
   }
 
   function cpWaitForAuth() {
-    const id = setInterval(function() {
+    var id = setInterval(function() {
       if (window.currentUser && cpDb && !cpReady) {
         cpReady = true;
         cpUser  = window.currentUser;
@@ -64,19 +59,28 @@
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  FONCTIONS PUBLIQUES (Accessibles depuis le HTML)
+  //  FONCTIONS PUBLIQUES (Accessibles par le HTML)
   // ══════════════════════════════════════════════════════════════════════════
 
-  // Permet au bouton du HTML d'ouvrir/fermer le chat
+  // Ouvre la liste pour créer un nouveau message
+  window.cpToggleUserPanel = function() {
+    var p = document.getElementById('cp-user-panel'); 
+    if (!p) return;
+    var opening = !p.classList.contains('open');
+    p.classList.toggle('open');
+    if (opening) {
+      cpLoadUsers();
+    }
+  };
+
   window.cpToggle = function() {
     cpPopupOpen = !cpPopupOpen;
-    const p = document.getElementById('chat-popup');
+    var p = document.getElementById('chat-popup');
     if (p) p.classList.toggle('open', cpPopupOpen);
   };
 
   window.cpOpenConv = async function(convId, otherId, otherName) {
     cpConvId = convId; cpOtherId = otherId; cpOtherName = otherName;
-    
     document.getElementById('cp-view-list').style.display = 'none';
     document.getElementById('cp-view-chat').style.display = 'flex';
 
@@ -94,56 +98,75 @@
   };
 
   window.cpSend = async function() {
-    const input = document.getElementById('cp-msg-input');
-    const text = input.value.trim();
+    var input = document.getElementById('cp-msg-input');
+    var text = input.value.trim();
     if (!text || !cpConvId || !cpUser) return;
-
     input.value = '';
-    const now = firebase.firestore.FieldValue.serverTimestamp();
-    
+    var now = firebase.firestore.FieldValue.serverTimestamp();
     await cpDb.collection('conversations').doc(cpConvId)
-      .collection('messages').add({ text: text, senderId: cpUser.uid, createdAt: now });
-    
-    const upd = { lastMessage: text, lastMessageAt: now };
-    upd['unread.' + cpOtherId] = firebase.firestore.FieldValue.increment(1);
-    await cpDb.collection('conversations').doc(cpConvId).update(upd);
+      .collection('messages').add({ text:text, senderId:cpUser.uid, createdAt:now });
   };
 
   // ══════════════════════════════════════════════════════════════════════════
-  //  LOGIQUE INTERNE (Privée)
+  //  LOGIQUE INTERNE
   // ══════════════════════════════════════════════════════════════════════════
 
+  async function cpLoadUsers() {
+    var el = document.getElementById('cp-user-list');
+    if (el) el.innerHTML = '<div class="cp-empty">Chargement…</div>';
+    
+    try {
+      var snap = await cpDb.collection('users').get();
+      var users = [];
+      snap.forEach(function(doc) {
+        if (doc.id !== cpUser.uid) users.push(Object.assign({id: doc.id}, doc.data()));
+      });
+      cpRenderUsers(users);
+    } catch(e) { console.error(e); }
+  }
+
+  function cpRenderUsers(users) {
+    var el = document.getElementById('cp-user-list');
+    if (!el) return;
+    el.innerHTML = users.map(function(u) {
+      return `<div class="cp-user-item" onclick="cpStartDM('${u.email}','${u.displayName}','${u.id}')">
+                ${u.displayName}
+              </div>`;
+    }).join('');
+  }
+
+  window.cpStartDM = async function(email, name, uid) {
+    var convId = [cpUser.uid, uid].sort().join('_');
+    var ref = cpDb.collection('conversations').doc(convId);
+    var snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        participants: [cpUser.uid, uid],
+        otherNames: { [cpUser.uid]: cpUser.displayName, [uid]: name },
+        lastMessageAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    document.getElementById('cp-user-panel').classList.remove('open');
+    window.cpOpenConv(convId, uid, name);
+  };
+
   function cpLoadConvs() {
-    cpConvsUnsub = cpDb.collection('conversations')
+    cpDb.collection('conversations')
       .where('participants', 'array-contains', cpUser.uid)
-      .orderBy('lastMessageAt', 'desc')
       .onSnapshot(function(snap) {
-        cpAllConvs = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-        cpRenderConvs(cpAllConvs);
+        var convs = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        cpRenderConvs(convs);
       });
   }
 
   function cpRenderConvs(convs) {
-    const el = document.getElementById('cp-conv-list');
-    if (!el) return;
-    el.innerHTML = convs.map(function(c) {
-      const name = (c.otherNames && c.otherNames[cpUser.uid]) || 'Inconnu';
-      return `<div class="cp-conv-item" onclick="cpOpenConv('${c.id}', '${name}')">
-                ${name} - ${c.lastMessage}
-              </div>`;
-    }).join('');
+    var el = document.getElementById('cp-conv-list');
+    if (el) el.innerHTML = convs.map(conv => `<div onclick="cpOpenConv('${conv.id}')">Conv</div>`).join('');
   }
 
   function cpRenderMessages(docs) {
-    const el = document.getElementById('cp-messages');
-    if (!el) return;
-    el.innerHTML = docs.map(function(d) {
-      const m = d.data();
-      return `<div class="cp-msg ${m.senderId === cpUser.uid ? 'own' : 'other'}">
-                ${m.text}
-              </div>`;
-    }).join('');
-    el.scrollTop = el.scrollHeight;
+    var el = document.getElementById('cp-messages');
+    if (el) el.innerHTML = docs.map(d => `<div>${d.data().text}</div>`).join('');
   }
 
   function cpWatchAllOnline() {
@@ -152,7 +175,5 @@
     });
   }
 
-  // Démarrage
   cpInit();
-
 })();
