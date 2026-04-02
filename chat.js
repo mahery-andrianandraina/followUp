@@ -9,9 +9,9 @@
   // ── Config Firebase projet CHAT ───────────────────────────────────────────
   const CP_CONFIG = {
     apiKey:            "AIzaSyAjUD1IqsLsEl0o-FJvEV15kZ36BkMced8",
-    authDomain:        "messages-b1e1a.firebaseapp.com",
-    projectId:         "messages-b1e1a",
-    storageBucket:     "messages-b1e1a.firebasestorage.app",
+    authDomain:        "messenger-dm.firebaseapp.com",
+    projectId:         "messenger-dm",
+    storageBucket:     "messenger-dm.firebasestorage.app",
     messagingSenderId: "1042430233451",
     appId:             "1:1042430233451:web:8769e50e85f36830805a2e"
   };
