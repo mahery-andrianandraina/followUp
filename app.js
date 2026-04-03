@@ -4642,8 +4642,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 `;
     document.head.appendChild(s);
 }
-//CHATBOT
-//CHATBOT 
+//CHATBOT WITH FILE UPLOAD
 (function () {
 
   const API_URL = "https://script.google.com/macros/s/AKfycbxIUcjka91Rb3-EYOaPO_YX4MSBe8VwC53VFxd9-RAkAXJL7nyDY-94qUFgjQ_-UX12/exec";
@@ -4661,12 +4660,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
     { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
   ];
 
+  // ── État upload ───────────────────────────────────────────────
+  let pendingFile = null; // { name, type, content, preview }
+
   // ── MODULE DETECTION ──────────────────────────────────────────
-  /**
-   * Détecte le module actif de l'application.
-   * Priorité : 1) attribut data-module sur body/main, 2) variable globale,
-   * 3) titre de page, 4) analyse du DOM (titres h1/h2, nav actif).
-   */
   function detectActiveModule() {
     const MODULE_KEYWORDS = {
       "Dashboard":        ["dashboard", "tableau de bord", "overview"],
@@ -4681,27 +4678,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
       "Trims Devo":       ["trims", "trim", "accessories", "accessoires", "label", "button", "zipper", "bouton", "fermeture"]
     };
 
-    // 1. Attribut HTML explicite sur body ou élément principal
     const dataModule = document.body?.dataset?.module
       || document.querySelector("[data-active-module]")?.dataset?.activeModule
       || document.querySelector("[data-module]")?.dataset?.module;
     if (dataModule) return dataModule.trim();
 
-    // 2. Variable globale JS (ex: window.activeModule = "Sample")
-    if (window.activeModule && typeof window.activeModule === "string") {
-      return window.activeModule.trim();
-    }
-    if (window.currentModule && typeof window.currentModule === "string") {
-      return window.currentModule.trim();
-    }
-    if (window.currentPage && typeof window.currentPage === "string") {
-      return window.currentPage.trim();
-    }
+    if (window.activeModule && typeof window.activeModule === "string") return window.activeModule.trim();
+    if (window.currentModule && typeof window.currentModule === "string") return window.currentModule.trim();
+    if (window.currentPage && typeof window.currentPage === "string") return window.currentPage.trim();
 
-    // 3. Élément de navigation actif (li.active, a.active, .nav-item.active, etc.)
-    const activeNavItem = document.querySelector(
-      ".nav-item.active, .menu-item.active, nav li.active, nav a.active, [aria-current='page']"
-    );
+    const activeNavItem = document.querySelector(".nav-item.active, .menu-item.active, nav li.active, nav a.active, [aria-current='page']");
     if (activeNavItem) {
       const navText = activeNavItem.innerText?.trim().toLowerCase() || "";
       for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
@@ -4709,7 +4695,6 @@ tr.awb-active-row td { background:#fff8ec !important; }
       }
     }
 
-    // 4. Titre de page (document.title) et premiers h1/h2
     const titleSources = [
       document.title,
       document.querySelector("h1")?.innerText || "",
@@ -4722,16 +4707,13 @@ tr.awb-active-row td { background:#fff8ec !important; }
       if (keywords.some(k => titleSources.includes(k))) return module;
     }
 
-    // 5. Analyse des en-têtes de colonnes de tableaux visibles
     const headers = [...document.querySelectorAll("table th")]
-      .map(th => th.innerText?.trim().toLowerCase())
-      .join(" ");
+      .map(th => th.innerText?.trim().toLowerCase()).join(" ");
 
     for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
       if (keywords.some(k => headers.includes(k))) return module;
     }
 
-    // 6. Fallback — module inconnu
     return "Unknown";
   }
 
@@ -4746,11 +4728,11 @@ tr.awb-active-row td { background:#fff8ec !important; }
     return "vous";
   }
 
+  // ── STYLES ────────────────────────────────────────────────────
   const style = document.createElement("style");
   style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-    /* ── FAB BUTTON ── */
     #fu-chatbot-btn {
       position: fixed; bottom: 28px; right: 28px;
       width: 52px; height: 52px; border-radius: 50%;
@@ -4768,12 +4750,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
       background: #e53935; border: 2px solid white; display: none;
     }
 
-    /* ── PANEL ── */
     #fu-chatbot-panel {
       position: fixed; bottom: 92px; right: 28px;
-      width: 375px; height: 590px;
-      background: #ffffff;
-      border-radius: 20px;
+      width: 375px; height: 610px;
+      background: #ffffff; border-radius: 20px;
       border: 1px solid #dce8f8;
       box-shadow: 0 8px 40px rgba(21,101,192,0.15), 0 2px 8px rgba(0,0,0,0.08);
       display: flex; flex-direction: column;
@@ -4785,17 +4765,14 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     #fu-chatbot-panel.open { transform: translateY(0) scale(1); opacity: 1; pointer-events: all; }
 
-    /* ── HEADER ── */
     #fu-chat-header {
       padding: 13px 15px;
       background: linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #1e88e5 100%);
-      color: white; display: flex; align-items: center; gap: 11px;
-      flex-shrink: 0;
+      color: white; display: flex; align-items: center; gap: 11px; flex-shrink: 0;
     }
     #fu-header-avatar {
       width: 36px; height: 36px; border-radius: 10px;
-      background: rgba(255,255,255,0.18);
-      border: 1px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3);
       display: flex; align-items: center; justify-content: center;
       font-size: 17px; flex-shrink: 0; position: relative;
     }
@@ -4817,28 +4794,20 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-reset-btn { margin-right: 4px; font-size: 15px; }
     #fu-reset-btn:hover, #fu-close-btn:hover { background: rgba(255,255,255,0.28); }
 
-    /* ── MODULE BADGE ── */
     #fu-module-badge {
       display: flex; align-items: center; gap: 7px;
       padding: 5px 13px 6px;
       background: rgba(255,255,255,0.08);
-      border-bottom: 1px solid rgba(255,255,255,0.12);
-      flex-shrink: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.12); flex-shrink: 0;
     }
-    #fu-module-dot {
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #4caf50; flex-shrink: 0;
-    }
+    #fu-module-dot { width: 6px; height: 6px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
     #fu-module-name {
       font-size: 10.5px; color: rgba(255,255,255,0.75);
-      font-family: 'Inter', sans-serif; letter-spacing: 0.05em;
-      font-weight: 500; text-transform: uppercase;
+      font-family: 'Inter', sans-serif; letter-spacing: 0.05em; font-weight: 500; text-transform: uppercase;
     }
 
-    /* ── TOKEN BAR ── */
     #fu-token-bar-wrap {
-      flex-shrink: 0; padding: 5px 13px 4px;
-      background: #1565c0;
+      flex-shrink: 0; padding: 5px 13px 4px; background: #1565c0;
       border-bottom: 1px solid rgba(255,255,255,0.1);
       display: flex; flex-direction: column; gap: 3px;
     }
@@ -4849,12 +4818,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     #fu-token-pct { color: #81d4fa; font-weight: 600; }
     #fu-token-bar-track { height: 3px; background: rgba(255,255,255,0.15); border-radius: 99px; overflow: hidden; }
-    #fu-token-bar {
-      height: 100%; width: 0%; border-radius: 99px;
-      transition: width 0.5s ease, background 0.5s ease; background: #4caf50;
-    }
+    #fu-token-bar { height: 100%; width: 0%; border-radius: 99px; transition: width 0.5s ease, background 0.5s ease; background: #4caf50; }
 
-    /* ── MESSAGES ── */
     #fu-chat-messages {
       flex: 1; overflow-y: auto; padding: 14px 13px 8px;
       display: flex; flex-direction: column; gap: 10px;
@@ -4882,8 +4847,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     .fu-msg.bot {
       background: #ffffff; color: #1a2a3a;
-      border: 1px solid #dce8f8;
-      border-bottom-left-radius: 4px;
+      border: 1px solid #dce8f8; border-bottom-left-radius: 4px;
       box-shadow: 0 1px 3px rgba(21,101,192,0.08);
     }
     .fu-msg.user {
@@ -4893,6 +4857,43 @@ tr.awb-active-row td { background:#fff8ec !important; }
     .fu-msg.bot strong { color: #1565c0; }
     .fu-msg.bot a { color: #1565c0; text-decoration: underline; word-break: break-all; }
     .fu-msg.bot a:hover { color: #0d47a1; }
+
+    /* ── FILE PREVIEW dans le message user ── */
+    .fu-file-bubble {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 11px;
+      background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25);
+      margin-bottom: 5px; max-width: 82%; align-self: flex-end;
+    }
+    .fu-file-bubble-icon { font-size: 18px; flex-shrink: 0; }
+    .fu-file-bubble-info { display: flex; flex-direction: column; }
+    .fu-file-bubble-name { font-size: 12px; font-weight: 600; color: #fff; }
+    .fu-file-bubble-type { font-size: 10px; color: rgba(255,255,255,0.65); }
+    .fu-img-preview {
+      max-width: 82%; max-height: 160px; border-radius: 11px;
+      border: 2px solid rgba(255,255,255,0.3); object-fit: cover; align-self: flex-end;
+    }
+
+    /* ── PENDING FILE PREVIEW (avant envoi) ── */
+    #fu-file-preview-bar {
+      display: none; align-items: center; gap: 9px;
+      padding: 7px 12px; background: #e8f4fd;
+      border-top: 1px solid #cce0f5; flex-shrink: 0;
+      animation: fu-slide-up 0.2s ease;
+    }
+    @keyframes fu-slide-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    #fu-file-preview-bar.visible { display: flex; }
+    #fu-file-preview-icon { font-size: 20px; flex-shrink: 0; }
+    #fu-file-preview-info { flex: 1; }
+    #fu-file-preview-name { font-size: 12px; font-weight: 600; color: #1a5296; }
+    #fu-file-preview-status { font-size: 10.5px; color: #5a8ac4; margin-top: 1px; }
+    #fu-file-preview-cancel {
+      width: 22px; height: 22px; border-radius: 50%; border: none;
+      background: #c5ddf5; color: #1565c0; cursor: pointer;
+      font-size: 13px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s;
+    }
+    #fu-file-preview-cancel:hover { background: #b3cef0; }
 
     .fu-msg-meta { display: flex; align-items: center; gap: 5px; padding: 0 3px; }
     .fu-msg-time { font-size: 10px; color: #9ab3cc; }
@@ -4909,14 +4910,12 @@ tr.awb-active-row td { background:#fff8ec !important; }
     .fu-typing {
       display: flex; align-items: center; gap: 4px;
       padding: 10px 14px; background: #ffffff;
-      border: 1px solid #dce8f8;
-      border-radius: 14px; border-bottom-left-radius: 4px;
+      border: 1px solid #dce8f8; border-radius: 14px; border-bottom-left-radius: 4px;
       box-shadow: 0 1px 3px rgba(21,101,192,0.08); width: fit-content;
     }
     .fu-typing span {
       width: 7px; height: 7px; border-radius: 50%;
-      background: #1e88e5; opacity: 0.4;
-      animation: fu-bounce 1.2s infinite;
+      background: #1e88e5; opacity: 0.4; animation: fu-bounce 1.2s infinite;
     }
     .fu-typing span:nth-child(2) { animation-delay: 0.2s; }
     .fu-typing span:nth-child(3) { animation-delay: 0.4s; }
@@ -4929,11 +4928,8 @@ tr.awb-active-row td { background:#fff8ec !important; }
       display: flex; align-items: center; gap: 8px;
       font-size: 10px; color: #9ab3cc; margin: 4px 0;
     }
-    .fu-divider::before, .fu-divider::after {
-      content: ''; flex: 1; height: 1px; background: #d0e4f7;
-    }
+    .fu-divider::before, .fu-divider::after { content: ''; flex: 1; height: 1px; background: #d0e4f7; }
 
-    /* ── BANNIÈRE CONTEXTE ── */
     #fu-context-banner {
       display: none; padding: 9px 13px 10px;
       font-size: 11.5px; font-family: 'Inter', sans-serif;
@@ -4952,42 +4948,30 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-btn-summarize { background: #1565c0; color: white; }
     #fu-btn-new-conv { background: transparent; border: 1px solid currentColor !important; color: inherit; }
 
-    /* ── SUGGESTIONS SLIDER ── */
     #fu-suggestions {
-      padding: 9px 13px 11px;
-      background: #ffffff;
-      border-top: 1px solid #dce8f8;
-      flex-shrink: 0;
+      padding: 9px 13px 11px; background: #ffffff;
+      border-top: 1px solid #dce8f8; flex-shrink: 0;
     }
     #fu-suggestions.hidden { display: none; }
     #fu-sugg-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
     #fu-sugg-label { font-size: 9.5px; color: #9ab3cc; text-transform: uppercase; letter-spacing: 0.06em; }
     #fu-sugg-dots { display: flex; gap: 5px; align-items: center; }
-    .fu-dot-ind {
-      width: 5px; height: 5px; border-radius: 50%;
-      background: #cce0f5; transition: all 0.3s; cursor: pointer;
-    }
+    .fu-dot-ind { width: 5px; height: 5px; border-radius: 50%; background: #cce0f5; transition: all 0.3s; cursor: pointer; }
     .fu-dot-ind.active { background: #1565c0; width: 14px; border-radius: 4px; }
     #fu-slider-wrap { overflow: hidden; border-radius: 12px; }
     #fu-slider-track { display: flex; transition: transform 0.35s cubic-bezier(0.4,0,0.2,1); }
     .fu-slide { min-width: 100%; box-sizing: border-box; }
     .fu-suggestion {
-      display: flex; align-items: center; gap: 9px;
-      padding: 9px 13px; border-radius: 12px;
-      background: #f0f6ff;
-      border: 1px solid #cce0f5;
-      cursor: pointer; transition: all 0.18s; width: 100%; box-sizing: border-box;
+      display: flex; align-items: center; gap: 9px; padding: 9px 13px; border-radius: 12px;
+      background: #f0f6ff; border: 1px solid #cce0f5; cursor: pointer;
+      transition: all 0.18s; width: 100%; box-sizing: border-box;
     }
     .fu-suggestion:hover { background: #deedfb; border-color: #1e88e5; }
     .fu-sugg-icon {
-      width: 24px; height: 24px; border-radius: 7px;
-      background: #deedfb; border: 1px solid #b3d4f0;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 24px; height: 24px; border-radius: 7px; background: #deedfb;
+      border: 1px solid #b3d4f0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .fu-sugg-text {
-      font-family: 'Inter', sans-serif; font-size: 11.5px;
-      color: #1a5296; font-style: italic; line-height: 1.4; flex: 1; text-align: left;
-    }
+    .fu-sugg-text { font-family: 'Inter', sans-serif; font-size: 11.5px; color: #1a5296; font-style: italic; line-height: 1.4; flex: 1; text-align: left; }
     .fu-sugg-arrow { flex-shrink: 0; font-size: 11px; color: #90bae0; }
     #fu-sugg-nav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 7px; }
     .fu-nav-btn {
@@ -4997,34 +4981,45 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     .fu-nav-btn:hover { background: #deedfb; border-color: #1e88e5; }
 
-    /* ── INPUT AREA ── */
     #fu-chat-input-area {
       padding: 9px 12px 11px; background: #ffffff;
       border-top: 1px solid #dce8f8; flex-shrink: 0;
     }
     #fu-input-row { display: flex; gap: 8px; align-items: center; }
+
+    /* ── BOUTON UPLOAD ── */
+    #fu-upload-btn {
+      width: 34px; height: 34px; flex-shrink: 0;
+      background: #f0f6ff; border: 1.5px solid #cce0f5;
+      border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.18s; position: relative;
+    }
+    #fu-upload-btn:hover { background: #deedfb; border-color: #1e88e5; }
+    #fu-upload-btn.has-file { background: #1565c0; border-color: #1565c0; }
+    #fu-upload-btn.has-file svg path, #fu-upload-btn.has-file svg line { stroke: white; }
+    #fu-file-input { display: none; }
+
     #fu-chat-input {
-      flex: 1; border: 1.5px solid #cce0f5;
-      border-radius: 22px; padding: 9px 15px;
-      font-family: 'Inter', sans-serif; font-size: 13px;
-      resize: none; outline: none; max-height: 80px;
-      transition: border-color 0.2s; line-height: 1.4;
+      flex: 1; border: 1.5px solid #cce0f5; border-radius: 22px; padding: 9px 15px;
+      font-family: 'Inter', sans-serif; font-size: 13px; resize: none; outline: none;
+      max-height: 80px; transition: border-color 0.2s; line-height: 1.4;
       background: #f7fbff; color: #1a2a3a;
     }
     #fu-chat-input::placeholder { color: #a0b8cc; }
     #fu-chat-input:focus { border-color: #1e88e5; background: #fff; }
+
     #fu-send-btn {
       width: 36px; height: 36px; flex-shrink: 0;
       background: linear-gradient(135deg, #1565c0, #1e88e5);
-      border: none; color: white; border-radius: 50%;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      border: none; color: white; border-radius: 50%; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
       transition: opacity 0.2s, transform 0.15s;
       box-shadow: 0 2px 8px rgba(21,101,192,0.35);
     }
     #fu-send-btn:hover { transform: scale(1.06); }
     #fu-send-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 
-    /* ── FOOTER ── */
     #fu-footer-groq {
       text-align: center; padding: 5px 0 1px;
       display: flex; align-items: center; justify-content: center; gap: 4px;
@@ -5114,8 +5109,26 @@ tr.awb-active-row td { background:#fff8ec !important; }
         </div>
       </div>
 
+      <!-- PREVIEW BAR fichier en attente -->
+      <div id="fu-file-preview-bar">
+        <span id="fu-file-preview-icon">📄</span>
+        <div id="fu-file-preview-info">
+          <div id="fu-file-preview-name">fichier.xlsx</div>
+          <div id="fu-file-preview-status">Lecture en cours...</div>
+        </div>
+        <button id="fu-file-preview-cancel" title="Annuler">✕</button>
+      </div>
+
       <div id="fu-chat-input-area">
         <div id="fu-input-row">
+          <!-- BOUTON UPLOAD -->
+          <button id="fu-upload-btn" title="Joindre un fichier (Excel, PDF, image)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1e88e5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+          <input type="file" id="fu-file-input" accept=".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg,.gif,.webp">
+
           <textarea id="fu-chat-input" placeholder="Posez votre question..." rows="1"></textarea>
           <button id="fu-send-btn">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
@@ -5132,28 +5145,33 @@ tr.awb-active-row td { background:#fff8ec !important; }
   `);
 
   // ── Refs ──────────────────────────────────────────────────────
-  const panel      = document.getElementById("fu-chatbot-panel");
-  const btn        = document.getElementById("fu-chatbot-btn");
-  const closeBtn   = document.getElementById("fu-close-btn");
-  const resetBtn   = document.getElementById("fu-reset-btn");
-  const messagesEl = document.getElementById("fu-chat-messages");
-  const input      = document.getElementById("fu-chat-input");
-  const sendBtn    = document.getElementById("fu-send-btn");
-  const badge      = document.getElementById("fu-notif-badge");
-  const banner     = document.getElementById("fu-context-banner");
-  const tokenBar   = document.getElementById("fu-token-bar");
+  const panel         = document.getElementById("fu-chatbot-panel");
+  const btn           = document.getElementById("fu-chatbot-btn");
+  const closeBtn      = document.getElementById("fu-close-btn");
+  const resetBtn      = document.getElementById("fu-reset-btn");
+  const messagesEl    = document.getElementById("fu-chat-messages");
+  const input         = document.getElementById("fu-chat-input");
+  const sendBtn       = document.getElementById("fu-send-btn");
+  const badge         = document.getElementById("fu-notif-badge");
+  const banner        = document.getElementById("fu-context-banner");
+  const tokenBar      = document.getElementById("fu-token-bar");
   const moduleBadgeEl = document.getElementById("fu-module-name");
+  const uploadBtn     = document.getElementById("fu-upload-btn");
+  const fileInput     = document.getElementById("fu-file-input");
+  const previewBar    = document.getElementById("fu-file-preview-bar");
+  const previewIcon   = document.getElementById("fu-file-preview-icon");
+  const previewName   = document.getElementById("fu-file-preview-name");
+  const previewStatus = document.getElementById("fu-file-preview-status");
+  const previewCancel = document.getElementById("fu-file-preview-cancel");
 
   let chatHistory = [];
   let isLoading   = false;
   let hasOpened   = false;
 
-  // ── Mise à jour du badge module ───────────────────────────────
+  // ── MODULE BADGE ──────────────────────────────────────────────
   function refreshModuleBadge() {
     const mod = detectActiveModule();
-    if (moduleBadgeEl) {
-      moduleBadgeEl.textContent = mod === "Unknown" ? "Module inconnu" : mod;
-    }
+    if (moduleBadgeEl) moduleBadgeEl.textContent = mod === "Unknown" ? "Module inconnu" : mod;
   }
 
   // ── SLIDER ────────────────────────────────────────────────────
@@ -5183,6 +5201,154 @@ tr.awb-active-row td { background:#fff8ec !important; }
       sendMessage();
     };
   });
+
+  // ── UPLOAD ────────────────────────────────────────────────────
+  uploadBtn.onclick = () => fileInput.click();
+
+  fileInput.onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    fileInput.value = "";
+
+    const ext = file.name.split(".").pop().toLowerCase();
+    const isImage  = ["png","jpg","jpeg","gif","webp"].includes(ext);
+    const isPDF    = ext === "pdf";
+    const isExcel  = ["xlsx","xls","csv"].includes(ext);
+
+    // Icône
+    const icon = isImage ? "🖼️" : isPDF ? "📕" : "📊";
+    previewIcon.textContent = icon;
+    previewName.textContent = file.name;
+    previewStatus.textContent = "Lecture en cours...";
+    previewBar.classList.add("visible");
+    uploadBtn.classList.add("has-file");
+
+    try {
+      let content = "";
+      let preview = null;
+
+      if (isExcel) {
+        content = await readExcel(file, ext);
+        previewStatus.textContent = "✓ Excel lu — prêt à envoyer";
+      } else if (isPDF) {
+        content = await readPDF(file);
+        previewStatus.textContent = "✓ PDF extrait — prêt à envoyer";
+      } else if (isImage) {
+        const result = await readImageBase64(file);
+        content = "[IMAGE ATTACHÉE — voir base64 ci-dessous]\n" + result.base64.slice(0, 500) + "...";
+        preview = result.dataUrl;
+        previewStatus.textContent = "✓ Image chargée — prêt à envoyer";
+      }
+
+      pendingFile = { name: file.name, type: ext, content, preview, icon };
+    } catch (err) {
+      previewStatus.textContent = "❌ Erreur de lecture";
+      console.error("File read error:", err);
+      pendingFile = null;
+      uploadBtn.classList.remove("has-file");
+    }
+  };
+
+  previewCancel.onclick = () => {
+    pendingFile = null;
+    previewBar.classList.remove("visible");
+    uploadBtn.classList.remove("has-file");
+  };
+
+  // ── LECTEURS DE FICHIERS ──────────────────────────────────────
+
+  /**
+   * Lit un fichier Excel/CSV et retourne son contenu en texte tabulaire.
+   * Utilise SheetJS chargé dynamiquement si nécessaire.
+   */
+  async function readExcel(file, ext) {
+    if (ext === "csv") {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve("CSV:\n" + e.target.result.slice(0, 15000));
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
+    }
+
+    // Charger SheetJS dynamiquement
+    if (!window.XLSX) {
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const workbook = window.XLSX.read(e.target.result, { type: "array" });
+          let text = "";
+          workbook.SheetNames.forEach(sheetName => {
+            const sheet = workbook.Sheets[sheetName];
+            const csv = window.XLSX.utils.sheet_to_csv(sheet);
+            text += `\n=== Feuille: ${sheetName} ===\n` + csv.slice(0, 12000) + "\n";
+          });
+          resolve(text.slice(0, 20000));
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /**
+   * Extrait le texte d'un PDF page par page via PDF.js chargé dynamiquement.
+   */
+  async function readPDF(file) {
+    if (!window.pdfjsLib) {
+      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const pdf = await window.pdfjsLib.getDocument({ data: e.target.result }).promise;
+          let text = `PDF: ${file.name} (${pdf.numPages} pages)\n\n`;
+          for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            const pageText = content.items.map(item => item.str).join(" ");
+            text += `--- Page ${i} ---\n${pageText}\n\n`;
+            if (text.length > 18000) { text += "\n[... contenu tronqué]"; break; }
+          }
+          resolve(text);
+        } catch (err) { reject(err); }
+      };
+      reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  /**
+   * Lit une image et retourne son dataUrl + base64.
+   * L'image sera affichée en preview et le base64 sera mentionné dans le contexte.
+   */
+  function readImageBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        resolve({ dataUrl: e.target.result, base64: e.target.result });
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+      const s = document.createElement("script");
+      s.src = src; s.onload = resolve; s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
 
   // ── Tokens ────────────────────────────────────────────────────
   function estimateTokens(text) { return Math.ceil((text || "").length / 4); }
@@ -5267,12 +5433,16 @@ tr.awb-active-row td { background:#fff8ec !important; }
   btn.onclick = () => {
     panel.classList.add("open");
     badge.style.display = "none";
-    refreshModuleBadge(); // ← met à jour le badge à chaque ouverture
+    refreshModuleBadge();
     if (!hasOpened) {
       hasOpened = true;
       const session = loadSession();
       if (session && session.messages && session.messages.length > 0) {
-        session.messages.forEach(html => { const div = document.createElement("div"); div.innerHTML = html; if (div.firstChild) messagesEl.appendChild(div.firstChild); });
+        session.messages.forEach(html => {
+          const div = document.createElement("div");
+          div.innerHTML = html;
+          if (div.firstChild) messagesEl.appendChild(div.firstChild);
+        });
         chatHistory = session.history || [];
         messagesEl.scrollTop = messagesEl.scrollHeight;
         addDivider("Session restaurée"); updateContextBanner(); return;
@@ -5283,10 +5453,10 @@ tr.awb-active-row td { background:#fff8ec !important; }
 
   // ── Welcome ───────────────────────────────────────────────────
   function startWelcome() {
-    const userName    = getUserName();
-    const hour        = new Date().getHours();
-    const greeting    = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-    const activeModule = detectActiveModule(); // ← détection explicite
+    const userName     = getUserName();
+    const hour         = new Date().getHours();
+    const greeting     = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+    const activeModule = detectActiveModule();
 
     addTyping();
     fetch(API_URL, {
@@ -5335,6 +5505,10 @@ Rules:
     tokenBar.style.width = "0%"; tokenBar.style.background = "#4caf50";
     const pctElReset = document.getElementById("fu-token-pct");
     if (pctElReset) pctElReset.textContent = "0%";
+    // Reset upload state
+    pendingFile = null;
+    previewBar.classList.remove("visible");
+    uploadBtn.classList.remove("has-file");
     addDivider("Nouvelle conversation");
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) { suggestionsEl.classList.remove("hidden"); sliderGoTo(0); clearInterval(sliderInterval); sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000); }
@@ -5396,12 +5570,40 @@ Rules:
     messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
   }
 
-  function addUserMessage(text) {
+  /**
+   * Ajoute le message utilisateur avec preview du fichier si présent.
+   */
+  function addUserMessage(text, file) {
     const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap user";
-    const msg  = document.createElement("div"); msg.className = "fu-msg user"; msg.textContent = text;
+
+    // Preview image
+    if (file && file.preview) {
+      const img = document.createElement("img");
+      img.src = file.preview; img.className = "fu-img-preview";
+      wrap.appendChild(img);
+    }
+
+    // Bubble fichier non-image
+    if (file && !file.preview) {
+      const bubble = document.createElement("div"); bubble.className = "fu-file-bubble";
+      bubble.innerHTML = `
+        <span class="fu-file-bubble-icon">${file.icon}</span>
+        <div class="fu-file-bubble-info">
+          <div class="fu-file-bubble-name">${file.name}</div>
+          <div class="fu-file-bubble-type">${file.type.toUpperCase()} · Contenu extrait</div>
+        </div>`;
+      wrap.appendChild(bubble);
+    }
+
+    // Message texte
+    if (text) {
+      const msg = document.createElement("div"); msg.className = "fu-msg user"; msg.textContent = text;
+      wrap.appendChild(msg);
+    }
+
     const meta = document.createElement("div"); meta.className = "fu-msg-meta";
     meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span class="fu-check">✓✓</span>`;
-    wrap.appendChild(msg); wrap.appendChild(meta);
+    wrap.appendChild(meta);
     messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
@@ -5421,13 +5623,8 @@ Rules:
   }
 
   // ── Page data ─────────────────────────────────────────────────
-  /**
-   * Extrait les données de la page et inclut le module actif
-   * en première ligne — c'est la source de vérité pour l'IA.
-   */
   function extractPageData() {
     const activeModule = detectActiveModule();
-
     let result = "";
     result += "ACTIVE MODULE: " + activeModule + "\n";
     result += "PAGE TITLE: " + document.title + "\n\n";
@@ -5459,27 +5656,65 @@ Rules:
   // ── Send ──────────────────────────────────────────────────────
   async function sendMessage() {
     if (isLoading) return;
-    const question = input.value.trim(); if (!question) return;
+    const question = input.value.trim();
+    const fileToSend = pendingFile;
+
+    // Il faut au moins un texte ou un fichier
+    if (!question && !fileToSend) return;
+
     const suggestionsEl = document.getElementById("fu-suggestions");
     if (suggestionsEl) suggestionsEl.classList.add("hidden");
-    addUserMessage(question); input.value = ""; input.style.height = "auto";
-    const typingEl = addTyping(); isLoading = true; sendBtn.disabled = true;
+
+    // Afficher message user avec preview fichier
+    addUserMessage(question, fileToSend);
+    input.value = ""; input.style.height = "auto";
+
+    // Reset upload state
+    pendingFile = null;
+    previewBar.classList.remove("visible");
+    uploadBtn.classList.remove("has-file");
+
+    const typingEl = addTyping();
+    isLoading = true; sendBtn.disabled = true;
+
     try {
+      // Construire le contexte enrichi avec le fichier
+      let pageContext = extractPageData();
+      let promptText = question || "Analyse ce fichier et donne-moi un résumé des informations clés.";
+
+      if (fileToSend) {
+        promptText = `[FICHIER JOINT: ${fileToSend.name} (${fileToSend.type.toUpperCase()})]\n\n` +
+                     `Contenu extrait:\n${fileToSend.content}\n\n` +
+                     (question ? `Question de l'utilisateur: ${question}` : `Analyse ce fichier et donne un résumé structuré des données clés, alertes et points d'attention.`);
+      }
+
       const res = await fetch(API_URL, {
         method: "POST", headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ prompt: question, context: extractPageData(), history: chatHistory.slice(-10) })
+        body: JSON.stringify({
+          prompt: promptText,
+          context: pageContext,
+          history: chatHistory.slice(-10)
+        })
       });
+
       const data = await res.json(); typingEl.remove();
+
       if (data.error) { addBotMessage("❌ Erreur : " + data.error); return; }
       const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
       if (!reply) { addBotMessage("⚠️ Réponse vide. Vérifiez la console."); console.warn("Structure inattendue :", JSON.stringify(data)); return; }
+
       streamBotMessage(reply, () => {
-        chatHistory.push({ role: "user", content: question });
+        chatHistory.push({ role: "user", content: promptText });
         chatHistory.push({ role: "assistant", content: reply });
         saveSession(); updateContextBanner();
       });
-    } catch (err) { typingEl.remove(); addBotMessage("❌ Erreur réseau. Vérifiez votre connexion."); console.error(err); }
-    finally { isLoading = false; sendBtn.disabled = false; }
+    } catch (err) {
+      typingEl.remove();
+      addBotMessage("❌ Erreur réseau. Vérifiez votre connexion.");
+      console.error(err);
+    } finally {
+      isLoading = false; sendBtn.disabled = false;
+    }
   }
 
 })();
