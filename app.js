@@ -4646,7 +4646,7 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT 
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbz5btNOPzeDUcS2cUbFRgtZG5KeoDemghdgJascsjKZCvrq1sK0d-GB7B3TlAGPC3xP/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbxIUcjka91Rb3-EYOaPO_YX4MSBe8VwC53VFxd9-RAkAXJL7nyDY-94qUFgjQ_-UX12/exec";
   const SESSION_KEY = "aw27_chat_session";
 
   const TOKEN_LIMIT  = 128000;
