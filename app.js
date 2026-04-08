@@ -1208,7 +1208,19 @@ function renderTable() {
         document.head.appendChild(_ds);
     }
     tableHead.innerHTML = `<tr>
-    ${cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")}
+    ${isDetails
+        ? `<th onclick="sortBy('Saison')" title="Trier par Saison">Saison${state.sortCol==='Saison'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Client')" title="Trier par Client">Client${state.sortCol==='Client'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Dept')" title="Trier par Dept">Dept${state.sortCol==='Dept'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Style')" title="Trier par Style">Style${state.sortCol==='Style'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Description')" title="Trier par Description">Description${state.sortCol==='Description'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Fabric Base')" title="Trier par Fabric Base">Fabric Base${state.sortCol==='Fabric Base'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Costing')" title="Trier par Costing">Costing${state.sortCol==='Costing'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('PSD')" title="Trier par PSD">PSD${state.sortCol==='PSD'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Ex-Fty')" title="Trier par Ex-Fty">Ex-Fty${state.sortCol==='Ex-Fty'?(state.sortDir===1?' ↑':' ↓'):''}</th>
+           <th onclick="sortBy('Order Qty')" title="Trier par Qty">Qty${state.sortCol==='Order Qty'?(state.sortDir===1?' ↑':' ↓'):''}</th>`
+        : cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")
+    }
     ${isOrdering ? `<th style="white-space:nowrap;">🚦 Track</th>` : ""}
     <th>Actions</th></tr>`;
 
@@ -1217,6 +1229,63 @@ function renderTable() {
             <div class="empty-state"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div>
             <h3>Aucune donnée</h3><p>Ajoutez une ligne ou modifiez votre recherche.</p></div>
         </td></tr>`;
+        return;
+    }
+
+    // ── Details : tableau plat (Saison, Client, Dept, Style, Description, Ex-Fty, Qty) ──
+    if (isDetails) {
+        const _today = new Date(); _today.setHours(0,0,0,0);
+        tableBody.innerHTML = rows.map(row => {
+            const rowIdx  = row._rowIndex;
+            const _saison = esc(row["Saison"] || "—");
+            const _client = esc(row["Client"] || "—");
+            const _dept   = esc(row["Dept"]   || "—");
+            const _style  = esc(row["Style"]  || "—");
+            const _desc   = esc(row["Description"] || row["StyleDescription"] || "—");
+            const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+            const _fab    = esc(row["Fabric Base"] || "—");
+            const _cost   = row["Costing"] && !isNaN(row["Costing"]) ? `$${Number(row["Costing"]).toFixed(2)}` : esc(row["Costing"] || "—");
+            let _psdHtml = "—";
+            if (row["PSD"]) {
+                try {
+                    const _psdDate = new Date(row["PSD"]);
+                    const _psdDiff = Math.round((_psdDate - _today) / 86400000);
+                    const _psdFmt  = _psdDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _psdCls  = _psdDiff < 0 ? "det-efty-danger" : _psdDiff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _psdBcls = _psdDiff < 0 ? "det-daybadge det-daybadge-danger" : _psdDiff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    _psdHtml = `<span class="${_psdCls}">${_psdFmt}</span><span class="${_psdBcls}">(${_psdDiff}j)</span>`;
+                } catch(e) {}
+            }
+
+            let _eftyHtml = "—";
+            if (row["Ex-Fty"]) {
+                try {
+                    const _eftyDate = new Date(row["Ex-Fty"]);
+                    const _diff  = Math.round((_eftyDate - _today) / 86400000);
+                    const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _cls  = _diff < 0 ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _bcls = _diff < 0 ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">(${_diff}j)</span>`;
+                } catch(e) {}
+            }
+
+            return `<tr>
+                <td style="font-size:12px;color:var(--color-text-secondary)">${_saison}</td>
+                <td><span class="client-badge">${_client}</span></td>
+                <td><span class="dept-badge">${_dept}</span></td>
+                <td><a class="style-link" onclick="openStyleModal('${_style}')">${_style}</a></td>
+                <td><span class="det-desc-cell" title="${_desc}">${_desc}</span></td>
+                <td style="font-size:12px;color:var(--color-text-secondary)">${_fab}</td>
+                <td style="font-size:12px;color:#166534;font-weight:500">${_cost}</td>
+                <td style="white-space:nowrap">${_psdHtml}</td>
+                <td style="white-space:nowrap">${_eftyHtml}</td>
+                <td style="font-size:12.5px">${esc(_qty)}</td>
+                <td><div class="action-btns">
+                    <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div></td>
+            </tr>`;
+        }).join("");
         return;
     }
 
@@ -1308,7 +1377,95 @@ function renderTable() {
                 ? `<button class="btn btn-icon" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;" onclick="duplicateBulkRejected(${rowIdx})" title="Créer nouvelle ligne (Client/Style/Description/GMT Color/Fabric/Type)"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></button>`
                 : "";
 
+        // ── Details : vue compacte avec expand pour les champs secondaires ──
+        if (state.activeSheet === "details") {
+            const _expandId  = "det-exp-" + rowIdx;
+            const _chevronId = "det-chv-" + rowIdx;
 
+            // ── Cellules compactes (Client, Dept, Style, Description, Ex-Fty+badge, Qty) ──
+            const _client = row["Client"] || "—";
+            const _dept   = row["Dept"]   || "—";
+            const _style  = row["Style"]  || "—";
+            const _desc   = row["Description"] || row["StyleDescription"] || "—";
+            const _qty    = row["Order Qty"] ? Number(row["Order Qty"]).toLocaleString() : "—";
+
+            // Ex-Fty : date + badge jours coloré
+            let _eftyHtml = "—";
+            if (row["Ex-Fty"]) {
+                try {
+                    const _eftyDate = new Date(row["Ex-Fty"]);
+                    const _today = new Date(); _today.setHours(0,0,0,0);
+                    const _diff  = Math.round((_eftyDate - _today) / 86400000);
+                    const _eftyFmt = _eftyDate.toLocaleDateString("fr-FR", {day:"2-digit", month:"short"});
+                    const _cls  = _diff < 0  ? "det-efty-danger" : _diff <= 14 ? "det-efty-warn" : "det-efty-ok";
+                    const _bcls = _diff < 0  ? "det-daybadge det-daybadge-danger" : _diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
+                    const _dlbl = _diff < 0  ? `${_diff}j` : `${_diff}j`;
+                    _eftyHtml = `<span class="${_cls}">${_eftyFmt}</span><span class="${_bcls}">${_dlbl}</span>`;
+                } catch(e) {}
+            }
+
+            // ── Données croisées samples + orders pour le expand ──
+            const _sRows = (state.data.sample || []).filter(s => s.Style === row.Style && s.Client === row.Client);
+            const _oRows = (state.data.ordering || []).filter(o => o.Style === row.Style && o.Client === row.Client);
+            const _sApproved = _sRows.filter(s => s.Approval === "Approved").length;
+            const _sPending  = _sRows.filter(s => s.Approval === "Pending").length;
+            const _sRejected = _sRows.filter(s => s.Approval === "Rejected").length;
+            const _oDelivered= _oRows.filter(o => o["Delivery Status"] === "Delivered").length;
+            const _oTransit  = _oRows.filter(o => o["Delivery Status"] === "In Transit").length;
+            const _oTotal    = _oRows.filter(o => o.Status !== "Cancelled").length;
+
+            const _sampleBadge = _sRows.length === 0
+                ? `<span class="det-xbadge det-xbadge-gray">Aucun sample</span>`
+                : _sRejected > 0
+                    ? `<span class="det-xbadge det-xbadge-danger">${_sRejected} rejeté${_sRejected>1?"s":""}</span>`
+                    : _sPending > 0
+                        ? `<span class="det-xbadge det-xbadge-warn">${_sPending} en attente</span>`
+                        : `<span class="det-xbadge det-xbadge-ok">${_sApproved} approuvé${_sApproved>1?"s":""}</span>`;
+
+            const _orderBadge = _oTotal === 0
+                ? `<span class="det-xbadge det-xbadge-gray">Aucune commande</span>`
+                : _oDelivered === _oTotal
+                    ? `<span class="det-xbadge det-xbadge-ok">${_oDelivered}/${_oTotal} livré${_oDelivered>1?"s":""}</span>`
+                    : _oTransit > 0
+                        ? `<span class="det-xbadge det-xbadge-blue">${_oTransit} en transit</span>`
+                        : `<span class="det-xbadge det-xbadge-warn">${_oTotal - _oDelivered} non expédié${(_oTotal-_oDelivered)>1?"s":""}</span>`;
+
+            const _fab  = esc(row["Fabric Base"] || "—");
+            const _cost = row["Costing"] ? `$${Number(row["Costing"]).toFixed(2)}` : "—";
+            const _psd  = row["PSD"] ? new Date(row["PSD"]).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}) : "—";
+
+            const _mainRow = `<tr class="det-main-row" onclick="detToggleExpand('${_expandId}','${_chevronId}')" style="cursor:pointer">
+                <td style="width:22px;padding:0 0 0 8px"><svg id="${_chevronId}" class="det-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/></svg></td>
+                <td class="sticky-col"><span class="client-badge" style="cursor:pointer" title="Filtrer par ${esc(_client)}" onclick="event.stopPropagation();detFilterByClient('${esc(_client)}')">${esc(_client)}</span></td>
+                <td class="sticky-col-2"><span class="dept-badge">${esc(_dept)}</span></td>
+                <td class="sticky-col-3"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(_style)}')">${esc(_style)}</a></td>
+                <td><span class="det-desc-cell" title="${esc(_desc)}">${esc(_desc)}</span></td>
+                <td style="white-space:nowrap">${_eftyHtml}</td>
+                <td style="font-size:12.5px">${esc(_qty)}</td>
+                <td><div class="action-btns">
+                    <button class="btn btn-edit btn-icon" onclick="event.stopPropagation();openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                    ${dupBtn}
+                    <button class="btn btn-danger btn-icon" onclick="event.stopPropagation();confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+                </div></td>
+            </tr>`;
+
+            const _expandRow = `<tr id="${_expandId}" class="det-expand-row" style="display:none">
+                <td colspan="8" style="padding:0">
+                    <div class="det-expand-body">
+                        <div class="det-xfield"><span class="det-xlabel">Fabric Base</span><span class="det-xval">${_fab}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Costing</span><span class="det-xval" style="color:#166534;font-weight:500">${_cost}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">PSD</span><span class="det-xval">${_psd}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Saison</span><span class="det-xval">${esc(row["Saison"]||"—")}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Samples</span><span class="det-xval">${_sampleBadge}</span></div>
+                        <div class="det-xfield"><span class="det-xlabel">Commandes</span><span class="det-xval">${_orderBadge}</span></div>
+                    </div>
+                </td>
+            </tr>`;
+
+            return _mainRow + _expandRow;
+        }
+
+        return `<tr>${cells}${trackCell}
         <td><div class="action-btns">
             <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
             ${dupBtn}
