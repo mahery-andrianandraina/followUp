@@ -1936,20 +1936,36 @@ async function saveMenuBuilder() {
     const btn = document.getElementById("mb-save-btn");
     btn.disabled = true; btn.textContent = "Enregistrement…";
 
+    const editedCfg = mbEditingKey ? SHEET_CONFIG[mbEditingKey] : null;
+    const targetSheetName = mbEditingKey
+        ? (editedCfg?.sheetName || editedCfg?.label || nameRaw)
+        : nameRaw;
+    const isNonCustom = mbEditingKey === "sample" || mbEditingKey === "details";
+    let gsSynced = true;
+
     try {
         if (mbEditingKey) {
-            await sendRequest("UPDATE_SHEET_HEADERS", { sheetName: nameRaw, columns: menuDef.cols.map(c => c.label) });
+            await sendRequest("UPDATE_SHEET_HEADERS", {
+                sheetName: targetSheetName,
+                columns: menuDef.cols.map(c => c.label)
+            });
             showToast("Colonnes mises à jour dans Google Sheet \u2713", "success", 3000);
         } else {
-            await sendRequest("CREATE_SHEET", { sheetName: nameRaw, columns: menuDef.cols.map(c => c.label) });
+            await sendRequest("CREATE_SHEET", { sheetName: targetSheetName, columns: menuDef.cols.map(c => c.label) });
             showToast("Menu cr\u00e9\u00e9 dans Google Sheet \u2713", "success", 3000);
         }
     } catch (e) {
+        gsSynced = false;
+        if (isNonCustom) {
+            showToast("Erreur Google Sheet : " + (e.message || "synchronisation impossible"), "error", 4200);
+            btn.disabled = false;
+            btn.textContent = "Enregistrer";
+            return;
+        }
         showToast("Menu sauvegard\u00e9 localement (GS non connect\u00e9)", "info", 3000);
     }
 
     if (mbEditingKey) {
-        const isNonCustom = mbEditingKey === "sample" || mbEditingKey === "details";
         // Pour sample/details : garder le label d'origine, ne pas appeler persistCustomMenus
         SHEET_CONFIG[key].cols = menuDef.cols;
         if (!isNonCustom) {
@@ -1970,7 +1986,7 @@ async function saveMenuBuilder() {
         }
 
         // Recharger les données depuis GS pour refléter les nouvelles colonnes
-        fetchAllData();
+        if (gsSynced) await fetchAllData();
     } else {
         registerCustomMenu(menuDef, true);
         // Auto-navigate to new menu
