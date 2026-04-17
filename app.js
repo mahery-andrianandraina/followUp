@@ -2731,7 +2731,9 @@ function collectAllAlerts() {
                 const styleVal = getStyle(r);
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                 const fsrDateVal = det.fsrDate && r[det.fsrDate] ? String(r[det.fsrDate]).trim() : "";
+                const fsrStr = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : "";
                 const prefix = [styleVal !== "—" ? styleVal : "", colorVal].filter(Boolean).join(" · ");
+                const fsrTag = fsrStr ? ` · FSR ${fsrStr}` : "";
 
                 if (approved || isRejected) return;
 
@@ -2742,11 +2744,11 @@ function collectAllAlerts() {
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls: "dot-approve", tagCls: "tag-approve",
-                        tagLabel: `⏳ Approval en attente — ${days}j${urgBadge}`,
-                        title: `${prefix} — Envoyé · approval en attente depuis ${days}j`,
+                        tagLabel: `⏳ Approval en attente — ${days}j${urgBadge}${fsrTag}`,
+                        title: `${prefix} — Envoyé · approval en attente depuis ${days}j${fsrTag}`,
                         action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Suivre l'approval",
                         style: styleVal, client: getClient(r),
-                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${fsrStr ? " · FSR : " + fsrStr : ""}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
                         urgency, sheet: key, rowIndex: r._rowIndex
                     });
                     return;
@@ -2758,11 +2760,11 @@ function collectAllAlerts() {
                     const urgency = days >= 5 ? "mid" : "low";
                     items.push({
                         dotCls: "dot-send", tagCls: "tag-send",
-                        tagLabel: `📦 À envoyer au client`,
-                        title: `${prefix} — Reçu · à envoyer au client`,
+                        tagLabel: `📦 À envoyer au client${fsrTag}`,
+                        title: `${prefix} — Reçu · à envoyer au client${fsrTag}`,
                         action: `Reçu il y a ${days}j — organiser l'envoi et renseigner la Sending Date`,
                         style: styleVal, client: getClient(r),
-                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${fsrStr ? " · FSR : " + fsrStr : ""}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
                         urgency, sheet: key, rowIndex: r._rowIndex
                     });
                     return;
@@ -2775,31 +2777,31 @@ function collectAllAlerts() {
                     if (diff < 0) {
                         items.push({
                             dotCls: "dot-late", tagCls: "tag-late",
-                            tagLabel: `🔴 Réception en retard — ${absDiff}j`,
-                            title: `${prefix} — Ready Date dépassée de ${absDiff}j · non reçu`,
+                            tagLabel: `🔴 Réception en retard — ${absDiff}j${fsrTag}`,
+                            title: `${prefix} — Ready Date dépassée de ${absDiff}j · non reçu${fsrTag}`,
                             action: `Relancer la factory — réception attendue il y a ${absDiff}j`,
                             style: styleVal, client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrStr ? " · FSR : " + fsrStr : ""}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
                             urgency: "high", sheet: key, rowIndex: r._rowIndex
                         });
                     } else if (diff === 0) {
                         items.push({
                             dotCls: "dot-today", tagCls: "tag-today",
-                            tagLabel: `🟡 Réception attendue aujourd'hui`,
-                            title: `${prefix} — Ready Date aujourd'hui · prévoir la réception`,
+                            tagLabel: `🟡 Réception attendue aujourd'hui${fsrTag}`,
+                            title: `${prefix} — Ready Date aujourd'hui · prévoir la réception${fsrTag}`,
                             action: `Confirmer la réception dès arrivée`,
                             style: styleVal, client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrStr ? " · FSR : " + fsrStr : ""}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
                             urgency: "low", sheet: key, rowIndex: r._rowIndex
                         });
                     } else {
                         items.push({
                             dotCls: "dot-risk", tagCls: "tag-risk",
-                            tagLabel: `🕐 Réception dans ${diff}j`,
-                            title: `${prefix} — En attente de réception · prêt dans ${diff}j`,
+                            tagLabel: `🕐 Réception dans ${diff}j${fsrTag}`,
+                            title: `${prefix} — En attente de réception · prêt dans ${diff}j${fsrTag}`,
                             action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
                             style: styleVal, client: getClient(r),
-                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
+                            meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${fsrStr ? " · FSR : " + fsrStr : ""}${fsrDateVal ? " · FSR Date : " + _fmtDate(fsrDateVal) : ""}`,
                             urgency: "low", sheet: key, rowIndex: r._rowIndex
                         });
                     }
@@ -2813,11 +2815,11 @@ function collectAllAlerts() {
                     const urgBadge = urgency === "high" ? " 🚨" : urgency === "mid" ? " ⚡" : "";
                     items.push({
                         dotCls: "dot-nopo", tagCls: "tag-nopo",
-                        tagLabel: `📧 Demander la Ready Date${urgBadge}`,
-                        title: `${prefix} — FSR lancé · Ready Date non renseignée`,
+                        tagLabel: `📧 Demander la Ready Date${urgBadge}${fsrTag}`,
+                        title: `${prefix} — FSR lancé · Ready Date non renseignée${fsrTag}`,
                         action: `Contacter le supplier pour obtenir la Ready Date (FSR lancé il y a ${fsrDays}j)`,
                         style: styleVal, client: getClient(r),
-                        meta: `FSR Date : ${_fmtDate(r[det.fsrDate])}`,
+                        meta: `FSR Date : ${_fmtDate(r[det.fsrDate])}${fsrStr ? " · FSR : " + fsrStr : ""}`,
                         urgency, sheet: key, rowIndex: r._rowIndex
                     });
                     return;
