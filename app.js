@@ -2913,14 +2913,15 @@ function collectAllAlerts() {
                     const styleVal = getStyle(r);
                     const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                     const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                    const colorSuffix = !det.isFabricDevo && colorVal ? ` · ${colorVal}` : "";
 
                     items.push({
                         dotCls: "dot-send", tagCls: "tag-send",
-                        tagLabel: `📦 À envoyer (${daysLabel})`,
-                        title: `${fabricPrefix}Re\u00e7u \u2014 \u00e0 envoyer au client${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
+                        tagLabel: `📦 À envoyer (${daysLabel})${colorSuffix}`,
+                        title: `${fabricPrefix}Re\u00e7u \u2014 \u00e0 envoyer au client${colorSuffix}${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
                         action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi`,
                         style: getStyle(r), client: getClient(r),
-                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${getFsr(r)}`,
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}`,
                         urgency: days >= 3 ? "mid" : "low", sheet: key, rowIndex: r._rowIndex
                     });
                 } else if (hasSending) {
