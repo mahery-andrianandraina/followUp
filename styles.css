@@ -6378,3 +6378,23 @@ select.filter-select {
     box-shadow: 0 0 5px rgba(29, 78, 216, 0.4); 
 }
 
+/* ── Form Read-only states ────────────────────────────────── */
+.form-input:read-only,
+.form-textarea:read-only,
+.form-select:disabled {
+    background: #f8fafc !important;
+    color: #64748b !important;
+    cursor: not-allowed;
+    border-style: dashed !important;
+    opacity: 0.8;
+}
+
+.form-group:has(.form-input:read-only) .form-label::after {
+    content: " (Formule)";
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+

@@ -306,10 +306,23 @@ function doPost(e) {
     }
 
     if (action === "CREATE") {
-      sheet.appendRow(headers.map(h => parseVal(data[h] ?? "")));
+      // Pour CREATE, s'il manque des clés, mettre vide (on laisse les formules se propager si ArrayFormula)
+      const values = headers.map(h => parseVal(data[h] ?? ""));
+      sheet.appendRow(values);
     } else if (action === "UPDATE") {
-      sheet.getRange(rowIndex, 1, 1, headers.length).setValues([headers.map(h => parseVal(data[h] ?? ""))]);
+      // Pour UPDATE, ne mettre à jour que les colonnes fournies dans le payload 'data'
+      // Cela préserve les formules dans les autres colonnes (ex: Balance)
+      const rowRange = sheet.getRange(rowIndex, 1, 1, headers.length);
+      const rowValues = rowRange.getValues()[0];
+      const newRowValues = headers.map((h, i) => {
+        if (Object.prototype.hasOwnProperty.call(data, h)) {
+          return parseVal(data[h]);
+        }
+        return rowValues[i]; // Garder la valeur (ou la formule) actuelle
+      });
+      rowRange.setValues([newRowValues]);
     } else if (action === "DELETE") {
+
       sheet.deleteRow(rowIndex);
     } else {
       throw new Error("Action inconnue : " + action);

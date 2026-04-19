@@ -1459,14 +1459,23 @@ function toISODateValue(val) {
 function buildForm(cols, data) {
     formFields.innerHTML = cols.map(col => {
         const rawVal = data[col.key] ?? ""; const full = col.full ? " full" : "";
+        const colLabel = (col.label || "").toLowerCase();
+        const isReadonly = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart");
+        const readonlyAttr = isReadonly ? "readonly" : "";
+        
         let input;
-        if (col.type === "textarea") input = `<textarea class="form-textarea" id="field-${sanitizeId(col.key)}" placeholder="${col.label}">${esc(String(rawVal))}</textarea>`;
-        else if (col.type === "select") { const opts = col.options.map(o => `<option value="${esc(o)}" ${o === rawVal ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join(""); input = `<select class="form-select" id="field-${sanitizeId(col.key)}">${opts}</select>`; }
-        else if (col.type === "date") { const dateVal = toISODateValue(rawVal); input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="date" value="${esc(dateVal)}" placeholder="${col.label}" ${col.required ? "required" : ""}>`; }
-        else input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="text" value="${esc(String(rawVal))}" placeholder="${col.label}" ${col.required ? "required" : ""}>`;
+        if (col.type === "textarea") input = `<textarea class="form-textarea" id="field-${sanitizeId(col.key)}" placeholder="${col.label}" ${readonlyAttr}>${esc(String(rawVal))}</textarea>`;
+        else if (col.type === "select") { 
+            const opts = col.options.map(o => `<option value="${esc(o)}" ${o === rawVal ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join(""); 
+            input = `<select class="form-select" id="field-${sanitizeId(col.key)}" ${isReadonly ? "disabled" : ""}>${opts}</select>`; 
+        }
+        else if (col.type === "date") { const dateVal = toISODateValue(rawVal); input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="date" value="${esc(dateVal)}" placeholder="${col.label}" ${col.required ? "required" : ""} ${readonlyAttr}>`; }
+        else input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="text" value="${esc(String(rawVal))}" placeholder="${col.label}" ${col.required ? "required" : ""} ${readonlyAttr}>`;
+        
         return `<div class="form-group${full}"><label class="form-label" for="field-${sanitizeId(col.key)}">${col.label}${col.required ? ` <span style="color:var(--danger)">*</span>` : ""}</label>${input}</div>`;
     }).join("");
 }
+
 
 function getFormData() { const cfg = SHEET_CONFIG[state.activeSheet]; const data = {}; cfg.cols.forEach(col => { const el = document.getElementById(`field-${sanitizeId(col.key)}`); if (el) data[col.key] = el.value; }); return data; }
 function openModal() { modalOverlay.classList.add("open"); }
@@ -1479,6 +1488,11 @@ async function saveForm() {
     const trimmedFields = [];
     const data = {};
     cfg.cols.forEach(col => {
+        const colLabel = (col.label || "").toLowerCase();
+        const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart");
+        
+        if (isFormula) return; // Ne pas envoyer les colonnes de formule
+
         const raw = rawData[col.key] ?? "";
         if (typeof raw === "string") {
             const trimmed = raw.trim();
@@ -1488,6 +1502,7 @@ async function saveForm() {
             data[col.key] = raw;
         }
     });
+
     if (trimmedFields.length) {
         showToast(
             `✂️ Espaces supprimés dans : ${trimmedFields.join(", ")}`,
