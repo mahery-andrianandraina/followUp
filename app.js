@@ -1287,7 +1287,8 @@ function renderTable() {
 
             // ─── Custom logic for Quantity Balance (Excess/To deliver) ───
             const colName = (c.label || c.key || "").trim().toLowerCase();
-            const isBalanceMatch = colName.includes("balance") || colName.includes("diff") || colName.includes("reste") || colName.includes("écart") || colName.includes("ecart") || colName.includes("excess") || colName.includes("qty");
+            const isBalanceMatch = colName.includes("balance") || colName.includes("diff") || colName.includes("reste") || colName.includes("écart") || colName.includes("ecart") || colName.includes("excess");
+
             
             if (isBalanceMatch && val !== "" && val !== null && val !== undefined) {
                 const numericStr = String(val).replace(/[^0-9.-]/g, "");
