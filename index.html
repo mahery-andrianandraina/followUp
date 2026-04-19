@@ -629,14 +629,14 @@
         </div>
     </div>
 
-    <!-- ═══════════════════════════════════════ CONFIRM DELETE ═══════════════════════════════ -->
+    <!-- ═══════════════════════════════════════ CONFIRM MODAL (GENERIC) ════════════════════════ -->
     <div class="modal-overlay" id="confirm-overlay" role="alertdialog" aria-modal="true">
         <div class="modal confirm-modal">
             <div class="modal-header">
                 <div>
-                    <div class="modal-title">Confirmer la suppression</div>
+                    <div class="modal-title" id="confirm-title">Confirmer la suppression</div>
                 </div>
-                <button class="btn-close" onclick="cancelDelete()" aria-label="Annuler">
+                <button class="btn-close" onclick="closeConfirmModal()" aria-label="Annuler">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M6 18L18 6M6 6l12 12" />
@@ -644,20 +644,19 @@
                 </button>
             </div>
             <div class="confirm-body">
-                <div class="confirm-icon">
+                <div class="confirm-icon" id="confirm-icon-wrap">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                         width="24" height="24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
                             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                 </div>
-                <h3>Supprimer cette ligne ?</h3>
-                <p>Cette action supprimera la ligne de votre base de données. Elle est <strong>irréversible</strong>.
-                </p>
+                <h3 id="confirm-h3">Supprimer cette ligne ?</h3>
+                <p id="confirm-text">Cette action supprimera la ligne de votre base de données. Elle est <strong>irréversible</strong>.</p>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="cancelDelete()">Annuler</button>
-                <button class="btn btn-danger" id="confirm-delete-btn" onclick="executeDelete()">Supprimer</button>
+                <button class="btn btn-ghost" onclick="closeConfirmModal()">Annuler</button>
+                <button class="btn btn-danger" id="confirm-action-btn">Supprimer</button>
             </div>
         </div>
     </div>

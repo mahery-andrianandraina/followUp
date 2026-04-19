@@ -143,6 +143,11 @@ const modalSubTitle = $("modal-subtitle");
 const formFields = $("form-fields");
 const formSave = $("form-save");
 const confirmOverlay = $("confirm-overlay");
+const confirmTitle   = $("confirm-title");
+const confirmH3      = $("confirm-h3");
+const confirmText    = $("confirm-text");
+const confirmActionBtn = $("confirm-action-btn");
+const confirmIconWrap  = $("confirm-icon-wrap");
 const toastContainer = $("toast-container");
 
 // ─── Init ─────────────────────────────────────────────────────
@@ -1328,40 +1333,44 @@ async function duplicateTrimsDevoRejected(rowIndex) {
     const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
     if (!row) return;
 
-    // Colonnes dont on GARDE les données (toutes les autres → vide)
-    const KEEP_PATTERNS = [
-        ["season", "saison"],
-        ["client", "buyer", "brand", "marque"],
-        ["dept", "department", "departement", "département"],
-        ["style", "ref", "reference", "article"],
-        ["description", "desc", "name", "nom"],
-        ["color", "colour", "coloris", "couleur", "shade", "teinte"],
-        ["trims details", "trim details", "accessories detail", "detail trim", "garniture detail"],
-        ["trims", "trim", "accessoire", "garniture"],
-        ["supplier", "fournisseur", "vendor", "mill", "factory"],
-    ];
+    openConfirm({
+        title: "Confirmer la duplication",
+        h3: "Créer une nouvelle tentative ?",
+        text: "Une nouvelle ligne sera créée avec les informations de base (Season, Client, Dept, Style, Col, Trims, Supplier).",
+        actionLabel: "Créer",
+        actionCls: "btn-primary",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+        onConfirm: async () => {
+            // Colonnes dont on GARDE les données (toutes les autres → vide)
+            const KEEP_PATTERNS = [
+                ["season", "saison"],
+                ["client", "buyer", "brand", "marque"],
+                ["dept", "department", "departement", "département"],
+                ["style", "ref", "reference", "article"],
+                ["description", "desc", "name", "nom"],
+                ["color", "colour", "coloris", "couleur", "shade", "teinte"],
+                ["trims details", "trim details", "accessories detail", "detail trim", "garniture detail"],
+                ["trims", "trim", "accessoire", "garniture"],
+                ["supplier", "fournisseur", "vendor", "mill", "factory"],
+            ];
 
-    const keepKeys = new Set();
-    KEEP_PATTERNS.forEach(patterns => {
-        const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
-        if (c) keepKeys.add(c.key);
+            const keepKeys = new Set();
+            KEEP_PATTERNS.forEach(patterns => {
+                const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
+                if (c) keepKeys.add(c.key);
+            });
+
+            const newRow = {};
+            cfg.cols.forEach(c => {
+                newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
+            });
+
+            await sendRequest("CREATE", { data: newRow });
+            await fetchAllData();
+            renderAll();
+            showToast("Nouvelle tentative créée ✓", "success");
+        }
     });
-
-    // Construire la nouvelle ligne : toutes les colonnes présentes, données seulement pour les 9
-    const newRow = {};
-    cfg.cols.forEach(c => {
-        newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
-    });
-
-    try {
-        showToast("Création de la nouvelle ligne…", "info");
-        await sendRequest("CREATE", { data: newRow });
-        await fetchAllData();
-        renderAll();
-        showToast("Nouvelle ligne créée — Season / Client / Dept / Style / Description / Color / Trims / Trims Details / Supplier ✓", "success");
-    } catch (err) {
-        showToast("Erreur lors de la duplication : " + err.message, "error");
-    }
 }
 
 async function duplicateBulkRejected(rowIndex) {
@@ -1371,36 +1380,41 @@ async function duplicateBulkRejected(rowIndex) {
     const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
     if (!row) return;
 
-    // Colonnes à garder : Client, Style, Description, GMT Color, Fabric, Type
-    const KEEP_PATTERNS = [
-        ["client", "buyer", "brand", "marque"],
-        ["style", "ref", "reference", "article"],
-        ["description", "desc", "name", "nom"],
-        ["gmt color", "gmt colour", "coloris", "color", "colour", "shade", "teinte"],
-        ["fabric", "tissu", "matière", "matiere", "material", "textile"],
-        ["type", "bulk type"],
-    ];
+    openConfirm({
+        title: "Confirmer la duplication",
+        h3: "Créer un nouveau Bulk/Shade ?",
+        text: "Une nouvelle ligne sera créée avec les informations Client, Style, Description, GMT Color, Fabric, Type.",
+        actionLabel: "Créer",
+        actionCls: "btn-primary",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+        onConfirm: async () => {
+            // Colonnes à garder : Client, Style, Description, GMT Color, Fabric, Type
+            const KEEP_PATTERNS = [
+                ["client", "buyer", "brand", "marque"],
+                ["style", "ref", "reference", "article"],
+                ["description", "desc", "name", "nom"],
+                ["gmt color", "gmt colour", "coloris", "color", "colour", "shade", "teinte"],
+                ["fabric", "tissu", "matière", "matiere", "material", "textile"],
+                ["type", "bulk type"],
+            ];
 
-    const keepKeys = new Set();
-    KEEP_PATTERNS.forEach(patterns => {
-        const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
-        if (c) keepKeys.add(c.key);
+            const keepKeys = new Set();
+            KEEP_PATTERNS.forEach(patterns => {
+                const c = cfg.cols.find(c => patterns.some(p => c.label.toLowerCase().includes(p)));
+                if (c) keepKeys.add(c.key);
+            });
+
+            const newRow = {};
+            cfg.cols.forEach(c => {
+                newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
+            });
+
+            await sendRequest("CREATE", { data: newRow });
+            await fetchAllData();
+            renderAll();
+            showToast("Nouveau Bulk/Shade créé ✓", "success");
+        }
     });
-
-    const newRow = {};
-    cfg.cols.forEach(c => {
-        newRow[c.key] = keepKeys.has(c.key) ? (row[c.key] ?? "") : "";
-    });
-
-    try {
-        showToast("Création de la nouvelle ligne…", "info");
-        await sendRequest("CREATE", { data: newRow });
-        await fetchAllData();
-        renderAll();
-        showToast("Nouvelle ligne créée — Client / Style / Description / GMT Color / Fabric / Type ✓", "success");
-    } catch (err) {
-        showToast("Erreur lors de la duplication : " + err.message, "error");
-    }
 }
 
 function toISODateValue(val) {
@@ -1484,18 +1498,80 @@ async function saveForm() {
     finally { formSave.disabled = false; formSave.textContent = state.editingRow ? "Mettre à jour" : "Enregistrer"; }
 }
 
-let pendingDeleteRow = null;
-function confirmDelete(rowIndex) { pendingDeleteRow = rowIndex; confirmOverlay.classList.add("open"); }
-function cancelDelete() { pendingDeleteRow = null; confirmOverlay.classList.remove("open"); }
-async function executeDelete() {
-    if (!pendingDeleteRow) return;
-    const btn = document.getElementById("confirm-delete-btn"); btn.disabled = true; btn.textContent = "Suppression…";
-    try {
-        await sendRequest("DELETE", { rowIndex: pendingDeleteRow });
-        state.data[state.activeSheet] = state.data[state.activeSheet].filter(r => r._rowIndex !== pendingDeleteRow);
-        confirmOverlay.classList.remove("open"); pendingDeleteRow = null; renderAll(); showToast("Ligne supprimée avec succès", "success");
-    } catch (err) { showToast("Erreur : " + err.message, "error"); }
-    finally { btn.disabled = false; btn.textContent = "Supprimer"; }
+// ── Confirmation Modal Logic ──────────────────────────────────
+let confirmCallback = null;
+
+function closeConfirmModal() {
+    confirmOverlay.classList.remove("open");
+    confirmCallback = null;
+}
+
+function openConfirm({ title, h3, text, actionLabel, actionCls, icon, onConfirm }) {
+    confirmTitle.textContent = title;
+    confirmH3.textContent = h3;
+    confirmText.innerHTML = text;
+    confirmActionBtn.textContent = actionLabel;
+    confirmActionBtn.className = `btn ${actionCls}`;
+    confirmIconWrap.innerHTML = icon || "";
+    confirmCallback = onConfirm;
+    confirmOverlay.classList.add("open");
+    
+    confirmActionBtn.onclick = async () => {
+        confirmActionBtn.disabled = true;
+        const originalLabel = confirmActionBtn.textContent;
+        confirmActionBtn.textContent = "Traitement…";
+        try {
+            await confirmCallback();
+            closeConfirmModal();
+        } catch (err) {
+            showToast("Erreur : " + err.message, "error");
+        } finally {
+            confirmActionBtn.disabled = false;
+            confirmActionBtn.textContent = originalLabel;
+        }
+    };
+}
+
+function confirmDelete(rowIndex) {
+    openConfirm({
+        title: "Confirmer la suppression",
+        h3: "Supprimer cette ligne ?",
+        text: "Cette action supprimera la ligne de votre base de données. Elle est <strong>irréversible</strong>.",
+        actionLabel: "Supprimer",
+        actionCls: "btn-danger",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`,
+        onConfirm: async () => {
+            await sendRequest("DELETE", { rowIndex });
+            state.data[state.activeSheet] = state.data[state.activeSheet].filter(r => r._rowIndex !== rowIndex);
+            renderAll();
+            showToast("Ligne supprimée avec succès", "success");
+        }
+    });
+}
+
+function duplicateRow(rowIndex) {
+    openConfirm({
+        title: "Confirmer la duplication",
+        h3: "Dupliquer cette ligne ?",
+        text: "Une nouvelle ligne identique sera ajoutée à la base de données.",
+        actionLabel: "Dupliquer",
+        actionCls: "btn-primary",
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="24" height="24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg>`,
+        onConfirm: async () => {
+            const sheetKey = state.activeSheet;
+            const cfg = SHEET_CONFIG[sheetKey];
+            const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
+            if (!row) throw new Error("Ligne introuvable");
+            
+            const newRow = { ...row };
+            delete newRow._rowIndex; // GAS gèrera le nouvel index
+            
+            await sendRequest("CREATE", { data: newRow });
+            await fetchAllData();
+            renderAll();
+            showToast("Ligne dupliquée avec succès", "success");
+        }
+    });
 }
 
 
