@@ -32,9 +32,7 @@ function normalizeDriveUrl(url) {
 function computeDeliveryTrack(row) {
     const status = row["Status"] || "";
     if (status === "Cancelled") return { label: "Cancelled", cls: "track-cancelled" };
-    const delStatus = (row["Delivery Status"] || row["Delivery"] || row["Status"] || "").toString().trim().toLowerCase();
-    const isCompleted = ["delivered", "shipped", "livré", "livre", "expédié", "expedie", "done"].includes(delStatus);
-    if (isCompleted) return { label: "Delivered", cls: "track-delivered" };
+    if (_isRowCompleted(row)) return { label: "Delivered", cls: "track-delivered" };
     const rd = row["Ready Date"];
     if (!rd) return { label: "No Date", cls: "track-nodate" };
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2276,6 +2274,35 @@ function _daysDiff(dateVal) {
     return Math.round((d - t) / 86400000);
 }
 
+/**
+ * Détermine de manière robuste si une ligne est "terminée" (livrée, approuvée, close).
+ * Vérifie plusieurs colonnes (Status, Delivery Status, Approval) et gère le FR/EN.
+ */
+function _isRowCompleted(row) {
+    if (!row) return false;
+
+    // 1. Check Status & Delivery columns
+    const statusKeys = ["Status", "Delivery Status", "Delivery", "Statut", "Livraison"];
+    const completeKeywords = [
+        "delivered", "shipped", "livré", "livre", "expédié", "expedie", 
+        "done", "terminé", "termine", "clos", "closed", "complet", "complete",
+        "transit", "en cours", "en route"
+    ];
+
+    for (const key of statusKeys) {
+        const val = String(row[key] || "").trim().toLowerCase();
+        if (completeKeywords.some(kw => val.includes(kw))) return true;
+    }
+
+    // 2. Check Approval column (specifically for Samples or Artworks)
+    const appVal = String(row["Approval"] || "").trim().toLowerCase();
+    if (appVal === "approved" || appVal === "approuvé" || appVal === "approuve") {
+        return true;
+    }
+
+    return false;
+}
+
 // ── Icones SVG Professionnelles ────────────────────────────────
 const ICONS = {
     clipboard: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>`,
@@ -2294,10 +2321,9 @@ function collectAllAlerts() {
     const ordItems = [];
 
     ordRows.filter(r => r.Status !== "Cancelled").forEach(r => {
+        if (_isRowCompleted(r)) return;
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
         const rdDiff = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
-        const deliveryRaw = (r["Delivery Status"] || r["Delivery"] || r["Status"] || "").toString().trim().toLowerCase();
-        const isShipped = ["shipped", "in transit", "delivered", "livré", "livre", "expédié", "expedie", "en cours", "transit"].some(s => deliveryRaw.includes(s));
         const poLabel = r.PO ? `PO ${r.PO}` : "PO manquant";
         const styleMeta = `${r.Style || "—"}${r.Color ? " · " + r.Color : ""}${r.Trims ? " · " + r.Trims : ""}`;
         const supplierMeta = r.Supplier ? ` · ${r.Supplier}` : "";
@@ -2316,7 +2342,7 @@ function collectAllAlerts() {
             return;
         }
 
-        if (rdDiff < 0 && !isShipped) {
+        if (rdDiff < 0) {
             const days = Math.abs(rdDiff);
             const urgency = days >= 14 ? "high" : "mid";
             ordItems.push({
@@ -2331,7 +2357,7 @@ function collectAllAlerts() {
             return;
         }
 
-        if (rdDiff >= 0 && !isShipped) {
+        if (rdDiff >= 0) {
             const urgency = rdDiff <= 7 ? "mid" : "low";
             const icon = rdDiff === 0 ? ICONS.alert : rdDiff <= 7 ? ICONS.clock : ICONS.clock;
             const daysTxt = rdDiff === 0 ? "aujourd'hui" : `dans ${rdDiff}j`;
@@ -2359,14 +2385,12 @@ function collectAllAlerts() {
     const samItems = [];
 
     samRows.forEach(r => {
+        if (_isRowCompleted(r)) return;
+
         const hasReceived = !!(r["Received Date"] && String(r["Received Date"]).trim());
         const hasSending = !!(r["Sending Date"] && String(r["Sending Date"]).trim());
         const hasAwb = !!(r["AWB"] && String(r["AWB"]).trim());
-        const isApproved = r.Approval === "Approved";
-        const isRejected = r.Approval === "Rejected";
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
-
-        if (isApproved || isRejected) return;
 
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
@@ -2449,12 +2473,13 @@ function collectAllAlerts() {
         const getClient = r => det.client ? (r[det.client] || "")  : "";
 
         rows.forEach(r => {
+            if (_isRowCompleted(r)) return;
             const hasPoDate          = det.poDate          && !!(r[det.poDate]          && String(r[det.poDate]).trim());
             const hasArtworkReceived = det.artworkReceived && !!(r[det.artworkReceived] && String(r[det.artworkReceived]).trim());
             const hasArtworkSub      = det.artworkSubmission && !!(r[det.artworkSubmission] && String(r[det.artworkSubmission]).trim());
             const hasArtworkApproval = det.artworkApproval && !!(r[det.artworkApproval] && String(r[det.artworkApproval]).trim());
 
-            // Approval complété → aucune alerte pour cette ligne
+            // Approval complété géré par _isRowCompleted, mais on garde une sécurité locale si besoin.
             if (hasArtworkApproval) return;
 
             const styleMeta  = getStyle(r);
@@ -2550,6 +2575,8 @@ function collectAllAlerts() {
         const fabricGroups = {};
 
         rows.forEach(r => {
+            if (_isRowCompleted(r)) return;
+
             const hasReceived = det.receivedDate && !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
             const hasSending = det.sendingDate && !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
             const hasReadyDate = det.readyDate && !!(r[det.readyDate] && String(r[det.readyDate]).trim());
@@ -2558,8 +2585,6 @@ function collectAllAlerts() {
             const hasNlSub = det.nlSubmission && !!(r[det.nlSubmission] && String(r[det.nlSubmission]).trim());
             const hasKeepSample = det.keepSample && !!(r[det.keepSample] && String(r[det.keepSample]).trim());
             const hasFsr = det.fsrDate && !!(r[det.fsrDate] && String(r[det.fsrDate]).trim());
-
-            if (approved || isRejected) return;
 
             if (isBulk) {
                 const fabricVal = det.fabric && r[det.fabric] ? String(r[det.fabric]).trim() : "Default Fabric";
@@ -3022,6 +3047,7 @@ function collectAllAlerts() {
                 const groupData = fabricGroups[f];
                 const stats = { late: 0, today: 0, toSend: 0, pending: 0, oldestSendDays: 0, lateDates: [], todayDates: [], toSendDates: [], pendingDates: [] };
                 groupData.rows.forEach(r => {
+                    if (_isRowCompleted(r)) return;
                     const hasReceived = !!(r[det.receivedDate] && String(r[det.receivedDate]).trim());
                     const hasSending = !!(r[det.sendingDate] && String(r[det.sendingDate]).trim());
                     const hasReady = !!(r[det.readyDate] && String(r[det.readyDate]).trim());
@@ -4033,10 +4059,10 @@ function collectAtRiskStyles() {
             else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
         }
 
-        const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && r.Status === "Confirmed" && r["Delivery Status"] !== "Delivered");
+        const activeOrders = (state.data.ordering || []).filter(r => r.Style === style && !_isRowCompleted(r));
         if (activeOrders.length) { flags.push({ icon: "📦", label: `${activeOrders.length} commande${activeOrders.length > 1 ? "s" : ""} confirmée${activeOrders.length > 1 ? "s" : ""} non livrée${activeOrders.length > 1 ? "s" : ""}`, urgency: "mid" }); score += 1; }
 
-        const pendingSamples = (state.data.sample || []).filter(r => r.Style === style && !isApproved(r.Approval) && isSent(r["Sending Date"]));
+        const pendingSamples = (state.data.sample || []).filter(r => r.Style === style && !_isRowCompleted(r) && isSent(r["Sending Date"]));
         if (pendingSamples.length) { flags.push({ icon: "🧵", label: `${pendingSamples.length} sample${pendingSamples.length > 1 ? "s" : ""} envoyée${pendingSamples.length > 1 ? "s" : ""} sans approval`, urgency: "mid" }); score += 1; }
 
         if (flags.length >= 2) results.push({ style, client, desc, flags, score, maxUrgency: flags.some(f => f.urgency === "high") ? "high" : "mid" });
