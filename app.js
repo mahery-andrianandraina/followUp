@@ -1532,6 +1532,9 @@ async function saveForm() {
                 const cleaned = { _rowIndex: existing._rowIndex };
                 Object.keys(existing).forEach(k => { if (knownKeys.has(k)) cleaned[k] = existing[k]; });
                 state.data[state.activeSheet][idx] = { ...cleaned, ...orderedData };
+                // Recalculate formulas locally
+                const det = detectCustomCols(cfg.cols, cfg.label);
+                _applyRowCalculations(state.data[state.activeSheet][idx], det);
             }
             showToast("Ligne mise à jour avec succès", "success");
         } else { await sendRequest("CREATE", { data }); await fetchAllData(); }
@@ -2111,8 +2114,9 @@ function detectCustomCols(cols, menuLabel) {
         artworkSubmission: find(["artwork submission", "artwork submit", "submission artwork", "art submission", "artwork envoy"]),
         artworkApproval: find(["artwork approval", "art approval", "artwork approved", "approval artwork", "approval", "approv", "approved", "validation"]),
         // Quantity fields for JS-side Balance formulas
-        orderedQty: find(["ordered", "ordered qty", "order qty", "qty ordered", "qty cmd", "quantit\u00e9 command\u00e9e", "order quantity"]),
-        receivedQty: find(["received", "received qty", "qty received", "grned", "grned qty", "livr\u00e9", "delivered", "receipt"]),
+        // NOTE: patterns ordered most-specific first; bare "received"/"ordered" removed to avoid collision with date columns
+        orderedQty: find(["order qty", "ordered qty", "qty ordered", "qty cmd", "quantit\u00e9 command\u00e9e", "order quantity"]),
+        receivedQty: find(["grned qty", "grned", "received qty", "qty received", "livr\u00e9", "delivered qty", "qty delivered", "qty livr\u00e9", "receipt qty"]),
         balanceField: find(["balance", "diff", "reste", "\u00e9cart", "ecart", "excess"])
     };
 }
@@ -2121,37 +2125,54 @@ function detectCustomCols(cols, menuLabel) {
  * Computes JS-side formulas for a set of rows based on column configuration.
  * Currently supports Balance = Ordered - Received.
  */
-function computeSheetCalculations(rows, cfg) {
-    if (!rows || !rows.length || !cfg || !cfg.cols) return rows;
-    
-    // Detect operands
-    const det = detectCustomCols(cfg.cols, cfg.label);
+/**
+ * Internal logic to apply calculations to a single row.
+ */
+function _applyRowCalculations(row, det) {
+    if (!det || !det.balanceField || !det.orderedQty || !det.receivedQty) return row;
+
     const balanceKey = det.balanceField;
     const orderKey = det.orderedQty;
     const receivedKey = det.receivedQty;
 
-    // We only compute if we have both operands and a target
-    if (!balanceKey || !orderKey || !receivedKey) return rows;
+    // Only compute if at least one operand has a value
+    // This avoids populating the balance for totally empty rows
+    const hasOrder = row[orderKey] !== undefined && row[orderKey] !== "" && row[orderKey] !== null;
+    const hasReceived = row[receivedKey] !== undefined && row[receivedKey] !== "" && row[receivedKey] !== null;
 
-    console.info(`[AW27] Computing formulas for ${cfg.label} (using ${orderKey} & ${receivedKey} -> ${balanceKey})`);
+    if (hasOrder || hasReceived) {
+        const orderVal = parseFloat(String(row[orderKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
+        const receivedVal = parseFloat(String(row[receivedKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
 
-    return rows.map(r => {
-        // Only compute if at least one operand has a value
-        // This avoids populating the balance for totally empty rows
-        const hasOrder = r[orderKey] !== undefined && r[orderKey] !== "" && r[orderKey] !== null;
-        const hasReceived = r[receivedKey] !== undefined && r[receivedKey] !== "" && r[receivedKey] !== null;
-        
-        if (hasOrder || hasReceived) {
-            const orderVal = parseFloat(String(r[orderKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
-            const receivedVal = parseFloat(String(r[receivedKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
-            
-            // Result = Ordered - Received
-            // (Negative = Excess, Positive = Reste)
-            r[balanceKey] = orderVal - receivedVal;
-        }
-        return r;
-    });
+        // Result = Ordered - Received
+        // (Negative = Excess, Positive = Reste)
+        row[balanceKey] = orderVal - receivedVal;
+    } else {
+        // If neither operand is present, ensure balance is empty/removed
+        // This is important for cleaned rows
+        delete row[balanceKey];
+    }
+    return row;
 }
+
+/**
+ * Computes JS-side formulas for a set of rows based on column configuration.
+ * Currently supports Balance = Ordered - Received.
+ */
+function computeSheetCalculations(rows, cfg) {
+    if (!rows || !rows.length || !cfg || !cfg.cols) return rows;
+
+    // Detect operands
+    const det = detectCustomCols(cfg.cols, cfg.label);
+
+    // We only compute if we have both operands and a target
+    if (!det.balanceField || !det.orderedQty || !det.receivedQty) return rows;
+
+    console.info(`[AW27] Computing formulas for ${cfg.label} (using ${det.orderedQty} & ${det.receivedQty} -> ${det.balanceField})`);
+
+    return rows.map(r => _applyRowCalculations(r, det));
+}
+
 
 
 function timeAgo(dateVal) {
@@ -2198,6 +2219,14 @@ async function quickUpdate(rowIndex, field, value, sheet) {
 
     // Optimistic UI update
     row[field] = value;
+
+    // Recalculate formulas locally
+    const cfg = SHEET_CONFIG[sheet];
+    if (cfg) {
+        const det = detectCustomCols(cfg.cols, cfg.label);
+        _applyRowCalculations(row, det);
+    }
+
     applyFilters();
     if (state.activeView === "sheet") renderTable();
 
