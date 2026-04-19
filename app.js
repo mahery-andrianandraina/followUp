@@ -1285,7 +1285,28 @@ function renderTable() {
                 if (!isNaN(val) && val !== "") displayVal = "$" + Number(val).toFixed(2);
             }
 
+            // ─── Custom logic for Quantity Balance (Excess/To deliver) ───
+            const colLabel = (c.label || "").trim().toLowerCase();
+            const isQtyCol = colLabel.includes("balance") || colLabel.includes("diff") || colLabel.includes("reste") || colLabel.includes("livrer") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
+            
+            if (isQtyCol && (typeof val === "number" || (!isNaN(val) && val !== "" && !isNaN(parseFloat(val))))) {
+                const num = Number(val);
+                if (num < 0) { 
+                    // Excess delivered -> Blue (User requested Blue for Excess)
+                    const html = `<span class="qty-status-badge qty-status-balance"><span class="qty-status-icon"></span>${num} Excess</span>`;
+                    return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
+                } else if (num > 0) { 
+                    // Reste à livrer -> Red (User requested Red for Reste à livrer)
+                    const html = `<span class="qty-status-badge qty-status-excess"><span class="qty-status-icon"></span>${num} Reste</span>`;
+                    return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
+                }
+            }
+
+
             return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${esc(String(displayVal)) || "<span style='color:var(--text-muted)'>—</span>"}</td>`;
+
+
+
         }).join("");
 
         const trackCell = isOrdering ? `<td><div class="track-badge ${computeDeliveryTrack(row).cls}">${computeDeliveryTrack(row).label}</div></td>` : "";

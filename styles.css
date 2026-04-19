@@ -6333,3 +6333,48 @@ select.filter-select {
     animation: sznFadeIn 0.5s ease both;
     animation-delay: 200ms;
 }
+
+/* ── Quantity Balance Badges (COTONA PO & others) ─────────── */
+.qty-status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    gap: 6px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.qty-status-excess {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fee2e2;
+}
+
+.qty-status-balance {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #dbeafe;
+}
+
+.qty-status-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.qty-status-excess .qty-status-icon { 
+    background: #dc2626; 
+    box-shadow: 0 0 5px rgba(220, 38, 38, 0.4); 
+}
+.qty-status-balance .qty-status-icon { 
+    background: #1d4ed8; 
+    box-shadow: 0 0 5px rgba(29, 78, 216, 0.4); 
+}
+
