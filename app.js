@@ -17,13 +17,13 @@ let GOOGLE_APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 function normalizeDriveUrl(url) {
     if (!url) return "";
     // Déjà un base64 ou thumbnail → intouché
-    if (url.startsWith("data:") || url.includes("thumbnail?id=")) return url;
+    if (url.startsWith("data:") || url.includes("thumbnail?id=") || url.includes("googleusercontent.com/d/")) return url;
     // Format /file/d/FILE_ID/
     const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-    if (m1) return "https://drive.google.com/thumbnail?id=" + m1[1] + "&sz=w400";
+    if (m1) return "https://lh3.googleusercontent.com/d/" + m1[1];
     // Format ?id=FILE_ID ou open?id=FILE_ID
     const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (m2) return "https://drive.google.com/thumbnail?id=" + m2[1] + "&sz=w400";
+    if (m2) return "https://lh3.googleusercontent.com/d/" + m2[1];
     // Autre URL → retournée telle quelle
     return url;
 }
@@ -32,8 +32,9 @@ function normalizeDriveUrl(url) {
 function computeDeliveryTrack(row) {
     const status = row["Status"] || "";
     if (status === "Cancelled") return { label: "Cancelled", cls: "track-cancelled" };
-    const delStatus = (row["Delivery Status"] || "").toString().trim().toLowerCase();
-    if (delStatus === "delivered" || delStatus === "shipped") return { label: "Delivered", cls: "track-delivered" };
+    const delStatus = (row["Delivery Status"] || row["Delivery"] || row["Status"] || "").toString().trim().toLowerCase();
+    const isCompleted = ["delivered", "shipped", "livré", "livre", "expédié", "expedie", "done"].includes(delStatus);
+    if (isCompleted) return { label: "Delivered", cls: "track-delivered" };
     const rd = row["Ready Date"];
     if (!rd) return { label: "No Date", cls: "track-nodate" };
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2295,8 +2296,8 @@ function collectAllAlerts() {
     ordRows.filter(r => r.Status !== "Cancelled").forEach(r => {
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
         const rdDiff = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
-        const delStatus = (r["Delivery Status"] || "").toString().trim().toLowerCase();
-        const isShipped = ["shipped", "in transit", "delivered"].includes(delStatus);
+        const deliveryRaw = (r["Delivery Status"] || r["Delivery"] || r["Status"] || "").toString().trim().toLowerCase();
+        const isShipped = ["shipped", "in transit", "delivered", "livré", "livre", "expédié", "expedie", "en cours", "transit"].some(s => deliveryRaw.includes(s));
         const poLabel = r.PO ? `PO ${r.PO}` : "PO manquant";
         const styleMeta = `${r.Style || "—"}${r.Color ? " · " + r.Color : ""}${r.Trims ? " · " + r.Trims : ""}`;
         const supplierMeta = r.Supplier ? ` · ${r.Supplier}` : "";
