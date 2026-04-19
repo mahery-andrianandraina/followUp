@@ -1700,7 +1700,14 @@ function loadCustomMenus() {
                 key: c.label  // toujours utiliser le label exact comme clé
             }))
         }));
-        migrated.forEach(m => registerCustomMenu(m, false));
+        migrated.forEach(m => {
+            if (m.custom) {
+                registerCustomMenu(m, false);
+            } else if (SHEET_CONFIG[m.key] && (m.key === "details" || m.key === "sample" || m.key === "ordering")) {
+                // Surcharge des colonnes pour les menus fixes
+                SHEET_CONFIG[m.key].cols = m.cols;
+            }
+        });
         // Re-sauvegarder avec les clés corrigées
         localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
     } catch (e) { }
@@ -1776,8 +1783,8 @@ function registerCustomMenu(menuDef, save = true) {
 // ── Persist menus : GAS (permanent) + localStorage (cache) ───
 function persistCustomMenus() {
     const menus = Object.entries(SHEET_CONFIG)
-        .filter(([, v]) => v.custom)
-        .map(([key, v]) => ({ key, label: v.label, cols: v.cols }));
+        .filter(([key, v]) => v.custom || key === "details" || key === "sample" || key === "ordering")
+        .map(([key, v]) => ({ key, label: v.label, cols: v.cols, custom: v.custom }));
     // Toujours sauvegarder en localStorage comme cache rapide
     localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(menus));
     // Sauvegarder en GAS pour persistance cross-navigateur / GitHub Pages
@@ -1802,8 +1809,8 @@ function openMenuBuilder() {
 function openMenuEdit(key) {
     const cfg = SHEET_CONFIG[key];
     if (!cfg) return;
-    // Autoriser sample et details en plus des menus custom
-    const isEditable = cfg.custom || key === "sample" || key === "details";
+    // Autoriser les menus fixes en plus des menus custom
+    const isEditable = cfg.custom || key === "sample" || key === "details" || key === "ordering";
     if (!isEditable) return;
     mbEditingKey = key;
     mbColumns = cfg.cols.map(c => ({ ...c }));
@@ -1940,7 +1947,7 @@ async function saveMenuBuilder() {
     const targetSheetName = mbEditingKey
         ? (editedCfg?.sheetName || editedCfg?.label || nameRaw)
         : nameRaw;
-    const isNonCustom = mbEditingKey === "sample" || mbEditingKey === "details";
+    const isNonCustom = mbEditingKey === "sample" || mbEditingKey === "details" || mbEditingKey === "ordering";
     let gsSynced = true;
 
     try {
@@ -1966,12 +1973,13 @@ async function saveMenuBuilder() {
     }
 
     if (mbEditingKey) {
-        // Pour sample/details : garder le label d'origine, ne pas appeler persistCustomMenus
+        // Pour les menus fixes : garder le label d'origine, mais on sauvegarde quand même leurs colonnes
         SHEET_CONFIG[key].cols = menuDef.cols;
+        persistCustomMenus();
+        
         if (!isNonCustom) {
             SHEET_CONFIG[key].label = menuDef.label;
             SHEET_CONFIG[key].sheetName = menuDef.label;
-            persistCustomMenus();
             const navBtn = document.getElementById("tab-custom-" + key);
             if (navBtn) navBtn.querySelector(".nav-label").textContent = menuDef.label;
         }
