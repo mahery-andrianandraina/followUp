@@ -345,9 +345,9 @@ async function fetchAllData() {
             };
         });
 
-        state.data.details = fixRows(json.data.details?.rows);
-        state.data.sample = fixRows(json.data.sample?.rows);
-        state.data.ordering = fixRows(json.data.ordering?.rows);
+        state.data.details = computeSheetCalculations(fixRows(json.data.details?.rows), SHEET_CONFIG.details);
+        state.data.sample = computeSheetCalculations(fixRows(json.data.sample?.rows), SHEET_CONFIG.sample);
+        state.data.ordering = computeSheetCalculations(fixRows(json.data.ordering?.rows), SHEET_CONFIG.ordering);
         state.data.style = fixRows(json.data.style?.rows);
 
         // ── Charger les menus custom depuis GAS (priorité sur localStorage)
@@ -368,7 +368,7 @@ async function fetchAllData() {
             const fromGAS = Object.entries(json.data).find(([gasKey]) =>
                 gasKey === realName || gasKey.toLowerCase() === realName.toLowerCase()
             );
-            state.data[k] = fixRows(fromGAS ? fromGAS[1].rows : []);
+            state.data[k] = computeSheetCalculations(fixRows(fromGAS ? fromGAS[1].rows : []), SHEET_CONFIG[k]);
         });
 
         state.loading = false;
@@ -1460,7 +1460,7 @@ function buildForm(cols, data) {
     formFields.innerHTML = cols.map(col => {
         const rawVal = data[col.key] ?? ""; const full = col.full ? " full" : "";
         const colLabel = (col.label || "").toLowerCase();
-        const isReadonly = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart");
+        const isReadonly = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
         const readonlyAttr = isReadonly ? "readonly" : "";
         
         let input;
@@ -1489,7 +1489,7 @@ async function saveForm() {
     const data = {};
     cfg.cols.forEach(col => {
         const colLabel = (col.label || "").toLowerCase();
-        const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart");
+        const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
         
         if (isFormula) return; // Ne pas envoyer les colonnes de formule
 
@@ -2110,8 +2110,49 @@ function detectCustomCols(cols, menuLabel) {
         artworkReceived: find(["artwork received", "artwork receipt", "artwork recu", "artwork re\u00e7u", "received artwork", "art received"]),
         artworkSubmission: find(["artwork submission", "artwork submit", "submission artwork", "art submission", "artwork envoy"]),
         artworkApproval: find(["artwork approval", "art approval", "artwork approved", "approval artwork", "approval", "approv", "approved", "validation"]),
+        // Quantity fields for JS-side Balance formulas
+        orderedQty: find(["ordered", "ordered qty", "order qty", "qty ordered", "qty cmd", "quantit\u00e9 command\u00e9e", "order quantity"]),
+        receivedQty: find(["received", "received qty", "qty received", "grned", "grned qty", "livr\u00e9", "delivered", "receipt"]),
+        balanceField: find(["balance", "diff", "reste", "\u00e9cart", "ecart", "excess"])
     };
 }
+
+/**
+ * Computes JS-side formulas for a set of rows based on column configuration.
+ * Currently supports Balance = Ordered - Received.
+ */
+function computeSheetCalculations(rows, cfg) {
+    if (!rows || !rows.length || !cfg || !cfg.cols) return rows;
+    
+    // Detect operands
+    const det = detectCustomCols(cfg.cols, cfg.label);
+    const balanceKey = det.balanceField;
+    const orderKey = det.orderedQty;
+    const receivedKey = det.receivedQty;
+
+    // We only compute if we have both operands and a target
+    if (!balanceKey || !orderKey || !receivedKey) return rows;
+
+    console.info(`[AW27] Computing formulas for ${cfg.label} (using ${orderKey} & ${receivedKey} -> ${balanceKey})`);
+
+    return rows.map(r => {
+        // Only compute if at least one operand has a value
+        // This avoids populating the balance for totally empty rows
+        const hasOrder = r[orderKey] !== undefined && r[orderKey] !== "" && r[orderKey] !== null;
+        const hasReceived = r[receivedKey] !== undefined && r[receivedKey] !== "" && r[receivedKey] !== null;
+        
+        if (hasOrder || hasReceived) {
+            const orderVal = parseFloat(String(r[orderKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
+            const receivedVal = parseFloat(String(r[receivedKey] || "0").replace(/[^0-9.-]/g, "")) || 0;
+            
+            // Result = Ordered - Received
+            // (Negative = Excess, Positive = Reste)
+            r[balanceKey] = orderVal - receivedVal;
+        }
+        return r;
+    });
+}
+
 
 function timeAgo(dateVal) {
     if (!dateVal) return null;
