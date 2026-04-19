@@ -32,7 +32,8 @@ function normalizeDriveUrl(url) {
 function computeDeliveryTrack(row) {
     const status = row["Status"] || "";
     if (status === "Cancelled") return { label: "Cancelled", cls: "track-cancelled" };
-    if (row["Delivery Status"] === "Delivered") return { label: "Delivered", cls: "track-delivered" };
+    const delStatus = (row["Delivery Status"] || "").toString().trim().toLowerCase();
+    if (delStatus === "delivered" || delStatus === "shipped") return { label: "Delivered", cls: "track-delivered" };
     const rd = row["Ready Date"];
     if (!rd) return { label: "No Date", cls: "track-nodate" };
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -2294,7 +2295,8 @@ function collectAllAlerts() {
     ordRows.filter(r => r.Status !== "Cancelled").forEach(r => {
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
         const rdDiff = hasReadyDate ? _daysDiff(r["Ready Date"]) : null;
-        const isShipped = ["Shipped", "In Transit", "Delivered"].includes(r["Delivery Status"]);
+        const delStatus = (r["Delivery Status"] || "").toString().trim().toLowerCase();
+        const isShipped = ["shipped", "in transit", "delivered"].includes(delStatus);
         const poLabel = r.PO ? `PO ${r.PO}` : "PO manquant";
         const styleMeta = `${r.Style || "—"}${r.Color ? " · " + r.Color : ""}${r.Trims ? " · " + r.Trims : ""}`;
         const supplierMeta = r.Supplier ? ` · ${r.Supplier}` : "";
