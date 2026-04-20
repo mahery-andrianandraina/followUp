@@ -1292,10 +1292,20 @@ function renderTable() {
                 try {
                     const dd = new Date(val);
                     displayVal = dd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-                    if ((c.key === "Ex-Fty" || c.key === "Ready Date" || c.key === "PSD") && dd.getTime() < new Date().setHours(0, 0, 0, 0)) {
+                    const isSampleSheet = state.activeSheet === "sample";
+                    // Pour Sample : badge jours sur "Sending Date" (jours depuis envoi)
+                    // Pour les autres : badge jours sur "Ex-Fty", "Ready Date", "PSD"
+                    const showDayBadge = isSampleSheet
+                        ? c.key === "Sending Date" && dd.getTime() <= new Date().setHours(0, 0, 0, 0)
+                        : (c.key === "Ex-Fty" || c.key === "Ready Date" || c.key === "PSD") && dd.getTime() < new Date().setHours(0, 0, 0, 0);
+                    if (showDayBadge) {
                         const diff = Math.round((dd - new Date().setHours(0,0,0,0)) / 86400000);
-                        const bcls = diff < 0 ? "det-daybadge det-daybadge-danger" : diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok";
-                        return `<td class="${sticky}"><span>${displayVal}</span> <span class="${bcls}" style="font-size:10px;padding:1px 4px;margin-left:4px">${diff}j</span></td>`;
+                        const absDiff = Math.abs(diff);
+                        const bcls = isSampleSheet
+                            ? (absDiff >= 14 ? "det-daybadge det-daybadge-danger" : absDiff >= 7 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok")
+                            : (diff < 0 ? "det-daybadge det-daybadge-danger" : diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok");
+                        const label = isSampleSheet ? `${absDiff}j` : `${diff}j`;
+                        return `<td class="${sticky}"><span>${displayVal}</span> <span class="${bcls}" style="font-size:10px;padding:1px 4px;margin-left:4px">${label}</span></td>`;
                     }
                 } catch (e) { }
             }
