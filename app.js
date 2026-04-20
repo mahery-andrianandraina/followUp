@@ -879,7 +879,26 @@ function renderDashboard() {
                         imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
                     }
 
-                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms" data-style="' + esc((r.Style || "").toLowerCase()) + '" data-desc="' + esc((r["Description"] || r["StyleDescription"] || "").toLowerCase()) + '" data-fabric="' + esc((r["Fabric Base"] || "").toLowerCase()) + '" data-client="' + esc((r.Client || "").toLowerCase()) + '">' +
+                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
+                        ' data-style="' + esc((r.Style || "").toLowerCase()) + '"' +
+                        ' data-desc="' + esc((r["Description"] || r["StyleDescription"] || "").toLowerCase()) + '"' +
+                        ' data-fabric="' + esc((r["Fabric Base"] || "").toLowerCase()) + '"' +
+                        ' data-client="' + esc((r.Client || "").toLowerCase()) + '"' +
+                        ' data-style-raw="' + esc(r.Style || "") + '"' +
+                        ' data-client-raw="' + esc(r.Client || "") + '"' +
+                        ' data-saison="' + esc(r.Saison || "") + '"' +
+                        ' data-dept="' + esc(r.Dept || "") + '"' +
+                        ' data-status="' + esc(r.Status || "") + '"' +
+                        ' data-costing="' + esc(r.Costing || "") + '"' +
+                        ' data-order-qty="' + esc(String(r["Order Qty"] || "")) + '"' +
+                        ' data-plc="' + esc(r["PLC Booking"] || "") + '"' +
+                        ' data-crp="' + esc(r["CRP Booking"] || "") + '"' +
+                        ' data-psd="' + esc(r["PSD"] || "") + '"' +
+                        ' data-exfty="' + esc(r["Ex-Fty"] || "") + '"' +
+                        ' data-comments="' + esc(r.Comments || "") + '"' +
+                        ' data-description-full="' + esc(r["Description"] || r["StyleDescription"] || "") + '"' +
+                        ' data-image-url="' + (r["_imageUrl"] && !r["_imageUrl"].startsWith("data:") ? esc(r["_imageUrl"]) : "") + '"' +
+                        '>' +
                         imgBlock +
                         '<div class="dbs-sc-head">' +
                             '<div class="dbs-sc-id">' +
