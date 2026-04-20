@@ -807,9 +807,9 @@
         // Données depuis les attributs data-* (si présents dans app.js)
         // Sinon on lit les éléments texte de la card
         const data = {
-          Style:           card.dataset.style        || getText('.dbs-sc-code, .dbs-style-code, [class*="style-code"]') || getText('.dbs-sc-name, [class*="style-name"]'),
-          Description:     card.dataset.description  || getText('.dbs-sc-desc, [class*="desc"]'),
-          Client:          card.dataset.client        || getText('.dbs-sc-client, [class*="client"]'),
+          Style:           card.dataset.styleRaw     || card.dataset.style || getText('.dbs-sc-code, .dbs-style-code, [class*="style-code"]') || getText('.dbs-sc-name, [class*="style-name"]'),
+          Description:     card.dataset.descriptionFull || card.dataset.description || getText('.dbs-sc-desc, [class*="desc"]'),
+          Client:          card.dataset.clientRaw    || card.dataset.client || getText('.dbs-sc-client, [class*="client"]'),
           Saison:          card.dataset.saison        || getText('.dbs-sc-saison, [class*="saison"], [class*="season"]'),
           Dept:            card.dataset.dept          || getText('.dbs-sc-dept, [class*="dept"]'),
           'Fabric Base':   card.dataset.fabricBase   || card.dataset.fabric || getText('[class*="fabric"]'),
