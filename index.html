@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="styles.css" />
     <link rel="stylesheet" href="color-tags.css">
     <script src="chat.js"></script>
-    <script src="pdfGenerator.js"></script>
     <script src="save-loader-patch.js"></script>
     <style>
         /* Forcer un layout CSS Flex 100vh strict pour garder le scroll DANS les composants */
@@ -715,6 +714,195 @@
     <!-- Auth puis App -->
     <script src="auth.js"></script>
     <script src="app.js"></script>
+    <script src="pdfGenerator.js"></script>
+
+    <!-- ══════════════════════ PDF BUTTON INJECTOR ══════════════════════ -->
+    <style>
+      /* Bouton PDF sur les cards du dashboard */
+      .dbs-pdf-btn {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+        z-index: 10;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .dbs-pdf-btn svg {
+        width: 15px;
+        height: 15px;
+        stroke: #e2e8f0;
+        fill: none;
+        flex-shrink: 0;
+        transition: stroke 0.15s;
+      }
+      /* Révèle le bouton au hover de la card */
+      .dbs-sc:hover .dbs-pdf-btn,
+      .dbs-sc .dbs-pdf-btn:focus {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .dbs-pdf-btn:hover {
+        background: rgba(2, 132, 199, 0.9) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 14px rgba(2,132,199,0.55);
+      }
+      .dbs-pdf-btn:hover svg { stroke: #ffffff; }
+      .dbs-pdf-btn:active { transform: scale(0.94); }
+      /* État "en cours" */
+      .dbs-pdf-btn.loading {
+        background: rgba(99, 102, 241, 0.85) !important;
+        pointer-events: none;
+        opacity: 1;
+      }
+      .dbs-pdf-btn.loading svg { display: none; }
+      .dbs-pdf-btn .pdf-spinner {
+        display: none;
+        width: 13px; height: 13px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: pdf-spin 0.7s linear infinite;
+      }
+      .dbs-pdf-btn.loading .pdf-spinner { display: block; }
+      @keyframes pdf-spin { to { transform: rotate(360deg); } }
+
+      /* S'assurer que les cards ont position relative */
+      .dbs-sc { position: relative !important; }
+    </style>
+
+    <script>
+    (function() {
+      'use strict';
+
+      // ── Attends que jsPDF soit dispo ────────────────────────
+      function waitForPDF(cb) {
+        if (window.AWCheckers && window.AWCheckers.generateStylePDF) return cb();
+        setTimeout(() => waitForPDF(cb), 300);
+      }
+
+      // ── Extrait les données d'une card ───────────────────────
+      function extractCardData(card) {
+        const getText = (sel) => {
+          const el = card.querySelector(sel);
+          return el ? el.textContent.trim() : '';
+        };
+
+        // L'image de la card (pour la photo dans le PDF)
+        const img = card.querySelector('img');
+        const photoUrl = img ? img.src : '';
+
+        // Données depuis les attributs data-* (si présents dans app.js)
+        // Sinon on lit les éléments texte de la card
+        const data = {
+          Style:           card.dataset.style        || getText('.dbs-sc-code, .dbs-style-code, [class*="style-code"]') || getText('.dbs-sc-name, [class*="style-name"]'),
+          Description:     card.dataset.description  || getText('.dbs-sc-desc, [class*="desc"]'),
+          Client:          card.dataset.client        || getText('.dbs-sc-client, [class*="client"]'),
+          Saison:          card.dataset.saison        || getText('.dbs-sc-saison, [class*="saison"], [class*="season"]'),
+          Dept:            card.dataset.dept          || getText('.dbs-sc-dept, [class*="dept"]'),
+          'Fabric Base':   card.dataset.fabricBase   || card.dataset.fabric || getText('[class*="fabric"]'),
+          Costing:         card.dataset.costing       || getText('[class*="cost"]'),
+          'Order Qty':     card.dataset.orderQty     || card.dataset.qty || getText('[class*="qty"], [class*="order-qty"]'),
+          'PLC Booking':   card.dataset.plcBooking   || card.dataset.plc || getText('[class*="plc"]'),
+          'CRP Booking':   card.dataset.crpBooking   || card.dataset.crp || getText('[class*="crp"]'),
+          Status:          card.dataset.status        || getText('.dbs-sc-status, [class*="status"], .color-tag'),
+          PSD:             card.dataset.psd           || getText('[class*="psd"]'),
+          'Ex-Fty':        card.dataset.exFty        || card.dataset.exfty || getText('[class*="ex-fty"], [class*="exfty"]'),
+          Comments:        card.dataset.comments      || getText('[class*="comment"]'),
+          photoUrl,
+        };
+
+        // Fallback : si le Style est vide, cherche n'importe quel texte gras/titre
+        if (!data.Style) {
+          const bold = card.querySelector('strong, b, h2, h3, h4, .title, [class*="title"], [class*="name"]');
+          if (bold) data.Style = bold.textContent.trim();
+        }
+
+        return data;
+      }
+
+      // ── Crée le bouton PDF et l'injecte dans la card ─────────
+      function injectPDFButton(card) {
+        // Évite les doublons
+        if (card.querySelector('.dbs-pdf-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'dbs-pdf-btn';
+        btn.title = 'Télécharger la fiche PDF';
+        btn.setAttribute('aria-label', 'Exporter en PDF');
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          <div class="pdf-spinner"></div>
+        `;
+
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // ne pas déclencher le clic de la card
+          e.preventDefault();
+
+          btn.classList.add('loading');
+
+          try {
+            waitForPDF(async () => {
+              const data = extractCardData(card);
+              await window.AWCheckers.generateStylePDF(data);
+              btn.classList.remove('loading');
+              // Feedback visuel bref
+              btn.innerHTML = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:#4ade80"><polyline points="20 6 9 17 4 12"/></svg>`;
+              setTimeout(() => {
+                btn.innerHTML = `
+                  <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
+                  </svg>
+                  <div class="pdf-spinner"></div>
+                `;
+              }, 2000);
+            });
+          } catch (err) {
+            console.error('[PDF] Erreur:', err);
+            btn.classList.remove('loading');
+          }
+        });
+
+        card.appendChild(btn);
+      }
+
+      // ── Scan initial + MutationObserver pour les cards dynamiques ──
+      function scanAndInject() {
+        document.querySelectorAll('.dbs-sc').forEach(injectPDFButton);
+      }
+
+      // Observer le dashboard (cards générées dynamiquement par app.js)
+      const observer = new MutationObserver(() => scanAndInject());
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      // Premier scan au chargement
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scanAndInject);
+      } else {
+        scanAndInject();
+      }
+    })();
+    </script>
 
 
     <!-- ══════════════════════ MENU BUILDER MODAL ══════════════════════ -->
