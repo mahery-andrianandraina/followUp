@@ -15,12 +15,12 @@
 
 // ------ 2. COULEURS & CONFIG --------------------------------
 const PDF_CONFIG = {
-  primary:    [30,  58, 138],   // bleu marine (identité AW27)
-  accent:     [59, 130, 246],   // bleu clair
-  light:      [239, 246, 255],  // fond section
-  dark:       [15,  23,  42],   // texte principal
-  gray:       [100, 116, 139],  // texte secondaire
-  border:     [203, 213, 225],  // lignes
+  primary:    [30,  58, 138],
+  accent:     [59, 130, 246],
+  light:      [239, 246, 255],
+  dark:       [15,  23,  42],
+  gray:       [100, 116, 139],
+  border:     [203, 213, 225],
   white:      [255, 255, 255],
   success:    [34, 197, 94],
   warning:    [234, 179,  8],
@@ -44,21 +44,75 @@ function statusColor(status) {
   return PDF_CONFIG.accent;
 }
 
-// Charge une image depuis une URL → base64
-function loadImageAsBase64(url) {
+/**
+ * Résout l'URL de la photo depuis l'objet style,
+ * en testant toutes les clés possibles.
+ */
+function resolvePhotoUrl(style) {
+  return (
+    style.photoBase64   ||  // déjà en base64 → priorité max
+    style.photoUrl      ||
+    style.Photo         ||
+    style.photo         ||
+    style['Photo URL']  ||
+    style['photo_url']  ||
+    style.ImageUrl      ||
+    style.imageUrl      ||
+    style.image         ||
+    style.Image         ||
+    ''
+  );
+}
+
+/**
+ * Charge une image depuis une URL → base64.
+ * Stratégie 1 : fetch() (contourne le CORS canvas)
+ * Stratégie 2 : fallback <img> + canvas (si fetch échoue)
+ * Retourne null si les deux méthodes échouent.
+ */
+async function loadImageAsBase64(url) {
+  if (!url) return null;
+
+  // Si c'est déjà du base64, on retourne directement
+  if (url.startsWith('data:')) return url;
+
+  // ── Stratégie 1 : fetch ──────────────────────────────────
+  try {
+    const res = await fetch(url, { mode: 'cors' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = () => reject(new Error('FileReader error'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (fetchErr) {
+    console.warn('[PDF] fetch() échoué, tentative canvas :', fetchErr.message);
+  }
+
+  // ── Stratégie 2 : <img> + canvas (fallback) ──────────────
   return new Promise((resolve) => {
-    if (!url) return resolve(null);
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      resolve(canvas.toDataURL('image/jpeg', 0.85));
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (canvasErr) {
+        console.warn('[PDF] canvas tainted (CORS strict) :', canvasErr.message);
+        resolve(null);
+      }
     };
-    img.onerror = () => resolve(null);
-    img.src = url;
+    img.onerror = () => {
+      console.warn('[PDF] Impossible de charger la photo :', url);
+      resolve(null);
+    };
+    // Ajouter un cache-buster évite parfois les erreurs CORS sur certains CDN
+    img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
   });
 }
 
@@ -81,7 +135,8 @@ function loadImageAsBase64(url) {
  * @param {string} style.PSD
  * @param {string} style['Ex-Fty']
  * @param {string} style.Comments
- * @param {string} style.photoUrl   – URL de la photo produit
+ * @param {string} style.photoUrl      – URL de la photo produit
+ * @param {string} style.photoBase64   – (optionnel) photo déjà en base64, prioritaire
  */
 async function generateStylePDF(style) {
   // Attendre que jsPDF soit disponible
@@ -91,16 +146,15 @@ async function generateStylePDF(style) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
-  const W = 210; // largeur A4
-  const H = 297; // hauteur A4
-  const M = 14;  // marge
+  const W = 210;
+  const H = 297;
+  const M = 14;
   let y = 0;
 
   // ── HEADER BANNER ────────────────────────────────────────
   doc.setFillColor(...PDF_CONFIG.primary);
   doc.rect(0, 0, W, 38, 'F');
 
-  // Logo / brand
   doc.setTextColor(...PDF_CONFIG.white);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
@@ -111,13 +165,11 @@ async function generateStylePDF(style) {
   doc.setTextColor(...PDF_CONFIG.accent);
   doc.text('SUIVI & GESTION DES COMMANDES', M, 22);
 
-  // Titre fiche
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(13);
   doc.setTextColor(...PDF_CONFIG.white);
   doc.text('FICHE STYLE', M, 33);
 
-  // Date génération
   const now = new Date().toLocaleDateString('fr-FR', { day:'2-digit', month:'long', year:'numeric' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -141,7 +193,6 @@ async function generateStylePDF(style) {
   const desc = style.Description || '';
   doc.text(desc.substring(0, 80), M + 4, y + 15);
 
-  // Status badge (coin droit)
   const statusTxt = style.Status || 'N/A';
   const sColor = statusColor(statusTxt);
   doc.setFillColor(...sColor);
@@ -160,23 +211,28 @@ async function generateStylePDF(style) {
   const photoW = 68;
   const photoH = 72;
 
-  // Charger la photo
-  const imgData = await loadImageAsBase64(style.photoUrl || style.Photo || style.photo || '');
+  // ✅ CORRECTION : résolution multi-clés + chargement robuste
+  const photoUrl = resolvePhotoUrl(style);
+  console.log('[PDF] URL photo résolue :', photoUrl || '(aucune)');
+  const imgData = await loadImageAsBase64(photoUrl);
 
   if (imgData) {
     doc.addImage(imgData, 'JPEG', photoX, photoY, photoW, photoH, '', 'FAST');
-    // Cadre photo
     doc.setDrawColor(...PDF_CONFIG.border);
     doc.setLineWidth(0.4);
     doc.rect(photoX, photoY, photoW, photoH);
   } else {
-    // Placeholder si pas de photo
+    // Placeholder stylé si vraiment aucune photo disponible
     doc.setFillColor(...PDF_CONFIG.border);
     doc.rect(photoX, photoY, photoW, photoH, 'F');
+    doc.setFillColor(180, 190, 210);
+    doc.rect(photoX + photoW / 2 - 10, photoY + photoH / 2 - 12, 20, 16, 'F');
+    doc.setFillColor(150, 160, 185);
+    doc.circle(photoX + photoW / 2, photoY + photoH / 2 - 6, 4, 'F');
     doc.setTextColor(...PDF_CONFIG.gray);
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(9);
-    doc.text('Aucune photo', photoX + photoW / 2, photoY + photoH / 2, { align: 'center' });
+    doc.setFontSize(8);
+    doc.text('Aucune photo', photoX + photoW / 2, photoY + photoH / 2 + 10, { align: 'center' });
   }
 
   // Grille d'infos à droite de la photo
@@ -208,7 +264,6 @@ async function generateStylePDF(style) {
     doc.setTextColor(...PDF_CONFIG.dark);
     doc.text(String(f.value || '—'), infoX + 3, iy + 9.5);
 
-    // Séparateur
     doc.setDrawColor(...PDF_CONFIG.border);
     doc.setLineWidth(0.2);
     doc.line(infoX, iy + 11, infoX + infoW, iy + 11);
@@ -291,7 +346,6 @@ async function generateStylePDF(style) {
   doc.text('AW27 CHECKERS  •  Suivi & Gestion des Commandes', M, H - 5);
   doc.text(`${style.Style || ''} — Document confidentiel`, W - M, H - 5, { align: 'right' });
 
-  // Ligne décorative
   doc.setFillColor(...PDF_CONFIG.accent);
   doc.rect(0, H - 15, W, 1, 'F');
 
