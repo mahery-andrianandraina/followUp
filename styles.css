@@ -678,7 +678,8 @@ select.filter-select {
 }
 
 select.filter-select option {
-    background: #f8fafc;
+    background: var(--bg-secondary, #f8fafc);
+    color: var(--text-primary, #0f172a);
 }
 
 select.filter-select:focus {
@@ -1335,7 +1336,8 @@ tr.row-ok>td:first-child {
 }
 
 .form-select option {
-    background: #f8fafc;
+    background: var(--bg-secondary, #f8fafc);
+    color: var(--text-primary, #0f172a);
 }
 
 .form-textarea {
@@ -5864,7 +5866,7 @@ select.filter-select {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    background: #fff;
+    background: var(--bg-card);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
     padding: 0.4rem 0.75rem;
@@ -5903,14 +5905,19 @@ select.filter-select {
     padding: 0 0.75rem;
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--bg-card);
     font-family: inherit;
     font-size: 0.8rem;
-    color: var(--text-secondary);
+    color: var(--text-primary);
     cursor: pointer;
     outline: none;
     transition: border-color var(--transition);
     min-width: 130px;
+}
+
+.db-filter-select option {
+    background: var(--bg-secondary, #e4ecf3);
+    color: var(--text-primary, #0f172a);
 }
 
 .db-filter-select:focus {
@@ -5930,7 +5937,7 @@ select.filter-select {
     height: 34px;
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-sm);
-    background: #fff;
+    background: var(--bg-card);
     color: var(--text-muted);
     cursor: pointer;
     display: flex;
