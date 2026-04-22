@@ -48,12 +48,13 @@
         if (p.urgencies.length && !p.urgencies.includes(item.urgency)) return false;
         if (p.dotTypes.length && !p.dotTypes.includes(item.dotCls)) return false;
         if (p.sheets.length && !p.sheets.includes(item.sheet)) return false;
-        // Saison : on cherche dans state.data.details le style correspondant
+        // Saison : chercher dans state.data.details via le style
         if (p.saisons.length && item.style) {
             try {
-                const det = (window.state?.data?.details || []).find(r => r.Style === item.style);
-                const saison = det?.Saison || det?.['Saison'] || '';
-                if (saison && !p.saisons.includes(saison)) return false;
+                const details = window.state?.data?.details || [];
+                const det = details.find(r => r.Style === item.style);
+                const saison = det?.Saison || '';
+                if (!saison || !p.saisons.includes(saison)) return false;
             } catch (e) {}
         }
         return true;
@@ -204,13 +205,13 @@
         display: inline-flex; align-items: center; gap: 5px;
         padding: 4px 10px; border-radius: 20px; cursor: pointer;
         font-size: 11.5px; font-weight: 500;
-        border: 1px solid rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.07);
         background: rgba(255,255,255,0.03);
         color: #334155;
         transition: all .15s; user-select: none;
-        opacity: 0.45;
+        opacity: 0.4;
     }
-    .ns-chip:hover { border-color: rgba(255,255,255,0.18); color: #64748b; opacity: 0.7; }
+    .ns-chip:hover { border-color: rgba(255,255,255,0.15); color: #64748b; opacity: 0.65; }
     .ns-chip.active {
         border-color: transparent;
         color: #f1f5f9;
@@ -454,31 +455,39 @@
     let _nsPopulateRetries = 0;
     function nsPopulateChips() {
         const state = window.state || {};
-        const details = state.data?.details || [];
-        const SHEET_CONFIG = window.SHEET_CONFIG || {};
+        const data = state.data || {};
+        const details = data.details || [];
 
-        // Retry si Firebase pas encore chargé (max 20 tentatives × 500ms = 10s)
-        if (!details.length && _nsPopulateRetries < 20) {
+        // Retry si Firebase pas encore chargé (max 30 × 500ms = 15s)
+        if (!details.length && _nsPopulateRetries < 30) {
             _nsPopulateRetries++;
             setTimeout(nsPopulateChips, 500);
             return;
         }
         _nsPopulateRetries = 0;
 
-        // Clients
-        const clients = [...new Set([
-            ...details.map(r => r.Client),
-            ...(state.data?.sample || []).map(r => r.Client),
-            ...(state.data?.ordering || []).map(r => r.Client),
-        ].filter(Boolean))].sort();
+        const SHEET_CONFIG = window.SHEET_CONFIG || {};
 
-        // Saisons
-        const saisons = [...new Set(details.map(r => r.Saison || r['Saison'] || '').filter(Boolean))].sort();
+        // Clients — depuis toutes les sources de données
+        const allRows = Object.values(data).flat().filter(r => r && typeof r === 'object');
+        const clients = [...new Set(allRows.map(r => r.Client).filter(Boolean))].sort();
 
-        // Sheets
-        const sheets = Object.entries(SHEET_CONFIG)
-            .filter(([k]) => (state.data?.[k] || []).length > 0)
-            .map(([k, v]) => ({ key: k, label: v.label || k }))
+        // Saisons — depuis details
+        const saisons = [...new Set(details.map(r => r.Saison || '').filter(Boolean))].sort();
+
+        // Menus source — clés de state.data qui ont des données
+        const knownLabels = {
+            details: 'Détails Styles',
+            sample: 'Sample',
+            ordering: 'Ordering',
+            style: 'Style',
+        };
+        const sheets = Object.entries(data)
+            .filter(([k, v]) => Array.isArray(v) && v.length > 0 && !k.startsWith('_'))
+            .map(([k]) => ({
+                key: k,
+                label: SHEET_CONFIG[k]?.label || knownLabels[k] || k
+            }))
             .sort((a, b) => a.label.localeCompare(b.label));
 
         const p = window._notifPrefs;
