@@ -204,33 +204,35 @@
         display: inline-flex; align-items: center; gap: 5px;
         padding: 4px 10px; border-radius: 20px; cursor: pointer;
         font-size: 11.5px; font-weight: 500;
-        border: 1px solid rgba(255,255,255,0.1);
-        background: rgba(255,255,255,0.04);
-        color: #64748b;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        color: #334155;
         transition: all .15s; user-select: none;
+        opacity: 0.45;
     }
-    .ns-chip:hover { border-color: rgba(255,255,255,0.2); color: #94a3b8; }
+    .ns-chip:hover { border-color: rgba(255,255,255,0.18); color: #64748b; opacity: 0.7; }
     .ns-chip.active {
         border-color: transparent;
         color: #f1f5f9;
+        opacity: 1;
     }
     .ns-chip-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
     /* Urgency chips */
-    .ns-chip.urg-high.active { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
-    .ns-chip.urg-mid.active  { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.4); color: #fde68a; }
-    .ns-chip.urg-low.active  { background: rgba(100,116,139,0.2); border-color: rgba(100,116,139,0.4); color: #94a3b8; }
+    .ns-chip.urg-high.active { background: rgba(239,68,68,0.2); border-color: rgba(239,68,68,0.4); color: #fca5a5; opacity:1; }
+    .ns-chip.urg-mid.active  { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.4); color: #fde68a; opacity:1; }
+    .ns-chip.urg-low.active  { background: rgba(100,116,139,0.2); border-color: rgba(100,116,139,0.4); color: #94a3b8; opacity:1; }
 
     /* Type chips */
-    .ns-chip.type-active-late    { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.35); color: #fca5a5; }
-    .ns-chip.type-active-today   { background: rgba(255,214,0,0.12); border-color: rgba(255,214,0,0.35); color: #fef08a; }
-    .ns-chip.type-active-send    { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.35); color: #86efac; }
-    .ns-chip.type-active-approve { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.35); color: #93c5fd; }
-    .ns-chip.type-active-nopo    { background: rgba(217,70,239,0.12); border-color: rgba(217,70,239,0.35); color: #e879f9; }
-    .ns-chip.type-active-risk    { background: rgba(234,179,8,0.12); border-color: rgba(234,179,8,0.35); color: #fde047; }
+    .ns-chip.type-active-late.active    { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.35); color: #fca5a5; opacity:1; }
+    .ns-chip.type-active-today.active   { background: rgba(255,214,0,0.12); border-color: rgba(255,214,0,0.35); color: #fef08a; opacity:1; }
+    .ns-chip.type-active-send.active    { background: rgba(34,197,94,0.12); border-color: rgba(34,197,94,0.35); color: #86efac; opacity:1; }
+    .ns-chip.type-active-approve.active { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.35); color: #93c5fd; opacity:1; }
+    .ns-chip.type-active-nopo.active    { background: rgba(217,70,239,0.12); border-color: rgba(217,70,239,0.35); color: #e879f9; opacity:1; }
+    .ns-chip.type-active-risk.active    { background: rgba(234,179,8,0.12); border-color: rgba(234,179,8,0.35); color: #fde047; opacity:1; }
 
     /* Client / Saison / Sheet chips */
-    .ns-chip.entity.active { background: rgba(2,132,199,0.2); border-color: rgba(2,132,199,0.45); color: #7dd3fc; }
+    .ns-chip.entity.active { background: rgba(2,132,199,0.2); border-color: rgba(2,132,199,0.45); color: #7dd3fc; opacity:1; }
 
     /* Separator */
     .ns-sep { height: 1px; background: rgba(255,255,255,0.06); margin: 4px 18px; }
@@ -434,6 +436,7 @@
 
     /* ── Open / Close ─────────────────────────────────────────── */
     window.nsOpen = function () {
+        _nsPopulateRetries = 0;
         nsPopulateChips();
         nsSync();
         document.getElementById('ns-overlay').classList.add('open');
@@ -448,10 +451,19 @@
     });
 
     /* ── Populate dynamic chips ───────────────────────────────── */
+    let _nsPopulateRetries = 0;
     function nsPopulateChips() {
         const state = window.state || {};
         const details = state.data?.details || [];
         const SHEET_CONFIG = window.SHEET_CONFIG || {};
+
+        // Retry si Firebase pas encore chargé (max 20 tentatives × 500ms = 10s)
+        if (!details.length && _nsPopulateRetries < 20) {
+            _nsPopulateRetries++;
+            setTimeout(nsPopulateChips, 500);
+            return;
+        }
+        _nsPopulateRetries = 0;
 
         // Clients
         const clients = [...new Set([
