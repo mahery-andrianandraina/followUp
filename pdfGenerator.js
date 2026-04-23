@@ -47,10 +47,12 @@ function statusColor(status) {
 /**
  * Résout l'URL de la photo depuis l'objet style,
  * en testant toutes les clés possibles.
+ * FIX : ajout de _imageUrl (clé interne normalisée par app.js/fixRows)
  */
 function resolvePhotoUrl(style) {
   return (
     style.photoBase64   ||  // déjà en base64 → priorité max
+    style._imageUrl     ||  // clé normalisée par app.js (fixRows → normalizeDriveUrl)
     style.photoUrl      ||
     style.Photo         ||
     style.photo         ||
@@ -65,20 +67,106 @@ function resolvePhotoUrl(style) {
 }
 
 /**
- * Charge une image depuis une URL → base64.
- * Stratégie 1 : fetch() (contourne le CORS canvas)
- * Stratégie 2 : fallback <img> + canvas (si fetch échoue)
+ * Convertit n'importe quelle URL Google Drive en URL thumbnail public.
+ *
+ * Formats supportés :
+ *   https://lh3.googleusercontent.com/d/FILE_ID
+ *   https://drive.google.com/file/d/FILE_ID/view
+ *   https://drive.google.com/open?id=FILE_ID
+ *   https://drive.google.com/thumbnail?id=FILE_ID
+ *
+ * Résultat : https://drive.google.com/thumbnail?id=FILE_ID&sz=w600
+ *
+ * L'URL thumbnail Drive est accessible sans en-tête CORS → le canvas
+ * ne sera pas "tainted" tant qu'on ne met PAS crossOrigin='anonymous'.
+ */
+function normalizeToDriveThumbnail(url) {
+  if (!url || url.startsWith('data:')) return url;
+
+  // Déjà un thumbnail Drive → on normalise juste la taille
+  if (url.includes('drive.google.com/thumbnail')) {
+    const m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`;
+  }
+
+  // lh3.googleusercontent.com/d/FILE_ID  (format produit par normalizeDriveUrl dans app.js)
+  const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (lh3Match) return `https://drive.google.com/thumbnail?id=${lh3Match[1]}&sz=w600`;
+
+  // drive.google.com/file/d/FILE_ID/
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileMatch) return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w600`;
+
+  // ?id=FILE_ID  ou  open?id=FILE_ID
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w600`;
+
+  return url; // URL non Drive → retournée telle quelle
+}
+
+/**
+ * Charge une image depuis une URL et la retourne en base64.
+ *
+ * Stratégie 1 : Convertit en URL thumbnail Drive public et charge via <img>
+ *               SANS crossOrigin='anonymous'. Les thumbnails Drive publics
+ *               n'envoient pas d'en-tête Access-Control-Allow-Origin strict,
+ *               donc le canvas n'est PAS tainted → toDataURL() fonctionne.
+ *
+ * Stratégie 2 : fetch() avec mode 'cors' (fonctionne pour les URLs
+ *               non-Drive qui exposent les bons en-têtes CORS).
+ *
  * Retourne null si les deux méthodes échouent.
  */
 async function loadImageAsBase64(url) {
   if (!url) return null;
-
-  // Si c'est déjà du base64, on retourne directement
   if (url.startsWith('data:')) return url;
 
-  // ── Stratégie 1 : fetch ──────────────────────────────────
+  // Normaliser en URL thumbnail Drive (évite le CORS canvas taint)
+  const normalizedUrl = normalizeToDriveThumbnail(url);
+  console.log('[PDF] URL normalisée :', normalizedUrl);
+
+  // ── Stratégie 1 : <img> sans crossOrigin (thumbnail Drive) ───────────
+  // IMPORTANT : ne PAS définir img.crossOrigin = 'anonymous' sur les URLs
+  // Drive thumbnail → cela force le navigateur à envoyer un en-tête Origin,
+  // ce que Drive refuse → erreur CORS → canvas tainted.
+  const imgResult = await new Promise((resolve) => {
+    const img = new Image();
+
+    const timeoutId = setTimeout(() => {
+      img.src = '';
+      console.warn('[PDF] Timeout chargement image (5s) :', normalizedUrl);
+      resolve(null);
+    }, 5000);
+
+    img.onload = () => {
+      clearTimeout(timeoutId);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth  || 400;
+        canvas.height = img.naturalHeight || 400;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (canvasErr) {
+        console.warn('[PDF] Canvas tainted :', canvasErr.message);
+        resolve(null);
+      }
+    };
+
+    img.onerror = () => {
+      clearTimeout(timeoutId);
+      console.warn('[PDF] Échec <img> :', normalizedUrl);
+      resolve(null);
+    };
+
+    // Cache-buster pour éviter les réponses 304 sans CORS headers complets
+    img.src = normalizedUrl + (normalizedUrl.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  });
+
+  if (imgResult) return imgResult;
+
+  // ── Stratégie 2 : fetch() CORS (fallback pour URLs non-Drive) ────────
   try {
-    const res = await fetch(url, { mode: 'cors' });
+    const res = await fetch(normalizedUrl, { mode: 'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     return await new Promise((resolve, reject) => {
@@ -88,32 +176,11 @@ async function loadImageAsBase64(url) {
       reader.readAsDataURL(blob);
     });
   } catch (fetchErr) {
-    console.warn('[PDF] fetch() échoué, tentative canvas :', fetchErr.message);
+    console.warn('[PDF] fetch() CORS échoué :', fetchErr.message);
   }
 
-  // ── Stratégie 2 : <img> + canvas (fallback) ──────────────
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch (canvasErr) {
-        console.warn('[PDF] canvas tainted (CORS strict) :', canvasErr.message);
-        resolve(null);
-      }
-    };
-    img.onerror = () => {
-      console.warn('[PDF] Impossible de charger la photo :', url);
-      resolve(null);
-    };
-    // Ajouter un cache-buster évite parfois les erreurs CORS sur certains CDN
-    img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
-  });
+  console.warn('[PDF] Toutes les stratégies ont échoué pour :', url);
+  return null;
 }
 
 // ------ 4. GENERATEUR PRINCIPAL -----------------------------
@@ -135,14 +202,20 @@ async function loadImageAsBase64(url) {
  * @param {string} style.PSD
  * @param {string} style['Ex-Fty']
  * @param {string} style.Comments
- * @param {string} style.photoUrl      – URL de la photo produit
- * @param {string} style.photoBase64   – (optionnel) photo déjà en base64, prioritaire
+ * @param {string} style._imageUrl     – URL normalisée par app.js (fixRows)
+ * @param {string} style.photoUrl      – alias (optionnel)
+ * @param {string} style.photoBase64   – photo déjà en base64 (prioritaire)
  */
 async function generateStylePDF(style) {
   // Attendre que jsPDF soit disponible
   if (!window.jspdf) {
     await new Promise(resolve => setTimeout(resolve, 1500));
   }
+  if (!window.jspdf) {
+    console.error('[PDF] jsPDF non disponible après attente');
+    return;
+  }
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -190,7 +263,8 @@ async function generateStylePDF(style) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...PDF_CONFIG.gray);
-  const desc = style.Description || '';
+  // FIX : fallback sur StyleDescription (champ alternatif dans app.js)
+  const desc = style.Description || style.StyleDescription || '';
   doc.text(desc.substring(0, 80), M + 4, y + 15);
 
   const statusTxt = style.Status || 'N/A';
@@ -211,13 +285,18 @@ async function generateStylePDF(style) {
   const photoW = 68;
   const photoH = 72;
 
-  // ✅ CORRECTION : résolution multi-clés + chargement robuste
+  // Résolution multi-clés (inclut _imageUrl) + chargement robuste
   const photoUrl = resolvePhotoUrl(style);
   console.log('[PDF] URL photo résolue :', photoUrl || '(aucune)');
   const imgData = await loadImageAsBase64(photoUrl);
 
   if (imgData) {
-    doc.addImage(imgData, 'JPEG', photoX, photoY, photoW, photoH, '', 'FAST');
+    // Détecter le format pour jsPDF
+    let imgFormat = 'JPEG';
+    if (imgData.startsWith('data:image/png'))  imgFormat = 'PNG';
+    if (imgData.startsWith('data:image/webp')) imgFormat = 'WEBP';
+
+    doc.addImage(imgData, imgFormat, photoX, photoY, photoW, photoH, '', 'FAST');
     doc.setDrawColor(...PDF_CONFIG.border);
     doc.setLineWidth(0.4);
     doc.rect(photoX, photoY, photoW, photoH);
@@ -389,8 +468,13 @@ function createPDFButton(container, styleData) {
   btn.addEventListener('click', async () => {
     btn.textContent = 'Génération...';
     btn.disabled = true;
-    await generateStylePDF(styleData);
-    btn.innerHTML = '✓ Téléchargé';
+    try {
+      await generateStylePDF(styleData);
+      btn.innerHTML = '✓ Téléchargé';
+    } catch (err) {
+      console.error('[PDF] Erreur génération :', err);
+      btn.innerHTML = '❌ Erreur';
+    }
     setTimeout(() => {
       btn.innerHTML = `
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
