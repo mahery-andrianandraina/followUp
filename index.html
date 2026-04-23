@@ -801,9 +801,14 @@
           return el ? el.textContent.trim() : '';
         };
 
-        // L'image de la card (pour la photo dans le PDF)
+        // ── PHOTO : priorité à data-image-url (URL Drive normalisée par app.js/fixRows)
+        // Ne pas utiliser img.src directement : le navigateur peut avoir
+        // résolu l'URL en lh3.googleusercontent.com qui bloque le canvas CORS.
+        // data-image-url contient l'URL originale → pdfGenerator la convertit
+        // en thumbnail Drive via normalizeToDriveThumbnail().
+        const _imageUrl = card.dataset.imageUrl || card.dataset.imageurl || '';
         const img = card.querySelector('img');
-        const photoUrl = img ? img.src : '';
+        const photoUrl = _imageUrl || (img ? img.getAttribute('src') : '');
 
         // Données depuis les attributs data-* (si présents dans app.js)
         // Sinon on lit les éléments texte de la card
@@ -822,6 +827,8 @@
           PSD:             card.dataset.psd           || getText('[class*="psd"]'),
           'Ex-Fty':        card.dataset.exFty        || card.dataset.exfty || getText('[class*="ex-fty"], [class*="exfty"]'),
           Comments:        card.dataset.comments      || getText('[class*="comment"]'),
+          // ── Champs photo : _imageUrl est lu par resolvePhotoUrl() dans pdfGenerator
+          _imageUrl,
           photoUrl,
         };
 
