@@ -67,106 +67,65 @@ function resolvePhotoUrl(style) {
 }
 
 /**
- * Convertit n'importe quelle URL Google Drive en URL thumbnail public.
- *
- * Formats supportés :
- *   https://lh3.googleusercontent.com/d/FILE_ID
- *   https://drive.google.com/file/d/FILE_ID/view
- *   https://drive.google.com/open?id=FILE_ID
- *   https://drive.google.com/thumbnail?id=FILE_ID
- *
- * Résultat : https://drive.google.com/thumbnail?id=FILE_ID&sz=w600
- *
- * L'URL thumbnail Drive est accessible sans en-tête CORS → le canvas
- * ne sera pas "tainted" tant qu'on ne met PAS crossOrigin='anonymous'.
+ * Extrait le File ID Drive depuis n'importe quel format d'URL Drive.
+ * Retourne null si ce n'est pas une URL Drive reconnue.
  */
-function normalizeToDriveThumbnail(url) {
-  if (!url || url.startsWith('data:')) return url;
-
-  // Déjà un thumbnail Drive → on normalise juste la taille
-  if (url.includes('drive.google.com/thumbnail')) {
-    const m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (m) return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`;
-  }
-
-  // lh3.googleusercontent.com/d/FILE_ID  (format produit par normalizeDriveUrl dans app.js)
+function extractDriveFileId(url) {
+  if (!url || url.startsWith('data:')) return null;
+  // thumbnail?id=FILE_ID
+  const thumbMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (thumbMatch) return thumbMatch[1];
+  // lh3.googleusercontent.com/d/FILE_ID
   const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-  if (lh3Match) return `https://drive.google.com/thumbnail?id=${lh3Match[1]}&sz=w600`;
-
+  if (lh3Match) return lh3Match[1];
   // drive.google.com/file/d/FILE_ID/
   const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (fileMatch) return `https://drive.google.com/thumbnail?id=${fileMatch[1]}&sz=w600`;
-
-  // ?id=FILE_ID  ou  open?id=FILE_ID
-  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (idMatch) return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w600`;
-
-  return url; // URL non Drive → retournée telle quelle
+  if (fileMatch) return fileMatch[1];
+  return null;
 }
 
 /**
- * Charge une image depuis une URL et la retourne en base64.
+ * Charge une image et la retourne en base64.
  *
- * Stratégie 1 : Convertit en URL thumbnail Drive public et charge via <img>
- *               SANS crossOrigin='anonymous'. Les thumbnails Drive publics
- *               n'envoient pas d'en-tête Access-Control-Allow-Origin strict,
- *               donc le canvas n'est PAS tainted → toDataURL() fonctionne.
+ * Stratégie 1 (priorité) : proxy GAS
+ *   → Appelle ton Google Apps Script avec action=imageProxy&fileId=ID
+ *   → Le GAS lit le fichier Drive côté serveur et retourne le base64
+ *   → Aucun problème CORS ni canvas taint
  *
- * Stratégie 2 : fetch() avec mode 'cors' (fonctionne pour les URLs
- *               non-Drive qui exposent les bons en-têtes CORS).
+ * Stratégie 2 (fallback) : fetch() CORS
+ *   → Pour les URLs non-Drive avec headers CORS corrects
  *
- * Retourne null si les deux méthodes échouent.
+ * Stratégie 3 (fallback) : <img> + canvas sans crossOrigin
+ *   → Dernier recours, peut échouer sur les URLs authentifiées
  */
 async function loadImageAsBase64(url) {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
 
-  // Normaliser en URL thumbnail Drive (évite le CORS canvas taint)
-  const normalizedUrl = normalizeToDriveThumbnail(url);
-  console.log('[PDF] URL normalisée :', normalizedUrl);
-
-  // ── Stratégie 1 : <img> sans crossOrigin (thumbnail Drive) ───────────
-  // IMPORTANT : ne PAS définir img.crossOrigin = 'anonymous' sur les URLs
-  // Drive thumbnail → cela force le navigateur à envoyer un en-tête Origin,
-  // ce que Drive refuse → erreur CORS → canvas tainted.
-  const imgResult = await new Promise((resolve) => {
-    const img = new Image();
-
-    const timeoutId = setTimeout(() => {
-      img.src = '';
-      console.warn('[PDF] Timeout chargement image (5s) :', normalizedUrl);
-      resolve(null);
-    }, 5000);
-
-    img.onload = () => {
-      clearTimeout(timeoutId);
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth  || 400;
-        canvas.height = img.naturalHeight || 400;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch (canvasErr) {
-        console.warn('[PDF] Canvas tainted :', canvasErr.message);
-        resolve(null);
+  // ── Stratégie 1 : Proxy GAS (solution Drive authentifiée) ────────────
+  const fileId = extractDriveFileId(url);
+  if (fileId && window.GOOGLE_APPS_SCRIPT_URL &&
+      window.GOOGLE_APPS_SCRIPT_URL !== 'YOUR_WEB_APP_URL_HERE') {
+    try {
+      const proxyUrl = window.GOOGLE_APPS_SCRIPT_URL +
+        '?action=imageProxy&fileId=' + encodeURIComponent(fileId);
+      console.log('[PDF] Proxy GAS :', proxyUrl);
+      const res = await fetch(proxyUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (json.dataUrl) {
+        console.log('[PDF] ✅ Image chargée via proxy GAS');
+        return json.dataUrl;
       }
-    };
+      if (json.error) throw new Error(json.error);
+    } catch (proxyErr) {
+      console.warn('[PDF] Proxy GAS échoué :', proxyErr.message);
+    }
+  }
 
-    img.onerror = () => {
-      clearTimeout(timeoutId);
-      console.warn('[PDF] Échec <img> :', normalizedUrl);
-      resolve(null);
-    };
-
-    // Cache-buster pour éviter les réponses 304 sans CORS headers complets
-    img.src = normalizedUrl + (normalizedUrl.includes('?') ? '&' : '?') + '_cb=' + Date.now();
-  });
-
-  if (imgResult) return imgResult;
-
-  // ── Stratégie 2 : fetch() CORS (fallback pour URLs non-Drive) ────────
+  // ── Stratégie 2 : fetch() CORS (URLs non-Drive) ──────────────────────
   try {
-    const res = await fetch(normalizedUrl, { mode: 'cors' });
+    const res = await fetch(url, { mode: 'cors' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
     return await new Promise((resolve, reject) => {
@@ -179,8 +138,26 @@ async function loadImageAsBase64(url) {
     console.warn('[PDF] fetch() CORS échoué :', fetchErr.message);
   }
 
-  console.warn('[PDF] Toutes les stratégies ont échoué pour :', url);
-  return null;
+  // ── Stratégie 3 : <img> + canvas sans crossOrigin (dernier recours) ──
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timeoutId = setTimeout(() => { img.src = ''; resolve(null); }, 5000);
+    img.onload = () => {
+      clearTimeout(timeoutId);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth  || 400;
+        canvas.height = img.naturalHeight || 400;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      } catch (e) {
+        console.warn('[PDF] Canvas tainted (image authentifiée Drive) :', e.message);
+        resolve(null);
+      }
+    };
+    img.onerror = () => { clearTimeout(timeoutId); resolve(null); };
+    img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  });
 }
 
 // ------ 4. GENERATEUR PRINCIPAL -----------------------------
