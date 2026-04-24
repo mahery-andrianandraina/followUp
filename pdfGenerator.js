@@ -155,16 +155,23 @@ async function loadImageAsBase64(url) {
       const separator = gasUrl.includes('?') ? '&' : '?';
       const proxyUrl = gasUrl + separator + 'action=imageProxy&fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
       
-      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours. Merci de patienter (max 60s)...');
+      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours...');
+      console.log('[PDF] 🔗 Testez ce lien manuellement si ça échoue :', proxyUrl);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s pour les connexions lentes
+      const timeoutId = setTimeout(() => controller.abort(), 60000); 
 
       const res = await fetch(proxyUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      const text = await res.text(); // On lit en texte d'abord pour voir si c'est du JSON
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch(e) {
+        throw new Error('Le script Google n\'a pas renvoyé du JSON valide (vérifiez le lien manuel).');
+      }
 
       if (json.dataUrl && (json.status === "ok" || !json.status)) {
         console.log('[PDF] ✅ Image chargée via proxy GAS');
@@ -173,11 +180,13 @@ async function loadImageAsBase64(url) {
         }
         return json.dataUrl;
       }
-      if (json.error) throw new Error(json.error);
+      throw new Error(json.error || 'Champ dataUrl manquant dans la réponse.');
     } catch (proxyErr) {
       console.warn('[PDF] ❌ Proxy GAS échoué :', proxyErr.message);
-      // Fallback vers les autres stratégies si le proxy échoue réellement
     }
+  } else {
+     if (!fileId) console.log('[PDF] ℹ️ Stratégie 1 sautée : Pas une image Drive.');
+     if (!gasUrl || gasUrl.includes('YOUR_WEB_')) console.log('[PDF] ⚠️ Stratégie 1 sautée : URL GAS non configurée.');
   }
 
   // ── Stratégie 2 : fetch() CORS (URLs non-Drive) ──────────────────────

@@ -127,23 +127,16 @@ function doGet(e) {
     if (action === "imageProxy") {
       const fileId = (e && e.parameter && e.parameter.fileId || "").trim();
       if (!fileId) {
-        return ContentService
-          .createTextOutput(JSON.stringify({ status: "error", error: "fileId manquant" }))
-          .setMimeType(ContentService.MimeType.JSON);
+        return ContentService.createTextOutput(JSON.stringify({status:"error", error:"fileId manquant"})).setMimeType(ContentService.MimeType.JSON);
       }
       try {
         const file = DriveApp.getFileById(fileId);
         const blob = file.getBlob();
         const base64 = Utilities.base64Encode(blob.getBytes());
-        const dataUrl = "data:" + blob.getContentType() + ";base64," + base64;
-        
-        return ContentService
-          .createTextOutput(JSON.stringify({ status: "ok", dataUrl: dataUrl }))
-          .setMimeType(ContentService.MimeType.JSON);
+        const dataUrl = "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
+        return ContentService.createTextOutput(JSON.stringify({status:"ok", dataUrl: dataUrl})).setMimeType(ContentService.MimeType.JSON);
       } catch (imgErr) {
-        return ContentService
-          .createTextOutput(JSON.stringify({ status: "error", error: imgErr.message }))
-          .setMimeType(ContentService.MimeType.JSON);
+        return ContentService.createTextOutput(JSON.stringify({status:"error", error: imgErr.message})).setMimeType(ContentService.MimeType.JSON);
       }
     }
 
