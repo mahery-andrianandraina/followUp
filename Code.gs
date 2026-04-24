@@ -121,6 +121,33 @@ function getStyleImageUrl(styleCode, imageCell) {
 // ─── GET : lecture de toutes les feuilles ─────────────────────
 function doGet(e) {
   try {
+    // ── Action dédiée : proxy image Drive -> data URL base64 pour le PDF ──
+    // Utilisée par pdfGenerator.js pour éviter les soucis CORS/canvas taint.
+    const action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : "";
+    if (action === "imageProxy") {
+      const fileId = (e.parameter.fileId || "").trim();
+      if (!fileId) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", error: "fileId manquant" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      try {
+        const file = DriveApp.getFileById(fileId);
+        const blob = file.getBlob();
+        const contentType = blob.getContentType() || "image/jpeg";
+        const bytes = blob.getBytes();
+        const base64 = Utilities.base64Encode(bytes);
+        const dataUrl = "data:" + contentType + ";base64," + base64;
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "ok", dataUrl: dataUrl }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (imgErr) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", error: imgErr.message }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const result = {};
 
