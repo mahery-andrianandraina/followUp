@@ -152,11 +152,12 @@ async function loadImageAsBase64(url) {
 
   if (fileId && gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
     try {
-      const separator = gasUrl.includes('?') ? '&' : '?';
-      const proxyUrl = gasUrl + separator + 'action=imageProxy&fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
+      // On retire tout paramètre 'action' existant pour éviter les conflits
+      let baseUrl = gasUrl.split('?')[0];
+      const proxyUrl = baseUrl + '?fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
       
       console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours...');
-      console.log('[PDF] 🔗 Testez ce lien manuellement si ça échoue :', proxyUrl);
+      console.log('[PDF] 🔗 TEST MANUEL (cliquez ici) :', proxyUrl);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000); 
@@ -165,22 +166,22 @@ async function loadImageAsBase64(url) {
       clearTimeout(timeoutId);
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text(); // On lit en texte d'abord pour voir si c'est du JSON
+      const text = await res.text();
       let json;
       try {
         json = JSON.parse(text);
       } catch(e) {
-        throw new Error('Le script Google n\'a pas renvoyé du JSON valide (vérifiez le lien manuel).');
+        throw new Error('Réponse non-JSON reçue (cliquez sur le lien de test bleu pour voir l\'erreur).');
       }
 
-      if (json.dataUrl && (json.status === "ok" || !json.status)) {
+      if (json.dataUrl) {
         console.log('[PDF] ✅ Image chargée via proxy GAS');
         if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif') || json.dataUrl.includes('image/octet-stream')) {
           return await forceToJpeg(json.dataUrl);
         }
         return json.dataUrl;
       }
-      throw new Error(json.error || 'Champ dataUrl manquant dans la réponse.');
+      throw new Error(json.error || 'Champ dataUrl manquant.');
     } catch (proxyErr) {
       console.warn('[PDF] ❌ Proxy GAS échoué :', proxyErr.message);
     }
