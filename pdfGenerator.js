@@ -22,8 +22,9 @@ async function generateStylePDF(style) {
   console.log('[PDF] 🔎 Recherche serveur pour :', code);
 
   try {
-    // 1. Récupération des données encodées via GAS (Zéro CORS)
-    const target = gasUrl.split('?')[0] + '?action=GET_STYLE&styleCode=' + encodeURIComponent(code);
+    // ÉTAPE 1 : Demander au serveur les données fraîches
+    // On simplifie l'URL au maximum pour éviter les pertes pendant les redirections Google
+    const target = gasUrl.split('?')[0] + '?styleCode=' + encodeURIComponent(code);
     const res = await fetch(target);
     const json = await res.json();
     
