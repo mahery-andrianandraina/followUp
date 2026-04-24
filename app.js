@@ -344,11 +344,15 @@ async function fetchAllData() {
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
         const fixRows = (rows) => (rows || []).map((r, i) => {
-            // Normalise _imageUrl depuis tous les noms de colonnes possibles (Détails, Custom Menus, etc.)
-            const rawImg = r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || 
-                           r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || 
-                           r["Picture"] || r["picture"] || r["Photo URL"] || r["StyleImage"] || 
-                           r["ImageUrl"] || r["imageUrl"] || r["ItemPhoto"] || r["Item Photo"] || "";
+            // Si le backend a déjà injecté un _imageUrl valide (thumbnail Drive), on le garde !
+            const hasValidImage = r._imageUrl && (r._imageUrl.includes("thumbnail?id=") || r._imageUrl.includes("googleusercontent.com/d/"));
+            
+            const rawImg = hasValidImage ? r._imageUrl :
+                           (r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || 
+                            r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || 
+                            r["Picture"] || r["picture"] || r["Photo URL"] || r["StyleImage"] || 
+                            r["ImageUrl"] || r["imageUrl"] || r["ItemPhoto"] || r["Item Photo"] || "");
+            
             return {
                 ...r,
                 _rowIndex: r._rowIndex ?? (i + 2),

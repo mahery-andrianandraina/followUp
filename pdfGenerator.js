@@ -82,17 +82,21 @@ function extractDriveFileId(url) {
   const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (idMatch) return idMatch[1];
 
-  // 2. Format lh3.googleusercontent.com/d/FILE_ID
-  const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-  if (lh3Match) return lh3Match[1];
-
-  // 3. Format drive.google.com/file/d/FILE_ID/view...
+  // 2. Format /file/d/FILE_ID (le plus robuste car supporte plusieurs suites /view, /edit, etc.)
   const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (fileMatch) return fileMatch[1];
 
-  // 4. Format drive.google.com/uc?export=download&id=...
-  const ucMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+).*&?uc/);
-  if (ucMatch) return ucMatch[1];
+  // 3. Format lh3.googleusercontent.com/d/FILE_ID=w...
+  // On capte l'ID avant le '=' ou la fin
+  const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (lh3Match) return lh3Match[1];
+
+  // 4. Fallback agressif : tout ce qui ressemble à un ID (25+ chars alphanum avec tirets/underscores)
+  // en évitant les noms de fichiers connus
+  const rawIdMatch = url.match(/([a-zA-Z0-9_-]{25,})/);
+  if (rawIdMatch && !url.includes('.js') && !url.includes('.css') && !url.includes('.html')) {
+    return rawIdMatch[1];
+  }
 
   return null;
 }
@@ -136,18 +140,25 @@ async function loadImageAsBase64(url) {
     });
   };
 
+  // 🔍 DIAGNOSTIC LOG : Voir exactement quelle URL arrive ici
+  console.log('[PDF] 📥 Tentative de chargement :', url ? (url.substring(0, 80) + '...') : '(vide)');
+
   // ── Stratégie 1 : Proxy GAS (solution Drive authentifiée) ────────────
   const fileId = extractDriveFileId(url);
-  if (fileId && window.GOOGLE_APPS_SCRIPT_URL &&
-      window.GOOGLE_APPS_SCRIPT_URL !== 'YOUR_WEB_APP_URL_HERE') {
-    try {
-      const proxyUrl = window.GOOGLE_APPS_SCRIPT_URL +
-        '?action=imageProxy&fileId=' + encodeURIComponent(fileId);
-      console.log('[PDF] Proxy GAS :', proxyUrl);
+  const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+  
+  if (!fileId) console.log('[PDF] ℹ️ Stratégie 1 ignorée : Pas un ID Drive reconnu.');
+  if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') console.log('[PDF] ⚠️ Stratégie 1 ignorée : URL GAS non configurée.');
 
-      // Ajout d'un timeout sur le fetch du proxy
+  if (fileId && gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
+    try {
+      const separator = gasUrl.includes('?') ? '&' : '?';
+      const proxyUrl = gasUrl + separator + 'action=imageProxy&fileId=' + encodeURIComponent(fileId);
+      
+      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours pour ID :', fileId);
+      
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s pour le proxy
 
       const res = await fetch(proxyUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
@@ -155,17 +166,17 @@ async function loadImageAsBase64(url) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
 
-      if (json.dataUrl) {
+      if (json.dataUrl && (json.status === "ok" || !json.status)) {
         console.log('[PDF] ✅ Image chargée via proxy GAS');
-        // Si WebP ou format bizarre, on force en JPEG pour jsPDF
-        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif')) {
+        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif') || json.dataUrl.includes('image/octet-stream')) {
           return await forceToJpeg(json.dataUrl);
         }
         return json.dataUrl;
       }
       if (json.error) throw new Error(json.error);
     } catch (proxyErr) {
-      console.warn('[PDF] Proxy GAS échoué :', proxyErr.message);
+      console.warn('[PDF] ❌ Proxy GAS échoué :', proxyErr.message);
+      // Fallback vers les autres stratégies si le proxy échoue réellement
     }
   }
 

@@ -156,12 +156,17 @@ function doGet(e) {
       result[key] = readSheet(ss, sheetName);
     }
 
-    // ── Injecter _imageUrl : cherche dans Drive/PICTURES par Style ──
-    if (result.details && result.details.rows) {
-      result.details.rows = result.details.rows.map(function(row) {
-        const imageData = getStyleImageUrl(row["Style"] || "", row["Image"] || "");
-        return Object.assign({}, row, { _imageUrl: imageData });
-      });
+    // ── Injecter _imageUrl pour TOUTES les feuilles (Details, Sample, Ordering + Customs) ──
+    for (const key in result) {
+      if (result[key] && result[key].rows) {
+        result[key].rows = result[key].rows.map(function(row) {
+          // Chercher dans "Image", "Photo", "photo", "Picture", etc.
+          const imageCell = row["Image"] || row["Photo"] || row["image"] || row["photo"] || row["Picture"] || row["ImageUrl"] || "";
+          // getStyleImageUrl cherche soit par ID/URL dans la cellule, soit par code Style dans PICTURES
+          const imageData = getStyleImageUrl(row["Style"] || "", imageCell);
+          return Object.assign({}, row, { _imageUrl: imageData });
+        });
+      }
     }
 
     // ── Feuilles custom — clé = vrai nom de la feuille
