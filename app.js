@@ -156,6 +156,7 @@ async function initApp() {
     // Récupérer le GAS URL depuis le profil Firebase
     if (window.currentUser && window.currentUser.gasUrl) {
         GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
+        window.GOOGLE_APPS_SCRIPT_URL = GOOGLE_APPS_SCRIPT_URL; // Rend l'URL accessible globalement (pour pdfGenerator)
     }
 
     // Mettre à jour l'UI utilisateur dans le header
@@ -897,7 +898,7 @@ function renderDashboard() {
                         ' data-exfty="' + esc(r["Ex-Fty"] || "") + '"' +
                         ' data-comments="' + esc(r.Comments || "") + '"' +
                         ' data-description-full="' + esc(r["Description"] || r["StyleDescription"] || "") + '"' +
-                        ' data-image-url="' + (r["_imageUrl"] && !r["_imageUrl"].startsWith("data:") ? esc(r["_imageUrl"]) : "") + '"' +
+                        ' data-image-url="' + (r["_imageUrl"] ? esc(r["_imageUrl"]) : "") + '"' +
                         '>' +
                         imgBlock +
                         '<div class="dbs-sc-head">' +
