@@ -125,36 +125,17 @@ function doGet(e) {
     // Utilisée par pdfGenerator.js pour éviter les soucis CORS/canvas taint.
     const action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : "";
     if (action === "imageProxy") {
-      const fileId = (e.parameter.fileId || "").trim();
+      const fileId = (e && e.parameter && e.parameter.fileId || "").trim();
       if (!fileId) {
         return ContentService
           .createTextOutput(JSON.stringify({ status: "error", error: "fileId manquant" }))
           .setMimeType(ContentService.MimeType.JSON);
       }
       try {
-        // Optimisation : au lieu de charger le fichier COMPLET (qui peut peser 10 Mo), 
-        // on demande à Google le thumbnail à 400px, beaucoup plus léger.
-        const thumbUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400";
-        const res = UrlFetchApp.fetch(thumbUrl, {
-          headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
-          muteHttpExceptions: true
-        });
-
-        let blob, contentType, bytes;
-        if (res.getResponseCode() === 200) {
-          blob = res.getBlob();
-          contentType = blob.getContentType() || "image/jpeg";
-          bytes = blob.getBytes();
-        } else {
-          // Fallback : lecture du fichier original si le thumbnail échoue
-          const file = DriveApp.getFileById(fileId);
-          blob = file.getBlob();
-          contentType = blob.getContentType() || "image/jpeg";
-          bytes = blob.getBytes();
-        }
-
-        const base64 = Utilities.base64Encode(bytes);
-        const dataUrl = "data:" + contentType + ";base64," + base64;
+        const file = DriveApp.getFileById(fileId);
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        const dataUrl = "data:" + blob.getContentType() + ";base64," + base64;
         
         return ContentService
           .createTextOutput(JSON.stringify({ status: "ok", dataUrl: dataUrl }))

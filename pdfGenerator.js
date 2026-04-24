@@ -153,12 +153,12 @@ async function loadImageAsBase64(url) {
   if (fileId && gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
     try {
       const separator = gasUrl.includes('?') ? '&' : '?';
-      const proxyUrl = gasUrl + separator + 'action=imageProxy&fileId=' + encodeURIComponent(fileId);
+      const proxyUrl = gasUrl + separator + 'action=imageProxy&fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
       
-      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours pour ID :', fileId);
+      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours. Merci de patienter (max 60s)...');
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s pour le proxy
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s pour les connexions lentes
 
       const res = await fetch(proxyUrl, { signal: controller.signal });
       clearTimeout(timeoutId);
