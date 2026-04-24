@@ -117,53 +117,28 @@ function extractDriveFileId(url) {
  */
 async function loadImageAsBase64(url) {
   if (!url) return null;
-  if (url.startsWith('data:')) return url;
-
-  // Helper interne pour forcer la conversion en JPEG via canvas (sécurise formats WebP/etc)
-  const forceToJpeg = async (dataUrl) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        try {
+  // Les images viennent déjà en base64 depuis le serveur GAS
+  if (url.startsWith('data:')) {
+    // Forcer en JPEG si WebP/AVIF pour compatibilité jsPDF
+    if (url.includes('image/webp') || url.includes('image/avif')) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+          canvas.width = img.width; canvas.height = img.height;
           const ctx = canvas.getContext('2d');
           ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, canvas.width, canvas.height); // fond blanc pour JPEG (si transparence)
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(img, 0, 0);
           resolve(canvas.toDataURL('image/jpeg', 0.9));
-        } catch(e) { resolve(dataUrl); }
-      };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
-    });
-  };
-
-  // 🔍 DIAGNOSTIC LOG : Voir exactement quelle URL arrive ici
-  console.log('[PDF] 📥 Tentative de chargement :', url ? (url.substring(0, 80) + '...') : '(vide)');
-  const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
-  const fileId = extractDriveFileId(url);
-
-  if (fileId && gasUrl && !gasUrl.includes('YOUR_WEB_')) {
-    try {
-      const cleanUrl = gasUrl.split('?')[0];
-      const proxyUrl = cleanUrl + '?fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
-      
-      const res = await fetch(proxyUrl);
-      const json = await res.json();
-
-      if (json.dataUrl) {
-        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif')) {
-          return await forceToJpeg(json.dataUrl);
-        }
-        return json.dataUrl;
-      }
-    } catch (e) {
-      console.warn('[PDF] Proxy échoué, essai direct...');
+        };
+        img.onerror = () => resolve(url);
+        img.src = url;
+      });
     }
+    return url;
   }
-
+  // Fallback : URL externe (non-Drive)
   try {
     const res = await fetch(url, { mode: 'cors' });
     const blob = await res.blob();
@@ -172,8 +147,7 @@ async function loadImageAsBase64(url) {
       reader.onloadend = () => resolve(reader.result);
       reader.readAsDataURL(blob);
     });
-  } catch (err) {
-    console.error('[PDF] Impossible de charger l\'image:', url);
+  } catch (e) {
     return null;
   }
 }

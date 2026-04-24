@@ -40,19 +40,10 @@ function getPicturesFolderCached() {
   return _picturesFolder;
 }
 
-// ─── Helper : trouver une image par nom de style → retourne une URL thumbnail ──
-// ⚠️  On NE convertit plus en base64 (lourd + dépendant des permissions du déployeur).
-//     On retourne directement l'URL thumbnail Drive, chargée par le navigateur du client.
-//     Prérequis : le dossier PICTURES doit être partagé "Tout le monde avec le lien".
-//
-// La colonne "Image" peut contenir :
-//   - Rien (vide)                           → cherche automatiquement par code Style
-//   - Un nom de fichier : "CKM10204.jpg"    → cherche dans PICTURES
-//   - Un ID Drive     : "1a2b3c4dXXX"       → thumbnail direct
-//   - Une URL Drive   : "https://drive.google.com/file/d/..." → thumbnail direct
+// ─── Helper : trouver une image par nom de style → retourne base64 directement ──
+// Les images sont encodées côté serveur pour éviter tout problème CORS côté client.
 function getStyleImageUrl(styleCode, imageCell) {
   try {
-    // ── Utilitaire : extraire un File ID depuis une URL ou un ID brut ──
     function extractFileId(raw) {
       const mFd = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (mFd) return mFd[1];
@@ -62,53 +53,48 @@ function getStyleImageUrl(styleCode, imageCell) {
       return null;
     }
 
-    // ── Utilitaire : construire l'URL thumbnail depuis un File ID ──
-    function toThumbnailUrl(fileId) {
-      return "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400";
+    function fileIdToBase64(fileId) {
+      try {
+        const file = DriveApp.getFileById(fileId);
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        return "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
+      } catch(e) { return ""; }
     }
 
-    // ── Cas 1 : cellule Image contient une URL ou un ID Drive ──
+    // Cas 1 : cellule Image contient une URL ou un ID Drive
     if (imageCell) {
       const raw = String(imageCell).trim();
       if (raw) {
         const fileId = extractFileId(raw);
-        if (fileId) return toThumbnailUrl(fileId);
+        if (fileId) return fileIdToBase64(fileId);
 
-        // Cas 1b : nom de fichier explicite → chercher dans PICTURES
+        // Nom de fichier → chercher dans PICTURES
         const folder = getPicturesFolderCached();
         if (folder) {
           const fileIter = folder.getFilesByName(raw);
-          if (fileIter.hasNext()) {
-            return toThumbnailUrl(fileIter.next().getId());
-          }
+          if (fileIter.hasNext()) return fileIdToBase64(fileIter.next().getId());
         }
       }
     }
 
-    // ── Cas 2 : chercher automatiquement par code Style dans PICTURES ──
+    // Cas 2 : chercher par code Style dans PICTURES
     if (!styleCode) return "";
     const folder = getPicturesFolderCached();
-    if (!folder) {
-      Logger.log("Dossier PICTURES introuvable");
-      return "";
-    }
+    if (!folder) return "";
 
     const extensions = ["jpg", "jpeg", "png", "webp", "JPG", "JPEG", "PNG"];
     for (const ext of extensions) {
       const fileIter = folder.getFilesByName(styleCode + "." + ext);
-      if (fileIter.hasNext()) {
-        return toThumbnailUrl(fileIter.next().getId());
-      }
+      if (fileIter.hasNext()) return fileIdToBase64(fileIter.next().getId());
     }
 
-    // Fallback : tout fichier qui commence par styleCode
     const allFiles = folder.getFiles();
     while (allFiles.hasNext()) {
       const file = allFiles.next();
       const name = file.getName().toLowerCase();
-      if (name.startsWith(styleCode.toLowerCase() + ".") ||
-          name.startsWith(styleCode.toLowerCase() + "_")) {
-        return toThumbnailUrl(file.getId());
+      if (name.startsWith(styleCode.toLowerCase() + ".") || name.startsWith(styleCode.toLowerCase() + "_")) {
+        return fileIdToBase64(file.getId());
       }
     }
 
@@ -121,25 +107,10 @@ function getStyleImageUrl(styleCode, imageCell) {
 // ─── GET : lecture de toutes les feuilles ─────────────────────
 function doGet(e) {
   try {
-    // ── PRIORITÉ ABSOLUE : Si on demande une image, on s'arrête là et on la renvoie ──
-    const params = (e && e.parameter) ? e.parameter : {};
-    const fId = (params.fileId || params.fileid || "").trim();
-    
-    if (fId && fId.length > 20) {
-      try {
-        const file = DriveApp.getFileById(fId);
-        const blob = file.getBlob();
-        const base64 = Utilities.base64Encode(blob.getBytes());
-        const dataUrl = "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
-        return ContentService.createTextOutput(JSON.stringify({status:"ok", dataUrl: dataUrl})).setMimeType(ContentService.MimeType.JSON);
-      } catch (err) {
-        return ContentService.createTextOutput(JSON.stringify({status:"error", error: "Drive: " + err.message})).setMimeType(ContentService.MimeType.JSON);
-      }
-    }
-
-    // Sinon, chargement normal des données
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const result = {};
+
+    // Feuilles fixes — _imageUrl encodé en base64 directement
     for (const [key, sheetName] of Object.entries(SHEET_NAMES)) {
       result[key] = readSheet(ss, sheetName);
     }
@@ -154,8 +125,9 @@ function doGet(e) {
       }
     }
 
+    // Feuilles custom
     const fixedNames = new Set(Object.values(SHEET_NAMES));
-    ss.getSheets().forEach(sheet => {
+    ss.getSheets().forEach(function(sheet) {
       const name = sheet.getName();
       if (!fixedNames.has(name)) result[name] = readSheet(ss, name);
     });
