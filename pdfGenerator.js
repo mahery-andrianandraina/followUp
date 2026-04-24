@@ -22,10 +22,11 @@ async function generateStylePDF(style) {
   console.log('[PDF] 🔎 Recherche serveur pour :', code);
 
   try {
-    // ÉTAPE 1 : Demander au serveur les données fraîches
-    // On simplifie l'URL au maximum pour éviter les pertes pendant les redirections Google
-    const target = gasUrl.split('?')[0] + '?styleCode=' + encodeURIComponent(code);
-    const res = await fetch(target);
+    // ÉTAPE 1 : Demander au serveur les données fraîches via POST (plus fiable)
+    const res = await fetch(gasUrl, {
+      method: "POST",
+      body: JSON.stringify({ action: "GET_STYLE", styleCode: code })
+    });
     const json = await res.json();
     
     if (json.status !== "ok") throw new Error(json.message);

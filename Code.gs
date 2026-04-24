@@ -1,18 +1,30 @@
 // ============================================================
-// AW27 CHECKERS – Google Apps Script (Version INDÉFECTIBLE)
+// AW27 CHECKERS – Google Apps Script (Version POST-ONLY FIABLE)
 // ============================================================
 
 const SPREADSHEET_ID = "1l8etAWJxSZTrv-Z5umNBzW-HSy4rC8pm3Kr5CsF3OnY";
+const SHEET_NAMES = { details: "Details", style: "Style", sample: "Sample" };
 
+// ── GET : Réservé exclusivement au Dashboard ──
 function doGet(e) {
   try {
-    const params = e.parameter || {};
-    // On cherche styleCode PARTOUT pour être sûr de ne pas le rater
-    const styleCode = (params.styleCode || params.stylecode || params.style || "").trim();
-    const action = (params.action || "").toUpperCase();
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const result = { details: readSheet(ss, "Details"), style: readSheet(ss, "Style"), sample: readSheet(ss, "Sample") };
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
 
-    // ── SI UN STYLECODE EST PRÉSENT, ON PASSE EN MODE PDF (GET_STYLE) ──
-    if (styleCode && (action === "GET_STYLE" || action === "" || !params.action)) {
+// ── POST : Utilisé pour TOUT le reste (Sécurisé et Fiable) ──
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const action = payload.action || "";
+    const styleCode = (payload.styleCode || "").trim();
+
+    // ── NOUVEAU : RÉCUPÉRATION DU STYLE PAR POST (Zéro perte de données) ──
+    if (action === "GET_STYLE" && styleCode) {
       const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
       const sheets = ss.getSheets();
       let styleData = null;
@@ -24,7 +36,6 @@ function doGet(e) {
         const h = data[0].map(x => String(x).trim());
         const idx = h.findIndex(x => x.toLowerCase() === "style");
         if (idx === -1) continue;
-
         for (let i = 1; i < data.length; i++) {
           if (String(data[i][idx]).trim() === styleCode) {
             styleData = {};
@@ -37,22 +48,30 @@ function doGet(e) {
 
       if (styleData) {
         styleData["photoBase64"] = findAndEncodeImage(styleCode, styleData["Image"] || styleData["Photo"] || "");
-        const output = JSON.stringify({status:"ok", style: styleData, isPdfRequest: true});
-        return ContentService.createTextOutput(output).setMimeType(ContentService.MimeType.JSON);
+        return ContentService.createTextOutput(JSON.stringify({status:"ok", style: styleData})).setMimeType(ContentService.MimeType.JSON);
       }
-      // Si non trouvé, on renvoie une erreur explicite
       return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Style " + styleCode + " non trouvé"})).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // ── CHARGEMENT DASHBOARD PAR DÉFAUT ──
+    // ── ACTIONS STANDARD (CREATE / UPDATE / DELETE) ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const dash = { 
-      details: readSheet(ss, "Details"), 
-      style: readSheet(ss, "Style"), 
-      sample: readSheet(ss, "Sample"), 
-      ordering: readSheet(ss, "Ordering") 
-    };
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: dash })).setMimeType(ContentService.MimeType.JSON);
+    const sheetKey = payload.sheet;
+    const rowIndex = payload.rowIndex;
+    const data = payload.data;
+    
+    let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
+    const sheet = ss.getSheetByName(sheetName);
+    const headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());
+    
+    if (action === "CREATE") sheet.appendRow(headers.map(h => data[h] ?? ""));
+    else if (action === "UPDATE") {
+      const r = sheet.getRange(rowIndex, 1, 1, headers.length);
+      const cur = r.getValues()[0];
+      const next = headers.map((h, i) => Object.prototype.hasOwnProperty.call(data, h) ? data[h] : cur[i]);
+      r.setValues([next]);
+    } else if (action === "DELETE") sheet.deleteRow(rowIndex);
+
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
