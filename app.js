@@ -2533,31 +2533,34 @@ function collectAllAlerts() {
         const hasAwb = !!(r["AWB"] && String(r["AWB"]).trim());
         const hasReadyDate = !!(r["Ready Date"] && String(r["Ready Date"]).trim());
 
+        // Champs communs à tous les états sample
+        const _samColor = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
+        const _samType  = r["Type"] || "";
+        const _samFab   = r["Fabric"] || "";
+        const _samSize  = r["Size"] || "";
+        const _samDept  = r["Dept"] || "";
+        const _colorLabel  = _samColor ? ` · Coloris : ${_samColor}` : "";
+        const _fabricLabel = _samFab   ? ` · Fabric : ${_samFab}`    : "";
+        const _sizeLabel   = _samSize  ? ` · Size : ${_samSize}`     : "";
+        const _deptLabel   = _samDept  ? ` · Dept : ${_samDept}`     : "";
+        const _typeLabel   = _samType  ? ` · ${_samType}`            : "";
+
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
             const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
             const awbPart = hasAwb ? ` · AWB : ${r["AWB"]}` : "";
-            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
-            const fabricPart = r["Fabric"] || "";
-            const sizePart = r["Size"] || "";
-            const deptPart = r["Dept"] || "";
-            const typePart = r["Type"] || "";
-            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
-            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
-            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
-            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
-            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-approve", tagCls: "tag-approve",
-                tagLabel: `${ICONS.clock} Envoyé au client — approval en attente ${days}j${colorPart ? " · " + colorPart : ""}`,
-                title: `Sample envoyée au client — approval en attente depuis ${days}j${colorLabel}${typeLabel}`,
+                tagLabel: `${ICONS.clock} Envoyé au client — approval en attente ${days}j`,
+                title: `Sample envoyée — approval en attente depuis ${days}j${_colorLabel}${_typeLabel}`,
                 action: urgency === "high"
-                    ? `Envoyé il y a ${days}j — relancer le client de toute urgence${colorLabel}`
+                    ? `Envoyé il y a ${days}j — relancer le client de toute urgence${_colorLabel}`
                     : urgency === "mid"
-                        ? `Envoyé il y a ${days}j — envoyer un rappel au client${colorLabel}`
-                        : `Envoyé il y a ${days}j — attendre ou envoyer un suivi${colorLabel}`,
+                        ? `Envoyé il y a ${days}j — envoyer un rappel au client${_colorLabel}`
+                        : `Envoyé il y a ${days}j — attendre ou envoyer un suivi${_colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Envoyé le : ${_fmtDate(r["Sending Date"])}${awbPart}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
+                sampleType: _samType, color: _samColor,
+                meta: `Envoyé le : ${_fmtDate(r["Sending Date"])}${awbPart}${_typeLabel}${_colorLabel}${_fabricLabel}${_sizeLabel}${_deptLabel}`,
                 urgency, sheet: "sample", rowIndex: r._rowIndex
             });
             return;
@@ -2566,23 +2569,14 @@ function collectAllAlerts() {
         if (hasReceived) {
             const days = Math.abs(_daysDiff(r["Received Date"]));
             const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
-            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
-            const fabricPart = r["Fabric"] || "";
-            const sizePart = r["Size"] || "";
-            const deptPart = r["Dept"] || "";
-            const typePart = r["Type"] || "";
-            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
-            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
-            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
-            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
-            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-send", tagCls: "tag-send",
-                tagLabel: `${ICONS.package} À envoyer (${daysLabel})${colorPart ? " · " + colorPart : ""}`,
-                title: `Sample reçue — à envoyer au client${colorLabel}${typeLabel}`,
-                action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date${colorLabel}`,
+                tagLabel: `${ICONS.package} À envoyer (${daysLabel})`,
+                title: `Sample reçue — à envoyer au client${_colorLabel}${_typeLabel}`,
+                action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date${_colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Reçue le : ${_fmtDate(r["Received Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
+                sampleType: _samType, color: _samColor,
+                meta: `Reçue le : ${_fmtDate(r["Received Date"])}${_typeLabel}${_colorLabel}${_fabricLabel}${_sizeLabel}${_deptLabel}`,
                 urgency: days >= 3 ? "mid" : "low", sheet: "sample", rowIndex: r._rowIndex
             });
             return;
@@ -2592,43 +2586,25 @@ function collectAllAlerts() {
         const diff = _daysDiff(r["Ready Date"]);
         if (diff < 0) {
             const days = Math.abs(diff);
-            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
-            const fabricPart = r["Fabric"] || "";
-            const sizePart = r["Size"] || "";
-            const deptPart = r["Dept"] || "";
-            const typePart = r["Type"] || "";
-            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
-            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
-            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
-            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
-            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-late", tagCls: "tag-late",
-                tagLabel: `${ICONS.alert} Sample non reçue — ${days}j de retard${colorPart ? " · " + colorPart : ""}`,
-                title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}${colorLabel}${typeLabel}`,
-                action: `Relancer la factory pour confirmer l'avancement de la sample${colorLabel}`,
+                tagLabel: `${ICONS.alert} Sample non reçue — ${days}j de retard`,
+                title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}${_colorLabel}${_typeLabel}`,
+                action: `Relancer la factory pour confirmer l'avancement de la sample${_colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
+                sampleType: _samType, color: _samColor,
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${_typeLabel}${_colorLabel}${_fabricLabel}${_sizeLabel}${_deptLabel}`,
                 urgency: "high", sheet: "sample", rowIndex: r._rowIndex
             });
         } else if (diff === 0) {
-            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
-            const fabricPart = r["Fabric"] || "";
-            const sizePart = r["Size"] || "";
-            const deptPart = r["Dept"] || "";
-            const typePart = r["Type"] || "";
-            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
-            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
-            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
-            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
-            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-today", tagCls: "tag-today",
-                tagLabel: `${ICONS.clock} Sample attendue aujourd'hui${colorPart ? " · " + colorPart : ""}`,
-                title: `Sample attendue aujourd'hui — prévoir la réception${colorLabel}${typeLabel}`,
-                action: `Confirmer la réception dès réception de la sample${colorLabel}`,
+                tagLabel: `${ICONS.clock} Sample attendue aujourd'hui`,
+                title: `Sample attendue aujourd'hui — prévoir la réception${_colorLabel}${_typeLabel}`,
+                action: `Confirmer la réception dès réception de la sample${_colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
+                sampleType: _samType, color: _samColor,
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${_typeLabel}${_colorLabel}${_fabricLabel}${_sizeLabel}${_deptLabel}`,
                 urgency: "low", sheet: "sample", rowIndex: r._rowIndex
             });
         }
@@ -3044,6 +3020,7 @@ function collectAllAlerts() {
                         title: `${fabricPrefix}Reçu — à envoyer au client${colorSuffix}${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
                         action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi${colorVal && !det.isFabricDevo ? " · Coloris : " + colorVal : ""}`,
                         style: getStyle(r), client: getClient(r),
+                        color: !det.isFabricDevo ? colorVal : "",
                         meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}${deptLabel}${sizeLabel}${remarksLabel}`,
                         urgency: days >= 3 ? "mid" : "low", sheet: key, rowIndex: r._rowIndex
                     });
@@ -3071,6 +3048,7 @@ function collectAllAlerts() {
                         title: `${fabricPrefix}Envoyé — approbation en attente depuis ${days}j${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
                         action: urgency === "high" ? `Relancer de toute urgence${colorVal && !det.isFabricDevo ? " — Coloris : " + colorVal : ""}` : urgency === "mid" ? `Envoyer un rappel${colorVal && !det.isFabricDevo ? " — Coloris : " + colorVal : ""}` : "Attendre ou relancer",
                         style: getStyle(r), client: getClient(r),
+                        color: !det.isFabricDevo ? colorVal : "",
                         meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${awbLabel}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}${deptLabel}${sizeLabel}${remarksLabel}`,
                         urgency, sheet: key, rowIndex: r._rowIndex
                     });
@@ -3453,8 +3431,11 @@ function openGlobalNotifDrawer() {
         .tag-approve { background:#EFF6FF; color:#1E40AF; border:0.5px solid #93C5FD; }
         .tag-nopo    { background:#FDF4FF; color:#86198F; border:0.5px solid #E879F9; }
         .tag-risk    { background:#FEF3C7; color:#7C2D12; border:0.5px solid #D97706; }
+        .gnd-row-badge { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:500; padding:1px 7px; border-radius:20px; white-space:nowrap; flex-shrink:0; }
+        .gnd-badge-type { background:#EDE9FE; color:#5B21B6; border:0.5px solid #C4B5FD; }
+        .gnd-badge-color { background:#FFF7ED; color:#9A3412; border:0.5px solid #FED7AA; }
+        .gnd-badge-color-dot { width:7px; height:7px; border-radius:50%; background:#F97316; flex-shrink:0; display:inline-block; }
         `;
-        document.head.appendChild(st);
     }
     _renderGndFull();
     requestAnimationFrame(() => drawer.classList.add("open"));
@@ -3511,6 +3492,8 @@ function _renderGndFull() {
             <div class="gnd-row-top">
                 <span class="gnd-row-style">${esc(item.style)}</span>
                 ${item.client ? `<span class="gnd-row-client">${esc(item.client)}</span>` : ""}
+                ${item.sampleType ? `<span class="gnd-row-badge gnd-badge-type">${esc(item.sampleType)}</span>` : ""}
+                ${item.color ? `<span class="gnd-row-badge gnd-badge-color"><span class="gnd-badge-color-dot"></span>${esc(item.color)}</span>` : ""}
                 <span class="gnd-row-tag ${item.tagCls}">${item.tagLabel}</span>
             </div>
             <div class="gnd-row-title">${esc(item.title)}</div>
