@@ -3436,6 +3436,7 @@ function openGlobalNotifDrawer() {
         .gnd-badge-color { background:#FFF7ED; color:#9A3412; border:0.5px solid #FED7AA; }
         .gnd-badge-color-dot { width:7px; height:7px; border-radius:50%; background:#F97316; flex-shrink:0; display:inline-block; }
         `;
+        document.head.appendChild(st);
     }
     _renderGndFull();
     requestAnimationFrame(() => drawer.classList.add("open"));
