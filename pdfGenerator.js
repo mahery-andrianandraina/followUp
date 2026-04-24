@@ -39,15 +39,15 @@ async function loadImageAsBase64(url) {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
 
-  // Récupération sécurisée de l'URL du script
-  const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || (window.AWCheckers ? window.AWCheckers.gasUrl : null);
+  const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || localStorage.getItem('last_gas_url');
+  if (gasUrl) localStorage.setItem('last_gas_url', gasUrl);
+
   const fileId = extractDriveFileId(url);
 
   if (fileId && gasUrl && !gasUrl.includes('YOUR_WEB_')) {
     try {
-      const cleanUrl = gasUrl.split('?')[0];
-      const proxyUrl = cleanUrl + '?fileId=' + encodeURIComponent(fileId);
-      console.log('[PDF] 🔄 Appel Proxy GAS :', proxyUrl);
+      const proxyUrl = gasUrl.split('?')[0] + '?fileId=' + encodeURIComponent(fileId);
+      console.info('[PDF] 🔄 Proxy via :', proxyUrl);
       
       const res = await fetch(proxyUrl);
       const json = await res.json();
