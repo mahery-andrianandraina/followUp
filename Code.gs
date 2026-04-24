@@ -1,11 +1,10 @@
 // ============================================================
-// AW27 CHECKERS – Google Apps Script (Version POST-ONLY FIABLE)
+// AW27 CHECKERS – Google Apps Script (Version VERDICT)
 // ============================================================
 
 const SPREADSHEET_ID = "1l8etAWJxSZTrv-Z5umNBzW-HSy4rC8pm3Kr5CsF3OnY";
 const SHEET_NAMES = { details: "Details", style: "Style", sample: "Sample" };
 
-// ── GET : Réservé exclusivement au Dashboard ──
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -16,15 +15,16 @@ function doGet(e) {
   }
 }
 
-// ── POST : Utilisé pour TOUT le reste (Sécurisé et Fiable) ──
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
     const action = payload.action || "";
-    const styleCode = (payload.styleCode || "").trim();
+    
+    // ── GESTION PDF ──
+    if (action === "GET_STYLE") {
+      const styleCode = (payload.styleCode || "").trim().toUpperCase();
+      if (!styleCode) throw new Error("StyleCode manquant dans la requête.");
 
-    // ── NOUVEAU : RÉCUPÉRATION DU STYLE PAR POST (Zéro perte de données) ──
-    if (action === "GET_STYLE" && styleCode) {
       const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
       const sheets = ss.getSheets();
       let styleData = null;
@@ -32,12 +32,13 @@ function doPost(e) {
       for (let s of sheets) {
         if (s.getName().startsWith("_")) continue;
         const data = s.getDataRange().getValues();
-        if (data.length < 1) continue;
         const h = data[0].map(x => String(x).trim());
-        const idx = h.findIndex(x => x.toLowerCase() === "style");
+        const idx = h.findIndex(x => x.toLowerCase().includes("style"));
         if (idx === -1) continue;
+
         for (let i = 1; i < data.length; i++) {
-          if (String(data[i][idx]).trim() === styleCode) {
+          const cellVal = String(data[i][idx]).trim().toUpperCase();
+          if (cellVal === styleCode) {
             styleData = {};
             h.forEach((header, j) => styleData[header] = data[i][j]);
             break;
@@ -49,20 +50,24 @@ function doPost(e) {
       if (styleData) {
         styleData["photoBase64"] = findAndEncodeImage(styleCode, styleData["Image"] || styleData["Photo"] || "");
         return ContentService.createTextOutput(JSON.stringify({status:"ok", style: styleData})).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        // ON ARRÊTE TOUT ICI SI NON TROUVÉ
+        return ContentService.createTextOutput(JSON.stringify({status:"error", message: "Style '" + styleCode + "' introuvable dans le fichier Sheets."})).setMimeType(ContentService.MimeType.JSON);
       }
-      return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Style " + styleCode + " non trouvé"})).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // ── ACTIONS STANDARD (CREATE / UPDATE / DELETE) ──
+    // ── GESTION DONNÉES (CREATE/UPDATE/DELETE) ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheetKey = payload.sheet;
-    const rowIndex = payload.rowIndex;
-    const data = payload.data;
-    
+    if (!sheetKey) throw new Error("Paramètre 'sheet' manquant.");
+
     let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
     const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) throw new Error("Feuille '" + sheetName + "' introuvable.");
+
     const headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());
-    
+    const { rowIndex, data } = payload;
+
     if (action === "CREATE") sheet.appendRow(headers.map(h => data[h] ?? ""));
     else if (action === "UPDATE") {
       const r = sheet.getRange(rowIndex, 1, 1, headers.length);
