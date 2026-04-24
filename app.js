@@ -15,15 +15,22 @@ let GOOGLE_APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 // → convertit (2) et (3) en thumbnail public utilisable par tous les comptes :
 //   https://drive.google.com/thumbnail?id=FILE_ID&sz=w400
 function normalizeDriveUrl(url) {
-    if (!url) return "";
+    if (!url || typeof url !== 'string') return "";
     // Déjà un base64 ou thumbnail → intouché
     if (url.startsWith("data:") || url.includes("thumbnail?id=") || url.includes("googleusercontent.com/d/")) return url;
+    
     // Format /file/d/FILE_ID/
     const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (m1) return "https://lh3.googleusercontent.com/d/" + m1[1];
-    // Format ?id=FILE_ID ou open?id=FILE_ID
+
+    // Format ?id=FILE_ID ou open?id=FILE_ID ou uc?id=...
     const m2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (m2) return "https://lh3.googleusercontent.com/d/" + m2[1];
+
+    // Format drive.google.com/uc?export=download&id=...
+    const m3 = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+    if (m3) return "https://lh3.googleusercontent.com/d/" + m3[1];
+
     // Autre URL → retournée telle quelle
     return url;
 }
@@ -337,8 +344,11 @@ async function fetchAllData() {
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
         const fixRows = (rows) => (rows || []).map((r, i) => {
-            // Normalise _imageUrl depuis tous les noms de colonnes possibles
-            const rawImg = r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || "";
+            // Normalise _imageUrl depuis tous les noms de colonnes possibles (Détails, Custom Menus, etc.)
+            const rawImg = r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || 
+                           r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || 
+                           r["Picture"] || r["picture"] || r["Photo URL"] || r["StyleImage"] || 
+                           r["ImageUrl"] || r["imageUrl"] || r["ItemPhoto"] || r["Item Photo"] || "";
             return {
                 ...r,
                 _rowIndex: r._rowIndex ?? (i + 2),

@@ -50,6 +50,7 @@ function statusColor(status) {
  * FIX : ajout de _imageUrl (clé interne normalisée par app.js/fixRows)
  */
 function resolvePhotoUrl(style) {
+  if (!style) return '';
   return (
     style.photoBase64   ||  // déjà en base64 → priorité max
     style._imageUrl     ||  // clé normalisée par app.js (fixRows → normalizeDriveUrl)
@@ -62,6 +63,10 @@ function resolvePhotoUrl(style) {
     style.imageUrl      ||
     style.image         ||
     style.Image         ||
+    style.ImageURL      ||
+    style.imageURL      ||
+    style.url           ||
+    style.URL           ||
     ''
   );
 }
@@ -71,16 +76,24 @@ function resolvePhotoUrl(style) {
  * Retourne null si ce n'est pas une URL Drive reconnue.
  */
 function extractDriveFileId(url) {
-  if (!url || url.startsWith('data:')) return null;
-  // thumbnail?id=FILE_ID
-  const thumbMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (thumbMatch) return thumbMatch[1];
-  // lh3.googleusercontent.com/d/FILE_ID
+  if (!url || typeof url !== 'string' || url.startsWith('data:')) return null;
+
+  // 1. Format thumbnail?id=... ou uc?id=... ou open?id=...
+  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch) return idMatch[1];
+
+  // 2. Format lh3.googleusercontent.com/d/FILE_ID
   const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
   if (lh3Match) return lh3Match[1];
-  // drive.google.com/file/d/FILE_ID/
+
+  // 3. Format drive.google.com/file/d/FILE_ID/view...
   const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (fileMatch) return fileMatch[1];
+
+  // 4. Format drive.google.com/uc?export=download&id=...
+  const ucMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+).*&?uc/);
+  if (ucMatch) return ucMatch[1];
+
   return null;
 }
 
@@ -102,6 +115,27 @@ async function loadImageAsBase64(url) {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
 
+  // Helper interne pour forcer la conversion en JPEG via canvas (sécurise formats WebP/etc)
+  const forceToJpeg = async (dataUrl) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height); // fond blanc pour JPEG (si transparence)
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/jpeg', 0.9));
+        } catch(e) { resolve(dataUrl); }
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  };
+
   // ── Stratégie 1 : Proxy GAS (solution Drive authentifiée) ────────────
   const fileId = extractDriveFileId(url);
   if (fileId && window.GOOGLE_APPS_SCRIPT_URL &&
@@ -110,11 +144,23 @@ async function loadImageAsBase64(url) {
       const proxyUrl = window.GOOGLE_APPS_SCRIPT_URL +
         '?action=imageProxy&fileId=' + encodeURIComponent(fileId);
       console.log('[PDF] Proxy GAS :', proxyUrl);
-      const res = await fetch(proxyUrl);
+
+      // Ajout d'un timeout sur le fetch du proxy
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
+
       if (json.dataUrl) {
         console.log('[PDF] ✅ Image chargée via proxy GAS');
+        // Si WebP ou format bizarre, on force en JPEG pour jsPDF
+        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif')) {
+          return await forceToJpeg(json.dataUrl);
+        }
         return json.dataUrl;
       }
       if (json.error) throw new Error(json.error);
@@ -273,7 +319,18 @@ async function generateStylePDF(style) {
     if (imgData.startsWith('data:image/png'))  imgFormat = 'PNG';
     if (imgData.startsWith('data:image/webp')) imgFormat = 'WEBP';
 
-    doc.addImage(imgData, imgFormat, photoX, photoY, photoW, photoH, '', 'FAST');
+    try {
+      doc.addImage(imgData, imgFormat, photoX, photoY, photoW, photoH, '', 'FAST');
+    } catch (addImgErr) {
+      console.warn('[PDF] addImage échoué (format non supporté ?) :', addImgErr.message);
+      // Fallback discret : cadre gris avec info
+      doc.setFillColor(245, 247, 250);
+      doc.rect(photoX, photoY, photoW, photoH, 'F');
+      doc.setTextColor(...PDF_CONFIG.gray);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(7);
+      doc.text('Format image bloqué', photoX + photoW/2, photoY + photoH/2, { align: 'center' });
+    }
     doc.setDrawColor(...PDF_CONFIG.border);
     doc.setLineWidth(0.4);
     doc.rect(photoX, photoY, photoW, photoH);
