@@ -1,9 +1,8 @@
 // ============================================================
-// AW27 CHECKERS – Google Apps Script
+// AW27 CHECKERS – Google Apps Script (Version FINALE EXPERTE)
 // ============================================================
 
 const SPREADSHEET_ID = "1l8etAWJxSZTrv-Z5umNBzW-HSy4rC8pm3Kr5CsF3OnY";
-
 const PICTURES_FOLDER_NAME = "PICTURES";
 const PARENT_FOLDER_NAME   = "AW27 CHECKERS";
 
@@ -24,7 +23,7 @@ function getPicturesFolder() {
     }
     const directIter = DriveApp.getFoldersByName(PICTURES_FOLDER_NAME);
     if (directIter.hasNext()) return directIter.next();
-  } catch(err) { Logger.log("getPicturesFolder error: " + err.message); }
+  } catch(err) { Logger.log("Folder Error: " + err.message); }
   return null;
 }
 
@@ -34,10 +33,10 @@ function getPicturesFolderCached() {
   return _picturesFolder;
 }
 
-// Pour le Dashboard : URLs thumbnails (RAPIDE)
 function getStyleImageUrl(styleCode, imageCell) {
   try {
     function extractFileId(raw) {
+      if (!raw) return null;
       const mFd = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
       if (mFd) return mFd[1];
       const mId = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
@@ -72,18 +71,24 @@ function getStyleImageUrl(styleCode, imageCell) {
 
 function doGet(e) {
   try {
-    // ── ENDPOINT PROXY IMAGE (POUR LE PDF) ──
     const params = (e && e.parameter) ? e.parameter : {};
     const fId = (params.fileId || params.fileid || "").trim();
+
+    // ── PROXY IMAGE DÉDIÉ ──
     if (fId && fId.length > 20) {
-      const file = DriveApp.getFileById(fId);
-      const blob = file.getBlob();
-      const base64 = Utilities.base64Encode(blob.getBytes());
-      const dataUrl = "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
-      return ContentService.createTextOutput(JSON.stringify({status:"ok", dataUrl: dataUrl})).setMimeType(ContentService.MimeType.JSON);
+      try {
+        const file = DriveApp.getFileById(fId);
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        const dataUrl = "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
+        return ContentService.createTextOutput(JSON.stringify({status:"ok", dataUrl: dataUrl})).setMimeType(ContentService.MimeType.JSON);
+      } catch (imgErr) {
+        // En cas d'erreur Drive (ex: non partagé), on renvoie l'erreur en JSON
+        return ContentService.createTextOutput(JSON.stringify({status:"error", message: imgErr.message})).setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
-    // ── CHARGEMENT DONNÉES (POUR LE DASHBOARD) ──
+    // ── CHARGEMENT STANDARD ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const result = {};
     for (const [key, sheetName] of Object.entries(SHEET_NAMES)) {
@@ -115,14 +120,6 @@ function doGet(e) {
   }
 }
 
-function applyHeaderStyle(sheet, numCols) {
-  const range = sheet.getRange(1, 1, 1, numCols);
-  range.setFontWeight("bold");
-  range.setBackground("#f3f4f6");
-  range.setFontColor("#374151");
-  sheet.setFrozenRows(1);
-}
-
 function readSheet(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { rows: [] };
@@ -146,47 +143,32 @@ function readSheet(ss, sheetName) {
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents);
-    const { action, sheet: sheetKey, data, rowIndex } = payload;
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    if (action === "CREATE_SHEET") {
-      const sheetName = payload.sheetName;
-      const columns   = payload.columns || [];
-      let sheet = ss.getSheetByName(sheetName);
-      if (!sheet) sheet = ss.insertSheet(sheetName);
-      if (sheet.getLastRow() === 0 && columns.length > 0) {
-        sheet.appendRow(columns);
-        applyHeaderStyle(sheet, columns.length);
-      }
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
-    }
+    const { action, sheet: sheetKey, data, rowIndex } = payload;
+    
     if (action === "SAVE_MENUS") {
-      var menus = payload.menus || [];
-      var menusSheet = ss.getSheetByName("_Menus");
-      if (!menusSheet) { menusSheet = ss.insertSheet("_Menus"); menusSheet.hideSheet(); }
-      menusSheet.getRange(1, 1).setValue(JSON.stringify(menus));
+      var menusSheet = ss.getSheetByName("_Menus") || ss.insertSheet("_Menus");
+      menusSheet.getRange(1, 1).setValue(JSON.stringify(payload.menus || []));
       return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
     }
+    
     let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
     const sheet = ss.getSheetByName(sheetName);
     const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(h => String(h).trim());
-    function parseVal(val) {
-      if (!val || val === "") return "";
-      if (typeof val === "string" && /^\d{4}-\d{2}-\d{2}$/.test(val.trim())) {
-        const parts = val.trim().split("-");
-        return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    function p(v) { 
+      if (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
+        const d = v.split("-"); return new Date(d[0], d[1]-1, d[2]);
       }
-      return val;
+      return v; 
     }
-    if (action === "CREATE") {
-      sheet.appendRow(headers.map(h => parseVal(data[h] ?? "")));
-    } else if (action === "UPDATE") {
+    if (action === "CREATE") sheet.appendRow(headers.map(h => p(data[h] ?? "")));
+    else if (action === "UPDATE") {
       const rowRange = sheet.getRange(rowIndex, 1, 1, headers.length);
-      const rowValues = rowRange.getValues()[0];
-      const newVals = headers.map((h, i) => Object.prototype.hasOwnProperty.call(data, h) ? parseVal(data[h]) : rowValues[i]);
-      rowRange.setValues([newVals]);
-    } else if (action === "DELETE") {
-      sheet.deleteRow(rowIndex);
-    }
+      const cur = rowRange.getValues()[0];
+      const next = headers.map((h, i) => Object.prototype.hasOwnProperty.call(data, h) ? p(data[h]) : cur[i]);
+      rowRange.setValues([next]);
+    } else if (action === "DELETE") sheet.deleteRow(rowIndex);
+    
     return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);

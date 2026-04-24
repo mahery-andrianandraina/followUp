@@ -1,5 +1,5 @@
 // ============================================================
-//  AW27 CHECKERS – Style Detail PDF Generator
+//  AW27 CHECKERS – Style Detail PDF Generator (Version EXPERTE)
 // ============================================================
 
 (function injectJsPDF() {
@@ -17,27 +17,21 @@ const PDF_CONFIG = {
   dark:       [15,  23,  42],
   gray:       [100, 116, 139],
   border:     [203, 213, 225],
-  white:      [255, 255, 255],
-  success:    [34, 197, 94],
-  warning:    [234, 179,  8],
-  danger:     [239,  68,  68],
+  white:      [255, 255, 255]
 };
 
 function resolvePhotoUrl(style) {
   if (!style) return '';
-  return style.photoBase64 || style._imageUrl || style.Photo || style.photo || style.image || style.Image || '';
+  // Priorité aux clés normalisées
+  return style.photoBase64 || style._imageUrl || style.Photo || style.photo || style.Image || '';
 }
 
 function extractDriveFileId(url) {
   if (!url || typeof url !== 'string' || url.startsWith('data:')) return null;
-  const m1 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (m1) return m1[1];
-  const m2 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m2) return m2[1];
-  const m3 = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-  if (m3) return m3[1];
-  const m4 = url.match(/([a-zA-Z0-9_-]{25,})/);
-  if (m4 && !url.includes('.js') && !url.includes('.css')) return m4[1];
+  const m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/) || url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return m[1];
+  const m2 = url.match(/([a-zA-Z0-9_-]{25,})/);
+  if (m2 && !url.includes('.js') && !url.includes('.css')) return m2[1];
   return null;
 }
 
@@ -48,18 +42,25 @@ async function loadImageAsBase64(url) {
   const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
   const fileId = extractDriveFileId(url);
 
-  // ── STRATÉGIE 1 : PROXY GAS (POUR DRIVE) ──
   if (fileId && gasUrl && !gasUrl.includes('YOUR_WEB_')) {
     try {
-      const cleanUrl = gasUrl.split('?')[0];
-      const proxyUrl = cleanUrl + '?fileId=' + encodeURIComponent(fileId);
+      const proxyUrl = gasUrl.split('?')[0] + '?fileId=' + encodeURIComponent(fileId);
+      console.log('[PDF] 🔄 Proxy Drive pour ID:', fileId);
+      
       const res = await fetch(proxyUrl);
       const json = await res.json();
-      if (json.dataUrl) return json.dataUrl;
-    } catch (e) { console.warn('[PDF] Proxy Drive échoué'); }
+      
+      if (json.status === "ok" && json.dataUrl) {
+        return json.dataUrl;
+      } else {
+        console.error('[PDF] Erreur Proxy GAS:', json.message || 'ID non trouvé ou non partagé');
+      }
+    } catch (e) {
+      console.error('[PDF] Échec connexion Proxy GAS:', e.message);
+    }
   }
 
-  // ── STRATÉGIE 2 : FETCH DIRECT (POUR LE RESTE) ──
+  // Fallback direct (CORS)
   try {
     const res = await fetch(url, { mode: 'cors' });
     const blob = await res.blob();
@@ -69,69 +70,91 @@ async function loadImageAsBase64(url) {
       reader.readAsDataURL(blob);
     });
   } catch (e) {
-    console.error('[PDF] Échec chargement fini:', url);
+    console.warn('[PDF] Impossible de charger l\'image en direct (CORS/Permissions Drive)');
     return null;
   }
 }
 
 async function generateStylePDF(style) {
-  if (!window.jspdf) await new Promise(r => setTimeout(r, 1000));
+  if (!window.jspdf) {
+    console.log('[PDF] Attente jsPDF...');
+    await new Promise(r => setTimeout(r, 1500));
+  }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const W = 210, H = 297, M = 14;
 
-  // Header
+  // Header Banner
   doc.setFillColor(...PDF_CONFIG.primary);
   doc.rect(0, 0, W, 40, 'F');
   doc.setTextColor(...PDF_CONFIG.white);
+  doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.text('AW27 CHECKERS', M, 20);
   doc.setFontSize(14);
   doc.text('FICHE TECHNIQUE STYLE', M, 30);
 
   let y = 50;
-  // Style & Desc
+  // Style
   doc.setFontSize(18);
   doc.setTextColor(...PDF_CONFIG.primary);
   doc.text(style.Style || '—', M, y);
+  
+  // Description
   doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
   doc.setTextColor(...PDF_CONFIG.gray);
-  doc.text(style.Description || '', M, y + 7);
+  const desc = style.Description || '';
+  doc.text(desc.substring(0, 80), M, y + 8);
 
-  y += 15;
-  // Photo
-  const imgData = await loadImageAsBase64(resolvePhotoUrl(style));
+  y += 18;
+  // Photo Section
+  const photoUrl = resolvePhotoUrl(style);
+  console.log('[PDF] Chargement image:', photoUrl);
+  const imgData = await loadImageAsBase64(photoUrl);
+
   if (imgData) {
     try {
-      doc.addImage(imgData, 'JPEG', M, y, 70, 70);
-    } catch (e) { doc.rect(M, y, 70, 70); doc.text('Format incompatible', M+5, y+35); }
+      // Auto-détection du format PNG/JPEG
+      const format = imgData.includes('image/png') ? 'PNG' : 'JPEG';
+      doc.addImage(imgData, format, M, y, 75, 75, undefined, 'FAST');
+    } catch (e) {
+      console.warn('[PDF] addImage error:', e.message);
+      doc.rect(M, y, 75, 75);
+      doc.text('Image incompatible', M + 15, y + 38);
+    }
   } else {
     doc.setDrawColor(...PDF_CONFIG.border);
-    doc.rect(M, y, 70, 70);
-    doc.text('Pas de photo', M + 20, y + 35);
+    doc.rect(M, y, 75, 75);
+    doc.setTextColor(...PDF_CONFIG.gray);
+    doc.text('Photo non disponible', M + 12, y + 38);
   }
 
-  // Infos
-  const infoX = M + 80;
+  // Infos Grid
+  const xInfo = M + 85;
   let iy = y + 5;
   const fields = [
-    ['Client', style.Client],
-    ['Saison', style.Saison],
-    ['Dept', style.Dept],
-    ['Fabric', style['Fabric Base']],
-    ['Costing', style.Costing],
-    ['Qty', style['Order Qty']]
+    { L: 'Client',       V: style.Client },
+    { L: 'Saison',       V: style.Saison },
+    { L: 'Département',  V: style.Dept },
+    { L: 'Fabric Base',  V: style['Fabric Base'] },
+    { L: 'Costing',      V: style.Costing },
+    { L: 'Order Qty',    V: style['Order Qty'] }
   ];
+
   fields.forEach(f => {
     doc.setFontSize(8); doc.setTextColor(...PDF_CONFIG.gray);
-    doc.text(f[0], infoX, iy);
+    doc.setFont('helvetica', 'bold');
+    doc.text(f.L.toUpperCase(), xInfo, iy);
     doc.setFontSize(10); doc.setTextColor(...PDF_CONFIG.dark);
-    doc.text(String(f[1] || '—'), infoX, iy + 5);
+    doc.text(String(f.V || '—'), xInfo, iy + 5);
     iy += 12;
   });
 
   doc.save(`Style_${style.Style || 'Export'}.pdf`);
+  console.log('[PDF] Génération terminée.');
 }
 
+// Exposition globale
 window.AWCheckers = window.AWCheckers || {};
 window.AWCheckers.generateStylePDF = generateStylePDF;
