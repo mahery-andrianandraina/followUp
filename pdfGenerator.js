@@ -158,7 +158,7 @@ async function loadImageAsBase64(url) {
       console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours pour ID :', fileId);
       
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s pour le proxy
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s pour le proxy
 
       const res = await fetch(proxyUrl, { signal: controller.signal });
       clearTimeout(timeoutId);

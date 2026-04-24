@@ -132,12 +132,30 @@ function doGet(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
       try {
-        const file = DriveApp.getFileById(fileId);
-        const blob = file.getBlob();
-        const contentType = blob.getContentType() || "image/jpeg";
-        const bytes = blob.getBytes();
+        // Optimisation : au lieu de charger le fichier COMPLET (qui peut peser 10 Mo), 
+        // on demande à Google le thumbnail à 400px, beaucoup plus léger.
+        const thumbUrl = "https://drive.google.com/thumbnail?id=" + fileId + "&sz=w400";
+        const res = UrlFetchApp.fetch(thumbUrl, {
+          headers: { Authorization: "Bearer " + ScriptApp.getOAuthToken() },
+          muteHttpExceptions: true
+        });
+
+        let blob, contentType, bytes;
+        if (res.getResponseCode() === 200) {
+          blob = res.getBlob();
+          contentType = blob.getContentType() || "image/jpeg";
+          bytes = blob.getBytes();
+        } else {
+          // Fallback : lecture du fichier original si le thumbnail échoue
+          const file = DriveApp.getFileById(fileId);
+          blob = file.getBlob();
+          contentType = blob.getContentType() || "image/jpeg";
+          bytes = blob.getBytes();
+        }
+
         const base64 = Utilities.base64Encode(bytes);
         const dataUrl = "data:" + contentType + ";base64," + base64;
+        
         return ContentService
           .createTextOutput(JSON.stringify({ status: "ok", dataUrl: dataUrl }))
           .setMimeType(ContentService.MimeType.JSON);
