@@ -1,5 +1,5 @@
 // ============================================================
-// AW27 CHECKERS – Google Apps Script (FINAL SURVIVAL MODE)
+// AW27 CHECKERS – Universal Image Search (CORRECTED)
 // ============================================================
 
 const SPREADSHEET_ID = "1l8etAWJxSZTrv-Z5umNBzW-HSy4rC8pm3Kr5CsF3OnY";
@@ -8,21 +8,18 @@ function doGet(e) {
   try {
     const params = e.parameter || {};
     const action = params.action || "";
-    const styleCode = params.styleCode || "";
+    const styleCode = (params.styleCode || "").trim();
 
-    // ── ACTION PDF : RÉCUPÉRATION COMPLÈTE DU STYLE + IMAGE ──
     if (action === "GET_STYLE" && styleCode) {
       const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
       const sheets = ss.getSheets();
       let styleData = null;
-      let headers = [];
 
-      // Recherche universelle du style dans TOUTES les feuilles
       for (let s of sheets) {
         if (s.getName() === "_Menus") continue;
         const data = s.getDataRange().getValues();
         if (data.length < 1) continue;
-        headers = data[0].map(h => String(h).trim());
+        const headers = data[0].map(h => String(h).trim());
         const styleIdx = headers.findIndex(h => h.toLowerCase() === "style");
         if (styleIdx === -1) continue;
 
@@ -37,19 +34,17 @@ function doGet(e) {
       }
 
       if (styleData) {
-        // Recherche d'image ultra-poussée
-        const imageCell = styleData["Image"] || styleData["Photo"] || styleData["photo"] || styleData["image"] || "";
-        styleData["photoBase64"] = findAndEncodeImage(styleCode, imageCell);
+        styleData["photoBase64"] = findAndEncodeImage(styleCode, styleData["Image"] || styleData["Photo"] || "");
+        // CRITIQUE : Ajout du return explicite ici !
         return ContentService.createTextOutput(JSON.stringify({status:"ok", style: styleData})).setMimeType(ContentService.MimeType.JSON);
       }
-      return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Style non trouvé"})).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({status:"error", message:"Style " + styleCode + " non trouvé dans les feuilles"})).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // ── CHARGEMENT DASHBOARD (VIGNETTES RAPIDES) ──
+    // Dashboard
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const result = { details: readSheet(ss, "Details"), style: readSheet(ss, "Style"), sample: readSheet(ss, "Sample"), ordering: readSheet(ss, "Ordering") };
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result })).setMimeType(ContentService.MimeType.JSON);
-
+    const res = { details: readSheet(ss, "Details"), style: readSheet(ss, "Style"), sample: readSheet(ss, "Sample"), ordering: readSheet(ss, "Ordering") };
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: res })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -58,18 +53,20 @@ function doGet(e) {
 function findAndEncodeImage(styleCode, imageCell) {
   try {
     let fId = "";
-    // 1. Essayer d'extraire un ID de la cellule
-    const m = String(imageCell).match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || String(imageCell).match(/[?&]id=([a-zA-Z0-9_-]+)/) || String(imageCell).match(/^([a-zA-Z0-9_-]{25,})$/);
-    if (m) fId = m[1] || m[0];
+    // 1. Recherche par ID direct
+    const m = String(imageCell).match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || String(imageCell).match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (m) fId = m[1];
 
-    // 2. Si pas d'ID, chercher par NOM DE FICHIER dans tout le Drive
+    // 2. Recherche par Nom exact (avec .JPG ou .jpg)
     if (!fId) {
-      const fileName = imageCell || (styleCode + ".jpg");
-      const files = DriveApp.getFilesByName(String(fileName).trim());
-      if (files.hasNext()) fId = files.next().getId();
+      const names = [styleCode + ".JPG", styleCode + ".jpg", styleCode + ".jpeg", styleCode + ".png"];
+      for (let name of names) {
+        const files = DriveApp.getFilesByName(name);
+        if (files.hasNext()) { fId = files.next().getId(); break; }
+      }
     }
     
-    // 3. Fallback : chercher n'importe quel fichier commençant par le code style
+    // 3. Recherche floue
     if (!fId) {
       const files = DriveApp.searchFiles("title contains '" + styleCode + "'");
       if (files.hasNext()) fId = files.next().getId();

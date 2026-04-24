@@ -29,6 +29,7 @@ async function generateStylePDF(style) {
     
     if (json.status !== "ok") throw new Error(json.message);
     const s = json.style;
+    if (!s) throw new Error("Le serveur a répondu 'OK' mais n'a pas renvoyé les données du style.");
 
     // 2. Attente jsPDF
     if (!window.jspdf) {
