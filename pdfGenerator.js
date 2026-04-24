@@ -142,89 +142,40 @@ async function loadImageAsBase64(url) {
 
   // 🔍 DIAGNOSTIC LOG : Voir exactement quelle URL arrive ici
   console.log('[PDF] 📥 Tentative de chargement :', url ? (url.substring(0, 80) + '...') : '(vide)');
-
-  // ── Stratégie 1 : Proxy GAS (solution Drive authentifiée) ────────────
-  const fileId = extractDriveFileId(url);
   const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
-  
-  if (!fileId) console.log('[PDF] ℹ️ Stratégie 1 ignorée : Pas un ID Drive reconnu.');
-  if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') console.log('[PDF] ⚠️ Stratégie 1 ignorée : URL GAS non configurée.');
+  const fileId = extractDriveFileId(url);
 
-  if (fileId && gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
+  if (fileId && gasUrl && !gasUrl.includes('YOUR_WEB_')) {
     try {
-      // On retire tout paramètre 'action' existant pour éviter les conflits
-      let baseUrl = gasUrl.split('?')[0];
-      const proxyUrl = baseUrl + '?fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
+      const cleanUrl = gasUrl.split('?')[0];
+      const proxyUrl = cleanUrl + '?fileId=' + encodeURIComponent(fileId) + '&_cb=' + Date.now();
       
-      console.log('[PDF] 🚀 Stratégie 1 (Proxy) en cours...');
-      console.log('[PDF] 🔗 TEST MANUEL (cliquez ici) :', proxyUrl);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); 
-
-      const res = await fetch(proxyUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      let json;
-      try {
-        json = JSON.parse(text);
-      } catch(e) {
-        throw new Error('Réponse non-JSON reçue (cliquez sur le lien de test bleu pour voir l\'erreur).');
-      }
+      const res = await fetch(proxyUrl);
+      const json = await res.json();
 
       if (json.dataUrl) {
-        console.log('[PDF] ✅ Image chargée via proxy GAS');
-        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif') || json.dataUrl.includes('image/octet-stream')) {
+        if (json.dataUrl.includes('image/webp') || json.dataUrl.includes('image/avif')) {
           return await forceToJpeg(json.dataUrl);
         }
         return json.dataUrl;
       }
-      throw new Error(json.error || 'Champ dataUrl manquant.');
-    } catch (proxyErr) {
-      console.warn('[PDF] ❌ Proxy GAS échoué :', proxyErr.message);
+    } catch (e) {
+      console.warn('[PDF] Proxy échoué, essai direct...');
     }
-  } else {
-     if (!fileId) console.log('[PDF] ℹ️ Stratégie 1 sautée : Pas une image Drive.');
-     if (!gasUrl || gasUrl.includes('YOUR_WEB_')) console.log('[PDF] ⚠️ Stratégie 1 sautée : URL GAS non configurée.');
   }
 
-  // ── Stratégie 2 : fetch() CORS (URLs non-Drive) ──────────────────────
   try {
     const res = await fetch(url, { mode: 'cors' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const blob = await res.blob();
-    return await new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
-      reader.onerror  = () => reject(new Error('FileReader error'));
       reader.readAsDataURL(blob);
     });
-  } catch (fetchErr) {
-    console.warn('[PDF] fetch() CORS échoué :', fetchErr.message);
+  } catch (err) {
+    console.error('[PDF] Impossible de charger l\'image:', url);
+    return null;
   }
-
-  // ── Stratégie 3 : <img> + canvas sans crossOrigin (dernier recours) ──
-  return new Promise((resolve) => {
-    const img = new Image();
-    const timeoutId = setTimeout(() => { img.src = ''; resolve(null); }, 5000);
-    img.onload = () => {
-      clearTimeout(timeoutId);
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth  || 400;
-        canvas.height = img.naturalHeight || 400;
-        canvas.getContext('2d').drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      } catch (e) {
-        console.warn('[PDF] Canvas tainted (image authentifiée Drive) :', e.message);
-        resolve(null);
-      }
-    };
-    img.onerror = () => { clearTimeout(timeoutId); resolve(null); };
-    img.src = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
-  });
 }
 
 // ------ 4. GENERATEUR PRINCIPAL -----------------------------

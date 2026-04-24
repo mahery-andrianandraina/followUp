@@ -122,70 +122,55 @@ function getStyleImageUrl(styleCode, imageCell) {
 function doGet(e) {
   try {
     // ── PRIORITÉ ABSOLUE : Si on demande une image, on s'arrête là et on la renvoie ──
-    const fileId = (e && e.parameter && (e.parameter.fileId || e.parameter.fileid)) ? String(e.parameter.fileId || e.parameter.fileid).trim() : "";
+    const params = (e && e.parameter) ? e.parameter : {};
+    const fId = (params.fileId || params.fileid || "").trim();
     
-    if (fileId && fileId.length > 20) {
+    if (fId && fId.length > 20) {
       try {
-        const file = DriveApp.getFileById(fileId);
+        const file = DriveApp.getFileById(fId);
         const blob = file.getBlob();
         const base64 = Utilities.base64Encode(blob.getBytes());
         const dataUrl = "data:" + (blob.getContentType() || "image/jpeg") + ";base64," + base64;
         return ContentService.createTextOutput(JSON.stringify({status:"ok", dataUrl: dataUrl})).setMimeType(ContentService.MimeType.JSON);
-      } catch (imgErr) {
-        return ContentService.createTextOutput(JSON.stringify({status:"error", error: "Drive: " + imgErr.message})).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({status:"error", error: "Drive: " + err.message})).setMimeType(ContentService.MimeType.JSON);
       }
     }
 
-    const action = (e && e.parameter && e.parameter.action) ? String(e.parameter.action) : "";
-
+    // Sinon, chargement normal des données
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const result = {};
-
-    // ── Feuilles fixes
     for (const [key, sheetName] of Object.entries(SHEET_NAMES)) {
       result[key] = readSheet(ss, sheetName);
     }
 
-    // ── Injecter _imageUrl pour TOUTES les feuilles (Details, Sample, Ordering + Customs) ──
     for (const key in result) {
       if (result[key] && result[key].rows) {
         result[key].rows = result[key].rows.map(function(row) {
-          // Chercher dans "Image", "Photo", "photo", "Picture", etc.
           const imageCell = row["Image"] || row["Photo"] || row["image"] || row["photo"] || row["Picture"] || row["ImageUrl"] || "";
-          // getStyleImageUrl cherche soit par ID/URL dans la cellule, soit par code Style dans PICTURES
           const imageData = getStyleImageUrl(row["Style"] || "", imageCell);
           return Object.assign({}, row, { _imageUrl: imageData });
         });
       }
     }
 
-    // ── Feuilles custom — clé = vrai nom de la feuille
     const fixedNames = new Set(Object.values(SHEET_NAMES));
     ss.getSheets().forEach(sheet => {
       const name = sheet.getName();
-      if (!fixedNames.has(name)) {
-        result[name] = readSheet(ss, name);
-      }
+      if (!fixedNames.has(name)) result[name] = readSheet(ss, name);
     });
 
-    // ── Charger les menus custom depuis la feuille _Menus
     var menus = [];
     var menusSheet = ss.getSheetByName("_Menus");
     if (menusSheet && menusSheet.getLastRow() >= 1) {
       var menusJson = menusSheet.getRange(1, 1).getValue();
-      if (menusJson) {
-        try { menus = JSON.parse(menusJson); } catch(e) {}
-      }
+      if (menusJson) { try { menus = JSON.parse(menusJson); } catch(e) {} }
     }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "ok", data: result, menus: menus }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result, menus: menus })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ status: "error", message: err.message }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
