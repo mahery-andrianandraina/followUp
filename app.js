@@ -2536,18 +2536,28 @@ function collectAllAlerts() {
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
             const urgency = days >= 14 ? "high" : days >= 7 ? "mid" : "low";
-            const awbPart = hasAwb ? ` under AWB ${r["AWB"]}` : "";
+            const awbPart = hasAwb ? ` · AWB : ${r["AWB"]}` : "";
+            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
+            const fabricPart = r["Fabric"] || "";
+            const sizePart = r["Size"] || "";
+            const deptPart = r["Dept"] || "";
+            const typePart = r["Type"] || "";
+            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
+            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
+            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
+            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
+            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-approve", tagCls: "tag-approve",
-                tagLabel: `${ICONS.clock} Envoyé au client — approval en attente ${days}j`,
-                title: `Sample envoyée au client${awbPart} — approval en attente depuis ${days}j`,
+                tagLabel: `${ICONS.clock} Envoyé au client — approval en attente ${days}j${colorPart ? " · " + colorPart : ""}`,
+                title: `Sample envoyée au client — approval en attente depuis ${days}j${colorLabel}${typeLabel}`,
                 action: urgency === "high"
-                    ? `Envoyé il y a ${days}j — relancer le client de toute urgence`
+                    ? `Envoyé il y a ${days}j — relancer le client de toute urgence${colorLabel}`
                     : urgency === "mid"
-                        ? `Envoyé il y a ${days}j — envoyer un rappel au client`
-                        : `Envoyé il y a ${days}j — attendre ou envoyer un suivi`,
+                        ? `Envoyé il y a ${days}j — envoyer un rappel au client${colorLabel}`
+                        : `Envoyé il y a ${days}j — attendre ou envoyer un suivi${colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Envoyé le : ${_fmtDate(r["Sending Date"])}${hasAwb ? " · AWB : " + r["AWB"] : ""}${r.Type ? " · " + r.Type : ""}`,
+                meta: `Envoyé le : ${_fmtDate(r["Sending Date"])}${awbPart}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
                 urgency, sheet: "sample", rowIndex: r._rowIndex
             });
             return;
@@ -2556,13 +2566,23 @@ function collectAllAlerts() {
         if (hasReceived) {
             const days = Math.abs(_daysDiff(r["Received Date"]));
             const daysLabel = days === 0 ? "reçue aujourd'hui" : days === 1 ? "reçue hier" : `reçue il y a ${days}j`;
+            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
+            const fabricPart = r["Fabric"] || "";
+            const sizePart = r["Size"] || "";
+            const deptPart = r["Dept"] || "";
+            const typePart = r["Type"] || "";
+            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
+            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
+            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
+            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
+            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-send", tagCls: "tag-send",
-                tagLabel: `${ICONS.package} À envoyer (${daysLabel})`,
-                title: "Sample reçue — à envoyer au client",
-                action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date`,
+                tagLabel: `${ICONS.package} À envoyer (${daysLabel})${colorPart ? " · " + colorPart : ""}`,
+                title: `Sample reçue — à envoyer au client${colorLabel}${typeLabel}`,
+                action: `Sample ${daysLabel} — organiser l'envoi et renseigner la Sending Date${colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Reçue le : ${_fmtDate(r["Received Date"])}${r.Type ? " · " + r.Type : ""}${r.Size ? " · Taille " + r.Size : ""}`,
+                meta: `Reçue le : ${_fmtDate(r["Received Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
                 urgency: days >= 3 ? "mid" : "low", sheet: "sample", rowIndex: r._rowIndex
             });
             return;
@@ -2572,23 +2592,43 @@ function collectAllAlerts() {
         const diff = _daysDiff(r["Ready Date"]);
         if (diff < 0) {
             const days = Math.abs(diff);
+            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
+            const fabricPart = r["Fabric"] || "";
+            const sizePart = r["Size"] || "";
+            const deptPart = r["Dept"] || "";
+            const typePart = r["Type"] || "";
+            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
+            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
+            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
+            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
+            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-late", tagCls: "tag-late",
-                tagLabel: `${ICONS.alert} Sample non reçue — ${days}j de retard`,
-                title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}`,
-                action: "Relancer la factory pour confirmer l'avancement de la sample",
+                tagLabel: `${ICONS.alert} Sample non reçue — ${days}j de retard${colorPart ? " · " + colorPart : ""}`,
+                title: `Sample non reçue — Ready Date dépassée de ${days} jour${days > 1 ? "s" : ""}${colorLabel}${typeLabel}`,
+                action: `Relancer la factory pour confirmer l'avancement de la sample${colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type ? " · " + r.Type : ""}${r.Fabric ? " · " + r.Fabric : ""}`,
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
                 urgency: "high", sheet: "sample", rowIndex: r._rowIndex
             });
         } else if (diff === 0) {
+            const colorPart = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
+            const fabricPart = r["Fabric"] || "";
+            const sizePart = r["Size"] || "";
+            const deptPart = r["Dept"] || "";
+            const typePart = r["Type"] || "";
+            const colorLabel = colorPart ? ` · Coloris : ${colorPart}` : "";
+            const fabricLabel = fabricPart ? ` · Fabric : ${fabricPart}` : "";
+            const sizeLabel = sizePart ? ` · Size : ${sizePart}` : "";
+            const deptLabel = deptPart ? ` · Dept : ${deptPart}` : "";
+            const typeLabel = typePart ? ` · ${typePart}` : "";
             samItems.push({
                 dotCls: "dot-today", tagCls: "tag-today",
-                tagLabel: `${ICONS.clock} Sample attendue aujourd'hui`,
-                title: "Sample attendue aujourd'hui — prévoir la réception",
-                action: "Confirmer la réception dès réception de la sample",
+                tagLabel: `${ICONS.clock} Sample attendue aujourd'hui${colorPart ? " · " + colorPart : ""}`,
+                title: `Sample attendue aujourd'hui — prévoir la réception${colorLabel}${typeLabel}`,
+                action: `Confirmer la réception dès réception de la sample${colorLabel}`,
                 style: r.Style || "—", client: r.Client || "",
-                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${r.Type ? " · " + r.Type : ""}${r.Fabric ? " · " + r.Fabric : ""}`,
+                meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${typeLabel}${colorLabel}${fabricLabel}${sizeLabel}${deptLabel}`,
                 urgency: "low", sheet: "sample", rowIndex: r._rowIndex
             });
         }
@@ -2990,14 +3030,21 @@ function collectAllAlerts() {
                     const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                     const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
                     const colorSuffix = !det.isFabricDevo && colorVal ? ` · ${colorVal}` : "";
+                    // Détails enrichis (Pre Shipment, Marketing, etc.)
+                    const deptVal = r["Dept"] || r["dept"] || r["Department"] || "";
+                    const sizeVal = r["Size"] || r["size"] || "";
+                    const remarksVal = r["Remarks"] || r["Comments"] || r["Notes"] || "";
+                    const deptLabel = deptVal ? ` · Dept : ${deptVal}` : "";
+                    const sizeLabel = sizeVal ? ` · Size : ${sizeVal}` : "";
+                    const remarksLabel = remarksVal ? ` · ${remarksVal}` : "";
 
                     items.push({
                         dotCls: "dot-send", tagCls: "tag-send",
                         tagLabel: `📦 À envoyer (${daysLabel})${colorSuffix}`,
-                        title: `${fabricPrefix}Re\u00e7u \u2014 \u00e0 envoyer au client${colorSuffix}${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
-                        action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi`,
+                        title: `${fabricPrefix}Reçu — à envoyer au client${colorSuffix}${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}`,
+                        action: `${daysLabel.charAt(0).toUpperCase() + daysLabel.slice(1)} — organiser l'envoi${colorVal && !det.isFabricDevo ? " · Coloris : " + colorVal : ""}`,
                         style: getStyle(r), client: getClient(r),
-                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}`,
+                        meta: `Reçu le : ${_fmtDate(r[det.receivedDate])}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}${deptLabel}${sizeLabel}${remarksLabel}`,
                         urgency: days >= 3 ? "mid" : "low", sheet: key, rowIndex: r._rowIndex
                     });
                 } else if (hasSending) {
@@ -3008,14 +3055,23 @@ function collectAllAlerts() {
                     const styleVal = getStyle(r);
                     const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                     const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                    // Détails enrichis (Pre Shipment, Marketing, etc.)
+                    const deptVal = r["Dept"] || r["dept"] || r["Department"] || "";
+                    const sizeVal = r["Size"] || r["size"] || "";
+                    const remarksVal = r["Remarks"] || r["Comments"] || r["Notes"] || "";
+                    const awbVal = det.awb && r[det.awb] ? String(r[det.awb]).trim() : (r["AWB"] || r["Tracking"] || r["Bordereau"] || "");
+                    const deptLabel = deptVal ? ` · Dept : ${deptVal}` : "";
+                    const sizeLabel = sizeVal ? ` · Size : ${sizeVal}` : "";
+                    const remarksLabel = remarksVal ? ` · ${remarksVal}` : "";
+                    const awbLabel = awbVal ? ` · AWB : ${awbVal}` : "";
 
                     items.push({
                         dotCls: "dot-approve", tagCls: "tag-approve",
-                        tagLabel: `⏳ Approval ${days}j${urgencyLabel}`,
-                        title: `${fabricPrefix}Envoy\u00e9 \u2014 approbation en attente depuis ${days}j${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " \u00B7 FSR " + fsrStr : ""}`,
-                        action: urgency === "high" ? "Relancer de toute urgence" : urgency === "mid" ? "Envoyer un rappel" : "Attendre ou relancer",
+                        tagLabel: `⏳ Approval ${days}j${urgencyLabel}${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
+                        title: `${fabricPrefix}Envoyé — approbation en attente depuis ${days}j${!det.isFabricDevo && !det.isFabricAnalysis && fsrStr ? " · FSR " + fsrStr : ""}${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
+                        action: urgency === "high" ? `Relancer de toute urgence${colorVal && !det.isFabricDevo ? " — Coloris : " + colorVal : ""}` : urgency === "mid" ? `Envoyer un rappel${colorVal && !det.isFabricDevo ? " — Coloris : " + colorVal : ""}` : "Attendre ou relancer",
                         style: getStyle(r), client: getClient(r),
-                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${getFsr(r)}`,
+                        meta: `Envoyé le : ${_fmtDate(r[det.sendingDate])}${awbLabel}${colorVal ? " · Couleur : " + colorVal : ""}${getFsr(r)}${deptLabel}${sizeLabel}${remarksLabel}`,
                         urgency, sheet: key, rowIndex: r._rowIndex
                     });
                 }
@@ -3047,36 +3103,42 @@ function collectAllAlerts() {
                 const styleVal = getStyle(r);
                 const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : "";
                 const fabricPrefix = det.isFabricDevo ? `FSR ${fsrStr || "—"} ${styleVal} ${colorVal} — ` : "";
+                // Détails enrichis
+                const deptVal = r["Dept"] || r["dept"] || r["Department"] || "";
+                const sizeVal = r["Size"] || r["size"] || "";
+                const deptLabel = deptVal ? ` · Dept : ${deptVal}` : "";
+                const sizeLabel = sizeVal ? ` · Size : ${sizeVal}` : "";
+                const colorLabel = colorVal && !det.isFabricDevo ? ` · Coloris : ${colorVal}` : "";
 
                 if (diff < 0) {
                     const days = Math.abs(diff);
                     items.push({
                         dotCls: "dot-late", tagCls: "tag-late",
-                        tagLabel: `🔴 En retard — ${days}j`,
-                        title: `${fabricPrefix}Ready Date dépassée de ${days}j — non reçu`,
-                        action: "Relancer la factory pour confirmer l'avancement",
+                        tagLabel: `🔴 En retard — ${days}j${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
+                        title: `${fabricPrefix}Ready Date dépassée de ${days}j — non reçu${colorLabel}`,
+                        action: `Relancer la factory pour confirmer l'avancement${colorLabel}`,
                         style: getStyle(r), client: getClient(r),
-                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${colorLabel}${deptLabel}${sizeLabel}`,
                         urgency: "high", sheet: key, rowIndex: r._rowIndex
                     });
                 } else if (diff === 0) {
                     items.push({
                         dotCls: "dot-today", tagCls: "tag-today",
-                        tagLabel: `🟡 Attendu aujourd'hui`,
-                        title: `${fabricPrefix}Ready Date aujourd'hui — prévoir la réception`,
-                        action: "Confirmer la réception dès réception",
+                        tagLabel: `🟡 Attendu aujourd'hui${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
+                        title: `${fabricPrefix}Ready Date aujourd'hui — prévoir la réception${colorLabel}`,
+                        action: `Confirmer la réception dès réception${colorLabel}`,
                         style: getStyle(r), client: getClient(r),
-                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${colorLabel}${deptLabel}${sizeLabel}`,
                         urgency: "low", sheet: key, rowIndex: r._rowIndex
                     });
                 } else {
                     items.push({
                         dotCls: "dot-risk", tagCls: "tag-risk",
-                        tagLabel: `🕐 Dans ${diff}j`,
-                        title: `${fabricPrefix}En attente de réception — prêt dans ${diff} jour${diff > 1 ? "s" : ""}`,
-                        action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}`,
+                        tagLabel: `🕐 Dans ${diff}j${colorVal && !det.isFabricDevo ? " · " + colorVal : ""}`,
+                        title: `${fabricPrefix}En attente de réception — prêt dans ${diff} jour${diff > 1 ? "s" : ""}${colorLabel}`,
+                        action: `Prévoir la réception le ${_fmtDate(r[det.readyDate])}${colorLabel}`,
                         style: getStyle(r), client: getClient(r),
-                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}`,
+                        meta: `Ready Date : ${_fmtDate(r[det.readyDate])}${getFsr(r)}${colorLabel}${deptLabel}${sizeLabel}`,
                         urgency: "low", sheet: key, rowIndex: r._rowIndex
                     });
                 }
