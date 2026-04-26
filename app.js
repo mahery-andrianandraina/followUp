@@ -125,6 +125,8 @@ const SHEET_CONFIG = {
         ]
     }
 };
+window.SHEET_CONFIG = SHEET_CONFIG;
+
 
 // ─── State ────────────────────────────────────────────────────
 let state = {
@@ -135,6 +137,8 @@ let state = {
     searchQuery: "", filterDept: "", filterClient: "",
     sortCol: null, sortDir: 1
 };
+window.state = state;
+
 
 // ─── DOM Refs ────────────────────────────────────────────────
 const $ = id => document.getElementById(id);

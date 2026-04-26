@@ -458,8 +458,12 @@
         const data = state.data || {};
         const details = data.details || [];
 
-        // Retry si Firebase pas encore chargé (max 30 × 500ms = 15s)
-        if (!details.length && _nsPopulateRetries < 30) {
+        // Attendre que les données soient chargées (state.loading === false)
+        // On vérifie aussi details.length par sécurité pour les anciens comportements
+        const isLoading = state.loading !== false;
+        const hasNoDetails = !details.length;
+
+        if (isLoading && hasNoDetails && _nsPopulateRetries < 30) {
             _nsPopulateRetries++;
             setTimeout(nsPopulateChips, 500);
             return;
