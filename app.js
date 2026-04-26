@@ -18,7 +18,7 @@ function normalizeDriveUrl(url) {
     if (!url || typeof url !== 'string') return "";
     // Déjà un base64 ou thumbnail → intouché
     if (url.startsWith("data:") || url.includes("thumbnail?id=") || url.includes("googleusercontent.com/d/")) return url;
-    
+
     // Format /file/d/FILE_ID/
     const m1 = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
     if (m1) return "https://lh3.googleusercontent.com/d/" + m1[1];
@@ -154,11 +154,11 @@ const modalSubTitle = $("modal-subtitle");
 const formFields = $("form-fields");
 const formSave = $("form-save");
 const confirmOverlay = $("confirm-overlay");
-const confirmTitle   = $("confirm-title");
-const confirmH3      = $("confirm-h3");
-const confirmText    = $("confirm-text");
+const confirmTitle = $("confirm-title");
+const confirmH3 = $("confirm-h3");
+const confirmText = $("confirm-text");
 const confirmActionBtn = $("confirm-action-btn");
-const confirmIconWrap  = $("confirm-icon-wrap");
+const confirmIconWrap = $("confirm-icon-wrap");
 const toastContainer = $("toast-container");
 
 // ─── Init ─────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ async function initApp() {
     // Récupérer le GAS URL depuis le profil Firebase
     if (window.currentUser && window.currentUser.gasUrl) {
         GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
-        window.GOOGLE_APPS_SCRIPT_URL = GOOGLE_APPS_SCRIPT_URL; 
+        window.GOOGLE_APPS_SCRIPT_URL = GOOGLE_APPS_SCRIPT_URL;
         console.log("[AW27] URL GAS configurée :", window.GOOGLE_APPS_SCRIPT_URL);
     }
 
@@ -249,7 +249,7 @@ function _openFirstSetupModal() {
     document.getElementById("usm-avatar").innerHTML = u.photoURL
         ? `<img class="usm-photo" src="${u.photoURL}" alt="Photo"/>`
         : `<div class="usm-initials">${initials}</div>`;
-    document.getElementById("usm-name").textContent  = u.displayName || "—";
+    document.getElementById("usm-name").textContent = u.displayName || "—";
     document.getElementById("usm-email").textContent = u.email || "—";
 
     requestAnimationFrame(() => modal.classList.add("open"));
@@ -351,13 +351,13 @@ async function fetchAllData() {
         const fixRows = (rows) => (rows || []).map((r, i) => {
             // Si le backend a déjà injecté un _imageUrl valide (thumbnail Drive), on le garde !
             const hasValidImage = r._imageUrl && (r._imageUrl.includes("thumbnail?id=") || r._imageUrl.includes("googleusercontent.com/d/"));
-            
+
             const rawImg = hasValidImage ? r._imageUrl :
-                           (r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] || 
-                            r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] || 
-                            r["Picture"] || r["picture"] || r["Photo URL"] || r["StyleImage"] || 
-                            r["ImageUrl"] || r["imageUrl"] || r["ItemPhoto"] || r["Item Photo"] || "");
-            
+                (r["_imageUrl"] || r["Photo"] || r["photo"] || r["Image"] || r["image"] ||
+                    r["Image URL"] || r["ImageURL"] || r["image_url"] || r["photo_url"] ||
+                    r["Picture"] || r["picture"] || r["Photo URL"] || r["StyleImage"] ||
+                    r["ImageUrl"] || r["imageUrl"] || r["ItemPhoto"] || r["Item Photo"] || "");
+
             return {
                 ...r,
                 _rowIndex: r._rowIndex ?? (i + 2),
@@ -394,9 +394,9 @@ async function fetchAllData() {
         state.loading = false;
 
         // ── Diagnostic images : affiche dans la console les lignes sans _imageUrl
-        const detailsWithImg  = (state.data.details || []).filter(r => r._imageUrl).length;
-        const detailsTotal    = (state.data.details || []).length;
-        const sampleImg       = (state.data.details || []).slice(0,3).map(r => {
+        const detailsWithImg = (state.data.details || []).filter(r => r._imageUrl).length;
+        const detailsTotal = (state.data.details || []).length;
+        const sampleImg = (state.data.details || []).slice(0, 3).map(r => {
             const imgKeys = Object.keys(r).filter(k => /image|photo/i.test(k));
             const allVals = {};
             imgKeys.forEach(k => allVals[k] = r[k]);
@@ -565,34 +565,34 @@ function _injectEditColsBtn() {
 // Source: Pantone Fashion, Home + Interiors (TCX) official hex values
 const PANTONE_TCX = {
     // 11-xxxx (whites, pastels)
-    "Egret":"#F3ECE0","Vanilla Ice":"#F0EADA","Antique White":"#EDE3D2","Sweet Corn":"#F0EAD6","Papyrus":"#F5EDD6","Buttercream":"#EFE0CD","Glass Green":"#ECEAD0","Water Lily":"#DDE3D5","Sylvan Green":"#E7EACB","Winter White":"#F5ECD2","Afterglow":"#F3E6C9","Lemon Icing":"#F6EBC8","Bright White":"#F4F5F0","Snow White":"#F2F0EB","Pastel Parchment":"#E5D9D3","Gardenia":"#F1E8DF","Jet Stream":"#EDE6DE","Pristine":"#F2E8DA","Sugar Swizzle":"#F3EEE7","Coconut Milk":"#F0EDE5","Ethereal Green":"#F1ECCA","Pear Sorbet":"#F3EAC3","Pastel Yellow":"#F2E6B1","Transparent Yellow":"#F4ECC2","Wax Yellow":"#EDE9AD","Flan":"#F6E3B4","Elfin Yellow":"#EEEA97","Yellow Iris":"#EEE78E","Yellow Pear":"#ECE99B","Whisper White":"#EDE6DB","Tender Yellow":"#EDEDB7","Ecru":"#F3DFCA","Pearled Ivory":"#F0DFCC","White Alyssum":"#EFEBE7","Bridal Blush":"#EEE2DD","Sea Salt":"#F1E6DE","Angel Wing":"#F3DFD7","Cream Pink":"#F6E4D9","Powder Puff":"#F3E0D6","Rosewater":"#F6DBD8","Petal Pink":"#F2E2E0","Delicacy":"#F5E3E2","Shrinking Violet":"#F4E1E6","Brilliant White":"#EDF1FE","Cloud Dancer":"#F0EEE9","Star White":"#EFEFE8","Marshmallow":"#F0EEE4","Lily White":"#E2E2DA","Cannoli Cream":"#F0EFE2","Mystic Blue":"#E1E3DE","Bit of Blue":"#E2EAEB","Billowing Sail":"#D8E7E7","Blanc de Blanc":"#E7E9E7","Tofu":"#E8E3D9","Summer Shower":"#E5EBE3","Ice":"#E0E4D9","Lightest Sky":"#E4EADF","Hint of Mint":"#D8EBE6",
+    "Egret": "#F3ECE0", "Vanilla Ice": "#F0EADA", "Antique White": "#EDE3D2", "Sweet Corn": "#F0EAD6", "Papyrus": "#F5EDD6", "Buttercream": "#EFE0CD", "Glass Green": "#ECEAD0", "Water Lily": "#DDE3D5", "Sylvan Green": "#E7EACB", "Winter White": "#F5ECD2", "Afterglow": "#F3E6C9", "Lemon Icing": "#F6EBC8", "Bright White": "#F4F5F0", "Snow White": "#F2F0EB", "Pastel Parchment": "#E5D9D3", "Gardenia": "#F1E8DF", "Jet Stream": "#EDE6DE", "Pristine": "#F2E8DA", "Sugar Swizzle": "#F3EEE7", "Coconut Milk": "#F0EDE5", "Ethereal Green": "#F1ECCA", "Pear Sorbet": "#F3EAC3", "Pastel Yellow": "#F2E6B1", "Transparent Yellow": "#F4ECC2", "Wax Yellow": "#EDE9AD", "Flan": "#F6E3B4", "Elfin Yellow": "#EEEA97", "Yellow Iris": "#EEE78E", "Yellow Pear": "#ECE99B", "Whisper White": "#EDE6DB", "Tender Yellow": "#EDEDB7", "Ecru": "#F3DFCA", "Pearled Ivory": "#F0DFCC", "White Alyssum": "#EFEBE7", "Bridal Blush": "#EEE2DD", "Sea Salt": "#F1E6DE", "Angel Wing": "#F3DFD7", "Cream Pink": "#F6E4D9", "Powder Puff": "#F3E0D6", "Rosewater": "#F6DBD8", "Petal Pink": "#F2E2E0", "Delicacy": "#F5E3E2", "Shrinking Violet": "#F4E1E6", "Brilliant White": "#EDF1FE", "Cloud Dancer": "#F0EEE9", "Star White": "#EFEFE8", "Marshmallow": "#F0EEE4", "Lily White": "#E2E2DA", "Cannoli Cream": "#F0EFE2", "Mystic Blue": "#E1E3DE", "Bit of Blue": "#E2EAEB", "Billowing Sail": "#D8E7E7", "Blanc de Blanc": "#E7E9E7", "Tofu": "#E8E3D9", "Summer Shower": "#E5EBE3", "Ice": "#E0E4D9", "Lightest Sky": "#E4EADF", "Hint of Mint": "#D8EBE6",
     // 12-xxxx
-    "White Swan":"#E4D7C5","White Asparagus":"#E1DBC8","Bone White":"#D7D0C0","Meadow Mist":"#D3DEC4","Canary Green":"#D6DEC9","Ambrosia":"#D2E7CA","Pistachio Shell":"#D7CFBB","Patina Green":"#B9EAB3","Whitecap Gray":"#E0D5C6","Asparagus Green":"#D2CDB4","Lime Cream":"#D7E8BC","Seafoam Green":"#CBD5B1","White Jade":"#D4DBB2","Gleam":"#BFD1AD","Butterfly":"#CADEA5","Light Gray":"#DAD8C9","Hay":"#D3CCA3","Mellow Green":"#D5D593","Daiquiri Green":"#C9D77E","Pale Lime Yellow":"#DFE69F","Young Wheat":"#E1E3A9","Citron":"#DFDE9B","Luminary Green":"#E3EAA5","Charlock":"#E5E790","Eggnog":"#ECE1D3","Angora":"#DFD1BB","Green Essence":"#E9EAC8","Dusty Yellow":"#D4CC9A","Lemon Grass":"#DCD494","Canary Yellow":"#DFD87E","Aurora":"#EDDD59","Blazing Yellow":"#FEE715","Celandine":"#EBDF67","Seedpearl":"#E6DAC4","White Smoke":"#EDDCC9","Macadamia":"#E4CFB6","Navajo":"#EFDCC3","Lemon Meringue":"#F6E199","Vanilla":"#F4E1C1","Almond Oil":"#F4E4C1","Cornhusk":"#F2D6AE","Double Cream":"#F3E0AC","Anise Flower":"#F4E3B5","Pineapple Slice":"#E7D391","Mellow Yellow":"#F0DD9D","Lemonade":"#F0E79D","French Vanilla":"#EFE1A7","Sunshine":"#FADE85","Sundress":"#EBCF89","Lemon Drop":"#FDD878","Goldfinch":"#F8DC6C","Yellow Cream":"#EFDC75","Limelight":"#F0E87D","Sunny Lime":"#DFEF87","Lemon Verbena":"#F3E779","Buttercup":"#FAE03C","Yarrow":"#FACE6D","Cloud Cream":"#E6DDC5","Rutabaga":"#ECDDBE","Sun Kiss":"#EBD1BB","Dawn":"#EBD2B7","Alabaster Gleam":"#F0DEBD","Autumn Blonde":"#EED0AE","Vanilla Custard":"#F3E0BE","Apricot Gelato":"#F5D7AF","Golden Fleece":"#F2D1A0","Pale Banana":"#FAE199","Popcorn":"#F8DE8D","Golden Haze":"#FBD897","Lamb's Wool":"#E5D0B1","Nude":"#F2D3BC","Tender Peach":"#F8D5B8","Alesan":"#F1CEB3","Pale Peach":"#FED1BD","Bleached Apricot":"#FCCAAC","Golden Straw":"#E6BD8F","Novelle Peach":"#E7CFBD","Mother of Pearl":"#E9D4C3","Pastel Rose Tan":"#E9D1BF","Linen":"#EDD2C0","Vanilla Cream":"#F4D8C6","Scallop Shell":"#FBD8C9","Peach Purée":"#EFCFBA","Sheer Pink":"#F6E5DB","Pink Champagne":"#F0D8CC","Dew":"#EEDED1","Crème de Pêche":"#F5D6C6","Silver Peony":"#E7CFC7","Pearl Blush":"#F4CEC5","Soft Pink":"#F2D8CD","Veiled Rose":"#F8CDC9","Pearl":"#F9DBD8","Heavenly Pink":"#F4DEDE","Blushing Bride":"#FBD3D9","Tapioca":"#DCCDBC","Pink Tint":"#DBCBBD","Crystal Pink":"#EDD0CE","Pink Dogwood":"#F7D1D1","Crystal Rose":"#FDC3C6","Mary's Rose":"#F7D1D4","Mauve Morn":"#ECD6D6","Almost Mauve":"#E7DCD9","Morganite":"#DFCDC6","Mauve Chalk":"#E5D0CF","Light Lilac":"#DEC6D3","Primrose Pink":"#EED4D9","Cradle Pink":"#EDD0DD","Barely Pink":"#F8D7DD","Rose Water":"#F8E0E7","Almond Milk":"#D6CEBE","Vaporous Gray":"#DFDDD7","Bluewash":"#E2E6E0","Spa Blue":"#D3DEDF","Barely Blue":"#DDE0DF","Skylight":"#C8E0E0","Pastel Blue":"#BCD3D5","Clearwater":"#AAD5DB","Starlight Blue":"#B5CED4","Whispering Blue":"#C9DCDC","Blue Blush":"#D6DBD9","Wan Blue":"#CBDCDF","Chalk Blue":"#CCDAD7","Icicle":"#DADCD0","Turtledove":"#DED7C8","Murmur":"#D2D8D2","Morning Mist":"#CFDFDB","Blue Glass":"#C6E3E1","Soothing Sea":"#C3E9E4","Sprout Green":"#CBD7D2","Blue Flower":"#D0D9D4","Whisper Green":"#E0E6D7","Opal Blue":"#C3DDD6","Aqua Glass":"#D2E8E0","Moonlight Jade":"#C7E5DF","Fair Aqua":"#B8E2DC","Bleached Aqua":"#BCE3DF","Clearly Aqua":"#CEE1D4","Glacier":"#C3DBD4","Dusty Aqua":"#C0DCCD","Bay":"#BAE5D6","Hushed Green":"#D8E9E5","Zephyr Blue":"#D3D9D1","Honeydew":"#BAE1D3","Silver Green":"#D7D7C7","Milky Green":"#CFDBD1","Fairest Jade":"#D8E3D7","Frost":"#DDE2D6","Phantom Green":"#DCE4D7",
+    "White Swan": "#E4D7C5", "White Asparagus": "#E1DBC8", "Bone White": "#D7D0C0", "Meadow Mist": "#D3DEC4", "Canary Green": "#D6DEC9", "Ambrosia": "#D2E7CA", "Pistachio Shell": "#D7CFBB", "Patina Green": "#B9EAB3", "Whitecap Gray": "#E0D5C6", "Asparagus Green": "#D2CDB4", "Lime Cream": "#D7E8BC", "Seafoam Green": "#CBD5B1", "White Jade": "#D4DBB2", "Gleam": "#BFD1AD", "Butterfly": "#CADEA5", "Light Gray": "#DAD8C9", "Hay": "#D3CCA3", "Mellow Green": "#D5D593", "Daiquiri Green": "#C9D77E", "Pale Lime Yellow": "#DFE69F", "Young Wheat": "#E1E3A9", "Citron": "#DFDE9B", "Luminary Green": "#E3EAA5", "Charlock": "#E5E790", "Eggnog": "#ECE1D3", "Angora": "#DFD1BB", "Green Essence": "#E9EAC8", "Dusty Yellow": "#D4CC9A", "Lemon Grass": "#DCD494", "Canary Yellow": "#DFD87E", "Aurora": "#EDDD59", "Blazing Yellow": "#FEE715", "Celandine": "#EBDF67", "Seedpearl": "#E6DAC4", "White Smoke": "#EDDCC9", "Macadamia": "#E4CFB6", "Navajo": "#EFDCC3", "Lemon Meringue": "#F6E199", "Vanilla": "#F4E1C1", "Almond Oil": "#F4E4C1", "Cornhusk": "#F2D6AE", "Double Cream": "#F3E0AC", "Anise Flower": "#F4E3B5", "Pineapple Slice": "#E7D391", "Mellow Yellow": "#F0DD9D", "Lemonade": "#F0E79D", "French Vanilla": "#EFE1A7", "Sunshine": "#FADE85", "Sundress": "#EBCF89", "Lemon Drop": "#FDD878", "Goldfinch": "#F8DC6C", "Yellow Cream": "#EFDC75", "Limelight": "#F0E87D", "Sunny Lime": "#DFEF87", "Lemon Verbena": "#F3E779", "Buttercup": "#FAE03C", "Yarrow": "#FACE6D", "Cloud Cream": "#E6DDC5", "Rutabaga": "#ECDDBE", "Sun Kiss": "#EBD1BB", "Dawn": "#EBD2B7", "Alabaster Gleam": "#F0DEBD", "Autumn Blonde": "#EED0AE", "Vanilla Custard": "#F3E0BE", "Apricot Gelato": "#F5D7AF", "Golden Fleece": "#F2D1A0", "Pale Banana": "#FAE199", "Popcorn": "#F8DE8D", "Golden Haze": "#FBD897", "Lamb's Wool": "#E5D0B1", "Nude": "#F2D3BC", "Tender Peach": "#F8D5B8", "Alesan": "#F1CEB3", "Pale Peach": "#FED1BD", "Bleached Apricot": "#FCCAAC", "Golden Straw": "#E6BD8F", "Novelle Peach": "#E7CFBD", "Mother of Pearl": "#E9D4C3", "Pastel Rose Tan": "#E9D1BF", "Linen": "#EDD2C0", "Vanilla Cream": "#F4D8C6", "Scallop Shell": "#FBD8C9", "Peach Purée": "#EFCFBA", "Sheer Pink": "#F6E5DB", "Pink Champagne": "#F0D8CC", "Dew": "#EEDED1", "Crème de Pêche": "#F5D6C6", "Silver Peony": "#E7CFC7", "Pearl Blush": "#F4CEC5", "Soft Pink": "#F2D8CD", "Veiled Rose": "#F8CDC9", "Pearl": "#F9DBD8", "Heavenly Pink": "#F4DEDE", "Blushing Bride": "#FBD3D9", "Tapioca": "#DCCDBC", "Pink Tint": "#DBCBBD", "Crystal Pink": "#EDD0CE", "Pink Dogwood": "#F7D1D1", "Crystal Rose": "#FDC3C6", "Mary's Rose": "#F7D1D4", "Mauve Morn": "#ECD6D6", "Almost Mauve": "#E7DCD9", "Morganite": "#DFCDC6", "Mauve Chalk": "#E5D0CF", "Light Lilac": "#DEC6D3", "Primrose Pink": "#EED4D9", "Cradle Pink": "#EDD0DD", "Barely Pink": "#F8D7DD", "Rose Water": "#F8E0E7", "Almond Milk": "#D6CEBE", "Vaporous Gray": "#DFDDD7", "Bluewash": "#E2E6E0", "Spa Blue": "#D3DEDF", "Barely Blue": "#DDE0DF", "Skylight": "#C8E0E0", "Pastel Blue": "#BCD3D5", "Clearwater": "#AAD5DB", "Starlight Blue": "#B5CED4", "Whispering Blue": "#C9DCDC", "Blue Blush": "#D6DBD9", "Wan Blue": "#CBDCDF", "Chalk Blue": "#CCDAD7", "Icicle": "#DADCD0", "Turtledove": "#DED7C8", "Murmur": "#D2D8D2", "Morning Mist": "#CFDFDB", "Blue Glass": "#C6E3E1", "Soothing Sea": "#C3E9E4", "Sprout Green": "#CBD7D2", "Blue Flower": "#D0D9D4", "Whisper Green": "#E0E6D7", "Opal Blue": "#C3DDD6", "Aqua Glass": "#D2E8E0", "Moonlight Jade": "#C7E5DF", "Fair Aqua": "#B8E2DC", "Bleached Aqua": "#BCE3DF", "Clearly Aqua": "#CEE1D4", "Glacier": "#C3DBD4", "Dusty Aqua": "#C0DCCD", "Bay": "#BAE5D6", "Hushed Green": "#D8E9E5", "Zephyr Blue": "#D3D9D1", "Honeydew": "#BAE1D3", "Silver Green": "#D7D7C7", "Milky Green": "#CFDBD1", "Fairest Jade": "#D8E3D7", "Frost": "#DDE2D6", "Phantom Green": "#DCE4D7",
     // 13-xxxx
-    "Moonbeam":"#CDC6BD","White Sand":"#DBD5D1","Dewkist":"#C4D1C2","Seacrest":"#BFD1B3","Pastel Green":"#B4D3B2","Green Ash":"#A0DAA9","Fog Green":"#C2CBB4","Tender Greens":"#C5CFB6","Reed":"#C3D3A8","Paradise Green":"#B2E79F","Pistachio Green":"#A9D39E","Lily Green":"#C5CF98","Shadow Lime":"#CFE09D","Lettuce Green":"#BED38E","Sap Green":"#AFCB80","Lima Bean":"#E1D590","Oatmeal":"#CBC3B4","Gray Morn":"#CABEB5","Green Glow":"#B0C965","Lime Popsicle":"#C0DB3A","Frozen Dew":"#D8CFB2","Pale Green":"#CBCE91","Lime Sherbet":"#CDD78A","Celery Green":"#C5CC7B","Sharp Green":"#C6E67A","Wild Lime":"#C3D363","Lime Punch":"#C0D725","Fog":"#D0C5B1","Aloe Wash":"#D0D3B7","Moth":"#D2CBAF","Chino Green":"#D9CAA5","Garden Glade":"#DCD8A8","Golden Mist":"#D5CD94","Endive":"#D2CC81","Chardonnay":"#E7DF99","Acacia":"#DACD65","Golden Kiwi":"#F3DD3E","Limeade":"#D3D95F","Meadowlark":"#EAD94E","Green Sheen":"#D9CE52","Sulphur Spring":"#D5D717","Evening Primrose":"#CCDB1E","Putty":"#D4CAB0","Sea Mist":"#D8C9A3","Custard":"#E5D68E","Raffia":"#DAC483","Cream Gold":"#DEC05F","Maize":"#EEC843","Lemon":"#F3BF08","Primrose Yellow":"#F6D155","Lemon Zest":"#F9D857","Dandelion":"#FFD02E","Solar Power":"#F4BF3A","Summer Melon":"#EAD3AE","Banana Crepe":"#E7D3AD","Sunlight":"#EDD59E","Snapdragon":"#FED777","Habañero Gold":"#FED450","Aspen Gold":"#FFD662","Minion Yellow":"#FED55D","Vibrant Yellow":"#FFDA29","Lemon Chrome":"#FFC300","Birch":"#DDD5C7","Sandshell":"#D8CCBB","Parchment":"#DFD1BE","Reed Yellow":"#DCC99E","Chamomile":"#E8D0A7","Italian Straw":"#E7D1A1","Soybean":"#D2C29D","Straw":"#E0C992","Cornsilk":"#EDC373","Flax":"#FFC87D","Golden Cream":"#F7BF68","Sunset Gold":"#F7C46C","Banana Cream":"#FFCF73","Amber Yellow":"#FAB75A","Pale Marigold":"#FFC66E","Jurassic Gold":"#E7AA56","Banana":"#FCB953","Crème Brûlée":"#DBCCB5","Oyster White":"#D2CAAF","Bleached Sand":"#DACCB4","Biscotti":"#DAC7AB","Gray Sand":"#E5CCAF","Ivory Cream":"#DAC0A7","Frosted Almond":"#D2C2AC","Appleblossom":"#DDBCA0","Mellow Buff":"#D8B998","Honey Peach":"#DCBD9E","Wheat":"#DEC5A5","Almond Cream":"#F4C29F","Desert Dust":"#E3BC8E","Cream Blush":"#F8C19A","Apricot Ice":"#FBBE99","Prairie Sunset":"#FFBB9E","Caramel Cream":"#F4BA94","Peach Fuzz":"#FFBE98","Buff":"#EBC396","Impala":"#F8CE97","Creampuff":"#FFCDA8","Apricot Cream":"#F1BD89","Sunburst":"#F6C289","Apricot Sherbet":"#FACD9E","Brown Rice":"#C7BBA4","Sand Dollar":"#DECDBE","Whisper Pink":"#DACBBE","Cream Tan":"#E4C7B8","Bisque":"#EDCAB5","Bellini":"#F4C9B1","Peach Quartz":"#F5B895","Peachy Keen":"#E2BDB3","Brazilian Sand":"#DACAB7","English Rose":"#F4C6C3","Tropical Peach":"#FFC4B2","Pale Dogwood":"#EDCDC2","Shell":"#E1CFC6","Cloud Pink":"#F5D1C8","Creole Pink":"#F7D5CC","Chintz Rose":"#EEC4BE","Seashell Pink":"#F7C8C2","Peach Blush":"#E4CCC6","Impatiens Pink":"#FFC4BC","Pink Salt":"#F7CDC7","Gossamer Pink":"#FAC8C3","Rose Quartz":"#F7CAC9","Chalk Pink":"#E6C5CA","Rose Shadow":"#F9C2CD","Potpourri":"#E7C9CA","Strawberry Cream":"#F4C3C4","Almond Blossom":"#F5BEC7","Orchid Pink":"#F3BBCA","Fairy Tale":"#F2C1D1","Pale Lilac":"#E1C6CC","Parfait Pink":"#E9C3CF","Pink Mist":"#E6BCCD","Pink Lady":"#EFC1D6","Ballerina":"#F2CFDC","Ballet Slipper":"#EBCED5","Cherry Blossom":"#F7CEE0","Lilac Snow":"#E0C7D7","Orchid Ice":"#E0D0DB","Crystal Gray":"#D7CBC4","Orchid Tint":"#DBD2DB","Lilac Ash":"#D7CDCD","Gray Lilac":"#D4CACD","Orchid Hush":"#CEC3D2","Lavender Fog":"#D2C4D6","Halogen Blue":"#BDC6DC","Illusion Blue":"#C9D3DC","Antarctica":"#C6C5C6","Lilac Hint":"#D0D0DA","Nimbus Cloud":"#D5D5D8","Arctic Ice":"#BFC7D6","Plein Air":"#BFCAD6","Omphalodes":"#B5CEDF","Oyster Mushroom":"#C3C6C8","Dawn Blue":"#CACCCB","Ballad Blue":"#C0CEDA","Foggy Dew":"#D1D5D0","Baby Blue":"#B5C7D3","Silver Birch":"#D2CFC4","Ice Flow":"#C6D2D2","Misty Blue":"#BFCDCC","Blue Glow":"#B2D4DD","Crystal Blue":"#A1C8DB","Tanager Turquoise":"#91DCE8","Pale Blue":"#C4D6D3","Plume":"#A5CFD5","Limpet Shell":"#98DDDE","Blue Light":"#ACDFDD","Blue Tint":"#9FD9D7","Rainy Day":"#CFC8BD","Pale Aqua":"#C1CCC2","Icy Morn":"#B0D3D1","Pastel Turquoise":"#99C5C4","Aruba Blue":"#81D7D3","Yucca":"#A1D7C9","Iced Aqua":"#ABD3DB","Beach Glass":"#96DFCE","Ice Green":"#87D8C3","Cabbage":"#87D7BE","Gossamer Green":"#B2CFBE","Bird's Egg Green":"#AACCB9","Almost Aqua":"#CAD3C1","Spray":"#BED3BB","Misty Jade":"#BCD9C8","Brook Green":"#AFDDCC","Celadon Tint":"#CBCEBE","Green Tint":"#C5CCC0","Green Lily":"#C1CEC1","Celadon":"#B8CCBA","Mist Green":"#AACEBC","Bok Choy":"#BCCAB3",
+    "Moonbeam": "#CDC6BD", "White Sand": "#DBD5D1", "Dewkist": "#C4D1C2", "Seacrest": "#BFD1B3", "Pastel Green": "#B4D3B2", "Green Ash": "#A0DAA9", "Fog Green": "#C2CBB4", "Tender Greens": "#C5CFB6", "Reed": "#C3D3A8", "Paradise Green": "#B2E79F", "Pistachio Green": "#A9D39E", "Lily Green": "#C5CF98", "Shadow Lime": "#CFE09D", "Lettuce Green": "#BED38E", "Sap Green": "#AFCB80", "Lima Bean": "#E1D590", "Oatmeal": "#CBC3B4", "Gray Morn": "#CABEB5", "Green Glow": "#B0C965", "Lime Popsicle": "#C0DB3A", "Frozen Dew": "#D8CFB2", "Pale Green": "#CBCE91", "Lime Sherbet": "#CDD78A", "Celery Green": "#C5CC7B", "Sharp Green": "#C6E67A", "Wild Lime": "#C3D363", "Lime Punch": "#C0D725", "Fog": "#D0C5B1", "Aloe Wash": "#D0D3B7", "Moth": "#D2CBAF", "Chino Green": "#D9CAA5", "Garden Glade": "#DCD8A8", "Golden Mist": "#D5CD94", "Endive": "#D2CC81", "Chardonnay": "#E7DF99", "Acacia": "#DACD65", "Golden Kiwi": "#F3DD3E", "Limeade": "#D3D95F", "Meadowlark": "#EAD94E", "Green Sheen": "#D9CE52", "Sulphur Spring": "#D5D717", "Evening Primrose": "#CCDB1E", "Putty": "#D4CAB0", "Sea Mist": "#D8C9A3", "Custard": "#E5D68E", "Raffia": "#DAC483", "Cream Gold": "#DEC05F", "Maize": "#EEC843", "Lemon": "#F3BF08", "Primrose Yellow": "#F6D155", "Lemon Zest": "#F9D857", "Dandelion": "#FFD02E", "Solar Power": "#F4BF3A", "Summer Melon": "#EAD3AE", "Banana Crepe": "#E7D3AD", "Sunlight": "#EDD59E", "Snapdragon": "#FED777", "Habañero Gold": "#FED450", "Aspen Gold": "#FFD662", "Minion Yellow": "#FED55D", "Vibrant Yellow": "#FFDA29", "Lemon Chrome": "#FFC300", "Birch": "#DDD5C7", "Sandshell": "#D8CCBB", "Parchment": "#DFD1BE", "Reed Yellow": "#DCC99E", "Chamomile": "#E8D0A7", "Italian Straw": "#E7D1A1", "Soybean": "#D2C29D", "Straw": "#E0C992", "Cornsilk": "#EDC373", "Flax": "#FFC87D", "Golden Cream": "#F7BF68", "Sunset Gold": "#F7C46C", "Banana Cream": "#FFCF73", "Amber Yellow": "#FAB75A", "Pale Marigold": "#FFC66E", "Jurassic Gold": "#E7AA56", "Banana": "#FCB953", "Crème Brûlée": "#DBCCB5", "Oyster White": "#D2CAAF", "Bleached Sand": "#DACCB4", "Biscotti": "#DAC7AB", "Gray Sand": "#E5CCAF", "Ivory Cream": "#DAC0A7", "Frosted Almond": "#D2C2AC", "Appleblossom": "#DDBCA0", "Mellow Buff": "#D8B998", "Honey Peach": "#DCBD9E", "Wheat": "#DEC5A5", "Almond Cream": "#F4C29F", "Desert Dust": "#E3BC8E", "Cream Blush": "#F8C19A", "Apricot Ice": "#FBBE99", "Prairie Sunset": "#FFBB9E", "Caramel Cream": "#F4BA94", "Peach Fuzz": "#FFBE98", "Buff": "#EBC396", "Impala": "#F8CE97", "Creampuff": "#FFCDA8", "Apricot Cream": "#F1BD89", "Sunburst": "#F6C289", "Apricot Sherbet": "#FACD9E", "Brown Rice": "#C7BBA4", "Sand Dollar": "#DECDBE", "Whisper Pink": "#DACBBE", "Cream Tan": "#E4C7B8", "Bisque": "#EDCAB5", "Bellini": "#F4C9B1", "Peach Quartz": "#F5B895", "Peachy Keen": "#E2BDB3", "Brazilian Sand": "#DACAB7", "English Rose": "#F4C6C3", "Tropical Peach": "#FFC4B2", "Pale Dogwood": "#EDCDC2", "Shell": "#E1CFC6", "Cloud Pink": "#F5D1C8", "Creole Pink": "#F7D5CC", "Chintz Rose": "#EEC4BE", "Seashell Pink": "#F7C8C2", "Peach Blush": "#E4CCC6", "Impatiens Pink": "#FFC4BC", "Pink Salt": "#F7CDC7", "Gossamer Pink": "#FAC8C3", "Rose Quartz": "#F7CAC9", "Chalk Pink": "#E6C5CA", "Rose Shadow": "#F9C2CD", "Potpourri": "#E7C9CA", "Strawberry Cream": "#F4C3C4", "Almond Blossom": "#F5BEC7", "Orchid Pink": "#F3BBCA", "Fairy Tale": "#F2C1D1", "Pale Lilac": "#E1C6CC", "Parfait Pink": "#E9C3CF", "Pink Mist": "#E6BCCD", "Pink Lady": "#EFC1D6", "Ballerina": "#F2CFDC", "Ballet Slipper": "#EBCED5", "Cherry Blossom": "#F7CEE0", "Lilac Snow": "#E0C7D7", "Orchid Ice": "#E0D0DB", "Crystal Gray": "#D7CBC4", "Orchid Tint": "#DBD2DB", "Lilac Ash": "#D7CDCD", "Gray Lilac": "#D4CACD", "Orchid Hush": "#CEC3D2", "Lavender Fog": "#D2C4D6", "Halogen Blue": "#BDC6DC", "Illusion Blue": "#C9D3DC", "Antarctica": "#C6C5C6", "Lilac Hint": "#D0D0DA", "Nimbus Cloud": "#D5D5D8", "Arctic Ice": "#BFC7D6", "Plein Air": "#BFCAD6", "Omphalodes": "#B5CEDF", "Oyster Mushroom": "#C3C6C8", "Dawn Blue": "#CACCCB", "Ballad Blue": "#C0CEDA", "Foggy Dew": "#D1D5D0", "Baby Blue": "#B5C7D3", "Silver Birch": "#D2CFC4", "Ice Flow": "#C6D2D2", "Misty Blue": "#BFCDCC", "Blue Glow": "#B2D4DD", "Crystal Blue": "#A1C8DB", "Tanager Turquoise": "#91DCE8", "Pale Blue": "#C4D6D3", "Plume": "#A5CFD5", "Limpet Shell": "#98DDDE", "Blue Light": "#ACDFDD", "Blue Tint": "#9FD9D7", "Rainy Day": "#CFC8BD", "Pale Aqua": "#C1CCC2", "Icy Morn": "#B0D3D1", "Pastel Turquoise": "#99C5C4", "Aruba Blue": "#81D7D3", "Yucca": "#A1D7C9", "Iced Aqua": "#ABD3DB", "Beach Glass": "#96DFCE", "Ice Green": "#87D8C3", "Cabbage": "#87D7BE", "Gossamer Green": "#B2CFBE", "Bird's Egg Green": "#AACCB9", "Almost Aqua": "#CAD3C1", "Spray": "#BED3BB", "Misty Jade": "#BCD9C8", "Brook Green": "#AFDDCC", "Celadon Tint": "#CBCEBE", "Green Tint": "#C5CCC0", "Green Lily": "#C1CEC1", "Celadon": "#B8CCBA", "Mist Green": "#AACEBC", "Bok Choy": "#BCCAB3",
     // 14-xxxx
-    "Silver Gray":"#C1B7B0","Pumice Stone":"#CAC2B9","Overcast":"#C3BDAB","Castle Wall":"#C8C1AB","Celadon Green":"#B5C1A5","Foam Green":"#B4C79C","Margarita":"#B5C38E","Nile Green":"#A7C796","Arcadian Green":"#A3C893","Greengage":"#8BC28C","Summer Green":"#7ED37F","Tidal Foam":"#BFB9A3","Lint":"#B6BA99","Seedling":"#C0CBA1","Nile":"#B4BB85","Opaline Green":"#A3C57D","Jade Lime":"#A1CA7B","Bright Lime Green":"#97BC62","Acid Lime":"#BADF30","Bog":"#BAB696","Beechnut":"#C2C18D","Green Banana":"#BABC72","Bright Chartreuse":"#B5BF50","Tender Shoots":"#B5CC39","Lime Green":"#9FC131","Green Haze":"#CAC4A4","Dried Moss":"#CCB97E","Shadow Green":"#CFC486","Muted Lime":"#D1C87C","Celery":"#CEC153","Cement":"#C4B6A6","Hemp":"#C0AD7C","Bamboo":"#D2B04C","Super Lemon":"#E4BF45","Sulphur":"#DDB614","Empire Yellow":"#F7D000","Cyber Yellow":"#FFD400","Pampas":"#CFBB7B","Dusky Citron":"#E3CC81","Misted Yellow":"#DAB965","Yolk Yellow":"#E2B051","Buff Yellow":"#F1BF70","Mimosa":"#F0C05A","Daffodil":"#FDC04E","Samoan Sun":"#FBC85F","Freesia":"#F3C12C","Parsnip":"#D6C69A","Jojoba":"#DABE81","Sahara Sun":"#DFC08A","Beeswax":"#EBA851","Golden Rod":"#E2A829","Spicy Mustard":"#D8AE47","Citrus":"#F9AC2F","Spectra Yellow":"#F7B718","Champagne Beige":"#B39F8D","Gravel":"#CBBFA2","Cocoon":"#C9B27C","Rattan":"#D1B272","Ochre":"#D6AF66","New Wheat":"#D7B57F","Golden Apricot":"#DDA758","Amber":"#EFAD55","Marigold":"#FDAC53","Warm Apricot":"#FFB865","Kumquat":"#FBAA4C","Saffron":"#FFA500","Peyote":"#C5BBAE","Oyster Gray":"#CBC1AE","Wood Ash":"#D7CAB0","Boulder":"#D1BE9B","Pebble":"#CAB698","Marzipan":"#D8C09D","Almond Buff":"#CCB390","Beige":"#D5BA98","Winter Wheat":"#DFC09F","Apricot Illusion":"#E2C4A6","Sheepskin":"#DAB58F","Desert Mist":"#E0B589","Buff Orange":"#FFBB7C","Apricot Nectar":"#ECAA79","Salmon Buff":"#FEAA7B","Pumpkin":"#F5A26F","Zinnia":"#FFA010","Irish Cream":"#C0AC92","Smoke Gray":"#CEBAA8","Shifting Sand":"#D8C0AD","Frappé":"#D1B7A0","Toasted Almond":"#D2B49C","Amberlight":"#E2BEA2","Peach Parfait":"#F8BFA8","Peach Nougat":"#E6AF91","Coral Sands":"#EDAA86","Beach Sand":"#FBB995","Peach":"#F2A987","Peach Nectar":"#FFB59B","Apricot Wash":"#FBAC82","Peach Cobbler":"#FFB181","Orange Chiffon":"#F9AA7D","Mushroom":"#BDACA3","Rose Dust":"#CDB2A5","Peach Whip":"#DBBEB7","Cameo Rose":"#D7B8AB","Evening Sand":"#DDB6AB","Pale Blush":"#E4BFB3","Rose Cloud":"#DBB0A2","Spanish Villa":"#DFBAA9","Hazelnut":"#CFB095","Dusty Pink":"#DEAA9B","Coral Pink":"#E8A798","Salmon":"#FAAA94","Peach Bud":"#FDB2A8","Peach Melba":"#FBBDAF","Peach Pearl":"#FFB2A5","Apricot Blush":"#FEAEA5","Rose Smoke":"#D3B4AD","Silver Pink":"#DCB1AF","Powder Pink":"#ECB2B3","Blossom":"#F2B2AE","Peaches N' Cream":"#F4A6A3","Quartz Pink":"#EFA6AA","Sepia Rose":"#D4BAB6","Lotus":"#E2C1C0","Peachskin":"#DFB8B6","Coral Blush":"#E6B2B8","Candy Pink":"#F5B0BD","Pink Nectar":"#D8AAB7","Cameo Pink":"#DBA9B8","Prism Pink":"#F0A1BF","Lilac Sachet":"#E9ADCA","Sweet Lilac":"#E8B5CE","Fragrant Lilac":"#CEADBE","Winsome Orchid":"#D4B9CB","Pink Lavender":"#D9AFCA","Pastel Lavender":"#D8A1C4","Orchid Bloom":"#C5AECF","Orchid Petal":"#BFB4CB","Hushed Violet":"#D1C0BF","Iris":"#BAAFBC","Pastel Lilac":"#BDB0D0","Lilac Marble":"#C3BABF","Evening Haze":"#BDB8C7","Lavender Blue":"#C5C0D0","Raindrops":"#B1AAB3","Thistle":"#B9B3C5","Purple Heather":"#BAB8D3","Zen Blue":"#9FA9BE","Xenon Blue":"#B7C0D7","Wind Chime":"#CAC5C2","Glacier Gray":"#C5C6C7","Gray Violet":"#BBBCBC","Micro Chip":"#BABCC0","Gray Dawn":"#BBC1CC","Quiet Gray":"#B9BABD","Heather":"#B7C0D6","Skyway":"#ADBED3","Cashmere Blue":"#A5B8D0","Blue Bell":"#93B4D7","Airy Blue":"#92B6D5","Lunar Rock":"#C5C5C5","Harbor Mist":"#AFB1B4","Vapor Blue":"#BEBDBD","Pearl Blue":"#B0B7BE","Celestial Blue":"#A3B4C4","Powder Blue":"#96B3D2","Cloud Blue":"#A2B6B9","Winter Sky":"#A9C0CB","Blue Topaz":"#78BDD4","Corydalis Blue":"#A9CADA","Aquamarine":"#9DC3D4","Sea Angel":"#98BFCA","Cool Blue":"#A5C5D9","Sky Blue":"#8ABAD3","Baltic Sea":"#79B5D8","Moonstruck":"#C2BEB6","Silver Lining":"#BDB6AB","Mercury":"#BAC2BA","Metal":"#BABFBC","Sky Gray":"#BCC8C6","Smoke":"#BFC8C3","Ether":"#9EB6B8","Stratosphere":"#9EC1CC","Aquatic":"#99C1CC","Gulf Stream":"#88C3D0","Porcelain Blue":"#95C0CB","Petit four":"#87C2D4","Bachelor Button":"#4ABBD5","Antigua Sand":"#83C2CD","Island Paradise":"#95DEE3","Tibetan Stone":"#82C2C7","Blue Fox":"#B9BCB6","Surf Spray":"#B4C8C2","Eggshell Blue":"#A3CCC9","Canal Blue":"#9CC2C5","Aqua Sky":"#7BC4C4","Aqua Splash":"#85CED1","Angel Blue":"#83C5CD","Blue Radiance":"#58C9D4","Harbor Gray":"#A8C0BB","Silver":"#A2A2A1","Holiday":"#81C3B4","Bermuda":"#60C9B3","Cockatoo":"#58C8B6","Silt Green":"#A9BDB1","Aqua Foam":"#ADC3B4","Ocean Wave":"#8EC5B6","Cascade":"#76C1B2","Lucite Green":"#7ACCB8","Opal":"#77CFB7","Electric Green":"#4BC3A8","Sea Foam":"#B7C2B2","Subtle Green":"#B5CBBB","Grayed Jade":"#9BBEA9","Neptune Green":"#7FBB9E","Pelican":"#C1BCAC","Alfalfa":"#B7B59F","Cameo Green":"#AAC0AD","Sprucestone":"#9FC09C","Meadow":"#8BBA94","Peapod":"#82B185","Zephyr Green":"#7CB083","Absinthe Green":"#76B583","Spring Bud":"#6BCD9C","Spring Bouquet":"#6DCE87","Abbey Stone":"#ABA798",
+    "Silver Gray": "#C1B7B0", "Pumice Stone": "#CAC2B9", "Overcast": "#C3BDAB", "Castle Wall": "#C8C1AB", "Celadon Green": "#B5C1A5", "Foam Green": "#B4C79C", "Margarita": "#B5C38E", "Nile Green": "#A7C796", "Arcadian Green": "#A3C893", "Greengage": "#8BC28C", "Summer Green": "#7ED37F", "Tidal Foam": "#BFB9A3", "Lint": "#B6BA99", "Seedling": "#C0CBA1", "Nile": "#B4BB85", "Opaline Green": "#A3C57D", "Jade Lime": "#A1CA7B", "Bright Lime Green": "#97BC62", "Acid Lime": "#BADF30", "Bog": "#BAB696", "Beechnut": "#C2C18D", "Green Banana": "#BABC72", "Bright Chartreuse": "#B5BF50", "Tender Shoots": "#B5CC39", "Lime Green": "#9FC131", "Green Haze": "#CAC4A4", "Dried Moss": "#CCB97E", "Shadow Green": "#CFC486", "Muted Lime": "#D1C87C", "Celery": "#CEC153", "Cement": "#C4B6A6", "Hemp": "#C0AD7C", "Bamboo": "#D2B04C", "Super Lemon": "#E4BF45", "Sulphur": "#DDB614", "Empire Yellow": "#F7D000", "Cyber Yellow": "#FFD400", "Pampas": "#CFBB7B", "Dusky Citron": "#E3CC81", "Misted Yellow": "#DAB965", "Yolk Yellow": "#E2B051", "Buff Yellow": "#F1BF70", "Mimosa": "#F0C05A", "Daffodil": "#FDC04E", "Samoan Sun": "#FBC85F", "Freesia": "#F3C12C", "Parsnip": "#D6C69A", "Jojoba": "#DABE81", "Sahara Sun": "#DFC08A", "Beeswax": "#EBA851", "Golden Rod": "#E2A829", "Spicy Mustard": "#D8AE47", "Citrus": "#F9AC2F", "Spectra Yellow": "#F7B718", "Champagne Beige": "#B39F8D", "Gravel": "#CBBFA2", "Cocoon": "#C9B27C", "Rattan": "#D1B272", "Ochre": "#D6AF66", "New Wheat": "#D7B57F", "Golden Apricot": "#DDA758", "Amber": "#EFAD55", "Marigold": "#FDAC53", "Warm Apricot": "#FFB865", "Kumquat": "#FBAA4C", "Saffron": "#FFA500", "Peyote": "#C5BBAE", "Oyster Gray": "#CBC1AE", "Wood Ash": "#D7CAB0", "Boulder": "#D1BE9B", "Pebble": "#CAB698", "Marzipan": "#D8C09D", "Almond Buff": "#CCB390", "Beige": "#D5BA98", "Winter Wheat": "#DFC09F", "Apricot Illusion": "#E2C4A6", "Sheepskin": "#DAB58F", "Desert Mist": "#E0B589", "Buff Orange": "#FFBB7C", "Apricot Nectar": "#ECAA79", "Salmon Buff": "#FEAA7B", "Pumpkin": "#F5A26F", "Zinnia": "#FFA010", "Irish Cream": "#C0AC92", "Smoke Gray": "#CEBAA8", "Shifting Sand": "#D8C0AD", "Frappé": "#D1B7A0", "Toasted Almond": "#D2B49C", "Amberlight": "#E2BEA2", "Peach Parfait": "#F8BFA8", "Peach Nougat": "#E6AF91", "Coral Sands": "#EDAA86", "Beach Sand": "#FBB995", "Peach": "#F2A987", "Peach Nectar": "#FFB59B", "Apricot Wash": "#FBAC82", "Peach Cobbler": "#FFB181", "Orange Chiffon": "#F9AA7D", "Mushroom": "#BDACA3", "Rose Dust": "#CDB2A5", "Peach Whip": "#DBBEB7", "Cameo Rose": "#D7B8AB", "Evening Sand": "#DDB6AB", "Pale Blush": "#E4BFB3", "Rose Cloud": "#DBB0A2", "Spanish Villa": "#DFBAA9", "Hazelnut": "#CFB095", "Dusty Pink": "#DEAA9B", "Coral Pink": "#E8A798", "Salmon": "#FAAA94", "Peach Bud": "#FDB2A8", "Peach Melba": "#FBBDAF", "Peach Pearl": "#FFB2A5", "Apricot Blush": "#FEAEA5", "Rose Smoke": "#D3B4AD", "Silver Pink": "#DCB1AF", "Powder Pink": "#ECB2B3", "Blossom": "#F2B2AE", "Peaches N' Cream": "#F4A6A3", "Quartz Pink": "#EFA6AA", "Sepia Rose": "#D4BAB6", "Lotus": "#E2C1C0", "Peachskin": "#DFB8B6", "Coral Blush": "#E6B2B8", "Candy Pink": "#F5B0BD", "Pink Nectar": "#D8AAB7", "Cameo Pink": "#DBA9B8", "Prism Pink": "#F0A1BF", "Lilac Sachet": "#E9ADCA", "Sweet Lilac": "#E8B5CE", "Fragrant Lilac": "#CEADBE", "Winsome Orchid": "#D4B9CB", "Pink Lavender": "#D9AFCA", "Pastel Lavender": "#D8A1C4", "Orchid Bloom": "#C5AECF", "Orchid Petal": "#BFB4CB", "Hushed Violet": "#D1C0BF", "Iris": "#BAAFBC", "Pastel Lilac": "#BDB0D0", "Lilac Marble": "#C3BABF", "Evening Haze": "#BDB8C7", "Lavender Blue": "#C5C0D0", "Raindrops": "#B1AAB3", "Thistle": "#B9B3C5", "Purple Heather": "#BAB8D3", "Zen Blue": "#9FA9BE", "Xenon Blue": "#B7C0D7", "Wind Chime": "#CAC5C2", "Glacier Gray": "#C5C6C7", "Gray Violet": "#BBBCBC", "Micro Chip": "#BABCC0", "Gray Dawn": "#BBC1CC", "Quiet Gray": "#B9BABD", "Heather": "#B7C0D6", "Skyway": "#ADBED3", "Cashmere Blue": "#A5B8D0", "Blue Bell": "#93B4D7", "Airy Blue": "#92B6D5", "Lunar Rock": "#C5C5C5", "Harbor Mist": "#AFB1B4", "Vapor Blue": "#BEBDBD", "Pearl Blue": "#B0B7BE", "Celestial Blue": "#A3B4C4", "Powder Blue": "#96B3D2", "Cloud Blue": "#A2B6B9", "Winter Sky": "#A9C0CB", "Blue Topaz": "#78BDD4", "Corydalis Blue": "#A9CADA", "Aquamarine": "#9DC3D4", "Sea Angel": "#98BFCA", "Cool Blue": "#A5C5D9", "Sky Blue": "#8ABAD3", "Baltic Sea": "#79B5D8", "Moonstruck": "#C2BEB6", "Silver Lining": "#BDB6AB", "Mercury": "#BAC2BA", "Metal": "#BABFBC", "Sky Gray": "#BCC8C6", "Smoke": "#BFC8C3", "Ether": "#9EB6B8", "Stratosphere": "#9EC1CC", "Aquatic": "#99C1CC", "Gulf Stream": "#88C3D0", "Porcelain Blue": "#95C0CB", "Petit four": "#87C2D4", "Bachelor Button": "#4ABBD5", "Antigua Sand": "#83C2CD", "Island Paradise": "#95DEE3", "Tibetan Stone": "#82C2C7", "Blue Fox": "#B9BCB6", "Surf Spray": "#B4C8C2", "Eggshell Blue": "#A3CCC9", "Canal Blue": "#9CC2C5", "Aqua Sky": "#7BC4C4", "Aqua Splash": "#85CED1", "Angel Blue": "#83C5CD", "Blue Radiance": "#58C9D4", "Harbor Gray": "#A8C0BB", "Silver": "#A2A2A1", "Holiday": "#81C3B4", "Bermuda": "#60C9B3", "Cockatoo": "#58C8B6", "Silt Green": "#A9BDB1", "Aqua Foam": "#ADC3B4", "Ocean Wave": "#8EC5B6", "Cascade": "#76C1B2", "Lucite Green": "#7ACCB8", "Opal": "#77CFB7", "Electric Green": "#4BC3A8", "Sea Foam": "#B7C2B2", "Subtle Green": "#B5CBBB", "Grayed Jade": "#9BBEA9", "Neptune Green": "#7FBB9E", "Pelican": "#C1BCAC", "Alfalfa": "#B7B59F", "Cameo Green": "#AAC0AD", "Sprucestone": "#9FC09C", "Meadow": "#8BBA94", "Peapod": "#82B185", "Zephyr Green": "#7CB083", "Absinthe Green": "#76B583", "Spring Bud": "#6BCD9C", "Spring Bouquet": "#6DCE87", "Abbey Stone": "#ABA798",
     // 15-xxxx
-    "Dove":"#B3ADA7","Green Flash":"#79C753","Spray Green":"#AEA692","Sage Green":"#B2AC88","Tarragon":"#A4AE77","Leaf Green":"#9FAF6C","Herbal Garden":"#9CAD60","Parrot Green":"#8DB051","Greenery":"#88B04B","Eucalyptus":"#B1A992","Pale Olive Green":"#B5AD88","Winter Pear":"#B0B487","Weeping Willow":"#B3B17B","Sweet Pea":"#A3A969","Linden Green":"#C4BF71","Palm":"#AFAF5E","Green Oasis":"#B0B454","Apple Green":"#B5B644","Jasmine Green":"#7EC845","Citronelle":"#B8AF23","Leek Green":"#B7B17A","Golden Green":"#BDB369","Cress Green":"#BCA949","Warm Olive":"#C7B63C","Ashes of Roses":"#B5ACAB","Silver Fern":"#BBAA7E","Southern Moss":"#BCA66A","Olivenite":"#C1A65C","Oil Yellow":"#C4A647","Lemon Curry":"#CDA323","Ceylon Yellow":"#D4AE40","Pale Gold":"#BD9865","Sauterne":"#C5A253","Chinese Yellow":"#C6973F","Golden Yellow":"#CB8E16","Old Gold":"#ECA825","Mango Mojito":"#D69C2F","Ginger Root":"#BFA58A","Iced Coffee":"#B18F6A","Autumn Blaze":"#D9922E","Mineral Yellow":"#D39C43","Artisan's Gold":"#F2AB46","Golden Glow":"#D99938","Golden Orange":"#D7942D","Cadmium Yellow":"#EE9626","Radiant Yellow":"#FC9E21","Gold Fusion":"#FFB000","Travertine":"#AE997D","Safari":"#BAAA91","Taos Taupe":"#BFA77F","Porcini":"#CCA580","Fall Leaf":"#C9A86A","Honey Gold":"#D1A054","Chamois":"#F7B26A","Butterscotch":"#E19640","Dark Cheddar":"#E08119","Iceland Poppy":"#F4963A","Apricot":"#F19035","Flame Orange":"#FB8B23","Tangerine":"#F28A30","Mock Orange":"#FB8C00","Peach Amber":"#F89B45","Inca Gold":"#C18F46","Spruce Yellow":"#E3A857","Amber":"#E8A020","Fire Whirl":"#F86D2C","Sunset":"#F77D5E","Fiesta":"#DD4132","Dusted Clay":"#CD7B6B","Melon":"#F47A5A","Salmon Rose":"#EE826A","Flamingo Pink":"#F3927A","Shrimp":"#F59584","Peach Nougat":"#E6AF91","Dusty Coral":"#E3967A","Desert Sand":"#D4A17A","Sand":"#C5A57C","Prairie":"#C89A70","Caramel":"#B87750","Tortoise Shell":"#9B6941","Warm Taupe":"#AF9483","Tan":"#B8956A","Camel":"#B8895A","Doeskin":"#C4926C","Khaki":"#C3A882","Safari":"#B19A7A","Sand Verbena":"#BC9573","Warm Sand":"#C0A282","Golden Sand":"#C8A570","Beige":"#C6A882",
+    "Dove": "#B3ADA7", "Green Flash": "#79C753", "Spray Green": "#AEA692", "Sage Green": "#B2AC88", "Tarragon": "#A4AE77", "Leaf Green": "#9FAF6C", "Herbal Garden": "#9CAD60", "Parrot Green": "#8DB051", "Greenery": "#88B04B", "Eucalyptus": "#B1A992", "Pale Olive Green": "#B5AD88", "Winter Pear": "#B0B487", "Weeping Willow": "#B3B17B", "Sweet Pea": "#A3A969", "Linden Green": "#C4BF71", "Palm": "#AFAF5E", "Green Oasis": "#B0B454", "Apple Green": "#B5B644", "Jasmine Green": "#7EC845", "Citronelle": "#B8AF23", "Leek Green": "#B7B17A", "Golden Green": "#BDB369", "Cress Green": "#BCA949", "Warm Olive": "#C7B63C", "Ashes of Roses": "#B5ACAB", "Silver Fern": "#BBAA7E", "Southern Moss": "#BCA66A", "Olivenite": "#C1A65C", "Oil Yellow": "#C4A647", "Lemon Curry": "#CDA323", "Ceylon Yellow": "#D4AE40", "Pale Gold": "#BD9865", "Sauterne": "#C5A253", "Chinese Yellow": "#C6973F", "Golden Yellow": "#CB8E16", "Old Gold": "#ECA825", "Mango Mojito": "#D69C2F", "Ginger Root": "#BFA58A", "Iced Coffee": "#B18F6A", "Autumn Blaze": "#D9922E", "Mineral Yellow": "#D39C43", "Artisan's Gold": "#F2AB46", "Golden Glow": "#D99938", "Golden Orange": "#D7942D", "Cadmium Yellow": "#EE9626", "Radiant Yellow": "#FC9E21", "Gold Fusion": "#FFB000", "Travertine": "#AE997D", "Safari": "#BAAA91", "Taos Taupe": "#BFA77F", "Porcini": "#CCA580", "Fall Leaf": "#C9A86A", "Honey Gold": "#D1A054", "Chamois": "#F7B26A", "Butterscotch": "#E19640", "Dark Cheddar": "#E08119", "Iceland Poppy": "#F4963A", "Apricot": "#F19035", "Flame Orange": "#FB8B23", "Tangerine": "#F28A30", "Mock Orange": "#FB8C00", "Peach Amber": "#F89B45", "Inca Gold": "#C18F46", "Spruce Yellow": "#E3A857", "Amber": "#E8A020", "Fire Whirl": "#F86D2C", "Sunset": "#F77D5E", "Fiesta": "#DD4132", "Dusted Clay": "#CD7B6B", "Melon": "#F47A5A", "Salmon Rose": "#EE826A", "Flamingo Pink": "#F3927A", "Shrimp": "#F59584", "Peach Nougat": "#E6AF91", "Dusty Coral": "#E3967A", "Desert Sand": "#D4A17A", "Sand": "#C5A57C", "Prairie": "#C89A70", "Caramel": "#B87750", "Tortoise Shell": "#9B6941", "Warm Taupe": "#AF9483", "Tan": "#B8956A", "Camel": "#B8895A", "Doeskin": "#C4926C", "Khaki": "#C3A882", "Safari": "#B19A7A", "Sand Verbena": "#BC9573", "Warm Sand": "#C0A282", "Golden Sand": "#C8A570", "Beige": "#C6A882",
     // 16-xxxx
-    "Warm Taupe":"#AF9483","Peyote":"#C5BBAE","Doeskin":"#C4926C","Caramel":"#B87750","Tawny":"#A66B3A","Hazel":"#9B7244","Brown Rice":"#A68B60","Warm Beige":"#C2A580","Almond":"#C9B289","Classic Camel":"#C09A62","Ecru":"#D4BC8A","Natural":"#CDB58A","Birch":"#B09070","Tan":"#AE8860","Sand":"#C2A580","Warm Sand":"#C0A282","Desert Mist":"#BEA080","Burlywood":"#C0965E","Sahara":"#BD8A4E","Dark Goldenrod":"#B8851E","Burnt Sienna":"#C97040","Copper":"#B56948","Rust":"#A25240","Autumn Maple":"#B84830","Sienna":"#A04028","Cognac":"#9B3A2A","Mahogany":"#8B3020","Auburn":"#903020","Brick":"#A84030","Terracotta":"#C05040","Clay":"#B86050","Dusty Orange":"#C87048","Spice":"#B86038","Paprika":"#B84030","Pumpkin":"#D07030","Tangerine":"#E08030","Amber":"#D09028","Honey":"#D4A050","Ochre":"#C89040","Gold":"#C4882A","Mustard":"#C4901A","Goldenrod":"#D4A020",
+    "Warm Taupe": "#AF9483", "Peyote": "#C5BBAE", "Doeskin": "#C4926C", "Caramel": "#B87750", "Tawny": "#A66B3A", "Hazel": "#9B7244", "Brown Rice": "#A68B60", "Warm Beige": "#C2A580", "Almond": "#C9B289", "Classic Camel": "#C09A62", "Ecru": "#D4BC8A", "Natural": "#CDB58A", "Birch": "#B09070", "Tan": "#AE8860", "Sand": "#C2A580", "Warm Sand": "#C0A282", "Desert Mist": "#BEA080", "Burlywood": "#C0965E", "Sahara": "#BD8A4E", "Dark Goldenrod": "#B8851E", "Burnt Sienna": "#C97040", "Copper": "#B56948", "Rust": "#A25240", "Autumn Maple": "#B84830", "Sienna": "#A04028", "Cognac": "#9B3A2A", "Mahogany": "#8B3020", "Auburn": "#903020", "Brick": "#A84030", "Terracotta": "#C05040", "Clay": "#B86050", "Dusty Orange": "#C87048", "Spice": "#B86038", "Paprika": "#B84030", "Pumpkin": "#D07030", "Tangerine": "#E08030", "Amber": "#D09028", "Honey": "#D4A050", "Ochre": "#C89040", "Gold": "#C4882A", "Mustard": "#C4901A", "Goldenrod": "#D4A020",
     // 17-xxxx
-    "Artichoke Green":"#7A8060","Peridot":"#8A9045","Fern":"#5A8040","Cypress":"#506838","Forest Green":"#4A7840","Basil":"#486040","Dark Sage":"#607858","Sage":"#8A9878","Seagrass":"#789870","Sea Green":"#5A8870","Mantis":"#78A858","Moss":"#788050","Olive Drab":"#706840","Dried Herb":"#8A8060","Khaki":"#988870","Dusty Olive":"#887858","Burnished Gold":"#A88A40","Antique Gold":"#908040","Dark Harvest":"#806030","Olive":"#787040","Dark Olive":"#706838","Military Olive":"#686040","Army Green":"#586040","Hunter Green":"#487040","Bottle Green":"#385840","Dark Forest":"#2A5030","Deep Forest":"#204830",
+    "Artichoke Green": "#7A8060", "Peridot": "#8A9045", "Fern": "#5A8040", "Cypress": "#506838", "Forest Green": "#4A7840", "Basil": "#486040", "Dark Sage": "#607858", "Sage": "#8A9878", "Seagrass": "#789870", "Sea Green": "#5A8870", "Mantis": "#78A858", "Moss": "#788050", "Olive Drab": "#706840", "Dried Herb": "#8A8060", "Khaki": "#988870", "Dusty Olive": "#887858", "Burnished Gold": "#A88A40", "Antique Gold": "#908040", "Dark Harvest": "#806030", "Olive": "#787040", "Dark Olive": "#706838", "Military Olive": "#686040", "Army Green": "#586040", "Hunter Green": "#487040", "Bottle Green": "#385840", "Dark Forest": "#2A5030", "Deep Forest": "#204830",
     // 18-xxxx
-    "Smokey Olive":"#6A685D","Smoky Olive":"#6A685D","Four Leaf Clover":"#6A7848","Gunmetal":"#6A7068","Olivine":"#666B54","Duck Green":"#487060","Tarmac":"#606A58","Rifle Green":"#505840","Winter Moss":"#606858","Sea Turtle":"#587060","Army":"#5A6848","Bronze Green":"#5A6040","Moss":"#788050","Jungle Green":"#507050","Hunter":"#487040","Dark Khaki":"#787060","Capers":"#706850","Old Sage":"#788878","Artichoke":"#808868","Chive":"#708060","Loden Frost":"#7A8870","Trekking Green":"#607070","Balsam":"#5A7068","Fern":"#6A8A58","Laurel Wreath":"#607840","Foliage":"#587848","Deep Lichen Green":"#587858","Storm":"#686870","Slate Gray":"#707878","Cool Gray":"#7A7A80","French Gray":"#888890","Quarry":"#888A90","Nickel":"#909090","Steeple Gray":"#888A88","Monument":"#808080","Metallic Gray":"#787878","Steel Gray":"#686868","Shadow Gray":"#686870","Quiet Shade":"#707070","Iron Gate":"#686868","Castor Gray":"#787878","Pewter":"#909090","Paloma":"#9A9A9A","Frost Gray":"#A0A0A0","Light Gray":"#B0B0B0","Pearl Gray":"#C0C0C0",
+    "Smokey Olive": "#6A685D", "Smoky Olive": "#6A685D", "Four Leaf Clover": "#6A7848", "Gunmetal": "#6A7068", "Olivine": "#666B54", "Duck Green": "#487060", "Tarmac": "#606A58", "Rifle Green": "#505840", "Winter Moss": "#606858", "Sea Turtle": "#587060", "Army": "#5A6848", "Bronze Green": "#5A6040", "Moss": "#788050", "Jungle Green": "#507050", "Hunter": "#487040", "Dark Khaki": "#787060", "Capers": "#706850", "Old Sage": "#788878", "Artichoke": "#808868", "Chive": "#708060", "Loden Frost": "#7A8870", "Trekking Green": "#607070", "Balsam": "#5A7068", "Fern": "#6A8A58", "Laurel Wreath": "#607840", "Foliage": "#587848", "Deep Lichen Green": "#587858", "Storm": "#686870", "Slate Gray": "#707878", "Cool Gray": "#7A7A80", "French Gray": "#888890", "Quarry": "#888A90", "Nickel": "#909090", "Steeple Gray": "#888A88", "Monument": "#808080", "Metallic Gray": "#787878", "Steel Gray": "#686868", "Shadow Gray": "#686870", "Quiet Shade": "#707070", "Iron Gate": "#686868", "Castor Gray": "#787878", "Pewter": "#909090", "Paloma": "#9A9A9A", "Frost Gray": "#A0A0A0", "Light Gray": "#B0B0B0", "Pearl Gray": "#C0C0C0",
     // 19-xxxx (darks, blacks, navies)
-    "Sky Captain":"#262934","Jet Black":"#2D2C2F","Black Beauty":"#202020","Caviar":"#2A2A2A","Anthracite":"#303030","Phantom":"#383838","Carbon":"#404040","Dark Shadow":"#484848","Gunmetal":"#505050","Charcoal Gray":"#585858","Asphalt":"#606060","Dark Gray":"#686868","Naval":"#1A2A4A","Navy Peony":"#223A6A","Dark Navy":"#1A2850","Parisian Night":"#1A2038","Naval":"#1A2A4A","Dark Denim":"#2A3A5A","Peacoat":"#2A3050","Blue Wing Teal":"#2A4A58","Deep Teal":"#1A4A50","Dark Teal":"#1A4048","Reflecting Pond":"#2A3840","Deep Peacock Blue":"#2A4858","Dark Slate":"#383C48","Midnight":"#202838","Outer Space":"#2A3038","Dark Umber":"#382018","Dark Brown":"#382010","Espresso":"#301808","Coffee Bean":"#281810","Dark Chocolate":"#302020","Bitter Chocolate":"#3A2020","Seal Brown":"#402820","Dark Mocha":"#3A2818","Chocolate Fondant":"#3A2020","Dark Burgundy":"#501828","Wine":"#601830","Bordeaux":"#501828","Dark Red":"#602020","Deep Claret":"#502030","Dark Cherry":"#601828","Tawny Port":"#582028","Fig":"#602838","Eggplant":"#502848","Dark Purple":"#502858","Blackberry":"#402848","Midnight Purple":"#302050","Deep Purple":"#383060","Dark Violet":"#402868","Indigo":"#302868","Dark Indigo":"#282060",
+    "Sky Captain": "#262934", "Jet Black": "#2D2C2F", "Black Beauty": "#202020", "Caviar": "#2A2A2A", "Anthracite": "#303030", "Phantom": "#383838", "Carbon": "#404040", "Dark Shadow": "#484848", "Gunmetal": "#505050", "Charcoal Gray": "#585858", "Asphalt": "#606060", "Dark Gray": "#686868", "Naval": "#1A2A4A", "Navy Peony": "#223A6A", "Dark Navy": "#1A2850", "Parisian Night": "#1A2038", "Naval": "#1A2A4A", "Dark Denim": "#2A3A5A", "Peacoat": "#2A3050", "Blue Wing Teal": "#2A4A58", "Deep Teal": "#1A4A50", "Dark Teal": "#1A4048", "Reflecting Pond": "#2A3840", "Deep Peacock Blue": "#2A4858", "Dark Slate": "#383C48", "Midnight": "#202838", "Outer Space": "#2A3038", "Dark Umber": "#382018", "Dark Brown": "#382010", "Espresso": "#301808", "Coffee Bean": "#281810", "Dark Chocolate": "#302020", "Bitter Chocolate": "#3A2020", "Seal Brown": "#402820", "Dark Mocha": "#3A2818", "Chocolate Fondant": "#3A2020", "Dark Burgundy": "#501828", "Wine": "#601830", "Bordeaux": "#501828", "Dark Red": "#602020", "Deep Claret": "#502030", "Dark Cherry": "#601828", "Tawny Port": "#582028", "Fig": "#602838", "Eggplant": "#502848", "Dark Purple": "#502858", "Blackberry": "#402848", "Midnight Purple": "#302050", "Deep Purple": "#383060", "Dark Violet": "#402868", "Indigo": "#302868", "Dark Indigo": "#282060",
     // Additional common fashion colors
-    "True Red":"#CC2229","Racing Red":"#D52B1E","Mars Red":"#C5281C","Flame Scarlet":"#CD212A","Fiesta":"#DD4132","Grenadine":"#DC4B36","Aurora Red":"#C45C51","Bittersweet":"#B7513F","Chili":"#A84232","Marsala":"#96584A","Baked Clay":"#965038","Potter's Clay":"#9A5535","Copper Tan":"#9A6345","Sequoia":"#9B6048","Russet Brown":"#8C4A3A","Burnt Brick":"#923A2A","Red Ochre":"#A04830","Arrowwood":"#A06030","Dark Cheddar":"#E08119","Harvest Pumpkin":"#E06820","Autumn Maple":"#B84830","Russet":"#8A4020","Sienna":"#A04028","Cognac":"#9B3A2A","Adobe":"#B85840","Chrysanthemum":"#D05A38","Emberglow":"#D04A30","Dusty Orange":"#C87048","Amber":"#D09028","Melon":"#F47A5A","Coral":"#F57A60","Living Coral":"#FF6B6B","Peach Cobbler":"#FFB181","Candied Yams":"#D97040","Apricot Tan":"#C8825A","Caramel":"#B87750","Butterum":"#C89858","Taffy":"#E8A8A0","Flamingo Pink":"#F3927A",
+    "True Red": "#CC2229", "Racing Red": "#D52B1E", "Mars Red": "#C5281C", "Flame Scarlet": "#CD212A", "Fiesta": "#DD4132", "Grenadine": "#DC4B36", "Aurora Red": "#C45C51", "Bittersweet": "#B7513F", "Chili": "#A84232", "Marsala": "#96584A", "Baked Clay": "#965038", "Potter's Clay": "#9A5535", "Copper Tan": "#9A6345", "Sequoia": "#9B6048", "Russet Brown": "#8C4A3A", "Burnt Brick": "#923A2A", "Red Ochre": "#A04830", "Arrowwood": "#A06030", "Dark Cheddar": "#E08119", "Harvest Pumpkin": "#E06820", "Autumn Maple": "#B84830", "Russet": "#8A4020", "Sienna": "#A04028", "Cognac": "#9B3A2A", "Adobe": "#B85840", "Chrysanthemum": "#D05A38", "Emberglow": "#D04A30", "Dusty Orange": "#C87048", "Amber": "#D09028", "Melon": "#F47A5A", "Coral": "#F57A60", "Living Coral": "#FF6B6B", "Peach Cobbler": "#FFB181", "Candied Yams": "#D97040", "Apricot Tan": "#C8825A", "Caramel": "#B87750", "Butterum": "#C89858", "Taffy": "#E8A8A0", "Flamingo Pink": "#F3927A",
     // ── Additional TCX colors frequently used in fashion ──
-    "White Pepper":"#DBD5D1","Blanc de Blanc":"#E7E9E7","Bright Chalk":"#F2F0EB",
-    "Pristine White":"#F4F5F0","Eggshell":"#F1E8DF","Off White":"#F5F0E8",
-    "Optical White":"#F4F5F0","Natural White":"#F0EBE0","Warm White":"#EDE3D2",
-    "Cool White":"#EDEFEE","Blue White":"#EFF0F1","Arctic White":"#EEF0F0",
-    "Bone":"#D7D0C0","Ivory":"#FFFFF0","Champagne":"#F7E7CE",
-    "Powder":"#EDE6DE","Porcelain":"#F1E8DF","Alabaster":"#F0E6DC",
-    "Antique":"#EDE3D2","Vintage White":"#EDE0C8","Oyster":"#D2CAAF",
-    "Sea Fog":"#E8E8E4","Lily":"#F2E8DF","Whitened":"#EDE9E5",
+    "White Pepper": "#DBD5D1", "Blanc de Blanc": "#E7E9E7", "Bright Chalk": "#F2F0EB",
+    "Pristine White": "#F4F5F0", "Eggshell": "#F1E8DF", "Off White": "#F5F0E8",
+    "Optical White": "#F4F5F0", "Natural White": "#F0EBE0", "Warm White": "#EDE3D2",
+    "Cool White": "#EDEFEE", "Blue White": "#EFF0F1", "Arctic White": "#EEF0F0",
+    "Bone": "#D7D0C0", "Ivory": "#FFFFF0", "Champagne": "#F7E7CE",
+    "Powder": "#EDE6DE", "Porcelain": "#F1E8DF", "Alabaster": "#F0E6DC",
+    "Antique": "#EDE3D2", "Vintage White": "#EDE0C8", "Oyster": "#D2CAAF",
+    "Sea Fog": "#E8E8E4", "Lily": "#F2E8DF", "Whitened": "#EDE9E5",
 };
 
 // ─── Pantone name → real TCX hex ──────────────────────────────
@@ -641,12 +641,12 @@ async function fetchPantoneHex(pantoneName) {
         if (r.ok) {
             const data = await r.json();
             if (data && data.hex) {
-                const hex = "#" + data.hex.replace("#","");
+                const hex = "#" + data.hex.replace("#", "");
                 _PANTONE_RUNTIME_CACHE[norm] = hex;
                 return hex;
             }
         }
-    } catch(e) { /* silent fail */ }
+    } catch (e) { /* silent fail */ }
     return null;
 }
 
@@ -726,12 +726,12 @@ function renderDashboard() {
     ];
 
     // ── Client accent colors
-    const CLIENT_ACCENTS = ["#7F77DD","#1D9E75","#EF9F27","#D4537E","#378ADD","#888780"];
+    const CLIENT_ACCENTS = ["#7F77DD", "#1D9E75", "#EF9F27", "#D4537E", "#378ADD", "#888780"];
 
     // ── Helper: Ex-Fty badge with label
     function exFtyBadge(dateStr) {
         if (!dateStr) return '<div class="dbs-exfty-wrap"><span class="dbs-exfty-lbl">Ex-Fty</span><span class="dbs-exfty none">No date</span></div>';
-        const d = new Date(dateStr); d.setHours(0,0,0,0);
+        const d = new Date(dateStr); d.setHours(0, 0, 0, 0);
         const diff = Math.round((d - today) / 86400000);
         const label = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
         const cls = diff < 0 ? "late" : diff <= 14 ? "near" : "ok";
@@ -765,7 +765,7 @@ function renderDashboard() {
                 '<span class="dbs-dl-dept">' + esc(d.dept) + '</span>' +
                 '<span class="dbs-dl-qty">' + d.qty.toLocaleString("fr-FR") + ' u.</span>' +
                 '<span class="dbs-dl-badge" style="background:' + c.bg + ';color:' + c.text + '">' + d.nStyles + '</span>' +
-            '</div>';
+                '</div>';
         }).join("");
     }
 
@@ -798,10 +798,10 @@ function renderDashboard() {
             const deptSections = deptDataArr.map((dd, di) => {
                 const c = DEPT_COLORS[di % DEPT_COLORS.length];
                 const cards = dd.rows.map((r, cardIdx) => {
-                    const qty  = r["Order Qty"] ? (+r["Order Qty"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
-                    const psd  = r["PSD"] ? new Date(r["PSD"]).toLocaleDateString("fr-FR", {day:"2-digit", month:"short"}) : '<span class="dbs-dim">—</span>';
+                    const qty = r["Order Qty"] ? (+r["Order Qty"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
+                    const psd = r["PSD"] ? new Date(r["PSD"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : '<span class="dbs-dim">—</span>';
                     const cost = r["Costing"] ? '$' + r["Costing"] : '<span class="dbs-dim">—</span>';
-                    const fab  = r["Fabric Base"] ? esc(r["Fabric Base"]) : '<span class="dbs-dim">—</span>';
+                    const fab = r["Fabric Base"] ? esc(r["Fabric Base"]) : '<span class="dbs-dim">—</span>';
                     const desc = esc(r["Description"] || r["StyleDescription"] || "");
 
                     // ── Cross-data: ordering rows for this style
@@ -809,17 +809,17 @@ function renderDashboard() {
                         o.Style === r.Style && o.Client === r.Client
                     );
                     const confirmedOrders = orderRows.filter(o => o.Status === "Confirmed").length;
-                    const pendingOrders   = orderRows.filter(o => o.Status === "Pending").length;
+                    const pendingOrders = orderRows.filter(o => o.Status === "Pending").length;
                     const deliveredOrders = orderRows.filter(o => o["Delivery Status"] === "Delivered").length;
-                    const inTransit       = orderRows.filter(o => o["Delivery Status"] === "In Transit").length;
-                    const totalColors     = orderRows.length;
+                    const inTransit = orderRows.filter(o => o["Delivery Status"] === "In Transit").length;
+                    const totalColors = orderRows.length;
 
                     // ── Cross-data: sample approval for this style
                     const sampleRows = (state.data.sample || []).filter(s =>
                         s.Style === r.Style && s.Client === r.Client
                     );
                     const approved = sampleRows.filter(s => s.Approval === "Approved").length;
-                    const pending  = sampleRows.filter(s => s.Approval === "Pending").length;
+                    const pending = sampleRows.filter(s => s.Approval === "Pending").length;
                     const rejected = sampleRows.filter(s => s.Approval === "Rejected").length;
                     const totalSamples = sampleRows.length;
 
@@ -835,22 +835,22 @@ function renderDashboard() {
                     let orderChips = "";
                     if (totalColors > 0) {
                         if (deliveredOrders > 0) orderChips += '<span class="sc-chip sc-chip-delivered">' + deliveredOrders + ' livré' + (deliveredOrders > 1 ? 's' : '') + '</span>';
-                        if (inTransit > 0)       orderChips += '<span class="sc-chip sc-chip-transit">' + inTransit + ' en transit</span>';
+                        if (inTransit > 0) orderChips += '<span class="sc-chip sc-chip-transit">' + inTransit + ' en transit</span>';
                         if (confirmedOrders > 0 && deliveredOrders + inTransit < confirmedOrders) {
                             const rem = confirmedOrders - deliveredOrders - inTransit;
                             orderChips += '<span class="sc-chip sc-chip-confirmed">' + rem + ' confirmé' + (rem > 1 ? 's' : '') + '</span>';
                         }
-                        if (pendingOrders > 0)   orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
+                        if (pendingOrders > 0) orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
                     }
 
                     // ── Color labels from style sheet (real Pantone TCX hex)
                     const styleColors = (state.data.style || []).filter(s => s.Style === r.Style);
                     const colorTags = styleColors.map((s, ci) => {
                         const gmtColor = esc(s["GMT Color"] || "");
-                        const pantone  = esc(s["Pantone"] || "");
+                        const pantone = esc(s["Pantone"] || "");
                         if (!gmtColor && !pantone) return '';
                         // Unique ID for async color update
-                        const barId = 'cb-' + esc(r.Style||"") + '-' + ci;
+                        const barId = 'cb-' + esc(r.Style || "") + '-' + ci;
                         // Resolve color: static DB first (sync), then async fetch if missing
                         const hexSync = resolveColorHex(s["GMT Color"], s["Pantone"]);
                         const needsFetch = hexSync === "#cbd5e1" && s["Pantone"] && s["Pantone"].trim();
@@ -867,16 +867,16 @@ function renderDashboard() {
                         return '<span class="sc-color-tag">' +
                             '<span class="sc-color-bar" id="' + barId + '" style="' + barStyle + '"></span>' +
                             '<span class="sc-color-info">' +
-                                '<span class="sc-color-gmt">' + gmtColor + '</span>' +
-                                (pantone ? '<span class="sc-color-pantone">' + pantone + '</span>' : '') +
+                            '<span class="sc-color-gmt">' + gmtColor + '</span>' +
+                            (pantone ? '<span class="sc-color-pantone">' + pantone + '</span>' : '') +
                             '</span>' +
-                        '</span>';
+                            '</span>';
                     }).filter(Boolean).join("");
                     const colorWrap = colorTags
                         ? '<div class="sc-colors-wrap sc-colors-text">' +
-                            '<span class="sc-colors-lbl">Coloris</span>' +
-                            '<div class="sc-color-tags-row">' + colorTags + '</div>' +
-                          '</div>'
+                        '<span class="sc-colors-lbl">Coloris</span>' +
+                        '<div class="sc-color-tags-row">' + colorTags + '</div>' +
+                        '</div>'
                         : '';
 
                     // ── Progress bar: delivered / total colors
@@ -893,7 +893,7 @@ function renderDashboard() {
                     let imgBlock;
                     if (imgUrl) {
                         const _lbStyle = esc(r.Style || "");
-                        const _lbDesc  = esc(r["Description"] || r["StyleDescription"] || "");
+                        const _lbDesc = esc(r["Description"] || r["StyleDescription"] || "");
                         imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
                     } else {
                         imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
@@ -921,30 +921,30 @@ function renderDashboard() {
                         '>' +
                         imgBlock +
                         '<div class="dbs-sc-head">' +
-                            '<div class="dbs-sc-id">' +
-                                '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
-                                (desc ? '<span class="dbs-sc-desc">' + desc + '</span>' : '') +
-                            '</div>' +
-                            exFtyBadge(r["Ex-Fty"]) +
+                        '<div class="dbs-sc-id">' +
+                        '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
+                        (desc ? '<span class="dbs-sc-desc">' + desc + '</span>' : '') +
+                        '</div>' +
+                        exFtyBadge(r["Ex-Fty"]) +
                         '</div>' +
                         (colorWrap ? colorWrap : '') +
                         '<hr class="dbs-sc-div">' +
                         '<div class="dbs-sc-fields">' +
-                            '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
-                            '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
-                            '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                            '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
-                    '</div>';
+                        '</div>';
                 }).join("");
 
                 return '<div class="dbs-dept-grp">' +
                     '<div class="dbs-dept-title">' +
-                        '<span class="dbs-dept-name-lbl">' + esc(dd.dept) + '</span>' +
-                        '<div class="dbs-dept-line" style="background:' + c.stroke + '"></div>' +
+                    '<span class="dbs-dept-name-lbl">' + esc(dd.dept) + '</span>' +
+                    '<div class="dbs-dept-line" style="background:' + c.stroke + '"></div>' +
                     '</div>' +
                     '<div class="dbs-cards-wrap">' + cards + '</div>' +
-                '</div>';
+                    '</div>';
             }).join("");
 
             // ── Bar chart sidebar
@@ -952,59 +952,59 @@ function renderDashboard() {
             const bars = deptDataArr.map((dd, di) => {
                 const c = DEPT_COLORS[di % DEPT_COLORS.length];
                 const pct = Math.round((dd.qty / maxQty) * 100);
-                const qtyLabel = dd.qty >= 1000 ? (dd.qty / 1000).toFixed(1).replace('.0','') + 'k' : dd.qty.toString();
+                const qtyLabel = dd.qty >= 1000 ? (dd.qty / 1000).toFixed(1).replace('.0', '') + 'k' : dd.qty.toString();
                 return '<div class="dbs-bar-row">' +
                     '<div class="dbs-bar-dept">' + esc(dd.dept) + '</div>' +
                     '<div class="dbs-bar-track">' +
-                        '<div class="dbs-bar-fill" style="width:' + Math.max(pct, 8) + '%;background:linear-gradient(90deg,' + c.stroke + ',' + c.stroke + '99)">' +
-                            '<span class="dbs-bar-qty">' + qtyLabel + ' u.</span>' +
-                        '</div>' +
+                    '<div class="dbs-bar-fill" style="width:' + Math.max(pct, 8) + '%;background:linear-gradient(90deg,' + c.stroke + ',' + c.stroke + '99)">' +
+                    '<span class="dbs-bar-qty">' + qtyLabel + ' u.</span>' +
+                    '</div>' +
                     '</div>' +
                     '<div class="dbs-bar-n" style="color:' + c.text + ';background:' + c.bg + '">' + dd.nStyles + '</div>' +
-                '</div>';
+                    '</div>';
             }).join("");
 
             return '<div class="dbs-cli-block">' +
                 '<div class="dbs-sidebar">' +
-                    '<div class="dbs-cli-id">' +
-                        '<div class="dbs-av" style="background:' + accentColor + '1a;color:' + accentColor + '">' + initials + '</div>' +
-                        '<div>' +
-                            '<div class="dbs-cli-name">' + esc(client) + '</div>' +
-                            '<div class="dbs-cli-sub">' + cTotal.toLocaleString("fr-FR") + ' u. &middot; ' + cStyles + ' style' + (cStyles > 1 ? 's' : '') + '</div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div class="dbs-bar-sep"></div>' +
-                    '<div class="dbs-bar-chart">' +
-                        '<div class="dbs-bar-chart-lbl">Répartition par département</div>' +
-                        bars +
-                    '</div>' +
-                    '<div class="dbs-bar-sep"></div>' +
-                    '<div class="dbs-bar-kpis">' +
-                        '<div class="dbs-bar-kpi" style="background:' + accentColor + '1a">' +
-                            '<div class="dbs-bar-kpi-n" style="color:' + accentColor + '">' + cTotal.toLocaleString("fr-FR") + '</div>' +
-                            '<div class="dbs-bar-kpi-l" style="color:' + accentColor + '">u. total</div>' +
-                        '</div>' +
-                        '<div class="dbs-bar-kpi">' +
-                            '<div class="dbs-bar-kpi-n">' + cStyles + '</div>' +
-                            '<div class="dbs-bar-kpi-l">styles</div>' +
-                        '</div>' +
-                    '</div>' +
+                '<div class="dbs-cli-id">' +
+                '<div class="dbs-av" style="background:' + accentColor + '1a;color:' + accentColor + '">' + initials + '</div>' +
+                '<div>' +
+                '<div class="dbs-cli-name">' + esc(client) + '</div>' +
+                '<div class="dbs-cli-sub">' + cTotal.toLocaleString("fr-FR") + ' u. &middot; ' + cStyles + ' style' + (cStyles > 1 ? 's' : '') + '</div>' +
+                '</div>' +
+                '</div>' +
+                '<div class="dbs-bar-sep"></div>' +
+                '<div class="dbs-bar-chart">' +
+                '<div class="dbs-bar-chart-lbl">Répartition par département</div>' +
+                bars +
+                '</div>' +
+                '<div class="dbs-bar-sep"></div>' +
+                '<div class="dbs-bar-kpis">' +
+                '<div class="dbs-bar-kpi" style="background:' + accentColor + '1a">' +
+                '<div class="dbs-bar-kpi-n" style="color:' + accentColor + '">' + cTotal.toLocaleString("fr-FR") + '</div>' +
+                '<div class="dbs-bar-kpi-l" style="color:' + accentColor + '">u. total</div>' +
+                '</div>' +
+                '<div class="dbs-bar-kpi">' +
+                '<div class="dbs-bar-kpi-n">' + cStyles + '</div>' +
+                '<div class="dbs-bar-kpi-l">styles</div>' +
+                '</div>' +
+                '</div>' +
                 '</div>' +
                 '<div class="dbs-main">' + deptSections + '</div>' +
-            '</div>';
+                '</div>';
         }).join("");
 
         return '<div class="dbs-szn-block">' +
             '<div class="dbs-szn-band">' +
-                '<span class="dbs-szn-pill ' + pillCls + '">' + esc(saison) + '</span>' +
-                '<div class="dbs-szn-stats">' +
-                    '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sRows.length + '</span><span class="dbs-szn-l">styles</span></div>' +
-                    '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sTotal.toLocaleString("fr-FR") + '</span><span class="dbs-szn-l">u. total</span></div>' +
-                    '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sClients.length + '</span><span class="dbs-szn-l">client' + (sClients.length > 1 ? 's' : '') + '</span></div>' +
-                '</div>' +
+            '<span class="dbs-szn-pill ' + pillCls + '">' + esc(saison) + '</span>' +
+            '<div class="dbs-szn-stats">' +
+            '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sRows.length + '</span><span class="dbs-szn-l">styles</span></div>' +
+            '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sTotal.toLocaleString("fr-FR") + '</span><span class="dbs-szn-l">u. total</span></div>' +
+            '<div class="dbs-szn-stat"><span class="dbs-szn-n">' + sClients.length + '</span><span class="dbs-szn-l">client' + (sClients.length > 1 ? 's' : '') + '</span></div>' +
+            '</div>' +
             '</div>' +
             clientBlocks +
-        '</div>';
+            '</div>';
     }).join("");
 
     // ── Date
@@ -1276,7 +1276,7 @@ function renderTable() {
             if (c.key === "Client") return `<td class="${sticky}"><span class="client-badge" onclick="event.stopPropagation();detFilterByClient('${esc(val)}')">${esc(val) || "—"}</span></td>`;
             if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
             if (c.key === "Style") return `<td class="${sticky}"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(val)}')">${esc(val)}</a></td>`;
-            
+
             if (c.key === "Approval") {
                 const cls = (val || "").toLowerCase() || "unknown";
                 const opts = ["", "Approved", "Pending", "Rejected"].map(o =>
@@ -1319,7 +1319,7 @@ function renderTable() {
                         ? c.key === "Sending Date" && dd.getTime() <= new Date().setHours(0, 0, 0, 0)
                         : (c.key === "Ex-Fty" || c.key === "Ready Date" || c.key === "PSD") && dd.getTime() < new Date().setHours(0, 0, 0, 0);
                     if (showDayBadge) {
-                        const diff = Math.round((dd - new Date().setHours(0,0,0,0)) / 86400000);
+                        const diff = Math.round((dd - new Date().setHours(0, 0, 0, 0)) / 86400000);
                         const absDiff = Math.abs(diff);
                         const bcls = isSampleSheet
                             ? (absDiff >= 14 ? "det-daybadge det-daybadge-danger" : absDiff >= 7 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok")
@@ -1338,17 +1338,17 @@ function renderTable() {
             const colName = (c.label || c.key || "").trim().toLowerCase();
             const isBalanceMatch = colName.includes("balance") || colName.includes("diff") || colName.includes("reste") || colName.includes("écart") || colName.includes("ecart") || colName.includes("excess");
 
-            
+
             if (isBalanceMatch && val !== "" && val !== null && val !== undefined) {
                 const numericStr = String(val).replace(/[^0-9.-]/g, "");
                 const num = parseFloat(numericStr);
-                
+
                 if (!isNaN(num)) {
-                    if (num < 0) { 
+                    if (num < 0) {
                         // Excess delivered -> Blue (User requested Blue for Excess)
                         const html = `<span class="qty-status-badge qty-status-balance"><span class="qty-status-icon"></span>${num} Excess</span>`;
                         return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
-                    } else if (num > 0) { 
+                    } else if (num > 0) {
                         // Reste à livrer -> Red (User requested Red for Reste à livrer)
                         const html = `<span class="qty-status-badge qty-status-excess"><span class="qty-status-icon"></span>${num} Reste</span>`;
                         return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
@@ -1511,16 +1511,16 @@ function buildForm(cols, data) {
         const colLabel = (col.label || "").toLowerCase();
         const isReadonly = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
         const readonlyAttr = isReadonly ? "readonly" : "";
-        
+
         let input;
         if (col.type === "textarea") input = `<textarea class="form-textarea" id="field-${sanitizeId(col.key)}" placeholder="${col.label}" ${readonlyAttr}>${esc(String(rawVal))}</textarea>`;
-        else if (col.type === "select") { 
-            const opts = col.options.map(o => `<option value="${esc(o)}" ${o === rawVal ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join(""); 
-            input = `<select class="form-select" id="field-${sanitizeId(col.key)}" ${isReadonly ? "disabled" : ""}>${opts}</select>`; 
+        else if (col.type === "select") {
+            const opts = col.options.map(o => `<option value="${esc(o)}" ${o === rawVal ? "selected" : ""}>${esc(o) || "— Sélectionner —"}</option>`).join("");
+            input = `<select class="form-select" id="field-${sanitizeId(col.key)}" ${isReadonly ? "disabled" : ""}>${opts}</select>`;
         }
         else if (col.type === "date") { const dateVal = toISODateValue(rawVal); input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="date" value="${esc(dateVal)}" placeholder="${col.label}" ${col.required ? "required" : ""} ${readonlyAttr}>`; }
         else input = `<input class="form-input" id="field-${sanitizeId(col.key)}" type="text" value="${esc(String(rawVal))}" placeholder="${col.label}" ${col.required ? "required" : ""} ${readonlyAttr}>`;
-        
+
         return `<div class="form-group${full}"><label class="form-label" for="field-${sanitizeId(col.key)}">${col.label}${col.required ? ` <span style="color:var(--danger)">*</span>` : ""}</label>${input}</div>`;
     }).join("");
 }
@@ -1539,7 +1539,7 @@ async function saveForm() {
     cfg.cols.forEach(col => {
         const colLabel = (col.label || "").toLowerCase();
         const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
-        
+
         if (isFormula) return; // Ne pas envoyer les colonnes de formule
 
         const raw = rawData[col.key] ?? "";
@@ -1609,7 +1609,7 @@ function openConfirm({ title, h3, text, actionLabel, actionCls, icon, onConfirm 
     confirmIconWrap.innerHTML = icon || "";
     confirmCallback = onConfirm;
     confirmOverlay.classList.add("open");
-    
+
     confirmActionBtn.onclick = async () => {
         confirmActionBtn.disabled = true;
         const originalLabel = confirmActionBtn.textContent;
@@ -1656,10 +1656,10 @@ function duplicateRow(rowIndex) {
             const cfg = SHEET_CONFIG[sheetKey];
             const row = (state.data[sheetKey] || []).find(r => r._rowIndex === rowIndex);
             if (!row) throw new Error("Ligne introuvable");
-            
+
             const newRow = { ...row };
             delete newRow._rowIndex; // GAS gèrera le nouvel index
-            
+
             await sendRequest("CREATE", { data: newRow });
             await fetchAllData();
             renderAll();
@@ -1967,7 +1967,7 @@ async function saveMenuBuilder() {
         // Pour les menus fixes : garder le label d'origine, mais on sauvegarde quand même leurs colonnes
         SHEET_CONFIG[key].cols = menuDef.cols;
         persistCustomMenus();
-        
+
         if (!isNonCustom) {
             SHEET_CONFIG[key].label = menuDef.label;
             SHEET_CONFIG[key].sheetName = menuDef.label;
@@ -2014,16 +2014,16 @@ async function handleExcelUpload(event) {
     showToast("Lecture de l'Excel...", "info");
 
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = async function (e) {
         try {
             const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, {type: 'array'});
+            const workbook = XLSX.read(data, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
-            
-            const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+
+            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             if (json.length === 0) throw new Error("Fichier vide");
-            
+
             const headers = json[0].map(h => String(h).trim()).filter(Boolean);
             if (headers.length === 0) throw new Error("Aucun en-tête trouvé");
 
@@ -2057,20 +2057,20 @@ async function handleExcelUpload(event) {
 
             showToast(`Envoi des données (${rowsData.length} lignes)...`, "info");
 
-            await sendRequest("IMPORT_EXCEL", { 
-                sheetName: nameRaw, 
-                columns: headers, 
-                rows: rowsData 
+            await sendRequest("IMPORT_EXCEL", {
+                sheetName: nameRaw,
+                columns: headers,
+                rows: rowsData
             }, "menu_builder");
 
             showToast("Importation réussie ✓", "success", 4000);
 
             closeMenuBuilder();
             registerCustomMenu(menuDef, true);
-            
+
             const navBtn = document.getElementById("tab-custom-" + key);
             if (navBtn) navBtn.click();
-            
+
             await fetchAllData();
 
         } catch (err) {
@@ -2445,7 +2445,7 @@ function _isRowCompleted(row) {
     // 1. Check Status & Delivery columns
     const statusKeys = ["Status", "Delivery Status", "Delivery", "Statut", "Livraison"];
     const completeKeywords = [
-        "delivered", "shipped", "livré", "livre", "expédié", "expedie", 
+        "delivered", "shipped", "livré", "livre", "expédié", "expedie",
         "done", "terminé", "termine", "clos", "closed", "complet", "complete",
         "transit", "en cours", "en route"
     ];
@@ -2555,15 +2555,15 @@ function collectAllAlerts() {
 
         // Champs communs à tous les états sample
         const _samColor = r["Color"] || r["Colour"] || r["Coloris"] || r["Couleur"] || "";
-        const _samType  = r["Type"] || "";
-        const _samFab   = r["Fabric"] || "";
-        const _samSize  = r["Size"] || "";
-        const _samDept  = r["Dept"] || "";
-        const _colorLabel  = _samColor ? ` · Coloris : ${_samColor}` : "";
-        const _fabricLabel = _samFab   ? ` · Fabric : ${_samFab}`    : "";
-        const _sizeLabel   = _samSize  ? ` · Size : ${_samSize}`     : "";
-        const _deptLabel   = _samDept  ? ` · Dept : ${_samDept}`     : "";
-        const _typeLabel   = _samType  ? ` · ${_samType}`            : "";
+        const _samType = r["Type"] || "";
+        const _samFab = r["Fabric"] || "";
+        const _samSize = r["Size"] || "";
+        const _samDept = r["Dept"] || "";
+        const _colorLabel = _samColor ? ` · Coloris : ${_samColor}` : "";
+        const _fabricLabel = _samFab ? ` · Fabric : ${_samFab}` : "";
+        const _sizeLabel = _samSize ? ` · Size : ${_samSize}` : "";
+        const _deptLabel = _samDept ? ` · Dept : ${_samDept}` : "";
+        const _typeLabel = _samType ? ` · ${_samType}` : "";
 
         if (hasSending) {
             const days = Math.abs(_daysDiff(r["Sending Date"]));
@@ -2646,20 +2646,20 @@ function collectAllAlerts() {
         const rows = state.data[key] || [];
         const clItems = [];
 
-        const getStyle  = r => det.style  ? (r[det.style]  || "—") : "—";
-        const getClient = r => det.client ? (r[det.client] || "")  : "";
+        const getStyle = r => det.style ? (r[det.style] || "—") : "—";
+        const getClient = r => det.client ? (r[det.client] || "") : "";
 
         rows.forEach(r => {
             if (_isRowCompleted(r)) return;
-            const hasPoDate          = det.poDate          && !!(r[det.poDate]          && String(r[det.poDate]).trim());
+            const hasPoDate = det.poDate && !!(r[det.poDate] && String(r[det.poDate]).trim());
             const hasArtworkReceived = det.artworkReceived && !!(r[det.artworkReceived] && String(r[det.artworkReceived]).trim());
-            const hasArtworkSub      = det.artworkSubmission && !!(r[det.artworkSubmission] && String(r[det.artworkSubmission]).trim());
+            const hasArtworkSub = det.artworkSubmission && !!(r[det.artworkSubmission] && String(r[det.artworkSubmission]).trim());
             const hasArtworkApproval = det.artworkApproval && !!(r[det.artworkApproval] && String(r[det.artworkApproval]).trim());
 
             // Approval complété géré par _isRowCompleted, mais on garde une sécurité locale si besoin.
             if (hasArtworkApproval) return;
 
-            const styleMeta  = getStyle(r);
+            const styleMeta = getStyle(r);
             const clientMeta = getClient(r);
 
             // ── État C : Artwork Submission renseignée + Approval vide ──
@@ -2939,17 +2939,17 @@ function collectAllAlerts() {
 
             // ── FABRIC ANALYSIS ──────────────────────────────────
             if (det.isFabricAnalysis) {
-                const efaVal     = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "—" ? getStyle(r) : "Test");
-                const colorVal   = det.color && r[det.color] ? String(r[det.color]).trim() : null;
-                const fsrVal     = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
-                const resultVal   = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
-                const resultDtVal = det.resultDate  && r[det.resultDate]  ? String(r[det.resultDate]).trim()  : "";
-                const readyDtVal  = det.readyDate   && r[det.readyDate]   ? String(r[det.readyDate]).trim()   : "";
+                const efaVal = det.efaRef && r[det.efaRef] ? String(r[det.efaRef]).trim() : (getStyle(r) !== "—" ? getStyle(r) : "Test");
+                const colorVal = det.color && r[det.color] ? String(r[det.color]).trim() : null;
+                const fsrVal = det.fsrNumber && r[det.fsrNumber] ? String(r[det.fsrNumber]).trim() : null;
+                const resultVal = det.resultField && r[det.resultField] ? String(r[det.resultField]).trim() : "";
+                const resultDtVal = det.resultDate && r[det.resultDate] ? String(r[det.resultDate]).trim() : "";
+                const readyDtVal = det.readyDate && r[det.readyDate] ? String(r[det.readyDate]).trim() : "";
 
                 if (resultVal) return;
 
                 if (readyDtVal) {
-                    const today  = new Date(); today.setHours(0, 0, 0, 0);
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
                     const rdDate = new Date(readyDtVal); rdDate.setHours(0, 0, 0, 0);
                     if (resultDtVal) {
                         const resDt = new Date(resultDtVal); resDt.setHours(0, 0, 0, 0);
@@ -3289,16 +3289,18 @@ function collectAllAlerts() {
 
     const atRisks = collectAtRiskStyles();
     if (atRisks.length) {
-        all["__atrisk__"] = { label: "⚡ Styles à Risque", items: atRisks.map(r => ({
-            dotCls: r.maxUrgency === "high" ? "dot-late" : "dot-today",
-            tagCls: r.maxUrgency === "high" ? "tag-late" : "tag-today",
-            tagLabel: `${r.maxUrgency === "high" ? ICONS.alert : ICONS.clock} Score ${r.score} — ${r.flags.length} signal${r.flags.length > 1 ? "s" : ""}`,
-            title: `${r.style}${r.desc ? " · " + r.desc : ""} — ${r.flags.map(f => f.label).join(" · ")}`,
-            action: r.flags[0]?.label || "Vérifier le style",
-            style: r.style, client: r.client,
-            urgency: r.maxUrgency, sheet: "details",
-            rowIndex: (state.data.details || []).find(d => d.Style === r.style)?._rowIndex ?? null
-        })) };
+        all["__atrisk__"] = {
+            label: "⚡ Styles à Risque", items: atRisks.map(r => ({
+                dotCls: r.maxUrgency === "high" ? "dot-late" : "dot-today",
+                tagCls: r.maxUrgency === "high" ? "tag-late" : "tag-today",
+                tagLabel: `${r.maxUrgency === "high" ? ICONS.alert : ICONS.clock} Score ${r.score} — ${r.flags.length} signal${r.flags.length > 1 ? "s" : ""}`,
+                title: `${r.style}${r.desc ? " · " + r.desc : ""} — ${r.flags.map(f => f.label).join(" · ")}`,
+                action: r.flags[0]?.label || "Vérifier le style",
+                style: r.style, client: r.client,
+                urgency: r.maxUrgency, sheet: "details",
+                rowIndex: (state.data.details || []).find(d => d.Style === r.style)?._rowIndex ?? null
+            }))
+        };
     }
     return all;
 }
@@ -3531,14 +3533,14 @@ function _renderGndFull() {
     keys.forEach(k => {
         const items = [...all[k].items].sort((a, b) => (urgencyOrder[a.urgency] ?? 9) - (urgencyOrder[b.urgency] ?? 9));
         const hasHigh = items.some(i => i.urgency === "high");
-        const hasMid  = !hasHigh && items.some(i => i.urgency === "mid");
-        const barCls  = hasHigh ? "gnd-mline-high" : hasMid ? "gnd-mline-mid" : "gnd-mline-low";
+        const hasMid = !hasHigh && items.some(i => i.urgency === "mid");
+        const barCls = hasHigh ? "gnd-mline-high" : hasMid ? "gnd-mline-mid" : "gnd-mline-low";
         const safeKey = k.replace(/[^a-zA-Z0-9_]/g, "_");
 
         // Compter par dotCls
         const dotCount = {};
         items.forEach(i => { dotCount[i.dotCls] = (dotCount[i.dotCls] || 0) + 1; });
-        const dotOrder = ["dot-late","dot-today","dot-approve","dot-send","dot-nopo","dot-risk"];
+        const dotOrder = ["dot-late", "dot-today", "dot-approve", "dot-send", "dot-nopo", "dot-risk"];
         const typesHtml = dotOrder
             .filter(d => dotCount[d])
             .map(d => `<span class="gnd-mtype"><span class="gnd-mtype-dot ${d}"></span>${dotCount[d]}</span>`)
@@ -3547,8 +3549,8 @@ function _renderGndFull() {
         const iconSvg = hasHigh
             ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2L1 14h14L8 2z" stroke="#C0392B" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 6v3.5M8 11v.5" stroke="#C0392B" stroke-width="1.6" stroke-linecap="round"/></svg>`
             : hasMid
-            ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#827717" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#827717" stroke-width="1.6" stroke-linecap="round"/></svg>`
-            : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+                ? `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#827717" stroke-width="1.6"/><path d="M8 5v3.5M8 10.5v.5" stroke="#827717" stroke-width="1.6" stroke-linecap="round"/></svg>`
+                : `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5.5" stroke="#5F5E5A" stroke-width="1.6"/><path d="M5.5 8l2 2 3-3" stroke="#5F5E5A" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
         listHtml += `
         <div class="gnd-mline ${barCls}" onclick="gndOpenDetail('${safeKey}')">
@@ -3565,12 +3567,12 @@ function _renderGndFull() {
 
     // ── Légende dynamique : lit les vraies couleurs CSS des dot-* ──
     const legendDots = [
-        { cls: "dot-late",    label: "En retard"        },
-        { cls: "dot-today",   label: "Aujourd'hui"      },
+        { cls: "dot-late", label: "En retard" },
+        { cls: "dot-today", label: "Aujourd'hui" },
         { cls: "dot-approve", label: "Approval en attente" },
-        { cls: "dot-send",    label: "À envoyer"        },
-        { cls: "dot-nopo",    label: "Info manquante"   },
-        { cls: "dot-risk",    label: "À risque"         },
+        { cls: "dot-send", label: "À envoyer" },
+        { cls: "dot-nopo", label: "Info manquante" },
+        { cls: "dot-risk", label: "À risque" },
     ];
     const legendItems = legendDots.map(d =>
         `<span class="gnd-leg-item">
@@ -3644,12 +3646,12 @@ function gndOpenDetail(safeKey) {
 
     // ── Build type filter pills from available dotCls in this menu ──
     const dotMeta = [
-        { cls: "dot-late",    label: "En retard"           },
-        { cls: "dot-today",   label: "Aujourd'hui"         },
-        { cls: "dot-approve", label: "Approval"            },
-        { cls: "dot-send",    label: "À envoyer"           },
-        { cls: "dot-nopo",    label: "Info manquante"      },
-        { cls: "dot-risk",    label: "À risque"            },
+        { cls: "dot-late", label: "En retard" },
+        { cls: "dot-today", label: "Aujourd'hui" },
+        { cls: "dot-approve", label: "Approval" },
+        { cls: "dot-send", label: "À envoyer" },
+        { cls: "dot-nopo", label: "Info manquante" },
+        { cls: "dot-risk", label: "À risque" },
     ];
     const presentDots = new Set(items.map(i => i.dotCls));
     const filterTypesEl = document.getElementById("gnd-filter-types");
@@ -3700,15 +3702,15 @@ function gndApplyDetailFilters() {
 
     const filtered = items.filter(item => {
         const matchStyle = !styleQuery || (item.style || "").toLowerCase().includes(styleQuery);
-        const matchType  = activeTypes.size === 0 || activeTypes.has(item.dotCls);
+        const matchType = activeTypes.size === 0 || activeTypes.has(item.dotCls);
         return matchStyle && matchType;
     });
 
-    const rowsEl  = document.getElementById("gnd-detail-rows");
+    const rowsEl = document.getElementById("gnd-detail-rows");
     const emptyEl = document.getElementById("gnd-detail-empty");
     const labelEl = document.getElementById("gnd-detail-label");
 
-    if (rowsEl)  rowsEl.innerHTML = filtered.map(renderRow).join("");
+    if (rowsEl) rowsEl.innerHTML = filtered.map(renderRow).join("");
     if (emptyEl) emptyEl.style.display = filtered.length === 0 ? "flex" : "none";
     if (labelEl) {
         const suffix = filtered.length !== items.length ? ` (${filtered.length}/${items.length})` : ` — ${items.length} alerte${items.length > 1 ? "s" : ""}`;
@@ -4464,11 +4466,11 @@ function applyDashboardFilters() {
                     anyCardVisible = true;
                     return;
                 }
-                const styleVal  = (card.dataset.style  || "");
-                const descVal   = (card.dataset.desc   || "");
+                const styleVal = (card.dataset.style || "");
+                const descVal = (card.dataset.desc || "");
                 const fabricVal = (card.dataset.fabric || "");
                 const clientVal = (card.dataset.client || "");
-                const combined  = styleVal + " " + descVal + " " + fabricVal + " " + clientVal;
+                const combined = styleVal + " " + descVal + " " + fabricVal + " " + clientVal;
                 if (combined.includes(search)) {
                     card.classList.remove("db-hidden");
                     anyCardVisible = true;
@@ -4615,7 +4617,7 @@ function detFilterByClient(clientName) {
 
 // ─── Details : état des accordéons client + style + filtre dept ──
 const _detClientOpen = new Set();
-const _detStyleOpen  = new Set();
+const _detStyleOpen = new Set();
 const _detDeptFilter = {};  // { clientName: deptActif }
 
 function detToggleClient(clientName) {
@@ -4672,8 +4674,8 @@ statusCode: transit|delivered|pending|exception. JSON uniquement.`;
         _awbTrackCache[awb] = info;
         if (td) _awbFillCell(td, awb);
         _awbRenderPanel(awb, info);
-    } catch(e) {
-        if (td) td.innerHTML = `<button class="btn awb-track-btn" onclick="awbDoTrack(this,'${awb.replace(/'/g,"\\'")}')">Réessayer</button>`;
+    } catch (e) {
+        if (td) td.innerHTML = `<button class="btn awb-track-btn" onclick="awbDoTrack(this,'${awb.replace(/'/g, "\\'")}')">Réessayer</button>`;
         const pc = document.getElementById("awb-panel-content");
         if (pc) pc.innerHTML = `<div style="padding:2rem;text-align:center;color:#791F1F;font-size:13px;">Erreur. Vérifiez le numéro AWB.</div>`;
     }
@@ -4683,7 +4685,7 @@ function _awbFillCell(td, awb) {
     const info = _awbTrackCache[awb];
     if (!info) return;
     const cls = _awbPillClass(info.statusCode);
-    td.innerHTML = `<span class="awb-status-pill ${cls}" onclick="awbShowPanel('${awb.replace(/'/g,"\\'")}', this.closest('tr'))"><span class="awb-pdot"></span>${info.status}</span>`;
+    td.innerHTML = `<span class="awb-status-pill ${cls}" onclick="awbShowPanel('${awb.replace(/'/g, "\\'")}', this.closest('tr'))"><span class="awb-pdot"></span>${info.status}</span>`;
 }
 
 function awbShowPanel(awb, tr) {
@@ -4723,7 +4725,7 @@ function _awbRenderPanel(awb, info) {
         const last = i === info.events.length - 1;
         return `<div style="display:flex;gap:10px;">
             <div style="display:flex;flex-direction:column;align-items:center;">
-                <div style="width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:3px;${ev.state==='done'?'background:#1D9E75':ev.state==='current'?'background:#BA7517;box-shadow:0 0 0 3px rgba(186,117,23,.18)':'background:#d1d5db'}"></div>
+                <div style="width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:3px;${ev.state === 'done' ? 'background:#1D9E75' : ev.state === 'current' ? 'background:#BA7517;box-shadow:0 0 0 3px rgba(186,117,23,.18)' : 'background:#d1d5db'}"></div>
                 ${!last ? '<div style="width:1px;background:#e5e7eb;flex:1;min-height:14px;margin:3px 0;"></div>' : ''}
             </div>
             <div style="padding-bottom:.875rem;flex:1;">
@@ -4736,7 +4738,7 @@ function _awbRenderPanel(awb, info) {
     pc.innerHTML = `
         <div style="padding:.9rem 1.25rem .8rem;border-bottom:1px solid var(--border,#e5e7eb);background:var(--surface-2,#fafafa);display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
             <div style="flex:1;">
-                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">AWB · ${info.service||'DHL Express'}</div>
+                <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px;">AWB · ${info.service || 'DHL Express'}</div>
                 <div style="font-size:16px;font-weight:700;font-family:monospace;color:var(--text-primary,#111);">${info.awb}</div>
                 <div style="margin-top:7px;"><span class="awb-status-pill ${cls}" style="cursor:default;"><span class="awb-pdot"></span>${info.status}</span></div>
             </div>
@@ -4746,7 +4748,7 @@ function _awbRenderPanel(awb, info) {
             <div style="padding:.7rem 1.25rem;border-right:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Origine</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.origin}</div></div>
             <div style="padding:.7rem 1.25rem;"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Destination</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.destination}</div></div>
             <div style="padding:.7rem 1.25rem;border-right:1px solid var(--border,#e5e7eb);border-top:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Livraison est.</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.estimatedDelivery}</div></div>
-            <div style="padding:.7rem 1.25rem;border-top:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Poids</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.weight||'—'}</div></div>
+            <div style="padding:.7rem 1.25rem;border-top:1px solid var(--border,#e5e7eb);"><div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Poids</div><div style="font-size:12px;font-weight:600;color:var(--text-primary,#111);">${info.weight || '—'}</div></div>
         </div>
         <div style="padding:1rem 1.25rem;">
             <div style="font-size:10px;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.875rem;">Historique</div>
@@ -4755,7 +4757,7 @@ function _awbRenderPanel(awb, info) {
 }
 
 function _awbPillClass(code) {
-    return {transit:"awb-p-transit",delivered:"awb-p-delivered",pending:"awb-p-pending",exception:"awb-p-exception"}[code]||"awb-p-transit";
+    return { transit: "awb-p-transit", delivered: "awb-p-delivered", pending: "awb-p-pending", exception: "awb-p-exception" }[code] || "awb-p-transit";
 }
 
 function _awbEnsurePanel() {
@@ -4805,92 +4807,92 @@ tr.awb-active-row td { background:#fff8ec !important; }
 //CHATBOT WITH FILE UPLOAD
 (function () {
 
-  const API_URL = "https://script.google.com/macros/s/AKfycbxIUcjka91Rb3-EYOaPO_YX4MSBe8VwC53VFxd9-RAkAXJL7nyDY-94qUFgjQ_-UX12/exec";
-  const SESSION_KEY = "aw27_chat_session";
+    const API_URL = "https://script.google.com/macros/s/AKfycbytsLltnTWWiXyK3KSrwJPEkffuzShjLEpIO8G2s19gktDuEzqkJCR3Xjhkfxouxvg/exec";
+    const SESSION_KEY = "aw27_chat_session";
 
-  const TOKEN_LIMIT  = 128000;
-  const WARN_AT      = 0.75;
-  const CRITICAL_AT  = 0.90;
+    const TOKEN_LIMIT = 128000;
+    const WARN_AT = 0.75;
+    const CRITICAL_AT = 0.90;
 
-  const GROQ_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
+    const GROQ_SVG = `<svg width="14" height="14" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="48" fill="#f55036"/><path d="M50 22C34.5 22 22 34.5 22 50C22 65.5 34.5 78 50 78C57.5 78 64.2 75 69.2 70.2L62 63C58.8 66 54.6 68 50 68C40 68 32 60 32 50C32 40 40 32 50 32C59.1 32 66.5 38.8 67.8 47.5H50V57.5H78.5C78.8 55.1 79 52.6 79 50C79 34.5 66.5 22 50 22Z" fill="white"/></svg>`;
 
-  const SUGGESTIONS = [
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`, text: "Quelles sont les échantillons en attente d'approbation ?" },
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
-    { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
-  ];
+    const SUGGESTIONS = [
+        { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`, text: "Quelles sont les échantillons en attente d'approbation ?" },
+        { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`, text: "Quels sont les PO qui sont prêts aujourd'hui ?" },
+        { icon: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#1a6bbf" stroke-width="2" stroke-linecap="round"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>`, text: "Quels sont les accessoires en attente d'approbation ?" }
+    ];
 
-  // ── État upload ───────────────────────────────────────────────
-  let pendingFile = null; // { name, type, content, preview }
+    // ── État upload ───────────────────────────────────────────────
+    let pendingFile = null; // { name, type, content, preview }
 
-  // ── MODULE DETECTION ──────────────────────────────────────────
-  function detectActiveModule() {
-    const MODULE_KEYWORDS = {
-      "Dashboard":        ["dashboard", "tableau de bord", "overview"],
-      "Details":          ["details", "détails", "style detail", "tech pack"],
-      "Sample":           ["sample", "échantillon", "fitting", "approval", "approbation"],
-      "Ordering":         ["ordering", "order", "commande", "po ", "purchase order", "supplier", "fournisseur", "delivery", "livraison", "quantity", "quantité"],
-      "Fabric Devo":      ["fabric devo", "fabric development", "tissu", "fabric ref", "mill", "composition", "lead time"],
-      "Fabric Analysis":  ["fabric analysis", "analyse tissu", "fabric report"],
-      "Bulk A4 & Shade Band": ["bulk", "shade band", "a4", "couleur", "color standard", "shade"],
-      "Pre Shipment":     ["pre shipment", "preshipment", "inspection", "qc", "aql", "defect", "pass", "fail"],
-      "Marketing":        ["marketing", "photo", "visual", "campaign", "content", "model", "lookbook"],
-      "Trims Devo":       ["trims", "trim", "accessories", "accessoires", "label", "button", "zipper", "bouton", "fermeture"]
-    };
+    // ── MODULE DETECTION ──────────────────────────────────────────
+    function detectActiveModule() {
+        const MODULE_KEYWORDS = {
+            "Dashboard": ["dashboard", "tableau de bord", "overview"],
+            "Details": ["details", "détails", "style detail", "tech pack"],
+            "Sample": ["sample", "échantillon", "fitting", "approval", "approbation"],
+            "Ordering": ["ordering", "order", "commande", "po ", "purchase order", "supplier", "fournisseur", "delivery", "livraison", "quantity", "quantité"],
+            "Fabric Devo": ["fabric devo", "fabric development", "tissu", "fabric ref", "mill", "composition", "lead time"],
+            "Fabric Analysis": ["fabric analysis", "analyse tissu", "fabric report"],
+            "Bulk A4 & Shade Band": ["bulk", "shade band", "a4", "couleur", "color standard", "shade"],
+            "Pre Shipment": ["pre shipment", "preshipment", "inspection", "qc", "aql", "defect", "pass", "fail"],
+            "Marketing": ["marketing", "photo", "visual", "campaign", "content", "model", "lookbook"],
+            "Trims Devo": ["trims", "trim", "accessories", "accessoires", "label", "button", "zipper", "bouton", "fermeture"]
+        };
 
-    const dataModule = document.body?.dataset?.module
-      || document.querySelector("[data-active-module]")?.dataset?.activeModule
-      || document.querySelector("[data-module]")?.dataset?.module;
-    if (dataModule) return dataModule.trim();
+        const dataModule = document.body?.dataset?.module
+            || document.querySelector("[data-active-module]")?.dataset?.activeModule
+            || document.querySelector("[data-module]")?.dataset?.module;
+        if (dataModule) return dataModule.trim();
 
-    if (window.activeModule && typeof window.activeModule === "string") return window.activeModule.trim();
-    if (window.currentModule && typeof window.currentModule === "string") return window.currentModule.trim();
-    if (window.currentPage && typeof window.currentPage === "string") return window.currentPage.trim();
+        if (window.activeModule && typeof window.activeModule === "string") return window.activeModule.trim();
+        if (window.currentModule && typeof window.currentModule === "string") return window.currentModule.trim();
+        if (window.currentPage && typeof window.currentPage === "string") return window.currentPage.trim();
 
-    const activeNavItem = document.querySelector(".nav-item.active, .menu-item.active, nav li.active, nav a.active, [aria-current='page']");
-    if (activeNavItem) {
-      const navText = activeNavItem.innerText?.trim().toLowerCase() || "";
-      for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-        if (keywords.some(k => navText.includes(k))) return module;
-      }
+        const activeNavItem = document.querySelector(".nav-item.active, .menu-item.active, nav li.active, nav a.active, [aria-current='page']");
+        if (activeNavItem) {
+            const navText = activeNavItem.innerText?.trim().toLowerCase() || "";
+            for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+                if (keywords.some(k => navText.includes(k))) return module;
+            }
+        }
+
+        const titleSources = [
+            document.title,
+            document.querySelector("h1")?.innerText || "",
+            document.querySelector("h2")?.innerText || "",
+            document.querySelector(".page-title")?.innerText || "",
+            document.querySelector(".module-title")?.innerText || "",
+        ].join(" ").toLowerCase();
+
+        for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+            if (keywords.some(k => titleSources.includes(k))) return module;
+        }
+
+        const headers = [...document.querySelectorAll("table th")]
+            .map(th => th.innerText?.trim().toLowerCase()).join(" ");
+
+        for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
+            if (keywords.some(k => headers.includes(k))) return module;
+        }
+
+        return "Unknown";
     }
 
-    const titleSources = [
-      document.title,
-      document.querySelector("h1")?.innerText || "",
-      document.querySelector("h2")?.innerText || "",
-      document.querySelector(".page-title")?.innerText || "",
-      document.querySelector(".module-title")?.innerText || "",
-    ].join(" ").toLowerCase();
-
-    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-      if (keywords.some(k => titleSources.includes(k))) return module;
+    function getUserName() {
+        if (window.currentUser && window.currentUser.displayName) {
+            return window.currentUser.displayName.trim().split(" ")[0];
+        }
+        const el = document.getElementById("usm-name");
+        if (el && el.textContent.trim() && el.textContent.trim() !== "—") {
+            return el.textContent.trim().split(" ")[0];
+        }
+        return "vous";
     }
 
-    const headers = [...document.querySelectorAll("table th")]
-      .map(th => th.innerText?.trim().toLowerCase()).join(" ");
-
-    for (const [module, keywords] of Object.entries(MODULE_KEYWORDS)) {
-      if (keywords.some(k => headers.includes(k))) return module;
-    }
-
-    return "Unknown";
-  }
-
-  function getUserName() {
-    if (window.currentUser && window.currentUser.displayName) {
-      return window.currentUser.displayName.trim().split(" ")[0];
-    }
-    const el = document.getElementById("usm-name");
-    if (el && el.textContent.trim() && el.textContent.trim() !== "—") {
-      return el.textContent.trim().split(" ")[0];
-    }
-    return "vous";
-  }
-
-  // ── STYLES ────────────────────────────────────────────────────
-  const style = document.createElement("style");
-  style.textContent = `
+    // ── STYLES ────────────────────────────────────────────────────
+    const style = document.createElement("style");
+    style.textContent = `
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
     #fu-chatbot-btn {
@@ -5187,9 +5189,9 @@ tr.awb-active-row td { background:#fff8ec !important; }
     #fu-footer-groq span { font-size: 9.5px; color: #b0c8e0; }
     #fu-footer-groq .groq-name { color: #f55036; font-weight: 600; }
   `;
-  document.head.appendChild(style);
+    document.head.appendChild(style);
 
-  document.body.insertAdjacentHTML("beforeend", `
+    document.body.insertAdjacentHTML("beforeend", `
     <button id="fu-chatbot-btn">
       <div id="fu-notif-badge"></div>
       <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -5304,325 +5306,325 @@ tr.awb-active-row td { background:#fff8ec !important; }
     </div>
   `);
 
-  // ── Refs ──────────────────────────────────────────────────────
-  const panel         = document.getElementById("fu-chatbot-panel");
-  const btn           = document.getElementById("fu-chatbot-btn");
-  const closeBtn      = document.getElementById("fu-close-btn");
-  const resetBtn      = document.getElementById("fu-reset-btn");
-  const messagesEl    = document.getElementById("fu-chat-messages");
-  const input         = document.getElementById("fu-chat-input");
-  const sendBtn       = document.getElementById("fu-send-btn");
-  const badge         = document.getElementById("fu-notif-badge");
-  const banner        = document.getElementById("fu-context-banner");
-  const tokenBar      = document.getElementById("fu-token-bar");
-  const moduleBadgeEl = document.getElementById("fu-module-name");
-  const uploadBtn     = document.getElementById("fu-upload-btn");
-  const fileInput     = document.getElementById("fu-file-input");
-  const previewBar    = document.getElementById("fu-file-preview-bar");
-  const previewIcon   = document.getElementById("fu-file-preview-icon");
-  const previewName   = document.getElementById("fu-file-preview-name");
-  const previewStatus = document.getElementById("fu-file-preview-status");
-  const previewCancel = document.getElementById("fu-file-preview-cancel");
+    // ── Refs ──────────────────────────────────────────────────────
+    const panel = document.getElementById("fu-chatbot-panel");
+    const btn = document.getElementById("fu-chatbot-btn");
+    const closeBtn = document.getElementById("fu-close-btn");
+    const resetBtn = document.getElementById("fu-reset-btn");
+    const messagesEl = document.getElementById("fu-chat-messages");
+    const input = document.getElementById("fu-chat-input");
+    const sendBtn = document.getElementById("fu-send-btn");
+    const badge = document.getElementById("fu-notif-badge");
+    const banner = document.getElementById("fu-context-banner");
+    const tokenBar = document.getElementById("fu-token-bar");
+    const moduleBadgeEl = document.getElementById("fu-module-name");
+    const uploadBtn = document.getElementById("fu-upload-btn");
+    const fileInput = document.getElementById("fu-file-input");
+    const previewBar = document.getElementById("fu-file-preview-bar");
+    const previewIcon = document.getElementById("fu-file-preview-icon");
+    const previewName = document.getElementById("fu-file-preview-name");
+    const previewStatus = document.getElementById("fu-file-preview-status");
+    const previewCancel = document.getElementById("fu-file-preview-cancel");
 
-  let chatHistory = [];
-  let isLoading   = false;
-  let hasOpened   = false;
+    let chatHistory = [];
+    let isLoading = false;
+    let hasOpened = false;
 
-  // ── MODULE BADGE ──────────────────────────────────────────────
-  function refreshModuleBadge() {
-    const mod = detectActiveModule();
-    if (moduleBadgeEl) moduleBadgeEl.textContent = mod === "Unknown" ? "Module inconnu" : mod;
-  }
+    // ── MODULE BADGE ──────────────────────────────────────────────
+    function refreshModuleBadge() {
+        const mod = detectActiveModule();
+        if (moduleBadgeEl) moduleBadgeEl.textContent = mod === "Unknown" ? "Module inconnu" : mod;
+    }
 
-  // ── SLIDER ────────────────────────────────────────────────────
-  let sliderCurrent = 0;
-  const sliderTotal = 3;
-  const sliderTrack = document.getElementById("fu-slider-track");
-  const dots        = document.querySelectorAll(".fu-dot-ind");
+    // ── SLIDER ────────────────────────────────────────────────────
+    let sliderCurrent = 0;
+    const sliderTotal = 3;
+    const sliderTrack = document.getElementById("fu-slider-track");
+    const dots = document.querySelectorAll(".fu-dot-ind");
 
-  function sliderGoTo(idx) {
-    sliderCurrent = idx;
-    sliderTrack.style.transform = "translateX(-" + (idx * 100) + "%)";
-    dots.forEach((d, i) => d.classList.toggle("active", i === idx));
-  }
+    function sliderGoTo(idx) {
+        sliderCurrent = idx;
+        sliderTrack.style.transform = "translateX(-" + (idx * 100) + "%)";
+        dots.forEach((d, i) => d.classList.toggle("active", i === idx));
+    }
 
-  document.getElementById("fu-sugg-next").onclick = () => sliderGoTo((sliderCurrent + 1) % sliderTotal);
-  document.getElementById("fu-sugg-prev").onclick = () => sliderGoTo((sliderCurrent - 1 + sliderTotal) % sliderTotal);
-  dots.forEach(d => { d.onclick = () => sliderGoTo(parseInt(d.dataset.idx)); });
-  let sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000);
+    document.getElementById("fu-sugg-next").onclick = () => sliderGoTo((sliderCurrent + 1) % sliderTotal);
+    document.getElementById("fu-sugg-prev").onclick = () => sliderGoTo((sliderCurrent - 1 + sliderTotal) % sliderTotal);
+    dots.forEach(d => { d.onclick = () => sliderGoTo(parseInt(d.dataset.idx)); });
+    let sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000);
 
-  document.querySelectorAll(".fu-suggestion").forEach(s => {
-    s.onclick = () => {
-      const text = s.querySelector(".fu-sugg-text").innerText.trim();
-      input.value = text;
-      const suggestionsEl = document.getElementById("fu-suggestions");
-      if (suggestionsEl) suggestionsEl.classList.add("hidden");
-      clearInterval(sliderInterval);
-      sendMessage();
+    document.querySelectorAll(".fu-suggestion").forEach(s => {
+        s.onclick = () => {
+            const text = s.querySelector(".fu-sugg-text").innerText.trim();
+            input.value = text;
+            const suggestionsEl = document.getElementById("fu-suggestions");
+            if (suggestionsEl) suggestionsEl.classList.add("hidden");
+            clearInterval(sliderInterval);
+            sendMessage();
+        };
+    });
+
+    // ── UPLOAD ────────────────────────────────────────────────────
+    uploadBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        fileInput.value = "";
+
+        const ext = file.name.split(".").pop().toLowerCase();
+        const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(ext);
+        const isPDF = ext === "pdf";
+        const isExcel = ["xlsx", "xls", "csv"].includes(ext);
+
+        // Icône
+        const icon = isImage ? "🖼️" : isPDF ? "📕" : "📊";
+        previewIcon.textContent = icon;
+        previewName.textContent = file.name;
+        previewStatus.textContent = "Lecture en cours...";
+        previewBar.classList.add("visible");
+        uploadBtn.classList.add("has-file");
+
+        try {
+            let content = "";
+            let preview = null;
+
+            if (isExcel) {
+                content = await readExcel(file, ext);
+                previewStatus.textContent = "✓ Excel lu — prêt à envoyer";
+            } else if (isPDF) {
+                content = await readPDF(file);
+                previewStatus.textContent = "✓ PDF extrait — prêt à envoyer";
+            } else if (isImage) {
+                const result = await readImageBase64(file);
+                content = "[IMAGE ATTACHÉE — voir base64 ci-dessous]\n" + result.base64.slice(0, 500) + "...";
+                preview = result.dataUrl;
+                previewStatus.textContent = "✓ Image chargée — prêt à envoyer";
+            }
+
+            pendingFile = { name: file.name, type: ext, content, preview, icon };
+        } catch (err) {
+            previewStatus.textContent = "❌ Erreur de lecture";
+            console.error("File read error:", err);
+            pendingFile = null;
+            uploadBtn.classList.remove("has-file");
+        }
     };
-  });
 
-  // ── UPLOAD ────────────────────────────────────────────────────
-  uploadBtn.onclick = () => fileInput.click();
+    previewCancel.onclick = () => {
+        pendingFile = null;
+        previewBar.classList.remove("visible");
+        uploadBtn.classList.remove("has-file");
+    };
 
-  fileInput.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    fileInput.value = "";
+    // ── LECTEURS DE FICHIERS ──────────────────────────────────────
 
-    const ext = file.name.split(".").pop().toLowerCase();
-    const isImage  = ["png","jpg","jpeg","gif","webp"].includes(ext);
-    const isPDF    = ext === "pdf";
-    const isExcel  = ["xlsx","xls","csv"].includes(ext);
+    /**
+     * Lit un fichier Excel/CSV et retourne son contenu en texte tabulaire.
+     * Utilise SheetJS chargé dynamiquement si nécessaire.
+     */
+    async function readExcel(file, ext) {
+        if (ext === "csv") {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve("CSV:\n" + e.target.result.slice(0, 15000));
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
 
-    // Icône
-    const icon = isImage ? "🖼️" : isPDF ? "📕" : "📊";
-    previewIcon.textContent = icon;
-    previewName.textContent = file.name;
-    previewStatus.textContent = "Lecture en cours...";
-    previewBar.classList.add("visible");
-    uploadBtn.classList.add("has-file");
+        // Charger SheetJS dynamiquement
+        if (!window.XLSX) {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+        }
 
-    try {
-      let content = "";
-      let preview = null;
-
-      if (isExcel) {
-        content = await readExcel(file, ext);
-        previewStatus.textContent = "✓ Excel lu — prêt à envoyer";
-      } else if (isPDF) {
-        content = await readPDF(file);
-        previewStatus.textContent = "✓ PDF extrait — prêt à envoyer";
-      } else if (isImage) {
-        const result = await readImageBase64(file);
-        content = "[IMAGE ATTACHÉE — voir base64 ci-dessous]\n" + result.base64.slice(0, 500) + "...";
-        preview = result.dataUrl;
-        previewStatus.textContent = "✓ Image chargée — prêt à envoyer";
-      }
-
-      pendingFile = { name: file.name, type: ext, content, preview, icon };
-    } catch (err) {
-      previewStatus.textContent = "❌ Erreur de lecture";
-      console.error("File read error:", err);
-      pendingFile = null;
-      uploadBtn.classList.remove("has-file");
-    }
-  };
-
-  previewCancel.onclick = () => {
-    pendingFile = null;
-    previewBar.classList.remove("visible");
-    uploadBtn.classList.remove("has-file");
-  };
-
-  // ── LECTEURS DE FICHIERS ──────────────────────────────────────
-
-  /**
-   * Lit un fichier Excel/CSV et retourne son contenu en texte tabulaire.
-   * Utilise SheetJS chargé dynamiquement si nécessaire.
-   */
-  async function readExcel(file, ext) {
-    if (ext === "csv") {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve("CSV:\n" + e.target.result.slice(0, 15000));
-        reader.onerror = reject;
-        reader.readAsText(file);
-      });
-    }
-
-    // Charger SheetJS dynamiquement
-    if (!window.XLSX) {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
-    }
-
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const workbook = window.XLSX.read(e.target.result, { type: "array" });
-          let text = "";
-          workbook.SheetNames.forEach(sheetName => {
-            const sheet = workbook.Sheets[sheetName];
-            const csv = window.XLSX.utils.sheet_to_csv(sheet);
-            text += `\n=== Feuille: ${sheetName} ===\n` + csv.slice(0, 12000) + "\n";
-          });
-          resolve(text.slice(0, 20000));
-        } catch (err) { reject(err); }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  /**
-   * Extrait le texte d'un PDF page par page via PDF.js chargé dynamiquement.
-   */
-  async function readPDF(file) {
-    if (!window.pdfjsLib) {
-      await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-    }
-
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const pdf = await window.pdfjsLib.getDocument({ data: e.target.result }).promise;
-          let text = `PDF: ${file.name} (${pdf.numPages} pages)\n\n`;
-          for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            const pageText = content.items.map(item => item.str).join(" ");
-            text += `--- Page ${i} ---\n${pageText}\n\n`;
-            if (text.length > 18000) { text += "\n[... contenu tronqué]"; break; }
-          }
-          resolve(text);
-        } catch (err) { reject(err); }
-      };
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  }
-
-  /**
-   * Lit une image et retourne son dataUrl + base64.
-   * L'image sera affichée en preview et le base64 sera mentionné dans le contexte.
-   */
-  function readImageBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        resolve({ dataUrl: e.target.result, base64: e.target.result });
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function loadScript(src) {
-    return new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-      const s = document.createElement("script");
-      s.src = src; s.onload = resolve; s.onerror = reject;
-      document.head.appendChild(s);
-    });
-  }
-
-  // ── Tokens ────────────────────────────────────────────────────
-  function estimateTokens(text) { return Math.ceil((text || "").length / 4); }
-  function getTotalContextTokens() {
-    return estimateTokens(chatHistory.map(m => m.content).join(" ")) + estimateTokens(extractPageData());
-  }
-
-  function updateContextBanner() {
-    const used  = getTotalContextTokens();
-    const ratio = Math.min(used / TOKEN_LIMIT, 1);
-    const pct   = Math.round(ratio * 100);
-    const pctEl = document.getElementById("fu-token-pct");
-    if (pctEl) pctEl.textContent = pct + "%";
-    tokenBar.style.width = pct + "%";
-    if      (ratio < WARN_AT)     tokenBar.style.background = "#4caf50";
-    else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12";
-    else                          tokenBar.style.background = "#e53935";
-
-    if (ratio >= CRITICAL_AT) {
-      banner.style.display = "block"; banner.className = "critical";
-      banner.innerHTML = `<strong>⛔ Contexte épuisé à ${pct}%</strong><br>Le bot risque d'oublier le début de la conversation.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
-      _attachBannerListeners();
-    } else if (ratio >= WARN_AT) {
-      banner.style.display = "block"; banner.className = "warn";
-      banner.innerHTML = `<strong>⚠️ Contexte utilisé à ${pct}%</strong><br>Pensez à résumer ou démarrer une nouvelle conversation bientôt.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
-      _attachBannerListeners();
-    } else {
-      banner.style.display = "none"; banner.className = "";
-    }
-  }
-
-  function _attachBannerListeners() {
-    const btnSum = document.getElementById("fu-btn-summarize");
-    const btnNew = document.getElementById("fu-btn-new-conv");
-    if (btnSum) btnSum.onclick = summarizeAndReset;
-    if (btnNew) btnNew.onclick = () => resetBtn.click();
-  }
-
-  // ── Résumer ───────────────────────────────────────────────────
-  async function summarizeAndReset() {
-    if (isLoading) return;
-    isLoading = true; sendBtn.disabled = true;
-    banner.innerHTML = `<em>⏳ Résumé en cours...</em>`;
-    const typingEl = addTyping();
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST", headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ prompt: `Fais un résumé compact en français de cette conversation.\nGarde uniquement : les refs importantes, les statuts clés, les alertes, les décisions prises.\nMax 10 lignes. Ce résumé servira de mémoire pour la suite.`, context: extractPageData(), history: chatHistory })
-      });
-      const data = await res.json(); typingEl.remove();
-      const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Résumé indisponible.";
-      messagesEl.innerHTML = "";
-      chatHistory = [{ role: "assistant", content: "📝 **Résumé :**\n" + summary }];
-      clearSession();
-      addDivider("Conversation résumée — contexte libéré");
-      streamBotMessage("📝 **Résumé de la session précédente :**\n" + summary, () => { saveSession(); updateContextBanner(); });
-    } catch (err) { typingEl.remove(); addBotMessage("❌ Erreur lors du résumé."); console.error(err); }
-    finally { isLoading = false; sendBtn.disabled = false; }
-  }
-
-  // ── Session ───────────────────────────────────────────────────
-  function loadSession() {
-    try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (!saved) return null;
-      const session = JSON.parse(saved);
-      if (session.page !== document.title) return null;
-      return session;
-    } catch (e) { return null; }
-  }
-  function saveSession() {
-    try {
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
-        page: document.title, history: chatHistory,
-        messages: [...messagesEl.children].map(el => el.outerHTML)
-      }));
-    } catch (e) {}
-  }
-  function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
-
-  // ── Ouverture ─────────────────────────────────────────────────
-  btn.onclick = () => {
-    panel.classList.add("open");
-    badge.style.display = "none";
-    refreshModuleBadge();
-    if (!hasOpened) {
-      hasOpened = true;
-      const session = loadSession();
-      if (session && session.messages && session.messages.length > 0) {
-        session.messages.forEach(html => {
-          const div = document.createElement("div");
-          div.innerHTML = html;
-          if (div.firstChild) messagesEl.appendChild(div.firstChild);
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const workbook = window.XLSX.read(e.target.result, { type: "array" });
+                    let text = "";
+                    workbook.SheetNames.forEach(sheetName => {
+                        const sheet = workbook.Sheets[sheetName];
+                        const csv = window.XLSX.utils.sheet_to_csv(sheet);
+                        text += `\n=== Feuille: ${sheetName} ===\n` + csv.slice(0, 12000) + "\n";
+                    });
+                    resolve(text.slice(0, 20000));
+                } catch (err) { reject(err); }
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
         });
-        chatHistory = session.history || [];
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-        addDivider("Session restaurée"); updateContextBanner(); return;
-      }
-      startWelcome();
     }
-  };
 
-  // ── Welcome ───────────────────────────────────────────────────
-  function startWelcome() {
-    const userName     = getUserName();
-    const hour         = new Date().getHours();
-    const greeting     = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
-    const activeModule = detectActiveModule();
+    /**
+     * Extrait le texte d'un PDF page par page via PDF.js chargé dynamiquement.
+     */
+    async function readPDF(file) {
+        if (!window.pdfjsLib) {
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+                "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        }
 
-    addTyping();
-    fetch(API_URL, {
-      method: "POST", headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({
-        prompt: `You are greeting the user for the first time when they open the chat.
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const pdf = await window.pdfjsLib.getDocument({ data: e.target.result }).promise;
+                    let text = `PDF: ${file.name} (${pdf.numPages} pages)\n\n`;
+                    for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+                        const page = await pdf.getPage(i);
+                        const content = await page.getTextContent();
+                        const pageText = content.items.map(item => item.str).join(" ");
+                        text += `--- Page ${i} ---\n${pageText}\n\n`;
+                        if (text.length > 18000) { text += "\n[... contenu tronqué]"; break; }
+                    }
+                    resolve(text);
+                } catch (err) { reject(err); }
+            };
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
+    /**
+     * Lit une image et retourne son dataUrl + base64.
+     * L'image sera affichée en preview et le base64 sera mentionné dans le contexte.
+     */
+    function readImageBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                resolve({ dataUrl: e.target.result, base64: e.target.result });
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+            const s = document.createElement("script");
+            s.src = src; s.onload = resolve; s.onerror = reject;
+            document.head.appendChild(s);
+        });
+    }
+
+    // ── Tokens ────────────────────────────────────────────────────
+    function estimateTokens(text) { return Math.ceil((text || "").length / 4); }
+    function getTotalContextTokens() {
+        return estimateTokens(chatHistory.map(m => m.content).join(" ")) + estimateTokens(extractPageData());
+    }
+
+    function updateContextBanner() {
+        const used = getTotalContextTokens();
+        const ratio = Math.min(used / TOKEN_LIMIT, 1);
+        const pct = Math.round(ratio * 100);
+        const pctEl = document.getElementById("fu-token-pct");
+        if (pctEl) pctEl.textContent = pct + "%";
+        tokenBar.style.width = pct + "%";
+        if (ratio < WARN_AT) tokenBar.style.background = "#4caf50";
+        else if (ratio < CRITICAL_AT) tokenBar.style.background = "#f39c12";
+        else tokenBar.style.background = "#e53935";
+
+        if (ratio >= CRITICAL_AT) {
+            banner.style.display = "block"; banner.className = "critical";
+            banner.innerHTML = `<strong>⛔ Contexte épuisé à ${pct}%</strong><br>Le bot risque d'oublier le début de la conversation.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
+            _attachBannerListeners();
+        } else if (ratio >= WARN_AT) {
+            banner.style.display = "block"; banner.className = "warn";
+            banner.innerHTML = `<strong>⚠️ Contexte utilisé à ${pct}%</strong><br>Pensez à résumer ou démarrer une nouvelle conversation bientôt.<div class="fu-banner-actions"><button id="fu-btn-summarize">📝 Résumer et continuer</button><button id="fu-btn-new-conv">↺ Nouvelle conversation</button></div>`;
+            _attachBannerListeners();
+        } else {
+            banner.style.display = "none"; banner.className = "";
+        }
+    }
+
+    function _attachBannerListeners() {
+        const btnSum = document.getElementById("fu-btn-summarize");
+        const btnNew = document.getElementById("fu-btn-new-conv");
+        if (btnSum) btnSum.onclick = summarizeAndReset;
+        if (btnNew) btnNew.onclick = () => resetBtn.click();
+    }
+
+    // ── Résumer ───────────────────────────────────────────────────
+    async function summarizeAndReset() {
+        if (isLoading) return;
+        isLoading = true; sendBtn.disabled = true;
+        banner.innerHTML = `<em>⏳ Résumé en cours...</em>`;
+        const typingEl = addTyping();
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({ prompt: `Fais un résumé compact en français de cette conversation.\nGarde uniquement : les refs importantes, les statuts clés, les alertes, les décisions prises.\nMax 10 lignes. Ce résumé servira de mémoire pour la suite.`, context: extractPageData(), history: chatHistory })
+            });
+            const data = await res.json(); typingEl.remove();
+            const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Résumé indisponible.";
+            messagesEl.innerHTML = "";
+            chatHistory = [{ role: "assistant", content: "📝 **Résumé :**\n" + summary }];
+            clearSession();
+            addDivider("Conversation résumée — contexte libéré");
+            streamBotMessage("📝 **Résumé de la session précédente :**\n" + summary, () => { saveSession(); updateContextBanner(); });
+        } catch (err) { typingEl.remove(); addBotMessage("❌ Erreur lors du résumé."); console.error(err); }
+        finally { isLoading = false; sendBtn.disabled = false; }
+    }
+
+    // ── Session ───────────────────────────────────────────────────
+    function loadSession() {
+        try {
+            const saved = sessionStorage.getItem(SESSION_KEY);
+            if (!saved) return null;
+            const session = JSON.parse(saved);
+            if (session.page !== document.title) return null;
+            return session;
+        } catch (e) { return null; }
+    }
+    function saveSession() {
+        try {
+            sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                page: document.title, history: chatHistory,
+                messages: [...messagesEl.children].map(el => el.outerHTML)
+            }));
+        } catch (e) { }
+    }
+    function clearSession() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { } }
+
+    // ── Ouverture ─────────────────────────────────────────────────
+    btn.onclick = () => {
+        panel.classList.add("open");
+        badge.style.display = "none";
+        refreshModuleBadge();
+        if (!hasOpened) {
+            hasOpened = true;
+            const session = loadSession();
+            if (session && session.messages && session.messages.length > 0) {
+                session.messages.forEach(html => {
+                    const div = document.createElement("div");
+                    div.innerHTML = html;
+                    if (div.firstChild) messagesEl.appendChild(div.firstChild);
+                });
+                chatHistory = session.history || [];
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+                addDivider("Session restaurée"); updateContextBanner(); return;
+            }
+            startWelcome();
+        }
+    };
+
+    // ── Welcome ───────────────────────────────────────────────────
+    function startWelcome() {
+        const userName = getUserName();
+        const hour = new Date().getHours();
+        const greeting = hour < 12 ? "Bonjour" : hour < 18 ? "Bon après-midi" : "Bonsoir";
+        const activeModule = detectActiveModule();
+
+        addTyping();
+        fetch(API_URL, {
+            method: "POST", headers: { "Content-Type": "text/plain" },
+            body: JSON.stringify({
+                prompt: `You are greeting the user for the first time when they open the chat.
 The user's first name is "${userName}". Use the greeting "${greeting}".
 The user is currently on the module: "${activeModule}".
 Analyze the page data provided and write a smart, natural welcome message in French that:
@@ -5638,169 +5640,197 @@ Rules:
 - Use **bold** for the module name, names, numbers
 - ALWAYS name the module explicitly — never omit it or say "Dashboard" if the module is "${activeModule}"
 - If no meaningful data is found, just greet warmly, name the module, and invite them to ask`,
-        context: extractPageData(), history: []
-      })
-    })
-    .then(r => r.json())
-    .then(data => {
-      document.getElementById("fu-typing")?.remove();
-      const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
-        || `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
-      streamBotMessage(welcomeMsg, () => { chatHistory.push({ role: "assistant", content: welcomeMsg }); saveSession(); updateContextBanner(); });
-    })
-    .catch(() => {
-      document.getElementById("fu-typing")?.remove();
-      const fallback = `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
-      streamBotMessage(fallback, () => { chatHistory.push({ role: "assistant", content: fallback }); saveSession(); updateContextBanner(); });
-    });
-  }
-
-  // ── Fermeture / Reset ─────────────────────────────────────────
-  closeBtn.onclick = (e) => { e.stopPropagation(); panel.classList.remove("open"); };
-
-  resetBtn.onclick = (e) => {
-    e.stopPropagation(); if (isLoading) return;
-    messagesEl.innerHTML = ""; chatHistory = []; clearSession();
-    banner.style.display = "none"; banner.className = "";
-    tokenBar.style.width = "0%"; tokenBar.style.background = "#4caf50";
-    const pctElReset = document.getElementById("fu-token-pct");
-    if (pctElReset) pctElReset.textContent = "0%";
-    // Reset upload state
-    pendingFile = null;
-    previewBar.classList.remove("visible");
-    uploadBtn.classList.remove("has-file");
-    addDivider("Nouvelle conversation");
-    const suggestionsEl = document.getElementById("fu-suggestions");
-    if (suggestionsEl) { suggestionsEl.classList.remove("hidden"); sliderGoTo(0); clearInterval(sliderInterval); sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000); }
-    refreshModuleBadge();
-    startWelcome();
-  };
-
-  setTimeout(() => { badge.style.display = "block"; }, 3000);
-
-  // ── Input ─────────────────────────────────────────────────────
-  input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 80) + "px"; });
-  input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
-  sendBtn.onclick = sendMessage;
-
-  // ── Helpers ───────────────────────────────────────────────────
-  function getTime() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
-
-  function renderText(text) {
-    return text
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(/<a\s+href="([^"]*)"([^>]*)>(.*?)<\/a>/g, '<a href="$1"$2>$3</a>')
-      .replace(/\n/g, "<br>");
-  }
-
-  function streamBotMessage(text, onDone) {
-    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
-    const row  = document.createElement("div"); row.className = "fu-bot-row";
-    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
-    const msg  = document.createElement("div"); msg.className = "fu-msg bot";
-    const cursor = document.createElement("span"); cursor.className = "fu-cursor";
-    msg.appendChild(cursor);
-    row.appendChild(avatar); row.appendChild(msg);
-    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
-    wrap.appendChild(row); wrap.appendChild(meta);
-    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
-
-    const tokens = text.match(/(<a\s[^>]*>.*?<\/a>|\*\*.*?\*\*|\S+|\s+)/gs) || [];
-    let i = 0, displayed = "";
-    function next() {
-      if (i >= tokens.length) { msg.innerHTML = renderText(displayed); if (onDone) onDone(wrap); saveSession(); return; }
-      displayed += tokens[i++];
-      msg.innerHTML = renderText(displayed); msg.appendChild(cursor);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      setTimeout(next, tokens[i - 1].trim() === "" ? 10 : 28);
-    }
-    next(); return wrap;
-  }
-
-  function addBotMessage(text) {
-    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
-    const row  = document.createElement("div"); row.className = "fu-bot-row";
-    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
-    const msg  = document.createElement("div"); msg.className = "fu-msg bot"; msg.innerHTML = renderText(text);
-    row.appendChild(avatar); row.appendChild(msg);
-    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
-    wrap.appendChild(row); wrap.appendChild(meta);
-    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
-  }
-
-  /**
-   * Ajoute le message utilisateur avec preview du fichier si présent.
-   */
-  function addUserMessage(text, file) {
-    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap user";
-
-    // Preview image
-    if (file && file.preview) {
-      const img = document.createElement("img");
-      img.src = file.preview; img.className = "fu-img-preview";
-      wrap.appendChild(img);
+                context: extractPageData(), history: []
+            })
+        })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById("fu-typing")?.remove();
+                const welcomeMsg = data?.candidates?.[0]?.content?.parts?.[0]?.text
+                    || `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
+                streamBotMessage(welcomeMsg, () => { chatHistory.push({ role: "assistant", content: welcomeMsg }); saveSession(); updateContextBanner(); });
+            })
+            .catch(() => {
+                document.getElementById("fu-typing")?.remove();
+                const fallback = `${greeting} **${userName}** 👋 — Module **${activeModule}**. Que souhaitez-vous savoir ?`;
+                streamBotMessage(fallback, () => { chatHistory.push({ role: "assistant", content: fallback }); saveSession(); updateContextBanner(); });
+            });
     }
 
-    // Bubble fichier non-image
-    if (file && !file.preview) {
-      const bubble = document.createElement("div"); bubble.className = "fu-file-bubble";
-      bubble.innerHTML = `
+    // ── Fermeture / Reset ─────────────────────────────────────────
+    closeBtn.onclick = (e) => { e.stopPropagation(); panel.classList.remove("open"); };
+
+    resetBtn.onclick = (e) => {
+        e.stopPropagation(); if (isLoading) return;
+        messagesEl.innerHTML = ""; chatHistory = []; clearSession();
+        banner.style.display = "none"; banner.className = "";
+        tokenBar.style.width = "0%"; tokenBar.style.background = "#4caf50";
+        const pctElReset = document.getElementById("fu-token-pct");
+        if (pctElReset) pctElReset.textContent = "0%";
+        // Reset upload state
+        pendingFile = null;
+        previewBar.classList.remove("visible");
+        uploadBtn.classList.remove("has-file");
+        addDivider("Nouvelle conversation");
+        const suggestionsEl = document.getElementById("fu-suggestions");
+        if (suggestionsEl) { suggestionsEl.classList.remove("hidden"); sliderGoTo(0); clearInterval(sliderInterval); sliderInterval = setInterval(() => sliderGoTo((sliderCurrent + 1) % sliderTotal), 4000); }
+        refreshModuleBadge();
+        startWelcome();
+    };
+
+    setTimeout(() => { badge.style.display = "block"; }, 3000);
+
+    // ── Input ─────────────────────────────────────────────────────
+    input.addEventListener("input", () => { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 80) + "px"; });
+    input.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+    sendBtn.onclick = sendMessage;
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function getTime() { return new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); }
+
+    function renderText(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/<a\s+href="([^"]*)"([^>]*)>(.*?)<\/a>/g, '<a href="$1"$2>$3</a>')
+            .replace(/\n/g, "<br>");
+    }
+
+    function streamBotMessage(text, onDone) {
+        const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
+        const row = document.createElement("div"); row.className = "fu-bot-row";
+        const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+        const msg = document.createElement("div"); msg.className = "fu-msg bot";
+        const cursor = document.createElement("span"); cursor.className = "fu-cursor";
+        msg.appendChild(cursor);
+        row.appendChild(avatar); row.appendChild(msg);
+        const meta = document.createElement("div"); meta.className = "fu-msg-meta";
+        meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
+        wrap.appendChild(row); wrap.appendChild(meta);
+        messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        const tokens = text.match(/(<a\s[^>]*>.*?<\/a>|\*\*.*?\*\*|\S+|\s+)/gs) || [];
+        let i = 0, displayed = "";
+        function next() {
+            if (i >= tokens.length) { msg.innerHTML = renderText(displayed); if (onDone) onDone(wrap); saveSession(); return; }
+            displayed += tokens[i++];
+            msg.innerHTML = renderText(displayed); msg.appendChild(cursor);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            setTimeout(next, tokens[i - 1].trim() === "" ? 10 : 28);
+        }
+        next(); return wrap;
+    }
+
+    function addBotMessage(text) {
+        const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot";
+        const row = document.createElement("div"); row.className = "fu-bot-row";
+        const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+        const msg = document.createElement("div"); msg.className = "fu-msg bot"; msg.innerHTML = renderText(text);
+        row.appendChild(avatar); row.appendChild(msg);
+        const meta = document.createElement("div"); meta.className = "fu-msg-meta";
+        meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span style="color:#ccc">·</span><span class="fu-groq-tag">via Groq</span>`;
+        wrap.appendChild(row); wrap.appendChild(meta);
+        messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
+    }
+
+    /**
+     * Ajoute le message utilisateur avec preview du fichier si présent.
+     */
+    function addUserMessage(text, file) {
+        const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap user";
+
+        // Preview image
+        if (file && file.preview) {
+            const img = document.createElement("img");
+            img.src = file.preview; img.className = "fu-img-preview";
+            wrap.appendChild(img);
+        }
+
+        // Bubble fichier non-image
+        if (file && !file.preview) {
+            const bubble = document.createElement("div"); bubble.className = "fu-file-bubble";
+            bubble.innerHTML = `
         <span class="fu-file-bubble-icon">${file.icon}</span>
         <div class="fu-file-bubble-info">
           <div class="fu-file-bubble-name">${file.name}</div>
           <div class="fu-file-bubble-type">${file.type.toUpperCase()} · Contenu extrait</div>
         </div>`;
-      wrap.appendChild(bubble);
+            wrap.appendChild(bubble);
+        }
+
+        // Message texte
+        if (text) {
+            const msg = document.createElement("div"); msg.className = "fu-msg user"; msg.textContent = text;
+            wrap.appendChild(msg);
+        }
+
+        const meta = document.createElement("div"); meta.className = "fu-msg-meta";
+        meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span class="fu-check">✓✓</span>`;
+        wrap.appendChild(meta);
+        messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    // Message texte
-    if (text) {
-      const msg = document.createElement("div"); msg.className = "fu-msg user"; msg.textContent = text;
-      wrap.appendChild(msg);
+    function addTyping() {
+        const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot"; wrap.id = "fu-typing";
+        const row = document.createElement("div"); row.className = "fu-bot-row";
+        const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
+        const typing = document.createElement("div"); typing.className = "fu-typing";
+        typing.innerHTML = "<span></span><span></span><span></span>";
+        row.appendChild(avatar); row.appendChild(typing); wrap.appendChild(row);
+        messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
     }
 
-    const meta = document.createElement("div"); meta.className = "fu-msg-meta";
-    meta.innerHTML = `<span class="fu-msg-time">${getTime()}</span><span class="fu-check">✓✓</span>`;
-    wrap.appendChild(meta);
-    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
+    function addDivider(label) {
+        const div = document.createElement("div"); div.className = "fu-divider"; div.textContent = label;
+        messagesEl.appendChild(div); messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
 
-  function addTyping() {
-    const wrap = document.createElement("div"); wrap.className = "fu-msg-wrap bot"; wrap.id = "fu-typing";
-    const row  = document.createElement("div"); row.className = "fu-bot-row";
-    const avatar = document.createElement("div"); avatar.className = "fu-groq-avatar"; avatar.innerHTML = GROQ_SVG;
-    const typing = document.createElement("div"); typing.className = "fu-typing";
-    typing.innerHTML = "<span></span><span></span><span></span>";
-    row.appendChild(avatar); row.appendChild(typing); wrap.appendChild(row);
-    messagesEl.appendChild(wrap); messagesEl.scrollTop = messagesEl.scrollHeight; return wrap;
-  }
+    // ── Page data ─────────────────────────────────────────────────
+    function extractPageData() {
+        const activeModule = detectActiveModule();
+        let result = "ACTIVE MODULE: " + activeModule + "\n";
+        result += "PAGE TITLE: " + document.title + "\n\n";
 
-  function addDivider(label) {
-    const div = document.createElement("div"); div.className = "fu-divider"; div.textContent = label;
-    messagesEl.appendChild(div); messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
+        if (state && state.data) {
+            if (state.activeView === "dashboard") {
+                const sheetsToDump = ["details", "sample", "ordering"];
+                sheetsToDump.forEach(sheetName => {
+                    const config = SHEET_CONFIG[sheetName];
+                    const rows = state.data[sheetName] || [];
+                    if (!config || !rows.length) return;
 
-  // ── Page data ─────────────────────────────────────────────────
-  function extractPageData() {
-    const activeModule = detectActiveModule();
-    let result = "ACTIVE MODULE: " + activeModule + "\n";
-    result += "PAGE TITLE: " + document.title + "\n\n";
+                    result += `--- DASHBOARD SUMMARY : ${config.label} (${rows.length} items) ---\n`;
+                    const cols = config.cols.map(c => c.key);
+                    result += cols.join(" | ") + "\n";
+                    rows.forEach(r => {
+                        result += cols.map(k => {
+                            let val = r[k];
+                            if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
+                            if (val instanceof Date) return val.toISOString().slice(0, 10);
+                            return String(val || "").replace(/\n/g, " ").trim();
+                        }).join(" | ") + "\n";
+                    });
+                    result += "\n";
+                });
+            } else if (state.activeSheet && state.data[state.activeSheet]) {
+                const config = SHEET_CONFIG[state.activeSheet] || { label: state.activeSheet, cols: [] };
+                const rows = state.filteredData && state.filteredData.length > 0
+                    ? state.filteredData
+                    : state.data[state.activeSheet];
 
-    if (state && state.data) {
-        if (state.activeView === "dashboard") {
-            const sheetsToDump = ["details", "sample", "ordering"];
-            sheetsToDump.forEach(sheetName => {
-                const config = SHEET_CONFIG[sheetName];
-                const rows = state.data[sheetName] || [];
-                if (!config || !rows.length) return;
-                
-                result += `--- DASHBOARD SUMMARY : ${config.label} (${rows.length} items) ---\n`;
-                const cols = config.cols.map(c => c.key);
-                result += cols.join(" | ") + "\n";
+                result += `--- TABLEAU : ${config.label} (${rows.length} items) ---\n`;
+
+                let cols;
+                if (config.cols && config.cols.length > 0) {
+                    cols = config.cols;
+                } else {
+                    cols = rows.length > 0 ? Object.keys(rows[0]).filter(k => !k.startsWith('_')).map(k => ({ key: k, label: k })) : [];
+                }
+
+                const colKeys = cols.map(c => c.key);
+                result += cols.map(c => c.label).join(" | ") + "\n";
+
                 rows.forEach(r => {
-                    result += cols.map(k => {
+                    result += colKeys.map(k => {
                         let val = r[k];
                         if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
                         if (val instanceof Date) return val.toISOString().slice(0, 10);
@@ -5808,124 +5838,96 @@ Rules:
                     }).join(" | ") + "\n";
                 });
                 result += "\n";
-            });
-        } else if (state.activeSheet && state.data[state.activeSheet]) {
-            const config = SHEET_CONFIG[state.activeSheet] || { label: state.activeSheet, cols: [] };
-            const rows = state.filteredData && state.filteredData.length > 0 
-                ? state.filteredData 
-                : state.data[state.activeSheet];
-            
-            result += `--- TABLEAU : ${config.label} (${rows.length} items) ---\n`;
-            
-            let cols;
-            if (config.cols && config.cols.length > 0) {
-                cols = config.cols;
-            } else {
-                cols = rows.length > 0 ? Object.keys(rows[0]).filter(k => !k.startsWith('_')).map(k => ({key: k, label: k})) : [];
             }
-            
-            const colKeys = cols.map(c => c.key);
-            result += cols.map(c => c.label).join(" | ") + "\n";
-            
-            rows.forEach(r => {
-                result += colKeys.map(k => {
-                    let val = r[k];
-                    if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
-                    if (val instanceof Date) return val.toISOString().slice(0, 10);
-                    return String(val || "").replace(/\n/g, " ").trim();
-                }).join(" | ") + "\n";
+        } else {
+            document.querySelectorAll("table").forEach((table, i) => {
+                const caption = table.querySelector("caption");
+                const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
+                result += "--- " + (caption?.innerText || heading?.innerText || ("Tableau " + (i + 1))) + " ---\n";
+                table.querySelectorAll("tr").forEach(row => {
+                    const cells = [...row.children].map(c => getCellValue(c));
+                    if (cells.some(c => c)) result += cells.join(" | ") + "\n";
+                });
+                result += "\n";
             });
-            result += "\n";
         }
-    } else {
-        document.querySelectorAll("table").forEach((table, i) => {
-          const caption = table.querySelector("caption");
-          const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
-          result += "--- " + (caption?.innerText || heading?.innerText || ("Tableau " + (i + 1))) + " ---\n";
-          table.querySelectorAll("tr").forEach(row => {
-            const cells = [...row.children].map(c => getCellValue(c));
-            if (cells.some(c => c)) result += cells.join(" | ") + "\n";
-          });
-          result += "\n";
-        });
+
+        return result.slice(0, 40000);
     }
 
-    return result.slice(0, 40000);
-  }
-
-  function getCellValue(cell) {
-    if (cell.dataset.value !== undefined) return cell.dataset.value.trim().replace(/\n/g, " ");
-    const select = cell.querySelector("select");
-    if (select) { const val = select.options[select.selectedIndex]; return (val && val.value && val.value !== "") ? val.text.trim() : "—"; }
-    const inp = cell.querySelector("input[type='text'], input:not([type])");
-    if (inp) return inp.value.trim() || "—";
-    const checkbox = cell.querySelector("input[type='checkbox']");
-    if (checkbox) return checkbox.checked ? "✓" : "✗";
-    return cell.innerText.trim().replace(/\n/g, " ");
-  }
-
-  // ── Send ──────────────────────────────────────────────────────
-  async function sendMessage() {
-    if (isLoading) return;
-    const question = input.value.trim();
-    const fileToSend = pendingFile;
-
-    // Il faut au moins un texte ou un fichier
-    if (!question && !fileToSend) return;
-
-    const suggestionsEl = document.getElementById("fu-suggestions");
-    if (suggestionsEl) suggestionsEl.classList.add("hidden");
-
-    // Afficher message user avec preview fichier
-    addUserMessage(question, fileToSend);
-    input.value = ""; input.style.height = "auto";
-
-    // Reset upload state
-    pendingFile = null;
-    previewBar.classList.remove("visible");
-    uploadBtn.classList.remove("has-file");
-
-    const typingEl = addTyping();
-    isLoading = true; sendBtn.disabled = true;
-
-    try {
-      // Construire le contexte enrichi avec le fichier
-      let pageContext = extractPageData();
-      let promptText = question || "Analyse ce fichier et donne-moi un résumé des informations clés.";
-
-      if (fileToSend) {
-        promptText = `[FICHIER JOINT: ${fileToSend.name} (${fileToSend.type.toUpperCase()})]\n\n` +
-                     `Contenu extrait:\n${fileToSend.content}\n\n` +
-                     (question ? `Question de l'utilisateur: ${question}` : `Analyse ce fichier et donne un résumé structuré des données clés, alertes et points d'attention.`);
-      }
-
-      const res = await fetch(API_URL, {
-        method: "POST", headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          prompt: promptText,
-          context: pageContext,
-          history: chatHistory.slice(-10)
-        })
-      });
-
-      const data = await res.json(); typingEl.remove();
-
-      if (data.error) { addBotMessage("❌ Erreur : " + data.error); return; }
-      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-      if (!reply) { addBotMessage("⚠️ Réponse vide. Vérifiez la console."); console.warn("Structure inattendue :", JSON.stringify(data)); return; }
-
-      streamBotMessage(reply, () => {
-        chatHistory.push({ role: "user", content: promptText });
-        chatHistory.push({ role: "assistant", content: reply });
-        saveSession(); updateContextBanner();
-      });
-    } catch (err) {
-      typingEl.remove();
-      addBotMessage("❌ Erreur réseau. Vérifiez votre connexion.");
-      console.error(err);
-    } finally {
-      isLoading = false; sendBtn.disabled = false;
+    function getCellValue(cell) {
+        if (cell.dataset.value !== undefined) return cell.dataset.value.trim().replace(/\n/g, " ");
+        const select = cell.querySelector("select");
+        if (select) { const val = select.options[select.selectedIndex]; return (val && val.value && val.value !== "") ? val.text.trim() : "—"; }
+        const inp = cell.querySelector("input[type='text'], input:not([type])");
+        if (inp) return inp.value.trim() || "—";
+        const checkbox = cell.querySelector("input[type='checkbox']");
+        if (checkbox) return checkbox.checked ? "✓" : "✗";
+        return cell.innerText.trim().replace(/\n/g, " ");
     }
-  }
+
+    // ── Send ──────────────────────────────────────────────────────
+    async function sendMessage() {
+        if (isLoading) return;
+        const question = input.value.trim();
+        const fileToSend = pendingFile;
+
+        // Il faut au moins un texte ou un fichier
+        if (!question && !fileToSend) return;
+
+        const suggestionsEl = document.getElementById("fu-suggestions");
+        if (suggestionsEl) suggestionsEl.classList.add("hidden");
+
+        // Afficher message user avec preview fichier
+        addUserMessage(question, fileToSend);
+        input.value = ""; input.style.height = "auto";
+
+        // Reset upload state
+        pendingFile = null;
+        previewBar.classList.remove("visible");
+        uploadBtn.classList.remove("has-file");
+
+        const typingEl = addTyping();
+        isLoading = true; sendBtn.disabled = true;
+
+        try {
+            // Construire le contexte enrichi avec le fichier
+            let pageContext = extractPageData();
+            let promptText = question || "Analyse ce fichier et donne-moi un résumé des informations clés.";
+
+            if (fileToSend) {
+                promptText = `[FICHIER JOINT: ${fileToSend.name} (${fileToSend.type.toUpperCase()})]\n\n` +
+                    `Contenu extrait:\n${fileToSend.content}\n\n` +
+                    (question ? `Question de l'utilisateur: ${question}` : `Analyse ce fichier et donne un résumé structuré des données clés, alertes et points d'attention.`);
+            }
+
+            const res = await fetch(API_URL, {
+                method: "POST", headers: { "Content-Type": "text/plain" },
+                body: JSON.stringify({
+                    prompt: promptText,
+                    context: pageContext,
+                    history: chatHistory.slice(-10)
+                })
+            });
+
+            const data = await res.json(); typingEl.remove();
+
+            if (data.error) { addBotMessage("❌ Erreur : " + data.error); return; }
+            const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+            if (!reply) { addBotMessage("⚠️ Réponse vide. Vérifiez la console."); console.warn("Structure inattendue :", JSON.stringify(data)); return; }
+
+            streamBotMessage(reply, () => {
+                chatHistory.push({ role: "user", content: promptText });
+                chatHistory.push({ role: "assistant", content: reply });
+                saveSession(); updateContextBanner();
+            });
+        } catch (err) {
+            typingEl.remove();
+            addBotMessage("❌ Erreur réseau. Vérifiez votre connexion.");
+            console.error(err);
+        } finally {
+            isLoading = false; sendBtn.disabled = false;
+        }
+    }
 
 })();
