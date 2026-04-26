@@ -5785,25 +5785,76 @@ Rules:
   // ── Page data ─────────────────────────────────────────────────
   function extractPageData() {
     const activeModule = detectActiveModule();
-    let result = "";
-    result += "ACTIVE MODULE: " + activeModule + "\n";
+    let result = "ACTIVE MODULE: " + activeModule + "\n";
     result += "PAGE TITLE: " + document.title + "\n\n";
 
-    document.querySelectorAll("table").forEach((table, i) => {
-      const caption = table.querySelector("caption");
-      const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
-      result += "--- " + (caption?.innerText || heading?.innerText || ("Tableau " + (i + 1))) + " ---\n";
-      table.querySelectorAll("tr").forEach(row => {
-        const cells = [...row.children].map(c => getCellValue(c));
-        if (cells.some(c => c)) result += cells.join(" | ") + "\n";
-      });
-      result += "\n";
-    });
+    if (state && state.data) {
+        if (state.activeView === "dashboard") {
+            const sheetsToDump = ["details", "sample", "ordering"];
+            sheetsToDump.forEach(sheetName => {
+                const config = SHEET_CONFIG[sheetName];
+                const rows = state.data[sheetName] || [];
+                if (!config || !rows.length) return;
+                
+                result += `--- DASHBOARD SUMMARY : ${config.label} (${rows.length} items) ---\n`;
+                const cols = config.cols.map(c => c.key);
+                result += cols.join(" | ") + "\n";
+                rows.forEach(r => {
+                    result += cols.map(k => {
+                        let val = r[k];
+                        if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
+                        if (val instanceof Date) return val.toISOString().slice(0, 10);
+                        return String(val || "").replace(/\n/g, " ").trim();
+                    }).join(" | ") + "\n";
+                });
+                result += "\n";
+            });
+        } else if (state.activeSheet && state.data[state.activeSheet]) {
+            const config = SHEET_CONFIG[state.activeSheet] || { label: state.activeSheet, cols: [] };
+            const rows = state.filteredData && state.filteredData.length > 0 
+                ? state.filteredData 
+                : state.data[state.activeSheet];
+            
+            result += `--- TABLEAU : ${config.label} (${rows.length} items) ---\n`;
+            
+            let cols;
+            if (config.cols && config.cols.length > 0) {
+                cols = config.cols;
+            } else {
+                cols = rows.length > 0 ? Object.keys(rows[0]).filter(k => !k.startsWith('_')).map(k => ({key: k, label: k})) : [];
+            }
+            
+            const colKeys = cols.map(c => c.key);
+            result += cols.map(c => c.label).join(" | ") + "\n";
+            
+            rows.forEach(r => {
+                result += colKeys.map(k => {
+                    let val = r[k];
+                    if (val && typeof val === 'string' && val.match(/^\d{4}-\d{2}-\d{2}T/)) return val.slice(0, 10);
+                    if (val instanceof Date) return val.toISOString().slice(0, 10);
+                    return String(val || "").replace(/\n/g, " ").trim();
+                }).join(" | ") + "\n";
+            });
+            result += "\n";
+        }
+    } else {
+        document.querySelectorAll("table").forEach((table, i) => {
+          const caption = table.querySelector("caption");
+          const heading = table.closest("section, div")?.querySelector("h1,h2,h3,h4");
+          result += "--- " + (caption?.innerText || heading?.innerText || ("Tableau " + (i + 1))) + " ---\n";
+          table.querySelectorAll("tr").forEach(row => {
+            const cells = [...row.children].map(c => getCellValue(c));
+            if (cells.some(c => c)) result += cells.join(" | ") + "\n";
+          });
+          result += "\n";
+        });
+    }
 
-    return result.slice(0, 20000);
+    return result.slice(0, 40000);
   }
 
   function getCellValue(cell) {
+    if (cell.dataset.value !== undefined) return cell.dataset.value.trim().replace(/\n/g, " ");
     const select = cell.querySelector("select");
     if (select) { const val = select.options[select.selectedIndex]; return (val && val.value && val.value !== "") ? val.text.trim() : "—"; }
     const inp = cell.querySelector("input[type='text'], input:not([type])");
