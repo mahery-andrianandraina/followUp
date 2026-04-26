@@ -5188,20 +5188,69 @@ tr.awb-active-row td { background:#fff8ec !important; }
     }
     #fu-footer-groq span { font-size: 9.5px; color: #b0c8e0; }
     #fu-footer-groq .groq-name { color: #f55036; font-weight: 600; }
+
+    @keyframes fu-hover-bot { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    @keyframes fu-blink-eyes { 0%, 94%, 98% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+    @keyframes fu-look-around { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(2px); } 40% { transform: translateX(-2px); } 60% { transform: translateX(0); } }
+    .fu-bot-head { animation: fu-hover-bot 3.5s ease-in-out infinite; transform-origin: center; }
+    .fu-bot-eyes { animation: fu-blink-eyes 4s infinite, fu-look-around 7s infinite; transform-origin: 50% 49px; }
   `;
     document.head.appendChild(style);
 
     document.body.insertAdjacentHTML("beforeend", `
     <button id="fu-chatbot-btn">
       <div id="fu-notif-badge"></div>
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <svg id="fu-bot-avatar" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 38px; height: 38px; overflow: visible;">
+        <defs>
+          <linearGradient id="fuBotGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="100%" stop-color="#e0e0e0"/>
+          </linearGradient>
+          <filter id="fuGlow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+        <g class="fu-bot-head">
+          <!-- Tête -->
+          <path d="M 20 50 Q 20 20 50 20 Q 80 20 80 50 L 80 65 Q 80 80 50 80 Q 20 80 20 65 Z" fill="url(#fuBotGrad)" />
+          <!-- Écran -->
+          <rect x="25" y="35" width="50" height="28" rx="10" fill="#15202b" />
+          <!-- Yeux animés -->
+          <g class="fu-bot-eyes" filter="url(#fuGlow)">
+            <circle cx="38" cy="49" r="4.5" fill="#00e5ff" />
+            <circle cx="62" cy="49" r="4.5" fill="#00e5ff" />
+          </g>
+          <!-- Antenne animée -->
+          <line x1="50" y1="20" x2="50" y2="5" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+          <circle cx="50" cy="5" r="4" fill="#00e5ff" filter="url(#fuGlow)">
+            <animate attributeName="fill" values="#00e5ff;#ff4081;#00e5ff" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <!-- Oreilles -->
+          <path d="M 15 45 Q 10 45 10 50 Q 10 55 15 55 Z" fill="#b0bec5" />
+          <path d="M 85 45 Q 90 45 90 50 Q 90 55 85 55 Z" fill="#b0bec5" />
+        </g>
       </svg>
     </button>
 
     <div id="fu-chatbot-panel">
       <div id="fu-chat-header">
-        <div id="fu-header-avatar">🤖<div id="fu-online-dot-wrap"></div></div>
+        <div id="fu-header-avatar">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="width: 24px; height: 24px; overflow: visible;">
+            <g class="fu-bot-head">
+              <path d="M 20 50 Q 20 20 50 20 Q 80 20 80 50 L 80 65 Q 80 80 50 80 Q 20 80 20 65 Z" fill="#ffffff" />
+              <rect x="25" y="35" width="50" height="28" rx="10" fill="#15202b" />
+              <g class="fu-bot-eyes"><circle cx="38" cy="49" r="4.5" fill="#00e5ff" /><circle cx="62" cy="49" r="4.5" fill="#00e5ff" /></g>
+              <line x1="50" y1="20" x2="50" y2="5" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+              <circle cx="50" cy="5" r="4" fill="#00e5ff" />
+              <path d="M 15 45 Q 10 45 10 50 Q 10 55 15 55 Z" fill="#b0bec5" /><path d="M 85 45 Q 90 45 90 50 Q 90 55 85 55 Z" fill="#b0bec5" />
+            </g>
+          </svg>
+          <div id="fu-online-dot-wrap"></div>
+        </div>
         <div id="fu-header-info">
           <div id="fu-header-title">Assistant AW27</div>
           <div id="fu-header-sub">En ligne · Analyse votre page</div>
