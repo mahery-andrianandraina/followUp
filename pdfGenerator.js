@@ -164,7 +164,7 @@ async function generateStylePDF(cardData) {
     // OK to Production (PPS approved?)
     const ppsRow = sampleRows.find(r => (r.Type || '').toUpperCase().includes('PPS') || (r.Type || '').toUpperCase().includes('PP SAMPLE'));
     const ppsApproved = ppsRow && ppsRow.Approval === 'Approved';
-    const okToProdLabel = !ppsRow ? 'No PPS launched again' : ppsApproved ? 'YES' : 'NO';
+    const okToProdLabel = !ppsRow ? 'No PPS launched yet' : ppsApproved ? 'YES' : 'NO';
     const okToProdColor = !ppsRow ? GRAY1 : ppsApproved ? GREEN : RED;
 
     // Delivery progress
@@ -580,6 +580,90 @@ async function generateStylePDF(cardData) {
     }
 
 
+    // ══════════════════════════════════════════════════════════
+    //  GENERIC SECTIONS (MARKETING, PRE-SHIPMENT, ETC.)
+    // ══════════════════════════════════════════════════════════
+    function renderGenericSection(searchKey, title, themeColor) {
+      // Find the actual key in state.data (case-insensitive, ignoring spaces/underscores)
+      const targetStr = searchKey.toLowerCase().replace(/[^a-z]/g, '');
+      const actualKey = Object.keys(st).find(k => k.toLowerCase().replace(/[^a-z]/g, '') === targetStr);
+      if (!actualKey) return;
+      
+      const rows = (st[actualKey] || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+      if (rows.length === 0) return;
+      
+      checkPage(20);
+      sectionTitle(title.toUpperCase() + '  (' + rows.length + ')', themeColor);
+      
+      // Extract columns (exclude internal keys)
+      const excludeKeys = ['Style', '_rowIndex', '_sheetName'];
+      let keys = [];
+      // Look at all rows to find keys, just in case first row is missing some
+      rows.forEach(r => {
+        Object.keys(r).forEach(k => {
+          if (!excludeKeys.includes(k) && !k.startsWith('_') && !keys.includes(k)) {
+            keys.push(k);
+          }
+        });
+      });
+      // Limit to 7 columns max to avoid overlap
+      keys = keys.slice(0, 7);
+      
+      if (keys.length === 0) return;
+      
+      const colW = CW / keys.length;
+      
+      // Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(M, Y, CW, 7, 'F');
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GRAY1);
+      
+      keys.forEach((k, i) => {
+        doc.text(String(k).substring(0, 15).toUpperCase(), M + (i * colW) + 1.5, Y + 4.8);
+      });
+      Y += 9;
+      
+      // Rows
+      rows.forEach((r, ri) => {
+        checkPage(10);
+        if (ri % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(M, Y - 1, CW, 7, 'F');
+        }
+        
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...BLACK);
+        
+        keys.forEach((k, i) => {
+          let val = String(r[k] || '---');
+          // Basic date formatting if it looks like ISO
+          if (val.match(/^\d{4}-\d{2}-\d{2}T/)) val = fmtDate(val);
+          val = val.substring(0, 20);
+          
+          // Colorize "Approved" / "Rejected" if present
+          if (val === 'Approved' || val === 'Pass') {
+            doc.setTextColor(...GREEN);
+            doc.setFont('helvetica', 'bold');
+          } else if (val === 'Rejected' || val === 'Fail') {
+            doc.setTextColor(...RED);
+            doc.setFont('helvetica', 'bold');
+          } else {
+            doc.setTextColor(...BLACK);
+            doc.setFont('helvetica', 'normal');
+          }
+          
+          doc.text(val, M + (i * colW) + 1.5, Y + 3.5);
+        });
+        Y += 7;
+      });
+      Y += 4;
+    }
+
+    renderGenericSection('preshipment', 'PRE-SHIPMENT & INSPECTION', [107, 33, 168]); // Purple
+    renderGenericSection('marketing', 'MARKETING & PHOTO', [190, 24, 93]); // Pink
 
     // ══════════════════════════════════════════════════════════
     //  FOOTER
