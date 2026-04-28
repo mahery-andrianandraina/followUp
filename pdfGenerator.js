@@ -232,17 +232,17 @@ async function generateStylePDF(cardData) {
       sectionTitle('COULEURS & ARTICLES  (' + styleRows.length + ')', INDIGO);
 
       // Table header
-      const colorsHeaders = ['GMT Color', 'Pantone', 'Color Code', 'Approval', 'PO', 'Articles'];
-      const cColW = [28, 32, 28, 24, 34, CW - 28 - 32 - 28 - 24 - 34];
+      const colorsHeaders = ['GMT Color', 'Pantone', 'Color Code', 'Approval', 'PO', 'Articles', 'Prepack'];
+      const cColW = [24, 28, 24, 22, 28, 28, CW - 24 - 28 - 24 - 22 - 28 - 28];
       let cx = M;
 
       doc.setFillColor(241, 245, 249);
       doc.rect(M, Y, CW, 7, 'F');
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...GRAY1);
       colorsHeaders.forEach((h, i) => {
-        doc.text(h.toUpperCase(), cx + 2, Y + 4.8);
+        doc.text(h.toUpperCase(), cx + 1.5, Y + 4.8);
         cx += cColW[i];
       });
       Y += 9;
@@ -255,7 +255,7 @@ async function generateStylePDF(cardData) {
           doc.rect(M, Y - 1, CW, 7, 'F');
         }
         cx = M;
-        doc.setFontSize(8.5);
+        doc.setFontSize(7.5);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...BLACK);
 
@@ -268,7 +268,8 @@ async function generateStylePDF(cardData) {
           sr['Color Code'] || '---',
           apvl || '---',
           sr['PO'] || '---',
-          sr['Articles'] || '---'
+          sr['Articles'] || '---',
+          sr['Prepack Barcode'] || '---'
         ];
         vals.forEach((v, i) => {
           if (i === 3) {
