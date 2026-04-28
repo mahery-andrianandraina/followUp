@@ -589,19 +589,27 @@ async function generateStylePDF(cardData) {
       const actualKey = Object.keys(st).find(k => k.toLowerCase().replace(/[^a-z]/g, '') === targetStr);
       if (!actualKey) return;
       
-      const rows = (st[actualKey] || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+      const rows = (st[actualKey] || []).filter(r => {
+        let s = r.Style || r.style || r.STYLE || r['Style '] || r['Style Code'];
+        if (!s) {
+          const styleKey = Object.keys(r).find(k => k.toLowerCase().includes('style'));
+          if (styleKey) s = r[styleKey];
+        }
+        return String(s || '').toLowerCase().trim() === codeLow.trim();
+      });
       if (rows.length === 0) return;
       
       checkPage(20);
       sectionTitle(title.toUpperCase() + '  (' + rows.length + ')', themeColor);
       
-      // Extract columns (exclude internal keys)
-      const excludeKeys = ['Style', '_rowIndex', '_sheetName'];
+      // Extract columns (exclude internal keys and the style column itself)
+      const excludeKeys = ['_rowIndex', '_sheetName'];
       let keys = [];
       // Look at all rows to find keys, just in case first row is missing some
       rows.forEach(r => {
         Object.keys(r).forEach(k => {
-          if (!excludeKeys.includes(k) && !k.startsWith('_') && !keys.includes(k)) {
+          const isStyleCol = k.toLowerCase().includes('style');
+          if (!excludeKeys.includes(k) && !k.startsWith('_') && !isStyleCol && !keys.includes(k)) {
             keys.push(k);
           }
         });
