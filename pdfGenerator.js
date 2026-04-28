@@ -11,14 +11,11 @@
 })();
 
 // ── Helper : download an image URL → base64 data URI ──────────
-// Uses fetch + blob + FileReader to avoid CORS canvas tainting.
-// Falls back to drawing from a fresh <img> with crossOrigin if fetch fails.
 async function imgToBase64(url) {
   if (!url) return null;
-  // Already base64
   if (url.startsWith('data:')) return url;
 
-  // ── Strategy 1 : fetch as blob → FileReader ─────────────────
+  // Strategy 1 : fetch as blob → FileReader
   try {
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
     if (res.ok) {
@@ -30,9 +27,9 @@ async function imgToBase64(url) {
         reader.readAsDataURL(blob);
       });
     }
-  } catch (_) { /* try next strategy */ }
+  } catch (_) { /* try next */ }
 
-  // ── Strategy 2 : load into img with crossOrigin → canvas ────
+  // Strategy 2 : img crossOrigin → canvas
   try {
     return await new Promise((resolve, reject) => {
       const img = new Image();
@@ -55,28 +52,10 @@ async function imgToBase64(url) {
   return null;
 }
 
-// ── Extract base64 from an already-loaded <img> element ───────
-// The browser has already downloaded the image, so we can draw it
-// onto a canvas and extract the data URI — no network needed.
-function imgElementToBase64(imgEl) {
-  if (!imgEl || !imgEl.naturalWidth) return null;
-  try {
-    const c = document.createElement('canvas');
-    c.width = imgEl.naturalWidth;
-    c.height = imgEl.naturalHeight;
-    c.getContext('2d').drawImage(imgEl, 0, 0);
-    return c.toDataURL('image/jpeg', 0.92);
-  } catch (_) {
-    // Canvas tainted by CORS — can't extract
-    return null;
-  }
-}
-
 async function generateStylePDF(style) {
-  const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || localStorage.getItem('last_gas_url');
   const code = style.Style || style.StyleCode;
 
-  if (!code || !gasUrl) {
+  if (!code) {
     alert("Erreur : Code Style introuvable dans la ligne sélectionnée.");
     return;
   }
@@ -84,65 +63,66 @@ async function generateStylePDF(style) {
   console.log('[PDF] 🔎 Génération PDF pour :', code);
 
   try {
-    // ─── ÉTAPE 1 : Récupérer l'image depuis la card du dashboard ───
-    // style.photoBase64 est injecté par extractCardData() dans index.html
-    let photoData = style.photoBase64 || null;
+    // ─── DONNÉES : utiliser les données passées par la card (pas de serveur) ───
+    // Enrichir avec state.data.details si disponible
+    const s = { ...style };
+    if (window.state && window.state.data && window.state.data.details) {
+      const match = window.state.data.details.find(r =>
+        (r.Style || '').toLowerCase() === code.toLowerCase()
+      );
+      if (match) {
+        // Compléter les champs manquants avec les données du state
+        Object.keys(match).forEach(k => {
+          if (!s[k] && match[k]) s[k] = match[k];
+        });
+      }
+    }
 
-    // Si pas de base64 de la card, essayer de télécharger depuis l'URL
-    if (!photoData && (style._imageUrl || style.photoUrl)) {
-      const imgUrl = style._imageUrl || style.photoUrl;
+    // ─── IMAGE : priorité au base64 déjà extrait de la card ───────
+    let photoData = s.photoBase64 || null;
+
+    // Si pas de base64, essayer de télécharger depuis l'URL
+    if (!photoData && (s._imageUrl || s.photoUrl)) {
+      const imgUrl = s._imageUrl || s.photoUrl;
       console.log('[PDF] 📥 Téléchargement image depuis URL :', imgUrl);
       photoData = await imgToBase64(imgUrl);
     }
 
-    // ─── ÉTAPE 2 : Charger les données fraîches du serveur ─────────
-    const res = await fetch(gasUrl, {
-      method: "POST",
-      body: JSON.stringify({ action: "GET_STYLE", styleCode: code })
-    });
-    const json = await res.json();
-
-    if (json.status !== "ok") throw new Error(json.message);
-    const s = json.style;
-    if (!s) throw new Error("Le serveur a répondu 'OK' mais n'a pas renvoyé les données du style.");
-
-    // Si on n'a toujours pas de photo, essayer le base64 du serveur en dernier recours
-    if (!photoData && s.photoBase64) {
-      console.log('[PDF] 📥 Image reçue du serveur (fallback)');
-      photoData = s.photoBase64;
-    }
-
-    // 3. Attente jsPDF
+    // ─── jsPDF ────────────────────────────────────────────────────
     if (!window.jspdf) {
-       console.log('[PDF] Chargement bibliothèque...');
-       await new Promise(r => setTimeout(r, 2000));
+      console.log('[PDF] Chargement bibliothèque...');
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    if (!window.jspdf) {
+      throw new Error("La bibliothèque jsPDF n'a pas pu être chargée.");
     }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
-    // Design
+
+    // ── Header band ──
     doc.setFillColor(30, 58, 138);
     doc.rect(0, 0, 210, 40, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(24);
     doc.text('AW27 CHECKERS', 15, 25);
-    
+
+    // ── Style title ──
     doc.setTextColor(30, 58, 138);
     doc.setFontSize(18);
     doc.text('STYLE : ' + (s.Style || code), 15, 55);
-    
+
     doc.setFontSize(10);
     doc.setTextColor(100, 116, 139);
-    doc.text('Description : ' + (s.Description || 'N/A'), 15, 62);
+    doc.text('Description : ' + (s.Description || s.StyleDescription || 'N/A'), 15, 62);
 
-    // Image
+    // ── Image ──
     if (photoData) {
       console.log('[PDF] ✅ Image injectée dans le PDF');
       try {
         doc.addImage(photoData, 'JPEG', 15, 70, 80, 80);
       } catch (imgErr) {
-        console.warn('[PDF] ⚠️ Erreur addImage, format invalide :', imgErr.message);
+        console.warn('[PDF] ⚠️ Erreur addImage :', imgErr.message);
         doc.setDrawColor(200);
         doc.rect(15, 70, 80, 80);
         doc.setFontSize(9);
@@ -158,7 +138,7 @@ async function generateStylePDF(style) {
       doc.text('Photo non disponible', 30, 110);
     }
 
-    // Infos secondaires
+    // ── Infos secondaires ──
     let y = 75;
     const infoX = 110;
     const rows = [
@@ -166,7 +146,9 @@ async function generateStylePDF(style) {
       ['Saison', s.Saison],
       ['Dépt', s.Dept],
       ['Fabric', s['Fabric Base'] || s['Fabric']],
-      ['Qty', s['Order Qty'] || s['Qty']]
+      ['Qty', s['Order Qty'] || s['Qty']],
+      ['PSD', s.PSD],
+      ['Ex-Fty', s['Ex-Fty']]
     ];
 
     rows.forEach(r => {
@@ -178,6 +160,7 @@ async function generateStylePDF(style) {
     });
 
     doc.save(`Fiche_${code}.pdf`);
+    console.log('[PDF] ✅ PDF généré avec succès');
 
   } catch (err) {
     console.error('[PDF] Erreur :', err);
@@ -188,4 +171,3 @@ async function generateStylePDF(style) {
 window.AWCheckers = window.AWCheckers || {};
 window.AWCheckers.generateStylePDF = generateStylePDF;
 window.AWCheckers.imgToBase64 = imgToBase64;
-window.AWCheckers.imgElementToBase64 = imgElementToBase64;
