@@ -156,17 +156,17 @@ async function generateStylePDF(cardData) {
     const d = detailRow;
     const infoFields = [
       ['Style',       d.Style || code],
-      ['Description', d.Description || d.StyleDescription || '—'],
-      ['Client',      d.Client || '—'],
-      ['Saison',      d.Saison || '—'],
+      ['Client',      d.Client || '---'],
+      ['Description', d.Description || d.StyleDescription || '---'],
+      ['Saison',      d.Saison || '---'],
       ['Departement', d.Dept || '---'],
-      ['Fabric Base', d['Fabric Base'] || d.Fabric || '—'],
-      ['Costing',     d.Costing || '—'],
-      ['Order Qty',   d['Order Qty'] || d.Qty || '—'],
+      ['Fabric Base', d['Fabric Base'] || d.Fabric || '---'],
+      ['Costing',     d.Costing || '---'],
+      ['Order Qty',   d['Order Qty'] || d.Qty || '---'],
       ['PSD',         fmtDate(d.PSD)],
       ['Ex-Fty',      fmtDate(d['Ex-Fty'])],
-      ['Comments',    d.Comments || d.Remarks || '---'],
     ];
+    const commentsVal = d.Comments || d.Remarks || '';
 
     // Section title
     function sectionTitle(title, color) {
@@ -182,16 +182,15 @@ async function generateStylePDF(cardData) {
 
     sectionTitle('INFORMATIONS GENERALES', NAVY);
 
-    // Layout: image left (if available), info right
-    const imgW = 55, imgH = 55;
-    const infoStartX = photoData ? M + imgW + 8 : M;
-    const infoColW = photoData ? CW - imgW - 8 : CW;
+    // Layout: photo left, 2-column info grid right
+    const imgW = 48, imgH = 48;
+    const infoStartX = photoData ? M + imgW + 6 : M;
+    const infoAreaW = photoData ? CW - imgW - 6 : CW;
 
     // Photo
     if (photoData) {
       try {
         doc.addImage(photoData, 'JPEG', M, Y, imgW, imgH);
-        // Photo border
         doc.setDrawColor(...GRAY3);
         doc.setLineWidth(0.3);
         doc.rect(M, Y, imgW, imgH);
@@ -199,31 +198,58 @@ async function generateStylePDF(cardData) {
         doc.setDrawColor(...GRAY3);
         doc.rect(M, Y, imgW, imgH);
         doc.setFontSize(8); doc.setTextColor(...GRAY2);
-        doc.text('Photo indisponible', M + 10, Y + imgH / 2);
+        doc.text('Photo indisponible', M + 8, Y + imgH / 2);
       }
     }
 
-    // Info fields
+    // Info fields in 2-column grid
     const savedY = Y;
+    const col1X = infoStartX;
+    const col2X = infoStartX + infoAreaW / 2;
+    const colW = infoAreaW / 2 - 2;
     let fieldY = Y;
+
     infoFields.forEach((f, i) => {
-      doc.setFontSize(7);
+      const col = i % 2; // 0 = left, 1 = right
+      const x = col === 0 ? col1X : col2X;
+
+      doc.setFontSize(6.5);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...GRAY1);
-      doc.text(f[0].toUpperCase(), infoStartX, fieldY);
+      doc.text(f[0].toUpperCase(), x, fieldY);
 
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BLACK);
-      const val = String(f[1] || '—');
-      // Truncate long values
-      const maxW = infoColW - 4;
-      const lines = doc.splitTextToSize(val, maxW);
-      doc.text(lines[0], infoStartX, fieldY + 4.5);
-      fieldY += 11;
+      const val = String(f[1] || '---');
+      const lines = doc.splitTextToSize(val, colW);
+      doc.text(lines[0], x, fieldY + 4);
+
+      // Move Y down only after right column (or last item)
+      if (col === 1 || i === infoFields.length - 1) {
+        fieldY += 9;
+      }
     });
 
-    Y = Math.max(fieldY, savedY + (photoData ? imgH + 4 : 0)) + 4;
+    // Comments on full width below (if any)
+    if (commentsVal) {
+      fieldY += 1;
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY1);
+      doc.text('COMMENTS', infoStartX, fieldY);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...BLACK);
+      const cLines = doc.splitTextToSize(commentsVal, infoAreaW - 4);
+      cLines.slice(0, 2).forEach(l => {
+        fieldY += 4;
+        doc.text(l, infoStartX, fieldY);
+      });
+      fieldY += 2;
+    }
+
+    Y = Math.max(fieldY, savedY + (photoData ? imgH + 4 : 0)) + 3;
 
     // ══════════════════════════════════════════════════════════
     //  SECTION 2 — COULEURS & ARTICLES (Style sheet)
