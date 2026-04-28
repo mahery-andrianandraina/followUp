@@ -153,25 +153,42 @@ async function generateStylePDF(cardData) {
     // ══════════════════════════════════════════════════════════
     //  KPI STRIP (compact metrics bar)
     // ══════════════════════════════════════════════════════════
-    const totalOrderQty = +detailRow['Order Qty'] || 0;
-    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
-    const samplesPending = sampleRows.filter(r => r.Approval === 'Pending').length;
-    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
-    const ordersConfirmed = orderRows.filter(r => r.Status === 'Confirmed').length;
-    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
     // Days to Ex-Fty
     const exFtyDate = detailRow['Ex-Fty'] ? new Date(detailRow['Ex-Fty']) : null;
+    const psdDate = detailRow['PSD'] ? new Date(detailRow['PSD']) : null;
     const today = new Date(); today.setHours(0,0,0,0);
     const daysToExFty = exFtyDate ? Math.round((exFtyDate - today) / 86400000) : null;
-    const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j late' : daysToExFty + 'j') : '---';
+    const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j en retard' : daysToExFty + ' jours') : '---';
     const daysColor = daysToExFty !== null ? (daysToExFty < 0 ? RED : daysToExFty <= 14 ? AMBER : GREEN) : GRAY1;
 
+    // Sample status (overall)
+    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
+    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
+    const sampleStatus = sampleRows.length === 0 ? 'No sample'
+      : samplesRejected > 0 ? 'Rejected (' + samplesRejected + ')'
+      : samplesApproved === sampleRows.length ? 'All Approved'
+      : samplesApproved + '/' + sampleRows.length + ' Approved';
+    const sampleColor = sampleRows.length === 0 ? GRAY1
+      : samplesRejected > 0 ? RED
+      : samplesApproved === sampleRows.length ? GREEN : AMBER;
+
+    // Delivery progress
+    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
+    const delivLabel = orderRows.length === 0 ? 'No order' : ordersDelivered + ' / ' + orderRows.length;
+    const delivColor = orderRows.length === 0 ? GRAY1
+      : ordersDelivered === orderRows.length ? GREEN
+      : ordersDelivered > 0 ? BLUE : AMBER;
+
+    // Lead Time (PSD to Ex-Fty)
+    const leadDays = (psdDate && exFtyDate) ? Math.round((exFtyDate - psdDate) / 86400000) : null;
+    const leadLabel = leadDays !== null ? leadDays + ' jours' : '---';
+    const leadColor = leadDays !== null ? (leadDays < 30 ? RED : leadDays <= 60 ? AMBER : BLUE) : GRAY1;
+
     const kpis = [
-      { label: 'ORDER QTY', value: totalOrderQty.toLocaleString('fr-FR'), color: BLUE },
-      { label: 'COULEURS', value: String(styleRows.length), color: INDIGO },
-      { label: 'SAMPLES', value: samplesApproved + '/' + sampleRows.length + ' ok', color: GREEN },
-      { label: 'COMMANDES', value: ordersConfirmed + '/' + orderRows.length, color: [234, 88, 12] },
       { label: 'EX-FTY', value: daysLabel, color: daysColor },
+      { label: 'SAMPLE STATUS', value: sampleStatus, color: sampleColor },
+      { label: 'DELIVERY', value: delivLabel, color: delivColor },
+      { label: 'LEAD TIME', value: leadLabel, color: leadColor },
     ];
 
     const kpiW = CW / kpis.length;
