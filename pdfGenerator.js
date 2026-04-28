@@ -148,7 +148,58 @@ async function generateStylePDF(cardData) {
     doc.setTextColor(148, 163, 184);
     doc.text('Genere le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 16, { align: 'right' });
 
-    Y = 46;
+    Y = 42;
+
+    // ══════════════════════════════════════════════════════════
+    //  KPI STRIP (compact metrics bar)
+    // ══════════════════════════════════════════════════════════
+    const totalOrderQty = +detailRow['Order Qty'] || 0;
+    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
+    const samplesPending = sampleRows.filter(r => r.Approval === 'Pending').length;
+    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
+    const ordersConfirmed = orderRows.filter(r => r.Status === 'Confirmed').length;
+    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
+    // Days to Ex-Fty
+    const exFtyDate = detailRow['Ex-Fty'] ? new Date(detailRow['Ex-Fty']) : null;
+    const today = new Date(); today.setHours(0,0,0,0);
+    const daysToExFty = exFtyDate ? Math.round((exFtyDate - today) / 86400000) : null;
+    const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j late' : daysToExFty + 'j') : '---';
+    const daysColor = daysToExFty !== null ? (daysToExFty < 0 ? RED : daysToExFty <= 14 ? AMBER : GREEN) : GRAY1;
+
+    const kpis = [
+      { label: 'ORDER QTY', value: totalOrderQty.toLocaleString('fr-FR'), color: BLUE },
+      { label: 'COULEURS', value: String(styleRows.length), color: INDIGO },
+      { label: 'SAMPLES', value: samplesApproved + '/' + sampleRows.length + ' ok', color: GREEN },
+      { label: 'COMMANDES', value: ordersConfirmed + '/' + orderRows.length, color: [234, 88, 12] },
+      { label: 'EX-FTY', value: daysLabel, color: daysColor },
+    ];
+
+    const kpiW = CW / kpis.length;
+    const kpiH = 10;
+    doc.setFillColor(241, 245, 249);
+    doc.roundedRect(M, Y, CW, kpiH, 1.5, 1.5, 'F');
+
+    kpis.forEach((k, i) => {
+      const kx = M + i * kpiW;
+      // Vertical separator
+      if (i > 0) {
+        doc.setDrawColor(...GRAY3);
+        doc.setLineWidth(0.2);
+        doc.line(kx, Y + 1.5, kx, Y + kpiH - 1.5);
+      }
+      // Label
+      doc.setFontSize(5.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY1);
+      doc.text(k.label, kx + kpiW / 2, Y + 3.5, { align: 'center' });
+      // Value
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...k.color);
+      doc.text(k.value, kx + kpiW / 2, Y + 8.5, { align: 'center' });
+    });
+
+    Y += kpiH + 4;
 
     // ══════════════════════════════════════════════════════════
     //  SECTION 1 — INFORMATIONS GÉNÉRALES + PHOTO
@@ -516,37 +567,7 @@ async function generateStylePDF(cardData) {
       Y += 4;
     }
 
-    // ══════════════════════════════════════════════════════════
-    //  SECTION 5 — RÉSUMÉ STATISTIQUE
-    // ══════════════════════════════════════════════════════════
-    checkPage(30);
-    sectionTitle('RESUME', NAVY);
 
-    const totalOrderQty = +detailRow['Order Qty'] || 0;
-    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
-    const samplesPending = sampleRows.filter(r => r.Approval === 'Pending').length;
-    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
-    const ordersConfirmed = orderRows.filter(r => r.Status === 'Confirmed').length;
-    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
-
-    const stats = [
-      ['Order Qty',       totalOrderQty.toLocaleString('fr-FR')],
-      ['Couleurs',        styleRows.length + ' variantes'],
-      ['Samples',         sampleRows.length + ' total - ' + samplesApproved + ' approuve(s), ' + samplesPending + ' en attente, ' + samplesRejected + ' rejete(s)'],
-      ['Commandes',       orderRows.length + ' lignes - ' + ordersConfirmed + ' confirmee(s), ' + ordersDelivered + ' livree(s)'],
-    ];
-
-    stats.forEach(s => {
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...BLUE);
-      doc.text(s[0].toUpperCase(), M + 4, Y + 1);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...BLACK);
-      doc.setFontSize(9);
-      doc.text(s[1], M + 40, Y + 1);
-      Y += 7;
-    });
 
     // ══════════════════════════════════════════════════════════
     //  FOOTER
