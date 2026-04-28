@@ -161,16 +161,11 @@ async function generateStylePDF(cardData) {
     const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j en retard' : daysToExFty + ' jours') : '---';
     const daysColor = daysToExFty !== null ? (daysToExFty < 0 ? RED : daysToExFty <= 14 ? AMBER : GREEN) : GRAY1;
 
-    // Sample status (overall)
-    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
-    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
-    const sampleStatus = sampleRows.length === 0 ? 'No sample'
-      : samplesRejected > 0 ? 'Rejected (' + samplesRejected + ')'
-      : samplesApproved === sampleRows.length ? 'All Approved'
-      : samplesApproved + '/' + sampleRows.length + ' Approved';
-    const sampleColor = sampleRows.length === 0 ? GRAY1
-      : samplesRejected > 0 ? RED
-      : samplesApproved === sampleRows.length ? GREEN : AMBER;
+    // OK to Production (PPS approved?)
+    const ppsRow = sampleRows.find(r => (r.Type || '').toUpperCase().includes('PPS') || (r.Type || '').toUpperCase().includes('PP SAMPLE'));
+    const ppsApproved = ppsRow && ppsRow.Approval === 'Approved';
+    const okToProdLabel = !ppsRow ? 'No PPS' : ppsApproved ? 'YES' : 'NO';
+    const okToProdColor = !ppsRow ? GRAY1 : ppsApproved ? GREEN : RED;
 
     // Delivery progress
     const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
@@ -186,7 +181,7 @@ async function generateStylePDF(cardData) {
 
     const kpis = [
       { label: 'EX-FTY', value: daysLabel, color: daysColor },
-      { label: 'SAMPLE STATUS', value: sampleStatus, color: sampleColor },
+      { label: 'OK TO PROD', value: okToProdLabel, color: okToProdColor },
       { label: 'DELIVERY', value: delivLabel, color: delivColor },
       { label: 'LEAD TIME', value: leadLabel, color: leadColor },
     ];
