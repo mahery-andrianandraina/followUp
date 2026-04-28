@@ -404,11 +404,24 @@ async function generateStylePDF(cardData) {
       Y += 9;
 
       orderRows.forEach((or, ri) => {
-        checkPage(14);
+        checkPage(20);
+
+        // ── Row background: alternating colors for clarity ──
+        // Calculate total row height (data + comments + trims)
+        const hasComments = or.Comments ? 1 : 0;
+        const hasTrims = (or.Trims || or.PI) ? 1 : 0;
+        const rowH = 7 + (hasComments * 8) + (hasTrims * 5);
+
         if (ri % 2 === 0) {
-          doc.setFillColor(248, 250, 252);
-          doc.rect(M, Y - 1, CW, 7, 'F');
+          doc.setFillColor(232, 240, 254); // light blue tint
+        } else {
+          doc.setFillColor(248, 250, 252); // very light gray
         }
+        doc.rect(M, Y - 1, CW, rowH, 'F');
+
+        // Left accent bar
+        doc.setFillColor(...(ri % 2 === 0 ? BLUE : INDIGO));
+        doc.rect(M, Y - 1, 1.2, rowH, 'F');
 
         const status = or.Status || '';
         const delivery = or['Delivery Status'] || '';
@@ -420,17 +433,17 @@ async function generateStylePDF(cardData) {
                            delivery === 'Not Shipped' ? AMBER : GRAY1;
 
         const vals = [
-          or.Color || '—',
-          or.Supplier || '—',
-          or.PO || '—',
+          or.Color || '---',
+          or.Supplier || '---',
+          or.PO || '---',
           fmtDate(or['PO Date']),
           fmtDate(or['Ready Date']),
-          or.UP || '—',
-          status || '—',
-          delivery || '—'
+          or.UP || '---',
+          status || '---',
+          delivery || '---'
         ];
 
-        ox = M;
+        ox = M + 2;
         doc.setFontSize(7);
         doc.setFont('helvetica', 'normal');
         vals.forEach((v, i) => {
@@ -456,7 +469,7 @@ async function generateStylePDF(cardData) {
           doc.setTextColor(...GRAY1);
           const cLines = doc.splitTextToSize('Note : ' + or.Comments, CW - 8);
           cLines.slice(0, 2).forEach(l => {
-            doc.text(l, M + 4, Y + 2.5);
+            doc.text(l, M + 5, Y + 2.5);
             Y += 4;
           });
         }
@@ -467,9 +480,12 @@ async function generateStylePDF(cardData) {
           doc.setFont('helvetica', 'normal');
           doc.setTextColor(...GRAY2);
           const extra = [or.Trims ? 'Trims: ' + or.Trims : '', or.PI ? 'PI: ' + or.PI : ''].filter(Boolean).join('   |   ');
-          doc.text(extra, M + 4, Y + 2.5);
+          doc.text(extra, M + 5, Y + 2.5);
           Y += 5;
         }
+
+        // Bottom separator
+        Y += 1;
       });
       Y += 4;
     }
