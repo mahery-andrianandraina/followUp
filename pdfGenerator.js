@@ -141,12 +141,12 @@ async function generateStylePDF(cardData) {
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(186, 230, 253); // light blue
-    doc.text('FICHE STYLE COMPLÈTE', M, 24);
+    doc.text('FICHE STYLE COMPLETE', M, 24);
 
     // Date
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
-    doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 16, { align: 'right' });
+    doc.text('Genere le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 16, { align: 'right' });
 
     Y = 46;
 
@@ -159,7 +159,7 @@ async function generateStylePDF(cardData) {
       ['Description', d.Description || d.StyleDescription || '—'],
       ['Client',      d.Client || '—'],
       ['Saison',      d.Saison || '—'],
-      ['Département', d.Dept || '—'],
+      ['Departement', d.Dept || '---'],
       ['Fabric Base', d['Fabric Base'] || d.Fabric || '—'],
       ['Costing',     d.Costing || '—'],
       ['Order Qty',   d['Order Qty'] || d.Qty || '—'],
@@ -179,7 +179,7 @@ async function generateStylePDF(cardData) {
       Y += 12;
     }
 
-    sectionTitle('📋  INFORMATIONS GÉNÉRALES', NAVY);
+    sectionTitle('INFORMATIONS GENERALES', NAVY);
 
     // Layout: image left (if available), info right
     const imgW = 55, imgH = 55;
@@ -228,7 +228,7 @@ async function generateStylePDF(cardData) {
     //  SECTION 2 — COULEURS & ARTICLES (Style sheet)
     // ══════════════════════════════════════════════════════════
     if (styleRows.length > 0) {
-      sectionTitle('🎨  COULEURS & ARTICLES  (' + styleRows.length + ')', INDIGO);
+      sectionTitle('COULEURS & ARTICLES  (' + styleRows.length + ')', INDIGO);
 
       // Table header
       const colorsHeaders = ['GMT Color', 'Pantone', 'PO', 'Articles'];
@@ -293,7 +293,7 @@ async function generateStylePDF(cardData) {
     //  SECTION 3 — SAMPLES
     // ══════════════════════════════════════════════════════════
     if (sampleRows.length > 0) {
-      sectionTitle('🧪  SUIVI DES SAMPLES  (' + sampleRows.length + ')', [22, 163, 74]);
+      sectionTitle('SUIVI DES SAMPLES  (' + sampleRows.length + ')', [22, 163, 74]);
 
       const sHeaders = ['Type', 'Size', 'Fabric', 'SRS Date', 'Ready', 'Sending', 'AWB', 'Approval'];
       const sColW   = [16, 14, 22, 22, 22, 22, 28, CW - 16 - 14 - 22 - 22 - 22 - 22 - 28];
@@ -370,7 +370,7 @@ async function generateStylePDF(cardData) {
     //  SECTION 4 — ORDERING
     // ══════════════════════════════════════════════════════════
     if (orderRows.length > 0) {
-      sectionTitle('📦  COMMANDES / ORDERING  (' + orderRows.length + ')', [234, 88, 12]);
+      sectionTitle('COMMANDES / ORDERING  (' + orderRows.length + ')', [234, 88, 12]);
 
       const oHeaders = ['Color', 'Supplier', 'PO #', 'PO Date', 'Ready', 'UP', 'Status', 'Delivery'];
       const oColW   = [22, 24, 24, 22, 22, 16, 22, CW - 22 - 24 - 24 - 22 - 22 - 16 - 22];
@@ -463,7 +463,7 @@ async function generateStylePDF(cardData) {
     //  SECTION 5 — RÉSUMÉ STATISTIQUE
     // ══════════════════════════════════════════════════════════
     checkPage(30);
-    sectionTitle('📊  RÉSUMÉ', NAVY);
+    sectionTitle('RESUME', NAVY);
 
     const totalOrderQty = +detailRow['Order Qty'] || 0;
     const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
@@ -475,8 +475,8 @@ async function generateStylePDF(cardData) {
     const stats = [
       ['Order Qty',       totalOrderQty.toLocaleString('fr-FR')],
       ['Couleurs',        styleRows.length + ' variantes'],
-      ['Samples',         sampleRows.length + ' total — ' + samplesApproved + ' approuvé(s), ' + samplesPending + ' en attente, ' + samplesRejected + ' rejeté(s)'],
-      ['Commandes',       orderRows.length + ' lignes — ' + ordersConfirmed + ' confirmée(s), ' + ordersDelivered + ' livrée(s)'],
+      ['Samples',         sampleRows.length + ' total - ' + samplesApproved + ' approuve(s), ' + samplesPending + ' en attente, ' + samplesRejected + ' rejete(s)'],
+      ['Commandes',       orderRows.length + ' lignes - ' + ordersConfirmed + ' confirmee(s), ' + ordersDelivered + ' livree(s)'],
     ];
 
     stats.forEach(s => {
@@ -499,7 +499,7 @@ async function generateStylePDF(cardData) {
       doc.setPage(p);
       doc.setFontSize(7);
       doc.setTextColor(...GRAY2);
-      doc.text('AW27 CHECKERS — Fiche Style ' + code, M, 292);
+      doc.text('AW27 CHECKERS - Fiche Style ' + code, M, 292);
       doc.text('Page ' + p + ' / ' + totalPages, W - M, 292, { align: 'right' });
       // Bottom line
       doc.setDrawColor(...GRAY3);
