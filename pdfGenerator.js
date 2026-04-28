@@ -581,15 +581,29 @@ async function generateStylePDF(cardData) {
 
 
     // ══════════════════════════════════════════════════════════
-    //  GENERIC SECTIONS (MARKETING, PRE-SHIPMENT, ETC.)
+    //  DYNAMIC SECTIONS (ALL CUSTOM MENUS)
     // ══════════════════════════════════════════════════════════
-    function renderGenericSection(searchKey, title, themeColor) {
-      // Find the actual key in state.data (case-insensitive, ignoring spaces/underscores)
-      const targetStr = searchKey.toLowerCase().replace(/[^a-z]/g, '');
-      const actualKey = Object.keys(st).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes(targetStr));
-      if (!actualKey) return;
-      
-      const rows = (st[actualKey] || []).filter(r => {
+    const baseKeys = ['details', 'sample', 'ordering', 'style'];
+    const customKeys = Object.keys(st).filter(k => !baseKeys.includes(k) && !k.startsWith('_'));
+    
+    let colorIndex = 0;
+    const customColors = [
+      [190, 24, 93],  // Pink
+      [107, 33, 168], // Purple
+      [13, 148, 136], // Teal
+      [234, 88, 12]   // Orange
+    ];
+
+    customKeys.forEach(cKey => {
+      // Find the label from SHEET_CONFIG if possible
+      let title = cKey;
+      if (window.SHEET_CONFIG && window.SHEET_CONFIG[cKey] && window.SHEET_CONFIG[cKey].label) {
+        title = window.SHEET_CONFIG[cKey].label;
+      } else {
+        title = title.replace('custom_', '').replace(/_[a-z0-9]+$/, '').replace(/_/g, ' ');
+      }
+
+      const rows = (st[cKey] || []).filter(r => {
         let s = r.Style || r.style || r.STYLE || r['Style '] || r['Style Code'];
         if (!s) {
           const styleKey = Object.keys(r).find(k => k.toLowerCase().includes('style'));
@@ -599,10 +613,14 @@ async function generateStylePDF(cardData) {
         // Exact match via Style column
         if (s && String(s).toLowerCase().trim() === codeLow.trim()) return true;
         
-        // Fallback: If style column match fails, check if ANY cell in the row contains the style code
+        // Fallback: check if ANY cell contains the style code
         return Object.values(r).some(v => String(v || '').toLowerCase().includes(codeLow.trim()));
       });
+      
       if (rows.length === 0) return;
+      
+      const themeColor = customColors[colorIndex % customColors.length];
+      colorIndex++;
       
       checkPage(20);
       sectionTitle(title.toUpperCase() + '  (' + rows.length + ')', themeColor);
@@ -610,7 +628,6 @@ async function generateStylePDF(cardData) {
       // Extract columns (exclude internal keys and the style column itself)
       const excludeKeys = ['_rowIndex', '_sheetName'];
       let keys = [];
-      // Look at all rows to find keys, just in case first row is missing some
       rows.forEach(r => {
         Object.keys(r).forEach(k => {
           const isStyleCol = k.toLowerCase().includes('style');
@@ -619,9 +636,8 @@ async function generateStylePDF(cardData) {
           }
         });
       });
-      // Limit to 7 columns max to avoid overlap
+      // Limit to 7 columns
       keys = keys.slice(0, 7);
-      
       if (keys.length === 0) return;
       
       const colW = CW / keys.length;
@@ -652,11 +668,9 @@ async function generateStylePDF(cardData) {
         
         keys.forEach((k, i) => {
           let val = String(r[k] || '---');
-          // Basic date formatting if it looks like ISO
           if (val.match(/^\d{4}-\d{2}-\d{2}T/)) val = fmtDate(val);
           val = val.substring(0, 20);
           
-          // Colorize "Approved" / "Rejected" if present
           if (val === 'Approved' || val === 'Pass') {
             doc.setTextColor(...GREEN);
             doc.setFont('helvetica', 'bold');
@@ -673,10 +687,7 @@ async function generateStylePDF(cardData) {
         Y += 7;
       });
       Y += 4;
-    }
-
-    renderGenericSection('preshipment', 'PRE-SHIPMENT & INSPECTION', [107, 33, 168]); // Purple
-    renderGenericSection('marketing', 'MARKETING & PHOTO', [190, 24, 93]); // Pink
+    });
 
     // ══════════════════════════════════════════════════════════
     //  FOOTER
