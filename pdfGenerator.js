@@ -232,8 +232,8 @@ async function generateStylePDF(cardData) {
       sectionTitle('COULEURS & ARTICLES  (' + styleRows.length + ')', INDIGO);
 
       // Table header
-      const colorsHeaders = ['GMT Color', 'Pantone', 'PO', 'Articles'];
-      const cColW = [35, 40, 45, CW - 35 - 40 - 45];
+      const colorsHeaders = ['GMT Color', 'Pantone', 'Color Code', 'Approval', 'PO', 'Articles'];
+      const cColW = [28, 32, 28, 24, 34, CW - 28 - 32 - 28 - 24 - 34];
       let cx = M;
 
       doc.setFillColor(241, 245, 249);
@@ -259,14 +259,27 @@ async function generateStylePDF(cardData) {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(...BLACK);
 
+        const apvl = sr['Approval'] || '';
+        const apvlColor = apvl === 'Approved' ? GREEN : apvl === 'Rejected' ? RED : GRAY1;
+
         const vals = [
-          sr['GMT Color'] || '—',
-          sr['Pantone'] || '—',
-          sr['PO'] || '—',
-          sr['Articles'] || '—'
+          sr['GMT Color'] || '---',
+          sr['Pantone'] || '---',
+          sr['Color Code'] || '---',
+          apvl || '---',
+          sr['PO'] || '---',
+          sr['Articles'] || '---'
         ];
         vals.forEach((v, i) => {
-          doc.text(String(v).substring(0, 35), cx + 2, Y + 3.5);
+          if (i === 3) {
+            // Approval with color
+            doc.setTextColor(...apvlColor);
+            doc.setFont('helvetica', 'bold');
+          } else {
+            doc.setTextColor(...BLACK);
+            doc.setFont('helvetica', 'normal');
+          }
+          doc.text(String(v).substring(0, 30), cx + 2, Y + 3.5);
           cx += cColW[i];
         });
 
@@ -280,9 +293,9 @@ async function generateStylePDF(cardData) {
             const g = parseInt(hex.slice(3, 5), 16) || 200;
             const b = parseInt(hex.slice(5, 7), 16) || 200;
             doc.setFillColor(r, g, b);
-            doc.circle(M + 32, Y + 2.5, 2.2, 'F');
+            doc.circle(M + 25, Y + 2.5, 2.2, 'F');
             doc.setDrawColor(...GRAY3);
-            doc.circle(M + 32, Y + 2.5, 2.2, 'S');
+            doc.circle(M + 25, Y + 2.5, 2.2, 'S');
           }
         }
         Y += 7;
