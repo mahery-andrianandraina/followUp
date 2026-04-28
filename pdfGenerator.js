@@ -595,7 +595,12 @@ async function generateStylePDF(cardData) {
           const styleKey = Object.keys(r).find(k => k.toLowerCase().includes('style'));
           if (styleKey) s = r[styleKey];
         }
-        return String(s || '').toLowerCase().trim() === codeLow.trim();
+        
+        // Exact match via Style column
+        if (s && String(s).toLowerCase().trim() === codeLow.trim()) return true;
+        
+        // Fallback: If style column match fails, check if ANY cell in the row contains the style code
+        return Object.values(r).some(v => String(v || '').toLowerCase().includes(codeLow.trim()));
       });
       if (rows.length === 0) return;
       
