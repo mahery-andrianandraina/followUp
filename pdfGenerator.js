@@ -1,5 +1,6 @@
 // ============================================================
-//  AW27 CHECKERS – PDF Generator (image from dashboard card)
+//  AW27 CHECKERS – PDF Fiche Style Complète
+//  Regroupe : Details + Couleurs/Style + Samples + Ordering
 // ============================================================
 
 (function injectJsPDF() {
@@ -10,12 +11,10 @@
   document.head.appendChild(s);
 })();
 
-// ── Helper : download an image URL → base64 data URI ──────────
+// ── Helper : download image URL → base64 ──────────────────────
 async function imgToBase64(url) {
   if (!url) return null;
   if (url.startsWith('data:')) return url;
-
-  // Strategy 1 : fetch as blob → FileReader
   try {
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
     if (res.ok) {
@@ -27,9 +26,7 @@ async function imgToBase64(url) {
         reader.readAsDataURL(blob);
       });
     }
-  } catch (_) { /* try next */ }
-
-  // Strategy 2 : img crossOrigin → canvas
+  } catch (_) {}
   try {
     return await new Promise((resolve, reject) => {
       const img = new Image();
@@ -37,130 +34,481 @@ async function imgToBase64(url) {
       img.onload = () => {
         try {
           const c = document.createElement('canvas');
-          c.width = img.naturalWidth;
-          c.height = img.naturalHeight;
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
           c.getContext('2d').drawImage(img, 0, 0);
           resolve(c.toDataURL('image/jpeg', 0.92));
         } catch (e) { reject(e); }
       };
       img.onerror = reject;
       img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
-      setTimeout(() => reject(new Error('timeout')), 8000);
+      setTimeout(() => reject('timeout'), 8000);
     });
-  } catch (_) { /* give up */ }
-
+  } catch (_) {}
   return null;
 }
 
-async function generateStylePDF(style) {
-  const code = style.Style || style.StyleCode;
+// ── Format date helper ────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d);
+    return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch (_) { return String(d); }
+}
 
-  if (!code) {
-    alert("Erreur : Code Style introuvable dans la ligne sélectionnée.");
-    return;
-  }
+// ══════════════════════════════════════════════════════════════
+//  MAIN : generateStylePDF
+// ══════════════════════════════════════════════════════════════
+async function generateStylePDF(cardData) {
+  const code = cardData.Style || cardData.StyleCode;
+  if (!code) { alert("Erreur : Code Style introuvable."); return; }
 
-  console.log('[PDF] 🔎 Génération PDF pour :', code);
+  console.log('[PDF] 🔎 Fiche complète pour :', code);
 
   try {
-    // ─── DONNÉES : utiliser les données passées par la card (pas de serveur) ───
-    // Enrichir avec state.data.details si disponible
-    const s = { ...style };
-    if (window.state && window.state.data && window.state.data.details) {
-      const match = window.state.data.details.find(r =>
-        (r.Style || '').toLowerCase() === code.toLowerCase()
-      );
-      if (match) {
-        // Compléter les champs manquants avec les données du state
-        Object.keys(match).forEach(k => {
-          if (!s[k] && match[k]) s[k] = match[k];
-        });
-      }
-    }
+    // ─── Collecter les données depuis state ───────────────────
+    const st = window.state && window.state.data ? window.state.data : {};
+    const codeLow = code.toLowerCase();
 
-    // ─── IMAGE : priorité au base64 déjà extrait de la card ───────
-    let photoData = s.photoBase64 || null;
+    // Ligne Details principale
+    const detailRow = (st.details || []).find(r => (r.Style || '').toLowerCase() === codeLow) || cardData;
+    // Lignes Style (couleurs / Pantone / articles)
+    const styleRows = (st.style || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+    // Lignes Sample
+    const sampleRows = (st.sample || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+    // Lignes Ordering
+    const orderRows = (st.ordering || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
 
-    // Si pas de base64, essayer de télécharger depuis l'URL
-    if (!photoData && (s._imageUrl || s.photoUrl)) {
-      const imgUrl = s._imageUrl || s.photoUrl;
-      console.log('[PDF] 📥 Téléchargement image depuis URL :', imgUrl);
+    // ─── Image ────────────────────────────────────────────────
+    let photoData = cardData.photoBase64 || null;
+    if (!photoData && (cardData._imageUrl || cardData.photoUrl || detailRow._imageUrl)) {
+      const imgUrl = cardData._imageUrl || cardData.photoUrl || detailRow._imageUrl;
+      console.log('[PDF] 📥 Téléchargement image :', imgUrl);
       photoData = await imgToBase64(imgUrl);
     }
 
-    // ─── jsPDF ────────────────────────────────────────────────────
+    // ─── jsPDF ────────────────────────────────────────────────
     if (!window.jspdf) {
-      console.log('[PDF] Chargement bibliothèque...');
       await new Promise(r => setTimeout(r, 2000));
     }
-    if (!window.jspdf) {
-      throw new Error("La bibliothèque jsPDF n'a pas pu être chargée.");
-    }
+    if (!window.jspdf) throw new Error("jsPDF non chargé.");
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const W = 210, M = 12; // page width, margin
+    const CW = W - 2 * M;  // content width
 
-    // ── Header band ──
-    doc.setFillColor(30, 58, 138);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.text('AW27 CHECKERS', 15, 25);
+    // ── Colors ──
+    const NAVY   = [15, 23, 42];
+    const BLUE   = [2, 132, 199];
+    const INDIGO  = [99, 102, 241];
+    const GRAY1  = [100, 116, 139];
+    const GRAY2  = [148, 163, 184];
+    const GRAY3  = [226, 232, 240];
+    const WHITE  = [255, 255, 255];
+    const BLACK  = [15, 23, 42];
+    const GREEN  = [22, 163, 74];
+    const AMBER  = [245, 158, 11];
+    const RED    = [239, 68, 68];
 
-    // ── Style title ──
-    doc.setTextColor(30, 58, 138);
-    doc.setFontSize(18);
-    doc.text('STYLE : ' + (s.Style || code), 15, 55);
+    let Y = 0; // current Y position
 
-    doc.setFontSize(10);
-    doc.setTextColor(100, 116, 139);
-    doc.text('Description : ' + (s.Description || s.StyleDescription || 'N/A'), 15, 62);
-
-    // ── Image ──
-    if (photoData) {
-      console.log('[PDF] ✅ Image injectée dans le PDF');
-      try {
-        doc.addImage(photoData, 'JPEG', 15, 70, 80, 80);
-      } catch (imgErr) {
-        console.warn('[PDF] ⚠️ Erreur addImage :', imgErr.message);
-        doc.setDrawColor(200);
-        doc.rect(15, 70, 80, 80);
-        doc.setFontSize(9);
-        doc.setTextColor(150);
-        doc.text('Photo : format non supporté', 25, 110);
+    // ── Helper: check page break ──
+    function checkPage(needed) {
+      if (Y + needed > 280) {
+        doc.addPage();
+        Y = 15;
+        return true;
       }
-    } else {
-      console.warn('[PDF] ⚠️ Aucune image disponible');
-      doc.setDrawColor(200);
-      doc.rect(15, 70, 80, 80);
-      doc.setFontSize(9);
-      doc.setTextColor(150);
-      doc.text('Photo non disponible', 30, 110);
+      return false;
     }
 
-    // ── Infos secondaires ──
-    let y = 75;
-    const infoX = 110;
-    const rows = [
-      ['Client', s.Client],
-      ['Saison', s.Saison],
-      ['Dépt', s.Dept],
-      ['Fabric', s['Fabric Base'] || s['Fabric']],
-      ['Qty', s['Order Qty'] || s['Qty']],
-      ['PSD', s.PSD],
-      ['Ex-Fty', s['Ex-Fty']]
+    // ══════════════════════════════════════════════════════════
+    //  HEADER BAND
+    // ══════════════════════════════════════════════════════════
+    // Gradient effect: two rectangles
+    doc.setFillColor(...NAVY);
+    doc.rect(0, 0, W, 38, 'F');
+    doc.setFillColor(...BLUE);
+    doc.rect(0, 36, W, 4, 'F');
+
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AW27 CHECKERS', M, 16);
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(186, 230, 253); // light blue
+    doc.text('FICHE STYLE COMPLÈTE', M, 24);
+
+    // Date
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }), W - M, 16, { align: 'right' });
+
+    Y = 46;
+
+    // ══════════════════════════════════════════════════════════
+    //  SECTION 1 — INFORMATIONS GÉNÉRALES + PHOTO
+    // ══════════════════════════════════════════════════════════
+    const d = detailRow;
+    const infoFields = [
+      ['Style',       d.Style || code],
+      ['Description', d.Description || d.StyleDescription || '—'],
+      ['Client',      d.Client || '—'],
+      ['Saison',      d.Saison || '—'],
+      ['Département', d.Dept || '—'],
+      ['Fabric Base', d['Fabric Base'] || d.Fabric || '—'],
+      ['Costing',     d.Costing || '—'],
+      ['Order Qty',   d['Order Qty'] || d.Qty || '—'],
+      ['PSD',         fmtDate(d.PSD)],
+      ['Ex-Fty',      fmtDate(d['Ex-Fty'])],
     ];
 
-    rows.forEach(r => {
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(r[0].toUpperCase(), infoX, y);
-      doc.setFontSize(11); doc.setTextColor(0);
-      doc.text(String(r[1] || '—'), infoX, y + 5);
-      y += 15;
+    // Section title
+    function sectionTitle(title, color) {
+      checkPage(14);
+      doc.setFillColor(...(color || BLUE));
+      doc.roundedRect(M, Y, CW, 8, 1.5, 1.5, 'F');
+      doc.setTextColor(...WHITE);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, M + 4, Y + 5.5);
+      Y += 12;
+    }
+
+    sectionTitle('📋  INFORMATIONS GÉNÉRALES', NAVY);
+
+    // Layout: image left (if available), info right
+    const imgW = 55, imgH = 55;
+    const infoStartX = photoData ? M + imgW + 8 : M;
+    const infoColW = photoData ? CW - imgW - 8 : CW;
+
+    // Photo
+    if (photoData) {
+      try {
+        doc.addImage(photoData, 'JPEG', M, Y, imgW, imgH);
+        // Photo border
+        doc.setDrawColor(...GRAY3);
+        doc.setLineWidth(0.3);
+        doc.rect(M, Y, imgW, imgH);
+      } catch (e) {
+        doc.setDrawColor(...GRAY3);
+        doc.rect(M, Y, imgW, imgH);
+        doc.setFontSize(8); doc.setTextColor(...GRAY2);
+        doc.text('Photo indisponible', M + 10, Y + imgH / 2);
+      }
+    }
+
+    // Info fields
+    const savedY = Y;
+    let fieldY = Y;
+    infoFields.forEach((f, i) => {
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...GRAY1);
+      doc.text(f[0].toUpperCase(), infoStartX, fieldY);
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...BLACK);
+      const val = String(f[1] || '—');
+      // Truncate long values
+      const maxW = infoColW - 4;
+      const lines = doc.splitTextToSize(val, maxW);
+      doc.text(lines[0], infoStartX, fieldY + 4.5);
+      fieldY += 11;
     });
 
-    doc.save(`Fiche_${code}.pdf`);
-    console.log('[PDF] ✅ PDF généré avec succès');
+    Y = Math.max(fieldY, savedY + (photoData ? imgH + 4 : 0)) + 4;
+
+    // ══════════════════════════════════════════════════════════
+    //  SECTION 2 — COULEURS & ARTICLES (Style sheet)
+    // ══════════════════════════════════════════════════════════
+    if (styleRows.length > 0) {
+      sectionTitle('🎨  COULEURS & ARTICLES  (' + styleRows.length + ')', INDIGO);
+
+      // Table header
+      const colorsHeaders = ['GMT Color', 'Pantone', 'PO', 'Articles'];
+      const cColW = [35, 40, 45, CW - 35 - 40 - 45];
+      let cx = M;
+
+      doc.setFillColor(241, 245, 249);
+      doc.rect(M, Y, CW, 7, 'F');
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GRAY1);
+      colorsHeaders.forEach((h, i) => {
+        doc.text(h.toUpperCase(), cx + 2, Y + 4.8);
+        cx += cColW[i];
+      });
+      Y += 9;
+
+      // Rows
+      styleRows.forEach((sr, ri) => {
+        checkPage(8);
+        if (ri % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(M, Y - 1, CW, 7, 'F');
+        }
+        cx = M;
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...BLACK);
+
+        const vals = [
+          sr['GMT Color'] || '—',
+          sr['Pantone'] || '—',
+          sr['PO'] || '—',
+          sr['Articles'] || '—'
+        ];
+        vals.forEach((v, i) => {
+          doc.text(String(v).substring(0, 35), cx + 2, Y + 3.5);
+          cx += cColW[i];
+        });
+
+        // Color swatch
+        if (sr['GMT Color'] || sr['Pantone']) {
+          const hex = (typeof resolveColorHex === 'function')
+            ? resolveColorHex(sr['GMT Color'], sr['Pantone'])
+            : null;
+          if (hex && !hex.includes('gradient')) {
+            const r = parseInt(hex.slice(1, 3), 16) || 200;
+            const g = parseInt(hex.slice(3, 5), 16) || 200;
+            const b = parseInt(hex.slice(5, 7), 16) || 200;
+            doc.setFillColor(r, g, b);
+            doc.circle(M + 32, Y + 2.5, 2.2, 'F');
+            doc.setDrawColor(...GRAY3);
+            doc.circle(M + 32, Y + 2.5, 2.2, 'S');
+          }
+        }
+        Y += 7;
+      });
+      Y += 4;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SECTION 3 — SAMPLES
+    // ══════════════════════════════════════════════════════════
+    if (sampleRows.length > 0) {
+      sectionTitle('🧪  SUIVI DES SAMPLES  (' + sampleRows.length + ')', [22, 163, 74]);
+
+      const sHeaders = ['Type', 'Size', 'Fabric', 'SRS Date', 'Ready', 'Sending', 'AWB', 'Approval'];
+      const sColW   = [16, 14, 22, 22, 22, 22, 28, CW - 16 - 14 - 22 - 22 - 22 - 22 - 28];
+
+      // Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(M, Y, CW, 7, 'F');
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GRAY1);
+      let sx = M;
+      sHeaders.forEach((h, i) => {
+        doc.text(h.toUpperCase(), sx + 1.5, Y + 4.8);
+        sx += sColW[i];
+      });
+      Y += 9;
+
+      sampleRows.forEach((sr, ri) => {
+        checkPage(14);
+        if (ri % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(M, Y - 1, CW, 7, 'F');
+        }
+
+        const approval = sr.Approval || '';
+        const approvalColor = approval === 'Approved' ? GREEN :
+                              approval === 'Rejected' ? RED :
+                              approval === 'Pending' ? AMBER : GRAY1;
+
+        const vals = [
+          sr.Type || '—',
+          sr.Size || '—',
+          sr.Fabric || '—',
+          fmtDate(sr['SRS Date']),
+          fmtDate(sr['Ready Date']),
+          fmtDate(sr['Sending Date']),
+          sr.AWB || '—',
+          approval || '—'
+        ];
+
+        sx = M;
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        vals.forEach((v, i) => {
+          if (i === vals.length - 1) {
+            // Approval badge
+            doc.setTextColor(...approvalColor);
+            doc.setFont('helvetica', 'bold');
+          } else {
+            doc.setTextColor(...BLACK);
+            doc.setFont('helvetica', 'normal');
+          }
+          doc.text(String(v).substring(0, 20), sx + 1.5, Y + 3.5);
+          sx += sColW[i];
+        });
+        Y += 7;
+
+        // Remarks line (if any)
+        if (sr.Remarks) {
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(...GRAY1);
+          const remarkLines = doc.splitTextToSize('Remarques : ' + sr.Remarks, CW - 8);
+          remarkLines.slice(0, 2).forEach(l => {
+            doc.text(l, M + 4, Y + 2.5);
+            Y += 4;
+          });
+        }
+      });
+      Y += 4;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SECTION 4 — ORDERING
+    // ══════════════════════════════════════════════════════════
+    if (orderRows.length > 0) {
+      sectionTitle('📦  COMMANDES / ORDERING  (' + orderRows.length + ')', [234, 88, 12]);
+
+      const oHeaders = ['Color', 'Supplier', 'PO #', 'PO Date', 'Ready', 'UP', 'Status', 'Delivery'];
+      const oColW   = [22, 24, 24, 22, 22, 16, 22, CW - 22 - 24 - 24 - 22 - 22 - 16 - 22];
+
+      // Header
+      doc.setFillColor(241, 245, 249);
+      doc.rect(M, Y, CW, 7, 'F');
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GRAY1);
+      let ox = M;
+      oHeaders.forEach((h, i) => {
+        doc.text(h.toUpperCase(), ox + 1.5, Y + 4.8);
+        ox += oColW[i];
+      });
+      Y += 9;
+
+      orderRows.forEach((or, ri) => {
+        checkPage(14);
+        if (ri % 2 === 0) {
+          doc.setFillColor(248, 250, 252);
+          doc.rect(M, Y - 1, CW, 7, 'F');
+        }
+
+        const status = or.Status || '';
+        const delivery = or['Delivery Status'] || '';
+        const statusColor = status === 'Confirmed' ? GREEN :
+                            status === 'Cancelled' ? RED :
+                            status === 'Pending' ? AMBER : GRAY1;
+        const delivColor = delivery === 'Delivered' ? GREEN :
+                           delivery === 'In Transit' ? BLUE :
+                           delivery === 'Not Shipped' ? AMBER : GRAY1;
+
+        const vals = [
+          or.Color || '—',
+          or.Supplier || '—',
+          or.PO || '—',
+          fmtDate(or['PO Date']),
+          fmtDate(or['Ready Date']),
+          or.UP || '—',
+          status || '—',
+          delivery || '—'
+        ];
+
+        ox = M;
+        doc.setFontSize(7);
+        doc.setFont('helvetica', 'normal');
+        vals.forEach((v, i) => {
+          if (i === 6) {
+            doc.setTextColor(...statusColor);
+            doc.setFont('helvetica', 'bold');
+          } else if (i === 7) {
+            doc.setTextColor(...delivColor);
+            doc.setFont('helvetica', 'bold');
+          } else {
+            doc.setTextColor(...BLACK);
+            doc.setFont('helvetica', 'normal');
+          }
+          doc.text(String(v).substring(0, 20), ox + 1.5, Y + 3.5);
+          ox += oColW[i];
+        });
+        Y += 7;
+
+        // Comments (if any)
+        if (or.Comments) {
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'italic');
+          doc.setTextColor(...GRAY1);
+          const cLines = doc.splitTextToSize('Note : ' + or.Comments, CW - 8);
+          cLines.slice(0, 2).forEach(l => {
+            doc.text(l, M + 4, Y + 2.5);
+            Y += 4;
+          });
+        }
+
+        // Trims + PI line
+        if (or.Trims || or.PI) {
+          doc.setFontSize(6.5);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...GRAY2);
+          const extra = [or.Trims ? 'Trims: ' + or.Trims : '', or.PI ? 'PI: ' + or.PI : ''].filter(Boolean).join('   |   ');
+          doc.text(extra, M + 4, Y + 2.5);
+          Y += 5;
+        }
+      });
+      Y += 4;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SECTION 5 — RÉSUMÉ STATISTIQUE
+    // ══════════════════════════════════════════════════════════
+    checkPage(30);
+    sectionTitle('📊  RÉSUMÉ', NAVY);
+
+    const totalOrderQty = +detailRow['Order Qty'] || 0;
+    const samplesApproved = sampleRows.filter(r => r.Approval === 'Approved').length;
+    const samplesPending = sampleRows.filter(r => r.Approval === 'Pending').length;
+    const samplesRejected = sampleRows.filter(r => r.Approval === 'Rejected').length;
+    const ordersConfirmed = orderRows.filter(r => r.Status === 'Confirmed').length;
+    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
+
+    const stats = [
+      ['Order Qty',       totalOrderQty.toLocaleString('fr-FR')],
+      ['Couleurs',        styleRows.length + ' variantes'],
+      ['Samples',         sampleRows.length + ' total — ' + samplesApproved + ' approuvé(s), ' + samplesPending + ' en attente, ' + samplesRejected + ' rejeté(s)'],
+      ['Commandes',       orderRows.length + ' lignes — ' + ordersConfirmed + ' confirmée(s), ' + ordersDelivered + ' livrée(s)'],
+    ];
+
+    stats.forEach(s => {
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...BLUE);
+      doc.text(s[0].toUpperCase(), M + 4, Y + 1);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...BLACK);
+      doc.setFontSize(9);
+      doc.text(s[1], M + 40, Y + 1);
+      Y += 7;
+    });
+
+    // ══════════════════════════════════════════════════════════
+    //  FOOTER
+    // ══════════════════════════════════════════════════════════
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      doc.setPage(p);
+      doc.setFontSize(7);
+      doc.setTextColor(...GRAY2);
+      doc.text('AW27 CHECKERS — Fiche Style ' + code, M, 292);
+      doc.text('Page ' + p + ' / ' + totalPages, W - M, 292, { align: 'right' });
+      // Bottom line
+      doc.setDrawColor(...GRAY3);
+      doc.setLineWidth(0.3);
+      doc.line(M, 289, W - M, 289);
+    }
+
+    doc.save('Fiche_' + code + '.pdf');
+    console.log('[PDF] ✅ Fiche complète générée');
 
   } catch (err) {
     console.error('[PDF] Erreur :', err);
