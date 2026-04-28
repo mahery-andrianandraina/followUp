@@ -165,6 +165,7 @@ async function generateStylePDF(cardData) {
       ['Order Qty',   d['Order Qty'] || d.Qty || '—'],
       ['PSD',         fmtDate(d.PSD)],
       ['Ex-Fty',      fmtDate(d['Ex-Fty'])],
+      ['Comments',    d.Comments || d.Remarks || '---'],
     ];
 
     // Section title
