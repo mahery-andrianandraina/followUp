@@ -26,7 +26,7 @@ async function imgToBase64(url) {
         reader.readAsDataURL(blob);
       });
     }
-  } catch (_) {}
+  } catch (_) { }
   try {
     return await new Promise((resolve, reject) => {
       const img = new Image();
@@ -43,7 +43,7 @@ async function imgToBase64(url) {
       img.src = url + (url.includes('?') ? '&' : '?') + '_t=' + Date.now();
       setTimeout(() => reject('timeout'), 8000);
     });
-  } catch (_) {}
+  } catch (_) { }
   return null;
 }
 
@@ -100,17 +100,17 @@ async function generateStylePDF(cardData) {
     const CW = W - 2 * M;  // content width
 
     // ── Colors ──
-    const NAVY   = [15, 23, 42];
-    const BLUE   = [2, 132, 199];
-    const INDIGO  = [99, 102, 241];
-    const GRAY1  = [100, 116, 139];
-    const GRAY2  = [148, 163, 184];
-    const GRAY3  = [226, 232, 240];
-    const WHITE  = [255, 255, 255];
-    const BLACK  = [15, 23, 42];
-    const GREEN  = [22, 163, 74];
-    const AMBER  = [245, 158, 11];
-    const RED    = [239, 68, 68];
+    const NAVY = [15, 23, 42];
+    const BLUE = [2, 132, 199];
+    const INDIGO = [99, 102, 241];
+    const GRAY1 = [100, 116, 139];
+    const GRAY2 = [148, 163, 184];
+    const GRAY3 = [226, 232, 240];
+    const WHITE = [255, 255, 255];
+    const BLACK = [15, 23, 42];
+    const GREEN = [22, 163, 74];
+    const AMBER = [245, 158, 11];
+    const RED = [239, 68, 68];
 
     let Y = 0; // current Y position
 
@@ -156,7 +156,7 @@ async function generateStylePDF(cardData) {
     // Days to Ex-Fty
     const exFtyDate = detailRow['Ex-Fty'] ? new Date(detailRow['Ex-Fty']) : null;
     const psdDate = detailRow['PSD'] ? new Date(detailRow['PSD']) : null;
-    const today = new Date(); today.setHours(0,0,0,0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
     const daysToExFty = exFtyDate ? Math.round((exFtyDate - today) / 86400000) : null;
     const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j en retard' : daysToExFty + ' jours') : '---';
     const daysColor = daysToExFty !== null ? (daysToExFty < 0 ? RED : daysToExFty <= 14 ? AMBER : GREEN) : GRAY1;
@@ -164,7 +164,7 @@ async function generateStylePDF(cardData) {
     // OK to Production (PPS approved?)
     const ppsRow = sampleRows.find(r => (r.Type || '').toUpperCase().includes('PPS') || (r.Type || '').toUpperCase().includes('PP SAMPLE'));
     const ppsApproved = ppsRow && ppsRow.Approval === 'Approved';
-    const okToProdLabel = !ppsRow ? 'No PPS' : ppsApproved ? 'YES' : 'NO';
+    const okToProdLabel = !ppsRow ? 'No PPS launched again' : ppsApproved ? 'YES' : 'NO';
     const okToProdColor = !ppsRow ? GRAY1 : ppsApproved ? GREEN : RED;
 
     // Delivery progress
@@ -172,7 +172,7 @@ async function generateStylePDF(cardData) {
     const delivLabel = orderRows.length === 0 ? 'No order' : ordersDelivered + ' / ' + orderRows.length;
     const delivColor = orderRows.length === 0 ? GRAY1
       : ordersDelivered === orderRows.length ? GREEN
-      : ordersDelivered > 0 ? BLUE : AMBER;
+        : ordersDelivered > 0 ? BLUE : AMBER;
 
     // Lead Time (PSD to Ex-Fty)
     const leadDays = (psdDate && exFtyDate) ? Math.round((exFtyDate - psdDate) / 86400000) : null;
@@ -218,16 +218,16 @@ async function generateStylePDF(cardData) {
     // ══════════════════════════════════════════════════════════
     const d = detailRow;
     const infoFields = [
-      ['Style',       d.Style || code],
-      ['Client',      d.Client || '---'],
+      ['Style', d.Style || code],
+      ['Client', d.Client || '---'],
       ['Description', d.Description || d.StyleDescription || '---'],
-      ['Saison',      d.Saison || '---'],
+      ['Saison', d.Saison || '---'],
       ['Departement', d.Dept || '---'],
       ['Fabric Base', d['Fabric Base'] || d.Fabric || '---'],
-      ['Costing',     d.Costing || '---'],
-      ['Order Qty',   d['Order Qty'] || d.Qty || '---'],
-      ['PSD',         fmtDate(d.PSD)],
-      ['Ex-Fty',      fmtDate(d['Ex-Fty'])],
+      ['Costing', d.Costing || '---'],
+      ['Order Qty', d['Order Qty'] || d.Qty || '---'],
+      ['PSD', fmtDate(d.PSD)],
+      ['Ex-Fty', fmtDate(d['Ex-Fty'])],
     ];
     const commentsVal = d.Comments || d.Remarks || '';
 
@@ -400,7 +400,7 @@ async function generateStylePDF(cardData) {
       sectionTitle('SUIVI DES SAMPLES  (' + sampleRows.length + ')', [22, 163, 74]);
 
       const sHeaders = ['Type', 'Size', 'Fabric', 'SRS Date', 'Ready', 'Sending', 'AWB', 'Approval'];
-      const sColW   = [16, 14, 22, 22, 22, 22, 28, CW - 16 - 14 - 22 - 22 - 22 - 22 - 28];
+      const sColW = [16, 14, 22, 22, 22, 22, 28, CW - 16 - 14 - 22 - 22 - 22 - 22 - 28];
 
       // Header
       doc.setFillColor(241, 245, 249);
@@ -424,8 +424,8 @@ async function generateStylePDF(cardData) {
 
         const approval = sr.Approval || '';
         const approvalColor = approval === 'Approved' ? GREEN :
-                              approval === 'Rejected' ? RED :
-                              approval === 'Pending' ? AMBER : GRAY1;
+          approval === 'Rejected' ? RED :
+            approval === 'Pending' ? AMBER : GRAY1;
 
         const vals = [
           sr.Type || '—',
@@ -477,7 +477,7 @@ async function generateStylePDF(cardData) {
       sectionTitle('COMMANDES / ORDERING  (' + orderRows.length + ')', [234, 88, 12]);
 
       const oHeaders = ['Color', 'Supplier', 'PO #', 'PO Date', 'Ready', 'UP', 'Status', 'Delivery'];
-      const oColW   = [22, 24, 24, 22, 22, 16, 22, CW - 22 - 24 - 24 - 22 - 22 - 16 - 22];
+      const oColW = [22, 24, 24, 22, 22, 16, 22, CW - 22 - 24 - 24 - 22 - 22 - 16 - 22];
 
       // Header
       doc.setFillColor(241, 245, 249);
@@ -515,11 +515,11 @@ async function generateStylePDF(cardData) {
         const status = or.Status || '';
         const delivery = or['Delivery Status'] || '';
         const statusColor = status === 'Confirmed' ? GREEN :
-                            status === 'Cancelled' ? RED :
-                            status === 'Pending' ? AMBER : GRAY1;
+          status === 'Cancelled' ? RED :
+            status === 'Pending' ? AMBER : GRAY1;
         const delivColor = delivery === 'Delivered' ? GREEN :
-                           delivery === 'In Transit' ? BLUE :
-                           delivery === 'Not Shipped' ? AMBER : GRAY1;
+          delivery === 'In Transit' ? BLUE :
+            delivery === 'Not Shipped' ? AMBER : GRAY1;
 
         const vals = [
           or.Color || '---',
