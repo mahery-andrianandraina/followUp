@@ -586,7 +586,7 @@ async function generateStylePDF(cardData) {
     function renderGenericSection(searchKey, title, themeColor) {
       // Find the actual key in state.data (case-insensitive, ignoring spaces/underscores)
       const targetStr = searchKey.toLowerCase().replace(/[^a-z]/g, '');
-      const actualKey = Object.keys(st).find(k => k.toLowerCase().replace(/[^a-z]/g, '') === targetStr);
+      const actualKey = Object.keys(st).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes(targetStr));
       if (!actualKey) return;
       
       const rows = (st[actualKey] || []).filter(r => {
