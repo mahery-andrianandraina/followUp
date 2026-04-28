@@ -802,14 +802,26 @@
           return el ? el.textContent.trim() : '';
         };
 
-        // ── PHOTO : priorité à data-image-url (URL Drive normalisée par app.js/fixRows)
-        // Ne pas utiliser img.src directement : le navigateur peut avoir
-        // résolu l'URL en lh3.googleusercontent.com qui bloque le canvas CORS.
-        // data-image-url contient l'URL originale → pdfGenerator la convertit
-        // en thumbnail Drive via normalizeToDriveThumbnail().
+        // ── PHOTO : extraire le base64 depuis le <img> déjà chargé dans le DOM
+        const img = card.querySelector('img.dbs-sc-img');
         const _imageUrl = card.dataset.imageUrl || card.dataset.imageurl || '';
-        const img = card.querySelector('img');
         const photoUrl = _imageUrl || (img ? img.getAttribute('src') : '');
+
+        // Essayer d'extraire le base64 directement depuis l'élément <img> affiché
+        let photoBase64 = null;
+        if (img && img.naturalWidth > 0 && img.complete) {
+          try {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            c.getContext('2d').drawImage(img, 0, 0);
+            photoBase64 = c.toDataURL('image/jpeg', 0.92);
+            console.log('[PDF] ✅ Image extraite depuis la card (canvas)');
+          } catch (e) {
+            console.warn('[PDF] ⚠️ Canvas CORS bloqué, téléchargement via URL');
+            photoBase64 = null; // sera téléchargé par pdfGenerator
+          }
+        }
 
         // Données depuis les attributs data-* (si présents dans app.js)
         // Sinon on lit les éléments texte de la card
@@ -828,7 +840,8 @@
           PSD:             card.dataset.psd           || getText('[class*="psd"]'),
           'Ex-Fty':        card.dataset.exFty        || card.dataset.exfty || getText('[class*="ex-fty"], [class*="exfty"]'),
           Comments:        card.dataset.comments      || getText('[class*="comment"]'),
-          // ── Champs photo : _imageUrl est lu par resolvePhotoUrl() dans pdfGenerator
+          // ── Photo : base64 extrait du DOM + URL de fallback
+          photoBase64,
           _imageUrl,
           photoUrl,
         };
