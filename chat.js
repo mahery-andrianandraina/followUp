@@ -20,35 +20,32 @@
 
   // ══════════════════════════════════════════════════════════════
   //  INIT FIREBASE
+  //  Attend que le SDK Firebase ET window.currentUser soient prêts
+  //  avant d'initialiser le chat (évite le conflit SDK v10/v9)
   // ══════════════════════════════════════════════════════════════
   function cpInit() {
-    if (typeof firebase === 'undefined') {
-      setTimeout(cpInit, 300);
+    // Attendre que firebase global ET l'utilisateur soient prêts
+    if (typeof firebase === 'undefined' || !window.currentUser) {
+      setTimeout(cpInit, 500);
       return;
     }
+    if (cpReady) return; // déjà initialisé
     try {
       const app = firebase.apps.find(function (a) { return a.name === 'chat-widget'; })
         || firebase.initializeApp(CP_CONFIG, 'chat-widget');
       cpDb = app.firestore();
-      console.log('[chat] Firestore connecté');
-      cpWaitForAuth();
+      cpUser = window.currentUser;
+      cpReady = true;
+      console.log('[chat] Firestore connecté avec succès');
+      _cpSetupUser();
+      _cpLoadConversations();
+      _cpSetupHeaderAvatar();
+      _cpTrackOnline();
     } catch (e) {
       console.error('[chat] Erreur init:', e);
+      // Retry after a delay in case SDK wasn't fully ready
+      setTimeout(cpInit, 1000);
     }
-  }
-
-  function cpWaitForAuth() {
-    var id = setInterval(function () {
-      if (window.currentUser && cpDb && !cpReady) {
-        cpReady = true;
-        cpUser = window.currentUser;
-        clearInterval(id);
-        _cpSetupUser();
-        _cpLoadConversations();
-        _cpSetupHeaderAvatar();
-        _cpTrackOnline();
-      }
-    }, 400);
   }
 
   function _cpSetupUser() {
@@ -461,7 +458,19 @@
   //  USER LIST (for new DM)
   // ══════════════════════════════════════════════════════════════
   window.cpToggleUserPanel = function () {
-    if (!cpDb) { console.error("[chat] Firestore non prêt"); return; }
+    if (!cpDb || !cpReady) {
+      // Trigger init and show loading state
+      cpInit();
+      var el = document.getElementById('cp-user-list');
+      if (el) el.innerHTML = '<div class="cp-empty">Connexion en cours…</div>';
+      var p = document.getElementById('cp-user-panel');
+      if (p) p.classList.add('open');
+      // Retry loading users once ready
+      setTimeout(function () {
+        if (cpDb && cpReady) cpLoadUsers();
+      }, 2000);
+      return;
+    }
     var p = document.getElementById('cp-user-panel');
     if (!p) return;
     var opening = !p.classList.contains('open');
