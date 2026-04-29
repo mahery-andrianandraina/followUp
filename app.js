@@ -2497,7 +2497,7 @@ function collectAllAlerts() {
                 title: `${styleMeta} — Ready Date non renseignée`,
                 action: `Relancer le supplier pour obtenir la Ready Date${supplierMeta}`,
                 style: r.Style || "—", client: r.Client || "",
-                trims: r.Trims || "",
+                trims: r.Trims || "", color: r.Color || "",
                 meta: `${poLabel} · Statut : ${r.Status || "—"}${supplierMeta}`,
                 urgency: "mid", sheet: "ordering", rowIndex: r._rowIndex
             });
@@ -2513,7 +2513,7 @@ function collectAllAlerts() {
                 title: `${styleMeta} — Ready Date dépassée de ${days}j, non expédié`,
                 action: `Relancer le supplier : confirmer si prêt ou délai prévu${supplierMeta}`,
                 style: r.Style || "—", client: r.Client || "",
-                trims: r.Trims || "",
+                trims: r.Trims || "", color: r.Color || "",
                 meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta} · Statut : ${r["Delivery Status"] || "—"}`,
                 urgency, sheet: "ordering", rowIndex: r._rowIndex
             });
@@ -2535,7 +2535,7 @@ function collectAllAlerts() {
                         ? `Confirmer l'expédition imminente avec le supplier${supplierMeta}`
                         : `Surveiller l'avancement — Ready Date le ${_fmtDate(r["Ready Date"])}`,
                 style: r.Style || "—", client: r.Client || "",
-                trims: r.Trims || "",
+                trims: r.Trims || "", color: r.Color || "",
                 meta: `Ready Date : ${_fmtDate(r["Ready Date"])}${poMeta}${supplierMeta}`,
                 urgency, sheet: "ordering", rowIndex: r._rowIndex
             });
@@ -3519,9 +3519,8 @@ function _renderGndFull() {
             <div class="gnd-row-top">
                 <span class="gnd-row-style">${esc(item.style)}</span>
                 ${item.client ? `<span class="gnd-row-client">${esc(item.client)}</span>` : ""}
-                ${item.sampleType ? `<span class="gnd-row-badge gnd-badge-type">${esc(item.sampleType)}</span>` : ""}
+                ${(item.sampleType || item.trims) ? `<span class="gnd-row-badge gnd-badge-type">${esc(item.sampleType || item.trims)}</span>` : ""}
                 ${item.color ? `<span class="gnd-row-badge gnd-badge-color"><span class="gnd-badge-color-dot"></span>${esc(item.color)}</span>` : ""}
-                ${item.trims ? `<span class="gnd-row-badge gnd-badge-trims">🏷️ ${esc(item.trims)}</span>` : ""}
                 <span class="gnd-row-tag ${item.tagCls}">${item.tagLabel}</span>
             </div>
             <div class="gnd-row-title">${esc(item.title)}</div>
