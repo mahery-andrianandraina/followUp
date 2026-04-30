@@ -14,22 +14,19 @@
   let cpDb = null, cpUser = null, cpReady = false;
   let _cpConvUnsub = null, _cpMsgUnsub = null, _cpTypingUnsub = null;
   let _cpActiveConvId = null, _cpActiveOtherUid = null;
-  let _cpConvCache = [];  // cached conversation list for filtering
+  let _cpConvCache = [];
   let _cpTypingTimeout = null;
   let _cpOnlineUnsub = null;
 
   // ══════════════════════════════════════════════════════════════
   //  INIT FIREBASE
-  //  Attend que le SDK Firebase ET window.currentUser soient prêts
-  //  avant d'initialiser le chat (évite le conflit SDK v10/v9)
   // ══════════════════════════════════════════════════════════════
   function cpInit() {
-    // Attendre que firebase global ET l'utilisateur soient prêts
     if (typeof firebase === 'undefined' || !window.currentUser) {
       setTimeout(cpInit, 500);
       return;
     }
-    if (cpReady) return; // déjà initialisé
+    if (cpReady) return;
     try {
       const app = firebase.apps.find(function (a) { return a.name === 'chat-widget'; })
         || firebase.initializeApp(CP_CONFIG, 'chat-widget');
@@ -43,7 +40,6 @@
       _cpTrackOnline();
     } catch (e) {
       console.error('[chat] Erreur init:', e);
-      // Retry after a delay in case SDK wasn't fully ready
       setTimeout(cpInit, 1000);
     }
   }
@@ -73,7 +69,6 @@
         });
       }
     });
-    // Heartbeat every 2min
     setInterval(function () {
       if (cpDb && cpUser) {
         cpDb.collection('users').doc(cpUser.uid).update({
@@ -150,7 +145,6 @@
   };
 
   window.cpBackToList = function () {
-    // Cleanup active chat listeners
     if (_cpMsgUnsub) { _cpMsgUnsub(); _cpMsgUnsub = null; }
     if (_cpTypingUnsub) { _cpTypingUnsub(); _cpTypingUnsub = null; }
     if (_cpOnlineUnsub) { _cpOnlineUnsub(); _cpOnlineUnsub = null; }
@@ -158,7 +152,6 @@
     _cpActiveOtherUid = null;
     document.getElementById('cp-view-list').style.display = 'flex';
     document.getElementById('cp-view-chat').style.display = 'none';
-    // Close context menu
     var ctx = document.getElementById('cp-ctx-menu');
     if (ctx) ctx.classList.remove('open');
   };
@@ -214,7 +207,6 @@
         + '<div class="cp-conv-meta"><span class="cp-conv-time">' + _cpEsc(time) + '</span>' + unreadHtml + '</div></div>';
     });
     el.innerHTML = html;
-    // Check online status for each conv partner
     convs.forEach(function (c) {
       var otherUid = c.participants.find(function (p) { return p !== cpUser.uid; });
       if (otherUid) _cpCheckOnline(otherUid, 'cp-conv-dot-' + otherUid);
@@ -259,7 +251,6 @@
     names[cpUser.uid] = cpUser.displayName || cpUser.email.split('@')[0];
     names[uid] = name;
 
-    // Create or update conversation doc
     cpDb.collection('conversations').doc(convId).set({
       participants: [cpUser.uid, uid],
       participantNames: names,
@@ -267,10 +258,8 @@
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
       lastSenderId: ''
     }, { merge: true }).then(function () {
-      // Close user panel
       var panel = document.getElementById('cp-user-panel');
       if (panel) panel.classList.remove('open');
-      // Open the conversation
       cpOpenConv(convId, uid, name);
     }).catch(function (e) {
       console.error('[chat] Error creating conv:', e);
@@ -281,25 +270,20 @@
     _cpActiveConvId = convId;
     _cpActiveOtherUid = otherUid;
 
-    // Switch view
     document.getElementById('cp-view-list').style.display = 'none';
     document.getElementById('cp-view-chat').style.display = 'flex';
 
-    // Set header
     document.getElementById('cp-chat-name').textContent = otherName || 'Utilisateur';
     document.getElementById('cp-chat-avatar').textContent = _cpInitials(otherName);
     document.getElementById('cp-chat-status').textContent = '';
 
-    // Clear messages
     document.getElementById('cp-messages').innerHTML = '<div class="cp-empty">Chargement…</div>';
     document.getElementById('cp-msg-input').value = '';
 
-    // Mark as read
     var upd = {};
     upd['unread_' + cpUser.uid] = 0;
     cpDb.collection('conversations').doc(convId).update(upd).catch(function () { });
 
-    // Listen to online status of the other user
     if (_cpOnlineUnsub) _cpOnlineUnsub();
     _cpOnlineUnsub = cpDb.collection('users').doc(otherUid).onSnapshot(function (doc) {
       if (!doc.exists) return;
@@ -316,19 +300,16 @@
       }
     });
 
-    // Listen to messages
     if (_cpMsgUnsub) _cpMsgUnsub();
     _cpMsgUnsub = cpDb.collection('conversations').doc(convId)
       .collection('messages').orderBy('createdAt', 'asc')
       .onSnapshot(function (snap) {
         _cpRenderMessages(snap);
-        // Reset unread when viewing
         var upd2 = {};
         upd2['unread_' + cpUser.uid] = 0;
         cpDb.collection('conversations').doc(convId).update(upd2).catch(function () { });
       });
 
-    // Listen to typing indicator
     if (_cpTypingUnsub) _cpTypingUnsub();
     _cpTypingUnsub = cpDb.collection('conversations').doc(convId)
       .collection('typing').doc(otherUid)
@@ -343,7 +324,6 @@
         if (nameEl && isTyping) nameEl.textContent = otherName ? otherName.split(' ')[0] : '';
       });
 
-    // Focus input
     setTimeout(function () {
       var inp = document.getElementById('cp-msg-input');
       if (inp) inp.focus();
@@ -378,7 +358,6 @@
         + '<span class="cp-msg-time">' + _cpEsc(time) + '</span></div>';
     });
     el.innerHTML = html;
-    // Scroll to bottom
     el.scrollTop = el.scrollHeight;
   }
 
@@ -395,7 +374,6 @@
 
     var senderName = cpUser.displayName || cpUser.email.split('@')[0];
 
-    // Add message
     cpDb.collection('conversations').doc(_cpActiveConvId)
       .collection('messages').add({
         text: text,
@@ -404,7 +382,6 @@
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
-    // Update conversation metadata + increment other user's unread
     var convUpd = {
       lastMessage: text.length > 60 ? text.substring(0, 60) + '…' : text,
       lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -415,7 +392,6 @@
     }
     cpDb.collection('conversations').doc(_cpActiveConvId).update(convUpd);
 
-    // Clear typing indicator
     cpDb.collection('conversations').doc(_cpActiveConvId)
       .collection('typing').doc(cpUser.uid).set({ isTyping: false });
 
@@ -444,7 +420,6 @@
         isTyping: true,
         timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
-    // Clear after 3s of inactivity
     if (_cpTypingTimeout) clearTimeout(_cpTypingTimeout);
     _cpTypingTimeout = setTimeout(function () {
       if (cpDb && _cpActiveConvId) {
@@ -455,27 +430,36 @@
   };
 
   // ══════════════════════════════════════════════════════════════
-  //  USER LIST (for new DM)
+  //  USER LIST (for new DM) — CORRIGÉ
   // ══════════════════════════════════════════════════════════════
   window.cpToggleUserPanel = function () {
-    if (!cpDb || !cpReady) {
-      // Trigger init and show loading state
-      cpInit();
-      var el = document.getElementById('cp-user-list');
-      if (el) el.innerHTML = '<div class="cp-empty">Connexion en cours…</div>';
-      var p = document.getElementById('cp-user-panel');
-      if (p) p.classList.add('open');
-      // Retry loading users once ready
-      setTimeout(function () {
-        if (cpDb && cpReady) cpLoadUsers();
-      }, 2000);
-      return;
-    }
     var p = document.getElementById('cp-user-panel');
     if (!p) return;
     var opening = !p.classList.contains('open');
     p.classList.toggle('open');
-    if (opening) cpLoadUsers();
+    if (!opening) return; // fermeture → rien à faire
+
+    // Si Firebase n'est pas encore prêt, attendre puis charger
+    if (!cpReady || !cpDb) {
+      var el = document.getElementById('cp-user-list');
+      if (el) el.innerHTML = '<div class="cp-empty">Connexion en cours…</div>';
+      cpInit();
+      var attempts = 0;
+      var waitInterval = setInterval(function () {
+        attempts++;
+        if (cpReady && cpDb) {
+          clearInterval(waitInterval);
+          cpLoadUsers();
+        } else if (attempts > 10) {
+          clearInterval(waitInterval);
+          var el2 = document.getElementById('cp-user-list');
+          if (el2) el2.innerHTML = '<div class="cp-empty">Impossible de se connecter. Rechargez la page.</div>';
+        }
+      }, 500);
+      return;
+    }
+
+    cpLoadUsers();
   };
 
   var _cpUsersCache = [];
@@ -484,17 +468,33 @@
     var el = document.getElementById('cp-user-list');
     if (el) el.innerHTML = '<div class="cp-empty">Chargement…</div>';
     try {
+      // S'assurer que l'utilisateur courant est bien enregistré dans Firestore
+      // avant de lire la liste (évite d'être absent de sa propre collection)
+      await cpDb.collection('users').doc(cpUser.uid).set({
+        displayName: cpUser.displayName || cpUser.email.split('@')[0],
+        email: cpUser.email,
+        photoURL: cpUser.photoURL || '',
+        online: true,
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+
       var snap = await cpDb.collection('users').get();
       _cpUsersCache = [];
       snap.forEach(function (doc) {
+        // Exclure l'utilisateur connecté de la liste
         if (doc.id !== cpUser.uid) {
           _cpUsersCache.push({ uid: doc.id, ...doc.data() });
         }
       });
+
+      if (_cpUsersCache.length === 0) {
+        if (el) el.innerHTML = '<div class="cp-empty">Aucun contact disponible.<br>Les autres utilisateurs apparaîtront ici après leur première connexion.</div>';
+        return;
+      }
       _cpRenderUserList(_cpUsersCache);
     } catch (e) {
-      console.error('[chat] User load error:', e);
-      if (el) el.innerHTML = '<div class="cp-empty">Erreur de chargement</div>';
+      console.error('[chat] User load error:', e.code, e.message);
+      if (el) el.innerHTML = '<div class="cp-empty">Erreur de chargement.<br>Vérifiez les règles Firestore.</div>';
     }
   }
 
@@ -552,7 +552,6 @@
     menu.style.top = e.clientY + 'px';
     menu.style.left = (e.clientX - 180) + 'px';
     menu.classList.toggle('open');
-    // Close on next click anywhere
     setTimeout(function () {
       document.addEventListener('click', function _h() {
         menu.classList.remove('open');
@@ -568,14 +567,12 @@
 
     if (!confirm('Supprimer cette conversation ? Cette action est irréversible.')) return;
 
-    // Delete all messages first, then the conversation doc
     cpDb.collection('conversations').doc(_cpActiveConvId)
       .collection('messages').get().then(function (snap) {
         var batch = cpDb.batch();
         snap.forEach(function (doc) { batch.delete(doc.ref); });
         return batch.commit();
       }).then(function () {
-        // Delete typing docs
         return cpDb.collection('conversations').doc(_cpActiveConvId)
           .collection('typing').get();
       }).then(function (snap) {
