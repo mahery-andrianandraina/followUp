@@ -9,19 +9,19 @@ function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     
-    // Les 3 feuilles standards (format garanti, identique à l'original)
+    // Les 3 feuilles standards
     const result = {
-      details: readSheet(ss, "Details"),
+      details: readSheetWithImages(ss, "Details"),
       style:   readSheet(ss, "Style"),
       sample:  readSheet(ss, "Sample")
     };
     
-    // Ajout dynamique des feuilles supplémentaires (custom menus, imports, etc.)
+    // Ajout dynamique des feuilles supplémentaires
     const standardNames = ["Details", "Style", "Sample"];
     ss.getSheets().forEach(function(s) {
       var name = s.getName();
       if (name.startsWith("_")) return;
-      if (standardNames.indexOf(name) !== -1) return; // déjà incluse
+      if (standardNames.indexOf(name) !== -1) return;
       result[name.toLowerCase()] = readSheet(ss, name);
     });
     
@@ -198,3 +198,60 @@ function readSheet(ss, name) {
     return o;
   })};
 }
+
+// Comme readSheet mais encode les images en base64 pour le dashboard
+function readSheetWithImages(ss, name) {
+  const s = ss.getSheetByName(name);
+  if (!s) return { rows: [], _debug: { error: "Sheet not found: " + name } };
+  const d = s.getDataRange().getValues();
+  if (d.length < 2) return { rows: [], _debug: { error: "Sheet empty" } };
+  const h = d[0].map(x => String(x).trim());
+
+  // Trouver la colonne Style (flexible)
+  const styleIdx = h.findIndex(x => /^style$/i.test(x));
+  
+  // Trouver la colonne Image/Photo (très flexible)
+  const imgIdx = h.findIndex(x => /image|photo|picture|img|pic/i.test(x));
+
+  var imgCount = 0;
+  var firstStyleCodes = [];
+
+  var rows = d.slice(1).map(function(r) {
+    var o = {};
+    h.forEach(function(header, j) { o[header] = r[j]; });
+
+    // Encoder l'image en base64 si on a un style code
+    if (styleIdx !== -1) {
+      var styleCode = String(r[styleIdx] || "").trim();
+      var imageCell = imgIdx !== -1 ? String(r[imgIdx] || "") : "";
+      
+      if (firstStyleCodes.length < 3) {
+        firstStyleCodes.push({ style: styleCode, imgCol: imageCell.substring(0, 80) });
+      }
+      
+      if (styleCode) {
+        var b64 = findAndEncodeImage(styleCode, imageCell);
+        if (b64) {
+          o["_imageUrl"] = b64;
+          imgCount++;
+        }
+      }
+    }
+
+    return o;
+  });
+
+  return { 
+    rows: rows, 
+    _debug: {
+      headers: h,
+      styleColIndex: styleIdx,
+      imgColIndex: imgIdx,
+      imgColName: imgIdx !== -1 ? h[imgIdx] : "NOT FOUND",
+      totalRows: rows.length,
+      imagesEncoded: imgCount,
+      sampleData: firstStyleCodes
+    }
+  };
+}
+
