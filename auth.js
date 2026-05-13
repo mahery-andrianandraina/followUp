@@ -118,12 +118,12 @@ async function handleUser(firebaseUser) {
         const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
         let gasUrl = null;
 
-        if (whitelistDoc.data().gasUrl) {
-            // L'URL a été injectée par l'admin dans la whitelist!
-            gasUrl = whitelistDoc.data().gasUrl;
-        } else if (userDoc.exists && userDoc.data().gasUrl) {
-            // Rétrocompatibilité : l'utilisateur l'avait déjà configurée
+        if (userDoc.exists && userDoc.data().gasUrl) {
+            // Priorité au choix de l'utilisateur (mis à jour via les paramètres)
             gasUrl = userDoc.data().gasUrl;
+        } else if (whitelistDoc.data().gasUrl) {
+            // Fallback : URL par défaut injectée par l'admin dans la whitelist
+            gasUrl = whitelistDoc.data().gasUrl;
         }
 
         if (gasUrl) {
