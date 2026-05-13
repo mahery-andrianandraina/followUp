@@ -1087,7 +1087,9 @@
                             })
                         });
                         const json = await res.json();
-                        if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
+                        if (json.status !== 'ok') {
+                            throw new Error('SERVER_SAYS: ' + (json.message || 'GAS error') + ' [v=' + (json.version || 'OLD') + ']');
+                        }
                     }
 
                     registerNewMenuFromSheet(op.sheetName, op.headers, op.rows);
@@ -1101,7 +1103,9 @@
                     };
                     const res  = await fetch(gasUrl, { method: 'POST', body: JSON.stringify(payload) });
                     const json = await res.json();
-                    if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
+                    if (json.status !== 'ok') {
+                        throw new Error('SERVER_SAYS: ' + (json.message || 'GAS error') + ' [v=' + (json.version || 'OLD') + ']');
+                    }
                     success++;
                 }
             } catch (err) {
