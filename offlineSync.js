@@ -733,6 +733,28 @@
             const cfgKey = Object.keys(cfg).find(function (k) {
                 return (cfg[k].sheetName || cfg[k].label || k).toLowerCase() === sheetName.toLowerCase();
             });
+
+            // ── FEUILLE INCONNUE (ajoutée offline) ──────────────
+            // Pas de cfgKey → feuille créée en offline, inconnue du GS et de l'interface.
+            // On l'enregistre comme NEW_SHEET : toutes ses lignes seront créées,
+            // et un nouveau menu sera construit dans l'interface après sync.
+            if (!cfgKey) {
+                const nNew = rows.length;
+                totalNew += nNew;
+                _syncQueue.push({
+                    type:      'NEW_SHEET',
+                    sheetName: sheetName,
+                    headers:   headers,
+                    rows:      rows,
+                    cfgKey:    null
+                });
+                summaryRows.push({
+                    sheetName, nNew, nMod: 0, nConf: 0,
+                    total: rows.length, isNew: true
+                });
+                return; // passer à la feuille suivante
+            }
+
             const gsRows = cfgKey ? (allData[cfgKey] || []) : [];
 
             // Construire labelToKey : label Excel → col.key dans state.data
@@ -819,10 +841,11 @@
         const summaryEl = document.getElementById('sheets-summary');
         summaryEl.innerHTML = summaryRows.map(function (s) {
             const chips = [];
-            if (s.nNew)  chips.push('<span class="chip chip-new">+' + s.nNew + ' nouveau' + (s.nNew>1?'x':'') + '</span>');
+            if (s.isNew) chips.push('<span class="chip chip-new" style="background:#fef3c7;color:#92400e;">★ Nouvelle feuille</span>');
+            if (s.nNew && !s.isNew)  chips.push('<span class="chip chip-new">+' + s.nNew + ' nouveau' + (s.nNew>1?'x':'') + '</span>');
             if (s.nMod)  chips.push('<span class="chip chip-mod">~' + s.nMod + ' modifié' + (s.nMod>1?'s':'') + '</span>');
             if (s.nConf) chips.push('<span class="chip chip-conf">⚠ ' + s.nConf + ' conflit' + (s.nConf>1?'s':'') + '</span>');
-            if (!s.nNew && !s.nMod && !s.nConf) chips.push('<span class="chip chip-ok">Aucun changement</span>');
+            if (!s.nNew && !s.nMod && !s.nConf && !s.isNew) chips.push('<span class="chip chip-ok">Aucun changement</span>');
             return '<div class="sheet-row"><span class="sheet-name">' + esc(s.sheetName) + '</span><div class="sheet-chips">' + chips.join('') + '</div></div>';
         }).join('');
     }
@@ -930,16 +953,20 @@
 
         const bySheet = {};
         ops.forEach(function (op) {
-            if (!bySheet[op.sheetName]) bySheet[op.sheetName] = { c: 0, u: 0 };
-            if (op.type === 'CREATE') bySheet[op.sheetName].c++;
+            if (!bySheet[op.sheetName]) bySheet[op.sheetName] = { c: 0, u: 0, isNew: false };
+            if (op.type === 'NEW_SHEET') { bySheet[op.sheetName].isNew = true; bySheet[op.sheetName].c += op.rows.length; }
+            else if (op.type === 'CREATE') bySheet[op.sheetName].c++;
             else bySheet[op.sheetName].u++;
         });
 
         document.getElementById('step4-ops').innerHTML = Object.keys(bySheet).map(function (name) {
             const s = bySheet[name];
             const chips = [];
-            if (s.c) chips.push('<span class="chip chip-new">+' + s.c + ' nouveau' + (s.c>1?'x':'') + '</span>');
-            if (s.u) chips.push('<span class="chip chip-mod">~' + s.u + ' modifié' + (s.u>1?'s':'') + '</span>');
+            if (s.isNew) chips.push('<span class="chip chip-new" style="background:#fef3c7;color:#92400e;">★ Nouvelle feuille · ' + s.c + ' ligne' + (s.c>1?'s':'') + '</span>');
+            else {
+                if (s.c) chips.push('<span class="chip chip-new">+' + s.c + ' nouveau' + (s.c>1?'x':'') + '</span>');
+                if (s.u) chips.push('<span class="chip chip-mod">~' + s.u + ' modifié' + (s.u>1?'s':'') + '</span>');
+            }
             return '<div class="sheet-row"><span class="sheet-name">' + esc(name) + '</span><div class="sheet-chips">' + chips.join('') + '</div></div>';
         }).join('');
 
@@ -967,10 +994,41 @@
 
         for (const op of ops) {
             progFill.style.width = Math.round((done / ops.length) * 100) + '%';
-            progLbl.textContent  = (op.type === 'CREATE' ? 'Ajout' : 'Mise à jour') + ' — ' + op.sheetName;
+            progLbl.textContent  = (op.type === 'NEW_SHEET' ? 'Nouvelle feuille' : op.type === 'CREATE' ? 'Ajout' : 'Mise à jour') + ' — ' + op.sheetName;
             progDtl.textContent  = (done + 1) + ' / ' + ops.length;
 
             try {
+                // ── NOUVELLE FEUILLE — créer GS + menu interface ──
+                if (op.type === 'NEW_SHEET') {
+                    // 1. Créer la feuille GS et importer toutes les lignes en batch
+                    const BATCH = 50;
+                    for (let b = 0; b < op.rows.length; b += BATCH) {
+                        const batch = op.rows.slice(b, b + BATCH);
+                        const res = await fetch(gasUrl, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                action:  'IMPORT_ROWS',
+                                sheet:   op.sheetName,
+                                headers: op.headers,
+                                rows:    batch.map(function(r) {
+                                    // Exclure la colonne _gsRowIndex
+                                    const clean = {};
+                                    op.headers.forEach(function(h) { clean[h] = r[h] !== undefined ? r[h] : ''; });
+                                    return clean;
+                                })
+                            })
+                        });
+                        const json = await res.json();
+                        if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
+                    }
+
+                    // 2. Reconstruire le menu dans l'interface
+                    registerNewMenuFromSheet(op.sheetName, op.headers, op.rows);
+
+                    done++;
+                    continue;
+                }
+
                 const payload = {
                     action:    op.type,
                     sheet:     op.sheetName,
@@ -1006,6 +1064,109 @@
     // ═══════════════════════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════════════════════
+    // ── Enregistre une nouvelle feuille comme menu dans l'interface ──
+    // Reconstruit SHEET_CONFIG, la sidebar et le localStorage
+    function registerNewMenuFromSheet(sheetName, headers, rows) {
+        if (!window.SHEET_CONFIG) return;
+
+        // Générer une clé interne unique
+        const key = 'custom_' + sheetName.toLowerCase()
+            .replace(/[^a-z0-9]/g, '_').slice(0, 20)
+            + '_' + Date.now().toString(36);
+
+        // Inférer le type de chaque colonne depuis les données
+        function inferType(colName, values) {
+            const lbl = colName.toLowerCase();
+            if (/date|psd|fty|ready|sent|send|received|recu|envoi/.test(lbl)) return 'date';
+            if (/qty|quantit|amount|montant|price|prix|cost|up/.test(lbl)) return 'number';
+            if (/remark|comment|note|description|desc/.test(lbl)) return 'textarea';
+            // Tester si les valeurs ressemblent à une liste fixe
+            const uniq = [...new Set(values.filter(Boolean))];
+            if (uniq.length > 0 && uniq.length <= 8 && values.length > 3) return 'select';
+            return 'text';
+        }
+
+        // Construire les colonnes
+        const cols = headers.filter(function(h) { return h !== '_gsRowIndex'; })
+            .map(function(h) {
+                const values = rows.map(function(r) { return r[h] || ''; });
+                const type   = inferType(h, values);
+                const col    = { key: h, label: h, type: type };
+                if (type === 'select') {
+                    col.options = ['', ...new Set(values.filter(Boolean))].slice(0, 10);
+                }
+                if (h.length > 15 || type === 'textarea') col.full = true;
+                return col;
+            });
+
+        // Enregistrer dans SHEET_CONFIG
+        window.SHEET_CONFIG[key] = {
+            label:     sheetName,
+            sheetName: sheetName,
+            custom:    true,
+            cols:      cols,
+            kpis: [{
+                label: 'Total lignes', colorClass: 'teal',
+                icon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>',
+                compute: function(r) { return r.length; }
+            }]
+        };
+
+        // Initialiser state.data
+        if (window.state && window.state.data) {
+            window.state.data[key] = rows.map(function(r, i) {
+                const obj = { _rowIndex: i + 2 };
+                cols.forEach(function(c) { obj[c.key] = r[c.key] || ''; });
+                return obj;
+            });
+        }
+
+        // Ajouter le bouton dans la sidebar via registerCustomMenu si disponible
+        if (typeof window.registerCustomMenu === 'function') {
+            window.registerCustomMenu({ key, label: sheetName, cols }, true);
+        } else {
+            // Fallback : injecter manuellement dans la nav
+            const nav = document.getElementById('custom-nav-items');
+            if (nav && !document.getElementById('tab-custom-' + key)) {
+                const btn = document.createElement('button');
+                btn.className = 'nav-item';
+                btn.id = 'tab-custom-' + key;
+                btn.dataset.sheet = key;
+                btn.innerHTML =
+                    '<span class="nav-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/></svg></span>' +
+                    '<span class="nav-label">' + sheetName + '</span>';
+                btn.addEventListener('click', function() {
+                    if (window.state) {
+                        window.state.activeView  = 'sheet';
+                        window.state.activeSheet = key;
+                    }
+                    document.querySelectorAll('.nav-item').forEach(function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    const titleEl = document.getElementById('header-sheet-title');
+                    if (titleEl) titleEl.textContent = sheetName;
+                    if (typeof window.showTableView  === 'function') window.showTableView();
+                    if (typeof window.applyFilters   === 'function') window.applyFilters();
+                    if (typeof window.renderKPIs     === 'function') window.renderKPIs();
+                });
+                nav.appendChild(btn);
+            }
+
+            // Persister manuellement
+            try {
+                const STORE = 'aw27_custom_menus';
+                const saved = JSON.parse(localStorage.getItem(STORE) || '[]');
+                saved.push({ key, label: sheetName, cols, custom: true });
+                localStorage.setItem(STORE, JSON.stringify(saved));
+            } catch(e) {}
+        }
+
+        console.log('[Sync] Nouveau menu créé :', sheetName, '(' + cols.length + ' colonnes, ' + rows.length + ' lignes)');
+        if (typeof window.showToast === 'function') {
+            window.showToast('Nouveau menu créé : ' + sheetName + ' (' + cols.length + ' col.)', 'success', 5000);
+        }
+    }
+
     function buildCompositeId(row, headers, labelToKey) {
         const parts = [];
         ID_COLS.forEach(function (col) {
