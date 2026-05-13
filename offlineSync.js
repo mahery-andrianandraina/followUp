@@ -1050,7 +1050,7 @@
     // ═══════════════════════════════════════════════════════════
     async function executeSync() {
         if (_isBusy) return;
-        const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || (window.currentUser && window.currentUser.gasUrl);
+        const gasUrl = (window.currentUser && window.currentUser.gasUrl) || window.GOOGLE_APPS_SCRIPT_URL;
         if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') { alert('GAS URL non configuré.'); return; }
 
         _isBusy = true;

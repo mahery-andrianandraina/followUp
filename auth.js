@@ -219,6 +219,7 @@ async function updateGasUrl(newUrl) {
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         window.currentUser.gasUrl = newUrl;
+        window.GOOGLE_APPS_SCRIPT_URL = newUrl; // FIX: Mise à jour de la variable globale
         showToast("URL Google Sheet mise à jour ✓", "success");
         await fetchAllData();
     } catch (err) {
