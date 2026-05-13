@@ -71,7 +71,7 @@ function doPost(e) {
     const sheetKey = payload.sheet;
     if (!sheetKey) throw new Error("Paramètre 'sheet' manquant.");
 
-    let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
+    let sheetName = (SHEET_NAMES[sheetKey] || sheetKey).trim();
     let sheet = ss.getSheetByName(sheetName);
 
     // ── GESTION IMPORTATION EN BLOC (NOUVELLE FEUILLE) ──
@@ -94,9 +94,19 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    if (!sheet) throw new Error("Feuille '" + sheetName + "' introuvable.");
+    // Pour CREATE, on autorise aussi la création de la feuille si elle manque
+    if (!sheet && action === "CREATE") {
+      sheet = ss.insertSheet(sheetName);
+      // On peut essayer d'inférer les headers depuis les clés de data
+      const dataKeys = Object.keys(payload.data || {});
+      if (dataKeys.length) {
+        sheet.appendRow(dataKeys);
+      }
+    }
 
-    const headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());
+    if (!sheet) throw new Error("Feuille '" + sheetName + "' introuvable. Veuillez vérifier que la feuille existe dans le Google Sheets.");
+
+    const headers = sheet.getRange(1,1,1,Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(x => String(x).trim());
     const { rowIndex, data } = payload;
 
     if (action === "CREATE") sheet.appendRow(headers.map(h => data[h] ?? ""));
