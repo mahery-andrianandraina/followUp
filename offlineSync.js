@@ -128,18 +128,40 @@
     .dl-btn:hover:not(:disabled){background:#0369a1;}
     .dl-btn:disabled{opacity:.5;cursor:not-allowed;}
 
-    /* Upload drop zone */
+    /* ── Upload drop zone ── */
     #ul-drop{
         margin:0 20px 0;border:1.5px dashed var(--color-border-secondary);
         border-radius:12px;padding:28px 20px;text-align:center;cursor:pointer;
         transition:border-color .2s,background .2s;
+        position:relative;
     }
     #ul-drop:hover,#ul-drop.drag-over{border-color:#0284c7;background:#f0f9ff;}
-    #ul-drop.has-file{border-color:#16a34a;background:#f0fdf4;cursor:default;}
+
+    /* ── État fichier chargé : toujours cliquable ── */
+    #ul-drop.has-file{
+        border-color:#16a34a;
+        background:#f0fdf4;
+        cursor:pointer; /* toujours cliquable pour rechoisir */
+    }
+    #ul-drop.has-file:hover{
+        border-color:#0284c7;
+        background:#f0f9ff;
+    }
+
     #ul-drop-icon{font-size:32px;margin-bottom:8px;}
     #ul-drop-title{font-size:13px;font-weight:500;color:var(--color-text-primary);}
     #ul-drop-sub{font-size:11px;color:var(--color-text-secondary);margin-top:4px;}
     #ul-file-input{display:none;}
+
+    /* Hint "cliquer pour changer" */
+    #ul-change-hint{
+        display:none;
+        font-size:11px;
+        color:#0284c7;
+        margin-top:6px;
+        font-weight:500;
+    }
+    #ul-drop.has-file #ul-change-hint{ display:block; }
 
     /* Analyse résultats */
     #ul-analysis{padding:16px 20px 0;display:none;}
@@ -289,7 +311,10 @@
 
         <div id="sync-hdr">
           <div id="sync-hdr-icon">
-            <i class="ti ti-refresh" style="font-size:18px;color:#0284c7" aria-hidden="true"></i>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#0284c7" width="18" height="18" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
           </div>
           <div>
             <div id="sync-hdr-title">Sync hors connexion</div>
@@ -321,20 +346,28 @@
             <div class="sync-section-sub">Téléchargez toutes vos feuilles en un seul fichier Excel. Une colonne <code>_gsRowIndex</code> est ajoutée automatiquement pour identifier chaque ligne lors du re-import.</div>
             <div class="dl-card">
               <div class="dl-card-icon">
-                <i class="ti ti-file-spreadsheet" style="font-size:20px;color:#0284c7" aria-hidden="true"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#0284c7" width="20" height="20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                  <polyline points="10 9 9 9 8 9"/>
+                </svg>
               </div>
               <div>
                 <div class="dl-card-title">Toutes les feuilles Google Sheets</div>
                 <div class="dl-card-sub" id="dl-sheet-count">Connexion au GAS…</div>
               </div>
               <button class="dl-btn" id="btn-download-gs">
-                <i class="ti ti-download" style="font-size:13px" aria-hidden="true"></i>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
                 Télécharger
               </button>
             </div>
             <div style="padding:12px 14px;border-radius:10px;background:#f0f9ff;border:0.5px solid #bae6fd;font-size:11px;color:#0369a1;line-height:1.7;">
-              <i class="ti ti-info-circle" style="font-size:13px;vertical-align:-2px;margin-right:4px" aria-hidden="true"></i>
-              Ce fichier Excel contient une colonne masquée <strong>_gsRowIndex</strong> — ne pas la supprimer.
+              ℹ️ Ce fichier Excel contient une colonne masquée <strong>_gsRowIndex</strong> — ne pas la supprimer.
               Elle permet de retrouver chaque ligne lors du re-import du soir.
             </div>
           </div>
@@ -343,14 +376,28 @@
           <div id="step2" style="display:none;">
             <div class="sync-section" style="padding-bottom:12px;">
               <div class="sync-section-title">Importer votre fichier modifié</div>
-              <div class="sync-section-sub">Choisissez le fichier Excel que vous avez modifié en journée. Le système détectera automatiquement les ajouts et modifications.</div>
+              <div class="sync-section-sub">
+                Choisissez le fichier Excel que vous avez modifié en journée.
+                Le système détectera automatiquement les ajouts et modifications.<br>
+                <strong style="color:#0284c7;">Vous pouvez cliquer à nouveau sur la zone pour changer de fichier à tout moment.</strong>
+              </div>
             </div>
+
+            <!-- Drop zone — toujours cliquable -->
             <div id="ul-drop">
-              <div id="ul-drop-icon"><i class="ti ti-upload" style="font-size:32px;color:#9ca3af" aria-hidden="true"></i></div>
+              <div id="ul-drop-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#9ca3af" width="32" height="32" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
               <div id="ul-drop-title">Glissez votre fichier Excel modifié ici</div>
               <div id="ul-drop-sub">ou cliquez pour choisir — .xlsx, .xls acceptés</div>
+              <div id="ul-change-hint">↻ Cliquer pour changer de fichier</div>
               <input type="file" id="ul-file-input" accept=".xlsx,.xls">
             </div>
+
             <div id="ul-analysis">
               <div class="analysis-grid">
                 <div class="an-card">
@@ -373,7 +420,7 @@
           <!-- STEP 3 : Conflits -->
           <div id="step3" style="display:none;">
             <div class="conflict-header">
-              <i class="ti ti-alert-triangle" style="font-size:14px" aria-hidden="true"></i>
+              ⚠️
               <span id="conflict-count-lbl">0 conflit(s) détecté(s) — choisissez quelle version conserver pour chaque ligne</span>
             </div>
             <div class="conflict-list" id="conflict-list"></div>
@@ -503,7 +550,6 @@
             return;
         }
 
-        // Compter les feuilles depuis state
         const sheetNames = Object.keys(window.SHEET_CONFIG || {}).map(function (k) {
             return (window.SHEET_CONFIG[k].sheetName || window.SHEET_CONFIG[k].label || k);
         });
@@ -515,7 +561,7 @@
     async function downloadAllSheets(gasUrl, sheetNames) {
         const dlBtn = document.getElementById('btn-download-gs');
         dlBtn.disabled = true;
-        dlBtn.innerHTML = '<i class="ti ti-loader" style="font-size:13px" aria-hidden="true"></i> Chargement…';
+        dlBtn.innerHTML = '⏳ Chargement…';
 
         ensureXLSX(async function (XL) {
             try {
@@ -531,14 +577,7 @@
                     const rows      = allData[key] || [];
                     if (!rows.length) continue;
 
-                    // ── Construire la carte label→key pour chaque colonne ──
-                    // Pour les menus fixes : col.key ('Order Qty') ≠ col.label ('Order Qty')
-                    // Pour les menus custom : col.key === col.label
-                    // On lit toujours via col.key en priorité, col.label en fallback,
-                    // et enfin on parcourt toutes les clés de la row si rien trouvé.
                     const colDefs = cfg[key].cols || [];
-
-                    // Si pas de cols définis, prendre toutes les clés de la première row
                     let headers;
                     if (colDefs.length) {
                         headers = colDefs.map(function (c) { return c.label || c.key; });
@@ -546,7 +585,6 @@
                         headers = Object.keys(rows[0]).filter(function (k) { return !k.startsWith('_'); });
                     }
 
-                    // Carte label → clé réelle dans la row
                     const labelToKey = {};
                     if (colDefs.length) {
                         colDefs.forEach(function (c) {
@@ -556,14 +594,10 @@
                         headers.forEach(function (h) { labelToKey[h] = h; });
                     }
 
-                    // ── Lire une valeur depuis une row en essayant key puis label ──
                     function readVal(row, label) {
                         const key2 = labelToKey[label];
-                        // 1. par col.key exact
                         if (key2 !== undefined && row[key2] !== undefined && row[key2] !== null) return row[key2];
-                        // 2. par label direct
                         if (row[label] !== undefined && row[label] !== null) return row[label];
-                        // 3. cherche une clé insensible à la casse
                         const lower = label.toLowerCase();
                         const found = Object.keys(row).find(function (k) { return k.toLowerCase() === lower; });
                         if (found) return row[found];
@@ -588,13 +622,11 @@
 
                     const ws = XL.utils.aoa_to_sheet(wsData);
 
-                    // Masquer la colonne _gsRowIndex
                     const hiddenCol = fullHeaders.length - 1;
                     if (!ws['!cols']) ws['!cols'] = [];
                     while (ws['!cols'].length <= hiddenCol) ws['!cols'].push({});
                     ws['!cols'][hiddenCol] = { hidden: true };
 
-                    // Largeurs auto + en-têtes en gras
                     const colWidths = fullHeaders.map(function (h) { return Math.max(h.length, 10); });
                     rows.slice(0, 20).forEach(function (row) {
                         headers.forEach(function (h, i) {
@@ -612,7 +644,7 @@
 
                 if (!sheets) {
                     dlBtn.disabled = false;
-                    dlBtn.innerHTML = '<i class="ti ti-download" style="font-size:13px"></i> Télécharger';
+                    dlBtn.innerHTML = '⬇ Télécharger';
                     alert('Aucune donnée disponible. Assurez-vous que le dashboard est chargé avant de télécharger.');
                     return;
                 }
@@ -620,14 +652,14 @@
                 const today = new Date().toISOString().slice(0, 10);
                 XL.writeFile(wb, 'AW27_Offline_' + today + '.xlsx');
 
-                dlBtn.innerHTML = '<i class="ti ti-check" style="font-size:13px" aria-hidden="true"></i> Téléchargé !';
+                dlBtn.innerHTML = '✓ Téléchargé !';
                 dlBtn.style.background = '#16a34a';
                 if (typeof showToast === 'function') showToast('Fichier Excel téléchargé — bonne journée !', 'success', 4000);
 
             } catch (err) {
                 console.error('[Sync Download]', err);
                 dlBtn.disabled = false;
-                dlBtn.innerHTML = '<i class="ti ti-download" style="font-size:13px"></i> Télécharger';
+                dlBtn.innerHTML = '⬇ Télécharger';
                 if (typeof showToast === 'function') showToast('Erreur de téléchargement : ' + err.message, 'error');
             }
         });
@@ -635,26 +667,70 @@
 
     // ═══════════════════════════════════════════════════════════
     //  STEP 2 — UPLOAD & ANALYSE
+    //  FIX : la drop zone est TOUJOURS cliquable, même après un
+    //        premier upload. Cliquer à nouveau permet de changer
+    //        de fichier sans avoir à annuler d'abord.
     // ═══════════════════════════════════════════════════════════
-    ulDrop.addEventListener('dragover', function (e) { e.preventDefault(); ulDrop.classList.add('drag-over'); });
-    ulDrop.addEventListener('dragleave', function () { ulDrop.classList.remove('drag-over'); });
+
+    // Drag & drop
+    ulDrop.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        ulDrop.classList.add('drag-over');
+    });
+    ulDrop.addEventListener('dragleave', function () {
+        ulDrop.classList.remove('drag-over');
+    });
     ulDrop.addEventListener('drop', function (e) {
-        e.preventDefault(); ulDrop.classList.remove('drag-over');
+        e.preventDefault();
+        ulDrop.classList.remove('drag-over');
         if (e.dataTransfer.files[0]) parseUploadedFile(e.dataTransfer.files[0]);
     });
+
+    // ── Clic : TOUJOURS ouvrir le sélecteur de fichier ──────────
     ulDrop.addEventListener('click', function () {
-        if (!ulDrop.classList.contains('has-file')) ulFileInput.click();
+        ulFileInput.click();
     });
+
+    // ── Changement de fichier ────────────────────────────────────
     ulFileInput.addEventListener('change', function (e) {
-        if (e.target.files[0]) parseUploadedFile(e.target.files[0]);
+        if (e.target.files[0]) {
+            parseUploadedFile(e.target.files[0]);
+        }
+        // Réinitialiser l'input pour que le même fichier puisse être
+        // re-sélectionné si nécessaire (onChange ne se déclenche pas
+        // si la valeur ne change pas).
         ulFileInput.value = '';
     });
 
-    function parseUploadedFile(file) {
-        if (!/\.(xlsx|xls)$/i.test(file.name)) { alert('Format non supporté.'); return; }
+    // ── Réinitialise l'affichage de la drop zone ─────────────────
+    function resetDropZone() {
+        ulDrop.classList.remove('has-file');
+        document.getElementById('ul-drop-icon').innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                 stroke="#9ca3af" width="32" height="32" stroke-width="1.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>`;
+        document.getElementById('ul-drop-title').textContent = 'Glissez votre fichier Excel modifié ici';
+        document.getElementById('ul-drop-sub').textContent = 'ou cliquez pour choisir — .xlsx, .xls acceptés';
+        ulAnalysis.classList.remove('visible');
+        _xlWorkbook = null;
+        _uploadData = null;
+        syncNext.disabled = true;
+    }
 
-        document.getElementById('ul-drop-title').textContent = '⏳ Lecture…';
-        document.getElementById('ul-drop-sub').textContent = file.name;
+    function parseUploadedFile(file) {
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            alert('Format non supporté. Choisissez un fichier .xlsx ou .xls');
+            return;
+        }
+
+        // Indiquer visuellement le chargement
+        document.getElementById('ul-drop-title').textContent = '⏳ Lecture de ' + file.name + '…';
+        document.getElementById('ul-drop-sub').textContent = 'Analyse en cours…';
+        ulDrop.classList.remove('has-file');
 
         ensureXLSX(function (XL) {
             const reader = new FileReader();
@@ -664,19 +740,28 @@
                     _uploadData = parseWorkbook(_xlWorkbook, XL);
                     analyseChanges();
 
+                    // ── Affichage "fichier chargé" ──────────────
                     ulDrop.classList.add('has-file');
-                    document.getElementById('ul-drop-title').innerHTML =
-                        '<i class="ti ti-check" style="color:#16a34a"></i> ' + file.name;
+                    document.getElementById('ul-drop-icon').innerHTML =
+                        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#16a34a" width="32" height="32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+                    document.getElementById('ul-drop-title').textContent = '✓ ' + file.name;
                     document.getElementById('ul-drop-sub').textContent =
-                        _xlWorkbook.SheetNames.length + ' feuille(s) détectée(s)';
+                        _xlWorkbook.SheetNames.length + ' feuille(s) détectée(s) · ' +
+                        _xlWorkbook.SheetNames.join(', ').slice(0, 60);
+                    // Le hint "cliquer pour changer" apparaît via CSS (.has-file #ul-change-hint)
 
                     ulAnalysis.classList.add('visible');
                     syncNext.disabled = false;
 
                 } catch (err) {
                     console.error('[Sync Upload]', err);
-                    alert('Erreur de lecture : ' + err.message);
+                    resetDropZone();
+                    alert('Erreur de lecture du fichier : ' + err.message + '\nVérifiez que le fichier n\'est pas ouvert dans Excel.');
                 }
+            };
+            reader.onerror = function () {
+                resetDropZone();
+                alert('Impossible de lire le fichier. Réessayez.');
             };
             reader.readAsArrayBuffer(file);
         });
@@ -707,7 +792,6 @@
                     }
                 });
 
-                // Récupérer le _gsRowIndex
                 obj[HIDDEN_COL] = rowIdxCol >= 0 ? String(raw[rowIdxCol] || '').trim() : '';
                 rows.push(obj);
             }
@@ -729,15 +813,10 @@
         Object.keys(_uploadData).forEach(function (sheetName) {
             const { headers, rows } = _uploadData[sheetName];
 
-            // Trouver la clé interne du SHEET_CONFIG
             const cfgKey = Object.keys(cfg).find(function (k) {
                 return (cfg[k].sheetName || cfg[k].label || k).toLowerCase() === sheetName.toLowerCase();
             });
 
-            // ── FEUILLE INCONNUE (ajoutée offline) ──────────────
-            // Pas de cfgKey → feuille créée en offline, inconnue du GS et de l'interface.
-            // On l'enregistre comme NEW_SHEET : toutes ses lignes seront créées,
-            // et un nouveau menu sera construit dans l'interface après sync.
             if (!cfgKey) {
                 const nNew = rows.length;
                 totalNew += nNew;
@@ -752,13 +831,11 @@
                     sheetName, nNew, nMod: 0, nConf: 0,
                     total: rows.length, isNew: true
                 });
-                return; // passer à la feuille suivante
+                return;
             }
 
             const gsRows = cfgKey ? (allData[cfgKey] || []) : [];
 
-            // Construire labelToKey : label Excel → col.key dans state.data
-            // Essentiel pour que getDiffs lise les bonnes valeurs dans gsRow
             const labelToKey = {};
             if (cfgKey && cfg[cfgKey] && cfg[cfgKey].cols) {
                 cfg[cfgKey].cols.forEach(function (c) {
@@ -768,18 +845,13 @@
                 headers.forEach(function (h) { labelToKey[h] = h; });
             }
 
-            // Construire index GS par rowIndex
             const gsByRowIdx = {};
             gsRows.forEach(function (r) { if (r._rowIndex) gsByRowIdx[String(r._rowIndex)] = r; });
 
-            // Construire index GS par ID composite
-            // On utilise minParts=1 ici pour maximiser le matching côté GS
             const gsByComposite = {};
             gsRows.forEach(function (r) {
-                // Index avec 2 champs (prioritaire)
                 const id2 = buildCompositeId(r, headers, labelToKey, 2);
                 if (id2) gsByComposite[id2] = r;
-                // Index avec 1 champ (fallback si feuille simple)
                 const id1 = buildCompositeId(r, headers, labelToKey, 1);
                 if (id1 && !gsByComposite[id1]) gsByComposite[id1] = r;
             });
@@ -788,16 +860,13 @@
             const ops = [];
 
             rows.forEach(function (localRow) {
-                // rowIdx : seulement si c'est un entier positif valide (pas "", "0", undefined)
                 const rawIdx = localRow[HIDDEN_COL];
                 const rowIdx = rawIdx && /^\d+$/.test(String(rawIdx).trim()) && parseInt(rawIdx) > 1
                     ? String(rawIdx).trim() : null;
 
-                // ID composite : accepter même avec 1 seul champ si la feuille a peu de colonnes ID
                 const compId = buildCompositeId(localRow, headers, null, 1);
                 let   gsRow  = null;
 
-                // Chercher la ligne GS correspondante
                 if (rowIdx && gsByRowIdx[rowIdx]) {
                     gsRow = gsByRowIdx[rowIdx];
                 } else if (compId && gsByComposite[compId]) {
@@ -805,26 +874,18 @@
                 }
 
                 if (!gsRow) {
-                    // Nouvelle ligne confirmée : ni rowIdx ni compId n'ont matché
-                    console.log('[Sync] NOUVELLE LIGNE détectée dans', sheetName,
-                        '| rowIdx:', rawIdx || '(vide)',
-                        '| compId:', compId || '(null)',
-                        '| valeurs:', JSON.stringify(localRow).slice(0, 120));
                     nNew++;
                     totalNew++;
                     ops.push({ type: 'CREATE', sheetName, cfgKey, row: localRow, headers, labelToKey });
                 } else {
-                    // Ligne existante — comparer avec normalisation
                     const diffs = getDiffs(gsRow, localRow, headers, labelToKey);
-                    if (!diffs.length) return; // identique, rien à faire
+                    if (!diffs.length) return;
 
-                    // Vérifier si GS a aussi changé depuis le snapshot du matin
                     const snapshot       = _gsSnapshot[sheetName] || [];
                     const snapRow        = snapshot.find(function (s) { return String(s._rowIndex || '') === String(gsRow._rowIndex || ''); });
                     const gsChangedSince = snapRow && getDiffs(snapRow, gsRow, headers, labelToKey).length > 0;
 
                     if (gsChangedSince) {
-                        // CONFLIT : GS ET local ont changé
                         nConf++;
                         totalConf++;
                         _conflicts.push({
@@ -835,7 +896,6 @@
                             displayId: compId || ('Ligne ' + gsRow._rowIndex)
                         });
                     } else {
-                        // Modification simple — seulement si diffs réels
                         nMod++;
                         totalMod++;
                         ops.push({ type: 'UPDATE', sheetName, cfgKey, row: localRow, rowIndex: gsRow._rowIndex, headers, labelToKey });
@@ -847,7 +907,6 @@
             summaryRows.push({ sheetName, nNew, nMod, nConf, total: rows.length });
         });
 
-        // Afficher le résumé
         document.getElementById('an-new').textContent  = totalNew;
         document.getElementById('an-mod').textContent  = totalMod;
         document.getElementById('an-conf').textContent = totalConf;
@@ -869,7 +928,6 @@
     // ═══════════════════════════════════════════════════════════
     function proceedToConflicts() {
         if (!_conflicts.length) {
-            // Pas de conflits → aller directement au step 4
             buildFinalSummary();
             gotoStep(4);
             return;
@@ -923,7 +981,6 @@
         item.querySelectorAll('.btn-choose').forEach(function (b) { b.classList.remove('chosen'); });
         btn.classList.add('chosen');
 
-        // Si "ma version" → ajouter à la queue de sync
         if (choice === 'local') {
             const c = _conflicts.find(function (x) { return x.id === conflictId; });
             if (c && !_syncQueue.find(function (op) { return op.rowIndex === c.rowIndex && op.sheetName === c.sheetName; })) {
@@ -931,7 +988,6 @@
             }
         }
 
-        // Check si tous les conflits résolus
         const allResolved = _conflicts.every(function (c) {
             return _resolvedConflicts[c.sheetName + '_' + c.rowIndex];
         });
@@ -944,7 +1000,6 @@
     //  STEP 4 — RÉSUMÉ FINAL
     // ═══════════════════════════════════════════════════════════
     function proceedToFinalSync() {
-        // Vérifier que tous les conflits sont résolus
         const unresolved = _conflicts.filter(function (c) {
             return !_resolvedConflicts[c.sheetName + '_' + c.rowIndex];
         });
@@ -1012,9 +1067,7 @@
             progDtl.textContent  = (done + 1) + ' / ' + ops.length;
 
             try {
-                // ── NOUVELLE FEUILLE — créer GS + menu interface ──
                 if (op.type === 'NEW_SHEET') {
-                    // 1. Créer la feuille GS et importer toutes les lignes en batch
                     const BATCH = 50;
                     for (let b = 0; b < op.rows.length; b += BATCH) {
                         const batch = op.rows.slice(b, b + BATCH);
@@ -1025,7 +1078,6 @@
                                 sheet:   op.sheetName,
                                 headers: op.headers,
                                 rows:    batch.map(function(r) {
-                                    // Exclure la colonne _gsRowIndex
                                     const clean = {};
                                     op.headers.forEach(function(h) { clean[h] = r[h] !== undefined ? r[h] : ''; });
                                     return clean;
@@ -1036,9 +1088,7 @@
                         if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
                     }
 
-                    // 2. Reconstruire le menu dans l'interface
                     registerNewMenuFromSheet(op.sheetName, op.headers, op.rows);
-
                     done++;
                     continue;
                 }
@@ -1063,6 +1113,10 @@
         progDtl.textContent  = done + ' opération' + (done > 1 ? 's' : '') + ' effectuée' + (done > 1 ? 's' : '');
 
         _isBusy = false;
+
+        // Réinitialiser la drop zone pour permettre un nouvel upload
+        resetDropZone();
+
         syncNext.textContent = '✅ Terminé — Fermer';
         syncNext.disabled    = false;
         syncNext.onclick     = function () { overlay.classList.remove('open'); };
@@ -1078,29 +1132,23 @@
     // ═══════════════════════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════════════════════
-    // ── Enregistre une nouvelle feuille comme menu dans l'interface ──
-    // Reconstruit SHEET_CONFIG, la sidebar et le localStorage
     function registerNewMenuFromSheet(sheetName, headers, rows) {
         if (!window.SHEET_CONFIG) return;
 
-        // Générer une clé interne unique
         const key = 'custom_' + sheetName.toLowerCase()
             .replace(/[^a-z0-9]/g, '_').slice(0, 20)
             + '_' + Date.now().toString(36);
 
-        // Inférer le type de chaque colonne depuis les données
         function inferType(colName, values) {
             const lbl = colName.toLowerCase();
             if (/date|psd|fty|ready|sent|send|received|recu|envoi/.test(lbl)) return 'date';
-            if (/qty|quantit|amount|montant|price|prix|cost|up/.test(lbl)) return 'number';
+            if (/qty|quantit|amount|montant|price|prix|cost|up/.test(lbl)) return 'number';
             if (/remark|comment|note|description|desc/.test(lbl)) return 'textarea';
-            // Tester si les valeurs ressemblent à une liste fixe
             const uniq = [...new Set(values.filter(Boolean))];
             if (uniq.length > 0 && uniq.length <= 8 && values.length > 3) return 'select';
             return 'text';
         }
 
-        // Construire les colonnes
         const cols = headers.filter(function(h) { return h !== '_gsRowIndex'; })
             .map(function(h) {
                 const values = rows.map(function(r) { return r[h] || ''; });
@@ -1113,7 +1161,6 @@
                 return col;
             });
 
-        // Enregistrer dans SHEET_CONFIG
         window.SHEET_CONFIG[key] = {
             label:     sheetName,
             sheetName: sheetName,
@@ -1126,7 +1173,6 @@
             }]
         };
 
-        // Initialiser state.data
         if (window.state && window.state.data) {
             window.state.data[key] = rows.map(function(r, i) {
                 const obj = { _rowIndex: i + 2 };
@@ -1135,11 +1181,9 @@
             });
         }
 
-        // Ajouter le bouton dans la sidebar via registerCustomMenu si disponible
         if (typeof window.registerCustomMenu === 'function') {
             window.registerCustomMenu({ key, label: sheetName, cols }, true);
         } else {
-            // Fallback : injecter manuellement dans la nav
             const nav = document.getElementById('custom-nav-items');
             if (nav && !document.getElementById('tab-custom-' + key)) {
                 const btn = document.createElement('button');
@@ -1166,7 +1210,6 @@
                 nav.appendChild(btn);
             }
 
-            // Persister manuellement
             try {
                 const STORE = 'aw27_custom_menus';
                 const saved = JSON.parse(localStorage.getItem(STORE) || '[]');
@@ -1175,17 +1218,15 @@
             } catch(e) {}
         }
 
-        console.log('[Sync] Nouveau menu créé :', sheetName, '(' + cols.length + ' colonnes, ' + rows.length + ' lignes)');
         if (typeof window.showToast === 'function') {
             window.showToast('Nouveau menu créé : ' + sheetName + ' (' + cols.length + ' col.)', 'success', 5000);
         }
     }
 
     function buildCompositeId(row, headers, labelToKey, minParts) {
-        minParts = minParts || 2; // Par défaut 2 champs minimum
+        minParts = minParts || 2;
         const parts = [];
         ID_COLS.forEach(function (col) {
-            // Chercher via la clé directe, puis via labelToKey (pour les gsRows)
             let val = row[col];
             if ((val === undefined || val === null || val === '') && labelToKey && labelToKey[col]) {
                 val = row[labelToKey[col]];
@@ -1197,20 +1238,15 @@
         return parts.length >= minParts ? parts.join('||') : null;
     }
 
-    // Normalise une valeur pour comparaison stable
-    // Gere : Date objects, nombres (12.50=12.5), dates (dd/mm/yyyy=yyyy-mm-dd), espaces
     function normalizeVal(v) {
         if (v === null || v === undefined) return '';
         if (v instanceof Date) return v.toISOString().slice(0, 10);
         let s = String(v).trim();
         if (!s) return '';
-        // Dates ISO yyyy-mm-dd
         const isoDate = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (isoDate) return isoDate[1] + '-' + isoDate[2] + '-' + isoDate[3];
-        // Dates dd/mm/yyyy
         const frDate = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
         if (frDate) return frDate[3] + '-' + frDate[2] + '-' + frDate[1];
-        // Nombres : 12.50 === 12.5 === "12,50"
         if (s.match(/^-?[\d.,]+$/)) {
             const num = parseFloat(s.replace(',', '.'));
             if (!isNaN(num)) return String(num);
@@ -1218,7 +1254,6 @@
         return s;
     }
 
-    // Lit une valeur dans gsRow en essayant : col.key -> label -> insensible casse
     function readGsVal(gsRow, label, labelToKey) {
         const key = labelToKey && labelToKey[label];
         if (key && gsRow[key] !== undefined && gsRow[key] !== null && gsRow[key] !== '') return gsRow[key];
@@ -1247,7 +1282,6 @@
         const obj = {};
         (headers || []).forEach(function (h) {
             if (h === HIDDEN_COL) return;
-            // Valeur vide → chaîne vide, jamais undefined
             const v = row[h];
             obj[h] = (v === null || v === undefined) ? '' : String(v);
         });
@@ -1291,7 +1325,6 @@
             '<span class="nav-label">Sync offline</span>';
         btn.addEventListener('click', window.openSyncPanel);
 
-        // Insérer en premier dans le footer
         footer.insertBefore(btn, footer.firstChild);
     }
 
