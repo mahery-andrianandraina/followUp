@@ -773,18 +773,28 @@
             gsRows.forEach(function (r) { if (r._rowIndex) gsByRowIdx[String(r._rowIndex)] = r; });
 
             // Construire index GS par ID composite
+            // On utilise minParts=1 ici pour maximiser le matching côté GS
             const gsByComposite = {};
             gsRows.forEach(function (r) {
-                const id = buildCompositeId(r, headers, labelToKey);
-                if (id) gsByComposite[id] = r;
+                // Index avec 2 champs (prioritaire)
+                const id2 = buildCompositeId(r, headers, labelToKey, 2);
+                if (id2) gsByComposite[id2] = r;
+                // Index avec 1 champ (fallback si feuille simple)
+                const id1 = buildCompositeId(r, headers, labelToKey, 1);
+                if (id1 && !gsByComposite[id1]) gsByComposite[id1] = r;
             });
 
             let nNew = 0, nMod = 0, nConf = 0;
             const ops = [];
 
             rows.forEach(function (localRow) {
-                const rowIdx = localRow[HIDDEN_COL];
-                const compId = buildCompositeId(localRow, headers, null); // localRow a déjà les labels comme clés
+                // rowIdx : seulement si c'est un entier positif valide (pas "", "0", undefined)
+                const rawIdx = localRow[HIDDEN_COL];
+                const rowIdx = rawIdx && /^\d+$/.test(String(rawIdx).trim()) && parseInt(rawIdx) > 1
+                    ? String(rawIdx).trim() : null;
+
+                // ID composite : accepter même avec 1 seul champ si la feuille a peu de colonnes ID
+                const compId = buildCompositeId(localRow, headers, null, 1);
                 let   gsRow  = null;
 
                 // Chercher la ligne GS correspondante
@@ -795,7 +805,11 @@
                 }
 
                 if (!gsRow) {
-                    // Nouvelle ligne
+                    // Nouvelle ligne confirmée : ni rowIdx ni compId n'ont matché
+                    console.log('[Sync] NOUVELLE LIGNE détectée dans', sheetName,
+                        '| rowIdx:', rawIdx || '(vide)',
+                        '| compId:', compId || '(null)',
+                        '| valeurs:', JSON.stringify(localRow).slice(0, 120));
                     nNew++;
                     totalNew++;
                     ops.push({ type: 'CREATE', sheetName, cfgKey, row: localRow, headers, labelToKey });
@@ -1167,7 +1181,8 @@
         }
     }
 
-    function buildCompositeId(row, headers, labelToKey) {
+    function buildCompositeId(row, headers, labelToKey, minParts) {
+        minParts = minParts || 2; // Par défaut 2 champs minimum
         const parts = [];
         ID_COLS.forEach(function (col) {
             // Chercher via la clé directe, puis via labelToKey (pour les gsRows)
@@ -1179,7 +1194,7 @@
                 parts.push(String(val).trim().toUpperCase());
             }
         });
-        return parts.length >= 2 ? parts.join('||') : null;
+        return parts.length >= minParts ? parts.join('||') : null;
     }
 
     // Normalise une valeur pour comparaison stable
@@ -1231,7 +1246,10 @@
     function buildRowData(row, headers) {
         const obj = {};
         (headers || []).forEach(function (h) {
-            if (h !== HIDDEN_COL) obj[h] = row[h] || '';
+            if (h === HIDDEN_COL) return;
+            // Valeur vide → chaîne vide, jamais undefined
+            const v = row[h];
+            obj[h] = (v === null || v === undefined) ? '' : String(v);
         });
         return obj;
     }
