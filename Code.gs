@@ -85,37 +85,38 @@ function doPost(e) {
     }
 
     // ── GESTION IMPORTATION EN BLOC (NOUVELLE FEUILLE) ──
-    if (action === "IMPORT_ROWS") {
+    if (action === "FORCE_IMPORT_V2") {
       if (!sheet) {
-        sheet = ss.insertSheet(sheetName);
+        try {
+          sheet = ss.insertSheet(sheetName);
+        } catch (e) {
+          throw new Error("[V2] Échec création feuille '" + sheetName + "'. Erreur Google : " + e.message);
+        }
       }
       const { headers, rows } = payload;
       
-      // Si la feuille est vide, on injecte les en-têtes immédiatement
       if (sheet.getLastRow() === 0 && headers && headers.length) {
         sheet.appendRow(headers);
-        SpreadsheetApp.flush(); // Force l'écriture pour que getLastColumn soit à jour
+        SpreadsheetApp.flush();
       }
       
-      // Récupération des headers pour l'alignement (priorité aux headers GS s'ils existent)
       let currentHeaders = [];
       if (sheet.getLastColumn() > 0) {
         currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());
       }
       
-      // Si on n'a toujours pas de headers (feuille vide malgré appendRow), on utilise ceux du payload
       const finalHeaders = (currentHeaders.length === 0 || (currentHeaders.length === 1 && !currentHeaders[0])) 
         ? headers 
         : currentHeaders;
 
-      if (!finalHeaders || !finalHeaders.length) throw new Error("Impossible de déterminer les en-têtes pour l'importation.");
+      if (!finalHeaders || !finalHeaders.length) throw new Error("[V2] En-têtes introuvables pour '" + sheetName + "'");
 
       const values = rows.map(r => finalHeaders.map(h => r[h] !== undefined && r[h] !== null ? String(r[h]) : ""));
       
       if (values.length > 0) {
         sheet.getRange(sheet.getLastRow() + 1, 1, values.length, finalHeaders.length).setValues(values);
       }
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok", version: "V2", action: "IMPORT_ROWS", sheet: sheetName })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok", version: "V2_FORCE", action: action, sheet: sheetName })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // Pour les autres actions (CREATE/UPDATE/DELETE)

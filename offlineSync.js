@@ -1076,7 +1076,7 @@
                         const res = await fetch(gasUrl, {
                             method: 'POST',
                             body: JSON.stringify({
-                                action:  'IMPORT_ROWS',
+                                action:  'FORCE_IMPORT_V2',
                                 sheet:   op.sheetName,
                                 headers: op.headers,
                                 rows:    batch.map(function(r) {
