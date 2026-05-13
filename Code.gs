@@ -8,7 +8,17 @@ const SHEET_NAMES = { details: "Details", style: "Style", sample: "Sample" };
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const result = { details: readSheet(ss, "Details"), style: readSheet(ss, "Style"), sample: readSheet(ss, "Sample") };
+    const sheets = ss.getSheets();
+    const result = {};
+    
+    sheets.forEach(s => {
+      const name = s.getName();
+      if (name.startsWith("_")) return;
+      // On cherche la clé dans SHEET_NAMES, sinon on utilise le nom en minuscules
+      const key = Object.keys(SHEET_NAMES).find(k => SHEET_NAMES[k] === name) || name.toLowerCase();
+      result[key] = readSheet(ss, name);
+    });
+    
     return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
@@ -62,7 +72,28 @@ function doPost(e) {
     if (!sheetKey) throw new Error("Paramètre 'sheet' manquant.");
 
     let sheetName = SHEET_NAMES[sheetKey] || sheetKey;
-    const sheet = ss.getSheetByName(sheetName);
+    let sheet = ss.getSheetByName(sheetName);
+
+    // ── GESTION IMPORTATION EN BLOC (NOUVELLE FEUILLE) ──
+    if (action === "IMPORT_ROWS") {
+      if (!sheet) {
+        sheet = ss.insertSheet(sheetName);
+      }
+      const { headers, rows } = payload;
+      // Si la feuille est vide, on injecte les en-têtes
+      if (sheet.getLastRow() === 0 && headers && headers.length) {
+        sheet.appendRow(headers);
+      }
+      // On récupère les en-têtes réels pour l'alignement
+      const currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(x => String(x).trim());
+      const values = rows.map(r => currentHeaders.map(h => r[h] ?? ""));
+      
+      if (values.length > 0) {
+        sheet.getRange(sheet.getLastRow() + 1, 1, values.length, currentHeaders.length).setValues(values);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (!sheet) throw new Error("Feuille '" + sheetName + "' introuvable.");
 
     const headers = sheet.getRange(1,1,1,sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());

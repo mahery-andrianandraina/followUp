@@ -1060,11 +1060,13 @@
 
         const ops  = _syncQueue;
         let   done = 0;
+        let   errors = 0;
+        let   success = 0;
 
         for (const op of ops) {
             progFill.style.width = Math.round((done / ops.length) * 100) + '%';
             progLbl.textContent  = (op.type === 'NEW_SHEET' ? 'Nouvelle feuille' : op.type === 'CREATE' ? 'Ajout' : 'Mise à jour') + ' — ' + op.sheetName;
-            progDtl.textContent  = (done + 1) + ' / ' + ops.length;
+            progDtl.textContent  = (done + 1) + ' / ' + ops.length + (errors > 0 ? ' (' + errors + ' erreur' + (errors > 1 ? 's' : '') + ')' : '');
 
             try {
                 if (op.type === 'NEW_SHEET') {
@@ -1089,42 +1091,53 @@
                     }
 
                     registerNewMenuFromSheet(op.sheetName, op.headers, op.rows);
-                    done++;
-                    continue;
+                    success++;
+                } else {
+                    const payload = {
+                        action:    op.type,
+                        sheet:     op.sheetName,
+                        data:      buildRowData(op.row, op.headers),
+                        rowIndex:  op.rowIndex || undefined
+                    };
+                    const res  = await fetch(gasUrl, { method: 'POST', body: JSON.stringify(payload) });
+                    const json = await res.json();
+                    if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
+                    success++;
                 }
-
-                const payload = {
-                    action:    op.type,
-                    sheet:     op.sheetName,
-                    data:      buildRowData(op.row, op.headers),
-                    rowIndex:  op.rowIndex || undefined
-                };
-                const res  = await fetch(gasUrl, { method: 'POST', body: JSON.stringify(payload) });
-                const json = await res.json();
-                if (json.status !== 'ok') throw new Error(json.message || 'GAS error');
             } catch (err) {
                 console.error('[Sync exec]', op.sheetName, err);
+                errors++;
             }
             done++;
         }
 
         progFill.style.width = '100%';
-        progLbl.textContent  = '✅ Synchronisation terminée';
-        progDtl.textContent  = done + ' opération' + (done > 1 ? 's' : '') + ' effectuée' + (done > 1 ? 's' : '');
+        if (errors === 0) {
+            progLbl.textContent = '✅ Synchronisation terminée avec succès';
+            progDtl.textContent = success + ' opération' + (success > 1 ? 's' : '') + ' effectuée' + (success > 1 ? 's' : '');
+            progWrap.style.background = '#f0fdf4';
+        } else {
+            progLbl.textContent = '⚠️ Synchronisation terminée avec des erreurs';
+            progLbl.style.color = '#991b1b';
+            progDtl.textContent = success + ' succès, ' + errors + ' échec' + (errors > 1 ? 's' : '');
+            progWrap.style.background = '#fef2f2';
+            progFill.style.background = '#ef4444';
+        }
 
         _isBusy = false;
-
-        // Réinitialiser la drop zone pour permettre un nouvel upload
         resetDropZone();
 
-        syncNext.textContent = '✅ Terminé — Fermer';
+        syncNext.textContent = (errors === 0 ? '✅ Terminé — Fermer' : 'Fermer');
         syncNext.disabled    = false;
         syncNext.onclick     = function () { overlay.classList.remove('open'); };
 
         if (typeof fetchAllData === 'function') {
             setTimeout(function () {
                 fetchAllData();
-                if (typeof showToast === 'function') showToast('Sync terminée — ' + done + ' opération' + (done > 1 ? 's' : '') + ' effectuée' + (done > 1 ? 's' : ''), 'success', 5000);
+                const msg = errors === 0
+                    ? 'Sync terminée — ' + success + ' opération' + (success > 1 ? 's' : '') + ' effectuée' + (success > 1 ? 's' : '')
+                    : 'Sync terminée avec ' + errors + ' erreur' + (errors > 1 ? 's' : '');
+                if (typeof showToast === 'function') showToast(msg, errors === 0 ? 'success' : 'error', 5000);
             }, 600);
         }
     }
