@@ -12,26 +12,15 @@
     // ── CSS supplémentaire ──────────────────────────────────────
     const style = document.createElement('style');
     style.textContent = `
+    /* Bouton dans le footer — toujours visible */
     #mb-delete-section {
         display: none;
-        padding: 12px 14px;
-        border-radius: 10px;
-        background: #fff5f5;
-        border: 0.5px solid #fecaca;
-        margin-top: 4px;
+        margin-right: auto;
     }
-    #mb-delete-section.visible { display: flex; align-items: center; gap: 12px; }
-
-    #mb-delete-label {
-        flex: 1;
-        font-size: 12px;
-        color: #7f1d1d;
-        line-height: 1.5;
-    }
-    #mb-delete-label strong { font-weight: 600; }
+    #mb-delete-section.visible { display: block; }
 
     #mb-delete-btn {
-        padding: 7px 14px;
+        padding: 7px 13px;
         border-radius: 8px;
         border: 1px solid #fca5a5;
         background: #fee2e2;
@@ -45,39 +34,38 @@
         gap: 6px;
         white-space: nowrap;
         transition: all 0.15s;
-        flex-shrink: 0;
     }
     #mb-delete-btn:hover { background: #dc2626; color: #fff; border-color: #dc2626; }
 
-    /* Confirmation inline */
+    /* Confirmation — barre collée au bas du modal, au-dessus du footer */
     #mb-delete-confirm {
         display: none;
-        flex-direction: column;
-        gap: 10px;
-        padding: 12px 14px;
-        border-radius: 10px;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 16px;
         background: #fff5f5;
-        border: 1px solid #fca5a5;
-        margin-top: 4px;
+        border-top: 1px solid #fecaca;
+        flex-shrink: 0;
     }
     #mb-delete-confirm.visible { display: flex; }
     #mb-delete-confirm-text {
+        flex: 1;
         font-size: 12px;
         color: #7f1d1d;
-        line-height: 1.5;
+        line-height: 1.45;
     }
-    #mb-delete-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+    #mb-delete-confirm-actions { display: flex; gap: 7px; flex-shrink: 0; }
     #mb-delete-cancel {
-        padding: 6px 14px; border-radius: 7px;
+        padding: 6px 13px; border-radius: 7px;
         border: 0.5px solid #d1d5db; background: transparent;
         font-size: 12px; color: #6b7280; cursor: pointer; font-family: inherit;
     }
     #mb-delete-cancel:hover { background: #f3f4f6; }
     #mb-delete-confirm-btn {
-        padding: 6px 16px; border-radius: 7px; border: none;
+        padding: 6px 15px; border-radius: 7px; border: none;
         background: #dc2626; color: #fff;
         font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
-        transition: background 0.15s;
+        transition: background 0.15s; white-space: nowrap;
     }
     #mb-delete-confirm-btn:hover { background: #b91c1c; }
     #mb-delete-confirm-btn:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -85,32 +73,29 @@
     document.head.appendChild(style);
 
     // ── Injecter les éléments dans le menu builder ──────────────
+    // Le bouton est placé dans le footer (toujours visible, pas de scroll)
     function injectDeleteUI() {
         const modal = document.getElementById('menu-builder-overlay');
         if (!modal || document.getElementById('mb-delete-section')) return;
 
-        // Section suppression (après le footer existant)
         const footer = modal.querySelector('.modal-footer');
         if (!footer) return;
 
-        // Zone de suppression — insérée AVANT le footer
+        // Bouton déclencheur — inséré à gauche dans le footer
         const deleteSection = document.createElement('div');
         deleteSection.id = 'mb-delete-section';
         deleteSection.innerHTML = `
-            <div id="mb-delete-label">
-                <strong>Zone de danger</strong><br>
-                Supprime définitivement ce menu et toutes ses données dans Google Sheets.
-            </div>
             <button id="mb-delete-btn" onclick="mbConfirmDelete()">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                      stroke="currentColor" width="13" height="13">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                           d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
-                Supprimer ce menu
+                Supprimer
             </button>
         `;
 
+        // Confirmation — remplace le contenu du footer
         const confirmBox = document.createElement('div');
         confirmBox.id = 'mb-delete-confirm';
         confirmBox.innerHTML = `
@@ -123,11 +108,12 @@
             </div>
         `;
 
-        const modalBody = modal.querySelector('.modal-body');
-        if (modalBody) {
-            modalBody.appendChild(deleteSection);
-            modalBody.appendChild(confirmBox);
-        }
+        // Insérer le bouton delete en tout premier dans le footer
+        footer.insertBefore(deleteSection, footer.firstChild);
+
+        // Insérer la confirmation juste après le footer (overlay dans le panel)
+        const panel = modal.querySelector('.modal');
+        if (panel) panel.appendChild(confirmBox);
     }
 
     // ── Patch openMenuEdit pour afficher/masquer la zone delete ─
@@ -170,8 +156,16 @@
 
         const deleteSection = document.getElementById('mb-delete-section');
         const confirmBox    = document.getElementById('mb-delete-confirm');
+        // Masquer le bouton du footer, montrer la barre de confirmation
         if (deleteSection) deleteSection.classList.remove('visible');
         if (confirmBox)    confirmBox.classList.add('visible');
+        // S'assurer que la barre est bien dans le modal (au-dessus du footer)
+        const modal = document.getElementById('menu-builder-overlay');
+        const panel = modal && modal.querySelector('.modal');
+        const footer = panel && panel.querySelector('.modal-footer');
+        if (confirmBox && footer && confirmBox.nextSibling !== footer) {
+            panel.insertBefore(confirmBox, footer);
+        }
     };
 
     // ── Annuler ─────────────────────────────────────────────────
