@@ -8,15 +8,21 @@ const SHEET_NAMES = { details: "Details", style: "Style", sample: "Sample" };
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheets = ss.getSheets();
-    const result = {};
     
-    sheets.forEach(s => {
-      const name = s.getName();
+    // Les 3 feuilles standards (format garanti, identique à l'original)
+    const result = {
+      details: readSheet(ss, "Details"),
+      style:   readSheet(ss, "Style"),
+      sample:  readSheet(ss, "Sample")
+    };
+    
+    // Ajout dynamique des feuilles supplémentaires (custom menus, imports, etc.)
+    const standardNames = ["Details", "Style", "Sample"];
+    ss.getSheets().forEach(function(s) {
+      var name = s.getName();
       if (name.startsWith("_")) return;
-      // On cherche la clé dans SHEET_NAMES, sinon on utilise le nom en minuscules
-      const key = Object.keys(SHEET_NAMES).find(k => SHEET_NAMES[k] === name) || name.toLowerCase();
-      result[key] = readSheet(ss, name);
+      if (standardNames.indexOf(name) !== -1) return; // déjà incluse
+      result[name.toLowerCase()] = readSheet(ss, name);
     });
     
     return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result })).setMimeType(ContentService.MimeType.JSON);
