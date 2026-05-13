@@ -519,31 +519,68 @@
 
         ensureXLSX(async function (XL) {
             try {
-                const wb = XL.utils.book_new();
-                _gsSnapshot = {};
+                const wb      = XL.utils.book_new();
+                _gsSnapshot   = {};
 
-                // Récupérer les données depuis l'état local (state.data) + GAS pour les feuilles non chargées
                 const allData = window.state && window.state.data ? window.state.data : {};
                 const cfg     = window.SHEET_CONFIG || {};
+                let   sheets  = 0;
 
                 for (const key of Object.keys(cfg)) {
                     const sheetName = cfg[key].sheetName || cfg[key].label || key;
                     const rows      = allData[key] || [];
                     if (!rows.length) continue;
 
-                    const cols    = (cfg[key].cols || []).map(function (c) { return c.label || c.key; });
-                    const headers = cols.length ? cols : Object.keys(rows[0]).filter(function (k) { return !k.startsWith('_'); });
+                    // ── Construire la carte label→key pour chaque colonne ──
+                    // Pour les menus fixes : col.key ('Order Qty') ≠ col.label ('Order Qty')
+                    // Pour les menus custom : col.key === col.label
+                    // On lit toujours via col.key en priorité, col.label en fallback,
+                    // et enfin on parcourt toutes les clés de la row si rien trouvé.
+                    const colDefs = cfg[key].cols || [];
 
-                    // Headers : colonnes normales + _gsRowIndex à la fin
-                    const fullHeaders = [...headers, HIDDEN_COL];
+                    // Si pas de cols définis, prendre toutes les clés de la première row
+                    let headers;
+                    if (colDefs.length) {
+                        headers = colDefs.map(function (c) { return c.label || c.key; });
+                    } else {
+                        headers = Object.keys(rows[0]).filter(function (k) { return !k.startsWith('_'); });
+                    }
 
-                    const wsData = [fullHeaders];
+                    // Carte label → clé réelle dans la row
+                    const labelToKey = {};
+                    if (colDefs.length) {
+                        colDefs.forEach(function (c) {
+                            labelToKey[c.label || c.key] = c.key;
+                        });
+                    } else {
+                        headers.forEach(function (h) { labelToKey[h] = h; });
+                    }
+
+                    // ── Lire une valeur depuis une row en essayant key puis label ──
+                    function readVal(row, label) {
+                        const key2 = labelToKey[label];
+                        // 1. par col.key exact
+                        if (key2 !== undefined && row[key2] !== undefined && row[key2] !== null) return row[key2];
+                        // 2. par label direct
+                        if (row[label] !== undefined && row[label] !== null) return row[label];
+                        // 3. cherche une clé insensible à la casse
+                        const lower = label.toLowerCase();
+                        const found = Object.keys(row).find(function (k) { return k.toLowerCase() === lower; });
+                        if (found) return row[found];
+                        return '';
+                    }
+
+                    const fullHeaders = headers.concat([HIDDEN_COL]);
+                    const wsData      = [fullHeaders];
+
                     rows.forEach(function (row) {
                         const r = headers.map(function (h) {
-                            const val = row[h] !== undefined ? row[h] : (row[cfg[key].cols && cfg[key].cols.find(c => c.label===h) ? cfg[key].cols.find(c=>c.label===h).key : h] || '');
-                            return val === null || val === undefined ? '' : String(val);
+                            const v = readVal(row, h);
+                            if (v === null || v === undefined) return '';
+                            if (v instanceof Date) return v.toISOString().slice(0, 10);
+                            return String(v);
                         });
-                        r.push(row._rowIndex || '');
+                        r.push(String(row._rowIndex || ''));
                         wsData.push(r);
                     });
 
@@ -557,13 +594,27 @@
                     while (ws['!cols'].length <= hiddenCol) ws['!cols'].push({});
                     ws['!cols'][hiddenCol] = { hidden: true };
 
-                    // Mettre les en-têtes en gras
-                    fullHeaders.forEach(function (h, i) {
-                        const cell = XL.utils.encode_cell({ r: 0, c: i });
-                        if (ws[cell]) ws[cell].s = { font: { bold: true } };
+                    // Largeurs auto + en-têtes en gras
+                    const colWidths = fullHeaders.map(function (h) { return Math.max(h.length, 10); });
+                    rows.slice(0, 20).forEach(function (row) {
+                        headers.forEach(function (h, i) {
+                            const v = String(readVal(row, h) || '');
+                            if (v.length > colWidths[i]) colWidths[i] = Math.min(v.length, 40);
+                        });
+                    });
+                    ws['!cols'] = fullHeaders.map(function (h, i) {
+                        return i === hiddenCol ? { hidden: true } : { wch: colWidths[i] };
                     });
 
                     XL.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+                    sheets++;
+                }
+
+                if (!sheets) {
+                    dlBtn.disabled = false;
+                    dlBtn.innerHTML = '<i class="ti ti-download" style="font-size:13px"></i> Télécharger';
+                    alert('Aucune donnée disponible. Assurez-vous que le dashboard est chargé avant de télécharger.');
+                    return;
                 }
 
                 const today = new Date().toISOString().slice(0, 10);
