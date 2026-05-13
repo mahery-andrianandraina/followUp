@@ -121,21 +121,25 @@
         if (!window.openMenuEdit) { setTimeout(patchOpenMenuEdit, 300); return; }
         const _orig = window.openMenuEdit;
         window.openMenuEdit = function (key) {
+            // Exposer la clé sur window AVANT l'appel original
+            // (mbEditingKey est une variable locale de app.js, on doit la dupliquer)
+            window._deleteTargetKey = key;
+
             _orig(key);
             injectDeleteUI();
 
-            // Afficher la zone de suppression uniquement pour les menus custom
+            // Stocker aussi sur le bouton delete comme fallback
+            const deleteBtn = document.getElementById('mb-delete-btn');
+            if (deleteBtn) deleteBtn.dataset.menuKey = key;
+
+            // Afficher uniquement pour les menus custom
             const deleteSection = document.getElementById('mb-delete-section');
             const confirmBox    = document.getElementById('mb-delete-confirm');
             const cfg = window.SHEET_CONFIG && window.SHEET_CONFIG[key];
             const isCustom = cfg && cfg.custom;
 
-            if (deleteSection) {
-                deleteSection.classList.toggle('visible', !!isCustom);
-            }
-            if (confirmBox) {
-                confirmBox.classList.remove('visible');
-            }
+            if (deleteSection) deleteSection.classList.toggle('visible', !!isCustom);
+            if (confirmBox)    confirmBox.classList.remove('visible');
         };
         console.log('[AW27] menuDeletePatch: openMenuEdit patché ✓');
     }
@@ -143,9 +147,16 @@
 
     // ── Afficher la confirmation ────────────────────────────────
     window.mbConfirmDelete = function () {
-        const key    = window.mbEditingKey;
+        // Lire depuis window._deleteTargetKey (exposé par le patch)
+        // ou depuis le dataset du bouton en fallback
+        const deleteBtn = document.getElementById('mb-delete-btn');
+        const key = window._deleteTargetKey
+                 || (deleteBtn && deleteBtn.dataset.menuKey)
+                 || window.mbEditingKey;
         const cfg    = window.SHEET_CONFIG && key && window.SHEET_CONFIG[key];
         const label  = cfg ? cfg.label : key;
+        // Stocker pour mbExecuteDelete
+        window._deleteTargetKey = key;
 
         const textEl = document.getElementById('mb-delete-confirm-text');
         if (textEl) {
@@ -178,8 +189,14 @@
 
     // ── Exécuter la suppression ─────────────────────────────────
     window.mbExecuteDelete = async function () {
-        const key = window.mbEditingKey;
-        if (!key) return;
+        const deleteBtn = document.getElementById('mb-delete-btn');
+        const key = window._deleteTargetKey
+                 || (deleteBtn && deleteBtn.dataset.menuKey)
+                 || window.mbEditingKey;
+        if (!key) {
+            alert('Erreur : clé du menu introuvable. Fermez et réouvrez la modale.');
+            return;
+        }
 
         const cfg   = window.SHEET_CONFIG && window.SHEET_CONFIG[key];
         const label = cfg ? cfg.label : key;
@@ -232,6 +249,7 @@
         }
 
         // 7. Fermer le menu builder
+        window._deleteTargetKey = null;
         if (typeof window.closeMenuBuilder === 'function') window.closeMenuBuilder();
 
         // 8. Toast
