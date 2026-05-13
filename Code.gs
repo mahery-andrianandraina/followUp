@@ -68,11 +68,21 @@ function doPost(e) {
 
     // ── GESTION DONNÉES (CREATE/UPDATE/DELETE) ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheetKey = payload.sheet;
-    if (!sheetKey) throw new Error("Paramètre 'sheet' manquant.");
+    let sheetKey = payload.sheet;
+    if (!sheetKey) throw new Error("Paramètre 'sheet' manquant dans le payload.");
 
-    let sheetName = (SHEET_NAMES[sheetKey] || sheetKey).trim();
+    let sheetName = (SHEET_NAMES[sheetKey] || sheetKey).toString().trim();
+    
+    // Recherche de la feuille (insensible à la casse)
     let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      const allSheets = ss.getSheets();
+      const found = allSheets.find(s => s.getName().toLowerCase() === sheetName.toLowerCase());
+      if (found) {
+        sheet = found;
+        sheetName = sheet.getName();
+      }
+    }
 
     // ── GESTION IMPORTATION EN BLOC (NOUVELLE FEUILLE) ──
     if (action === "IMPORT_ROWS") {
@@ -80,44 +90,65 @@ function doPost(e) {
         sheet = ss.insertSheet(sheetName);
       }
       const { headers, rows } = payload;
-      // Si la feuille est vide, on injecte les en-têtes
+      
+      // Si la feuille est vide, on injecte les en-têtes immédiatement
       if (sheet.getLastRow() === 0 && headers && headers.length) {
         sheet.appendRow(headers);
+        SpreadsheetApp.flush(); // Force l'écriture pour que getLastColumn soit à jour
       }
-      // On récupère les en-têtes réels pour l'alignement
-      const currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(x => String(x).trim());
-      const values = rows.map(r => currentHeaders.map(h => r[h] ?? ""));
+      
+      // Récupération des headers pour l'alignement (priorité aux headers GS s'ils existent)
+      let currentHeaders = [];
+      if (sheet.getLastColumn() > 0) {
+        currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(x => String(x).trim());
+      }
+      
+      // Si on n'a toujours pas de headers (feuille vide malgré appendRow), on utilise ceux du payload
+      const finalHeaders = (currentHeaders.length === 0 || (currentHeaders.length === 1 && !currentHeaders[0])) 
+        ? headers 
+        : currentHeaders;
+
+      if (!finalHeaders || !finalHeaders.length) throw new Error("Impossible de déterminer les en-têtes pour l'importation.");
+
+      const values = rows.map(r => finalHeaders.map(h => r[h] !== undefined && r[h] !== null ? String(r[h]) : ""));
       
       if (values.length > 0) {
-        sheet.getRange(sheet.getLastRow() + 1, 1, values.length, currentHeaders.length).setValues(values);
+        sheet.getRange(sheet.getLastRow() + 1, 1, values.length, finalHeaders.length).setValues(values);
       }
-      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok", version: "V2", action: "IMPORT_ROWS", sheet: sheetName })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Pour CREATE, on autorise aussi la création de la feuille si elle manque
+    // Pour les autres actions (CREATE/UPDATE/DELETE)
     if (!sheet && action === "CREATE") {
       sheet = ss.insertSheet(sheetName);
-      // On peut essayer d'inférer les headers depuis les clés de data
       const dataKeys = Object.keys(payload.data || {});
       if (dataKeys.length) {
         sheet.appendRow(dataKeys);
+        SpreadsheetApp.flush();
       }
     }
 
-    if (!sheet) throw new Error("Feuille '" + sheetName + "' introuvable. Veuillez vérifier que la feuille existe dans le Google Sheets.");
+    if (!sheet) {
+      throw new Error("[V2] Feuille '" + sheetName + "' introuvable dans le classeur. (ID: " + SPREADSHEET_ID + ")");
+    }
 
-    const headers = sheet.getRange(1,1,1,Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(x => String(x).trim());
+    const currentHeaders = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 1)).getValues()[0].map(x => String(x).trim());
     const { rowIndex, data } = payload;
 
-    if (action === "CREATE") sheet.appendRow(headers.map(h => data[h] ?? ""));
-    else if (action === "UPDATE") {
-      const r = sheet.getRange(rowIndex, 1, 1, headers.length);
+    if (action === "CREATE") {
+      sheet.appendRow(currentHeaders.map(h => data[h] !== undefined && data[h] !== null ? String(data[h]) : ""));
+    } else if (action === "UPDATE") {
+      if (!rowIndex || rowIndex < 2) throw new Error("Index de ligne invalide pour l'update : " + rowIndex);
+      const r = sheet.getRange(rowIndex, 1, 1, currentHeaders.length);
       const cur = r.getValues()[0];
-      const next = headers.map((h, i) => Object.prototype.hasOwnProperty.call(data, h) ? data[h] : cur[i]);
+      const next = currentHeaders.map((h, i) => Object.prototype.hasOwnProperty.call(data, h) ? String(data[h]) : cur[i]);
       r.setValues([next]);
-    } else if (action === "DELETE") sheet.deleteRow(rowIndex);
+    } else if (action === "DELETE") {
+      if (!rowIndex || rowIndex < 2) throw new Error("Index de ligne invalide pour la suppression : " + rowIndex);
+      sheet.deleteRow(rowIndex);
+    }
 
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok", version: "V2", action: action, sheet: sheetName })).setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
