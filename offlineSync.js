@@ -729,11 +729,22 @@
         Object.keys(_uploadData).forEach(function (sheetName) {
             const { headers, rows } = _uploadData[sheetName];
 
-            // Trouver la clé interne
+            // Trouver la clé interne du SHEET_CONFIG
             const cfgKey = Object.keys(cfg).find(function (k) {
                 return (cfg[k].sheetName || cfg[k].label || k).toLowerCase() === sheetName.toLowerCase();
             });
             const gsRows = cfgKey ? (allData[cfgKey] || []) : [];
+
+            // Construire labelToKey : label Excel → col.key dans state.data
+            // Essentiel pour que getDiffs lise les bonnes valeurs dans gsRow
+            const labelToKey = {};
+            if (cfgKey && cfg[cfgKey] && cfg[cfgKey].cols) {
+                cfg[cfgKey].cols.forEach(function (c) {
+                    labelToKey[c.label || c.key] = c.key;
+                });
+            } else {
+                headers.forEach(function (h) { labelToKey[h] = h; });
+            }
 
             // Construire index GS par rowIndex
             const gsByRowIdx = {};
@@ -742,7 +753,7 @@
             // Construire index GS par ID composite
             const gsByComposite = {};
             gsRows.forEach(function (r) {
-                const id = buildCompositeId(r, headers);
+                const id = buildCompositeId(r, headers, labelToKey);
                 if (id) gsByComposite[id] = r;
             });
 
@@ -750,34 +761,31 @@
             const ops = [];
 
             rows.forEach(function (localRow) {
-                const rowIdx    = localRow[HIDDEN_COL];
-                const compId    = buildCompositeId(localRow, headers);
-                let   gsRow     = null;
-                let   matchType = null;
+                const rowIdx = localRow[HIDDEN_COL];
+                const compId = buildCompositeId(localRow, headers, null); // localRow a déjà les labels comme clés
+                let   gsRow  = null;
 
                 // Chercher la ligne GS correspondante
                 if (rowIdx && gsByRowIdx[rowIdx]) {
                     gsRow = gsByRowIdx[rowIdx];
-                    matchType = 'index';
                 } else if (compId && gsByComposite[compId]) {
                     gsRow = gsByComposite[compId];
-                    matchType = 'composite';
                 }
 
                 if (!gsRow) {
                     // Nouvelle ligne
                     nNew++;
                     totalNew++;
-                    ops.push({ type: 'CREATE', sheetName, cfgKey, row: localRow, headers });
+                    ops.push({ type: 'CREATE', sheetName, cfgKey, row: localRow, headers, labelToKey });
                 } else {
-                    // Ligne existante — comparer
-                    const diffs = getDiffs(gsRow, localRow, headers);
+                    // Ligne existante — comparer avec normalisation
+                    const diffs = getDiffs(gsRow, localRow, headers, labelToKey);
                     if (!diffs.length) return; // identique, rien à faire
 
-                    // Vérifier si GS a aussi changé depuis le snapshot
-                    const snapshot     = _gsSnapshot[sheetName] || [];
-                    const snapRow      = snapshot.find(function (s) { return String(s._rowIndex || '') === String(gsRow._rowIndex || ''); });
-                    const gsChangedSince = snapRow && getDiffs(snapRow, gsRow, headers).length > 0;
+                    // Vérifier si GS a aussi changé depuis le snapshot du matin
+                    const snapshot       = _gsSnapshot[sheetName] || [];
+                    const snapRow        = snapshot.find(function (s) { return String(s._rowIndex || '') === String(gsRow._rowIndex || ''); });
+                    const gsChangedSince = snapRow && getDiffs(snapRow, gsRow, headers, labelToKey).length > 0;
 
                     if (gsChangedSince) {
                         // CONFLIT : GS ET local ont changé
@@ -785,16 +793,16 @@
                         totalConf++;
                         _conflicts.push({
                             id: Math.random().toString(36).slice(2),
-                            sheetName, cfgKey,
+                            sheetName, cfgKey, labelToKey,
                             localRow, gsRow, diffs,
                             rowIndex: gsRow._rowIndex,
                             displayId: compId || ('Ligne ' + gsRow._rowIndex)
                         });
                     } else {
-                        // Modification simple
+                        // Modification simple — seulement si diffs réels
                         nMod++;
                         totalMod++;
-                        ops.push({ type: 'UPDATE', sheetName, cfgKey, row: localRow, rowIndex: gsRow._rowIndex, headers });
+                        ops.push({ type: 'UPDATE', sheetName, cfgKey, row: localRow, rowIndex: gsRow._rowIndex, headers, labelToKey });
                     }
                 }
             });
@@ -998,23 +1006,64 @@
     // ═══════════════════════════════════════════════════════════
     //  HELPERS
     // ═══════════════════════════════════════════════════════════
-    function buildCompositeId(row, headers) {
+    function buildCompositeId(row, headers, labelToKey) {
         const parts = [];
         ID_COLS.forEach(function (col) {
-            const val = row[col];
-            if (val !== undefined && val !== null && val !== '') parts.push(String(val).trim().toUpperCase());
+            // Chercher via la clé directe, puis via labelToKey (pour les gsRows)
+            let val = row[col];
+            if ((val === undefined || val === null || val === '') && labelToKey && labelToKey[col]) {
+                val = row[labelToKey[col]];
+            }
+            if (val !== undefined && val !== null && val !== '') {
+                parts.push(String(val).trim().toUpperCase());
+            }
         });
         return parts.length >= 2 ? parts.join('||') : null;
     }
 
-    function getDiffs(gsRow, localRow, headers) {
+    // Normalise une valeur pour comparaison stable
+    // Gere : Date objects, nombres (12.50=12.5), dates (dd/mm/yyyy=yyyy-mm-dd), espaces
+    function normalizeVal(v) {
+        if (v === null || v === undefined) return '';
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        let s = String(v).trim();
+        if (!s) return '';
+        // Dates ISO yyyy-mm-dd
+        const isoDate = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoDate) return isoDate[1] + '-' + isoDate[2] + '-' + isoDate[3];
+        // Dates dd/mm/yyyy
+        const frDate = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (frDate) return frDate[3] + '-' + frDate[2] + '-' + frDate[1];
+        // Nombres : 12.50 === 12.5 === "12,50"
+        if (s.match(/^-?[\d.,]+$/)) {
+            const num = parseFloat(s.replace(',', '.'));
+            if (!isNaN(num)) return String(num);
+        }
+        return s;
+    }
+
+    // Lit une valeur dans gsRow en essayant : col.key -> label -> insensible casse
+    function readGsVal(gsRow, label, labelToKey) {
+        const key = labelToKey && labelToKey[label];
+        if (key && gsRow[key] !== undefined && gsRow[key] !== null && gsRow[key] !== '') return gsRow[key];
+        if (gsRow[label] !== undefined && gsRow[label] !== null && gsRow[label] !== '') return gsRow[label];
+        const lower = label.toLowerCase();
+        const found = Object.keys(gsRow).find(function (k) { return k.toLowerCase() === lower; });
+        return found ? gsRow[found] : '';
+    }
+
+    function getDiffs(gsRow, localRow, headers, labelToKey) {
         return headers.filter(function (h) {
             if (h === HIDDEN_COL) return false;
-            const a = String(gsRow[h] || '').trim();
-            const b = String(localRow[h] || '').trim();
+            const a = normalizeVal(readGsVal(gsRow, h, labelToKey));
+            const b = normalizeVal(localRow[h]);
             return a !== b;
         }).map(function (h) {
-            return { col: h, local: String(localRow[h] || '').trim(), remote: String(gsRow[h] || '').trim() };
+            return {
+                col:    h,
+                local:  normalizeVal(localRow[h]),
+                remote: normalizeVal(readGsVal(gsRow, h, labelToKey))
+            };
         });
     }
 
