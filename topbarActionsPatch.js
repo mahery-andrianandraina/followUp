@@ -113,59 +113,9 @@
         <path d="M20 11H9.5a4.5 4.5 0 0 0 0 9H13"/>
     </svg>`;
 
-    // ── Injecter les boutons dans header-right ──────────────────
+    // ── Injecter les boutons dans header-right (REMOVED: Moved to Settings Panel) ──
     function injectTopbarButtons() {
-        const headerRight = document.querySelector('.header-right');
-        if (!headerRight || document.getElementById('topbar-refresh-btn')) return;
-
-        // ── Bouton Actualiser ──────────────────────────────────
-        const refreshBtn = document.createElement('button');
-        refreshBtn.id        = 'topbar-refresh-btn';
-        refreshBtn.className = 'topbar-action-btn';
-        refreshBtn.title     = 'Actualiser les données';
-        refreshBtn.innerHTML =
-            ICON_REFRESH +
-            '<span class="topbar-btn-label">Actualiser</span>' +
-            '<span class="topbar-stale-dot"></span>';
-
-        refreshBtn.addEventListener('click', function () {
-            if (typeof window.fetchAllData !== 'function') return;
-            refreshBtn.classList.add('loading');
-            refreshBtn.classList.remove('stale');
-            const dot = document.getElementById('refresh-dot');
-            if (dot) dot.style.display = 'none';
-
-            const orig = window.fetchAllData;
-            // Appeler fetchAllData et retirer le spinner quand c'est fini
-            const p = window.fetchAllData();
-            if (p && typeof p.finally === 'function') {
-                p.finally(function () { refreshBtn.classList.remove('loading'); });
-            } else {
-                setTimeout(function () { refreshBtn.classList.remove('loading'); }, 3000);
-            }
-        });
-
-        // ── Séparateur ─────────────────────────────────────────
-        const divider = document.createElement('div');
-        divider.className = 'topbar-divider';
-
-        // ── Bouton Sync offline ────────────────────────────────
-        const syncBtn = document.createElement('button');
-        syncBtn.id        = 'topbar-sync-btn';
-        syncBtn.className = 'topbar-action-btn';
-        syncBtn.title     = 'Synchronisation hors connexion';
-        syncBtn.innerHTML =
-            ICON_SYNC +
-            '<span class="topbar-btn-label">Sync offline</span>';
-
-        syncBtn.addEventListener('click', function () {
-            if (typeof window.openSyncPanel === 'function') window.openSyncPanel();
-        });
-
-        // ── Insérer avant le premier enfant de header-right ───
-        headerRight.insertBefore(divider,  headerRight.firstChild);
-        headerRight.insertBefore(syncBtn,  headerRight.firstChild);
-        headerRight.insertBefore(refreshBtn, headerRight.firstChild);
+        // Obsolete
     }
 
     // ── Observer le refresh-dot original pour répercuter sur topbar ──

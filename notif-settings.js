@@ -274,182 +274,28 @@
     `;
     document.head.appendChild(css);
 
-    /* ── HTML Panel ───────────────────────────────────────────── */
-    document.body.insertAdjacentHTML('beforeend', `
-    <div id="ns-overlay">
-        <div id="ns-panel">
-
-            <div id="ns-header">
-                <div id="ns-header-icon">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0 1 18 14.158V11a6 6 0 1 0-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"/>
-                    </svg>
-                </div>
-                <div id="ns-header-text">
-                    <div id="ns-header-title">Paramètres Notifications</div>
-                    <div id="ns-header-sub">Filtrez les alertes affichées</div>
-                </div>
-                <button id="ns-close-btn" onclick="nsClose()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-
-            <!-- Master toggle -->
-            <div id="ns-master">
-                <div>
-                    <div id="ns-master-label">Activer les notifications</div>
-                    <div id="ns-master-sub">Désactivez pour masquer toutes les alertes</div>
-                </div>
-                <label class="ns-toggle">
-                    <input type="checkbox" id="ns-toggle-main" onchange="nsToggleMain(this.checked)" checked/>
-                    <div class="ns-toggle-track"></div>
-                </label>
-            </div>
-
-            <!-- Body -->
-            <div id="ns-body">
-
-                <!-- Urgence -->
-                <div class="ns-section">
-                    <div class="ns-section-header">
-                        <div class="ns-section-title">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            Urgence
-                        </div>
-                        <button class="ns-select-all" onclick="nsToggleAll('urgencies', ['high','mid','low'])">Tout</button>
-                    </div>
-                    <div class="ns-chips" id="ns-chips-urgency">
-                        <div class="ns-chip urg-high active" data-group="urgencies" data-val="high" onclick="nsChipToggle(this)">
-                            🔴 Critique
-                        </div>
-                        <div class="ns-chip urg-mid active" data-group="urgencies" data-val="mid" onclick="nsChipToggle(this)">
-                            🟡 Moyen
-                        </div>
-                        <div class="ns-chip urg-low active" data-group="urgencies" data-val="low" onclick="nsChipToggle(this)">
-                            ⚪ Faible
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ns-sep"></div>
-
-                <!-- Type d'alerte -->
-                <div class="ns-section">
-                    <div class="ns-section-header">
-                        <div class="ns-section-title">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                            Type d'alerte
-                        </div>
-                        <button class="ns-select-all" onclick="nsToggleAll('dotTypes', ['dot-late','dot-today','dot-send','dot-approve','dot-nopo','dot-risk'])">Tout</button>
-                    </div>
-                    <div class="ns-chips">
-                        <div class="ns-chip type-active-late active" data-group="dotTypes" data-val="dot-late" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#FF6B6B"></span>En retard
-                        </div>
-                        <div class="ns-chip type-active-today active" data-group="dotTypes" data-val="dot-today" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#FFD600"></span>Aujourd'hui
-                        </div>
-                        <div class="ns-chip type-active-send active" data-group="dotTypes" data-val="dot-send" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#22C55E"></span>À envoyer
-                        </div>
-                        <div class="ns-chip type-active-approve active" data-group="dotTypes" data-val="dot-approve" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#3B82F6"></span>Approval
-                        </div>
-                        <div class="ns-chip type-active-nopo active" data-group="dotTypes" data-val="dot-nopo" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#D946EF"></span>Info manquante
-                        </div>
-                        <div class="ns-chip type-active-risk active" data-group="dotTypes" data-val="dot-risk" onclick="nsChipToggle(this)">
-                            <span class="ns-chip-dot" style="background:#EAB308"></span>À risque
-                        </div>
-                    </div>
-                </div>
-
-                <div class="ns-sep"></div>
-
-                <!-- Clients -->
-                <div class="ns-section">
-                    <div class="ns-section-header">
-                        <div class="ns-section-title">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Clients
-                        </div>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <span id="ns-count-clients" class="ns-section-count"></span>
-                            <button class="ns-select-all" onclick="nsSelectAllClients()">Tout</button>
-                        </div>
-                    </div>
-                    <div class="ns-chips" id="ns-chips-clients">
-                        <div class="ns-empty">Chargement…</div>
-                    </div>
-                </div>
-
-                <div class="ns-sep"></div>
-
-                <!-- Saisons -->
-                <div class="ns-section">
-                    <div class="ns-section-header">
-                        <div class="ns-section-title">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                            Saisons
-                        </div>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <span id="ns-count-saisons" class="ns-section-count"></span>
-                            <button class="ns-select-all" onclick="nsSelectAllSaisons()">Tout</button>
-                        </div>
-                    </div>
-                    <div class="ns-chips" id="ns-chips-saisons">
-                        <div class="ns-empty">Chargement…</div>
-                    </div>
-                </div>
-
-                <div class="ns-sep"></div>
-
-                <!-- Menus source -->
-                <div class="ns-section">
-                    <div class="ns-section-header">
-                        <div class="ns-section-title">
-                            <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                            Menus source
-                        </div>
-                        <div style="display:flex;gap:8px;align-items:center;">
-                            <span id="ns-count-sheets" class="ns-section-count"></span>
-                            <button class="ns-select-all" onclick="nsSelectAllSheets()">Tout</button>
-                        </div>
-                    </div>
-                    <div class="ns-chips" id="ns-chips-sheets">
-                        <div class="ns-empty">Chargement…</div>
-                    </div>
-                </div>
-
-            </div><!-- /#ns-body -->
-
-            <div id="ns-footer">
-                <button id="ns-reset-btn" onclick="nsReset()">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    Réinitialiser
-                </button>
-                <div id="ns-active-count"></div>
-            </div>
-
-        </div>
-    </div>
-    `);
+    /* ── HTML Panel (REMOVED: Now handled by settings-panel.js) ───────────────────────────────────────────── */
 
     /* ── Open / Close ─────────────────────────────────────────── */
     window.nsOpen = function () {
         _nsPopulateRetries = 0;
         nsPopulateChips();
         nsSync();
-        document.getElementById('ns-overlay').classList.add('open');
+        const overlay = document.getElementById('ns-overlay') || document.getElementById('settings-overlay');
+        if(overlay) overlay.classList.add('open');
     };
 
     window.nsClose = function () {
-        document.getElementById('ns-overlay').classList.remove('open');
+        const overlay = document.getElementById('ns-overlay') || document.getElementById('settings-overlay');
+        if(overlay) overlay.classList.remove('open');
     };
 
-    document.getElementById('ns-overlay').addEventListener('click', function (e) {
-        if (e.target === this) nsClose();
-    });
+    const overlay = document.getElementById('ns-overlay') || document.getElementById('settings-overlay');
+    if(overlay) {
+        overlay.addEventListener('click', function (e) {
+            if (e.target === this) nsClose();
+        });
+    }
 
     /* ── Populate dynamic chips ───────────────────────────────── */
     let _nsPopulateRetries = 0;
@@ -706,32 +552,10 @@
         nsUpdateFooter();
     }
 
-    /* ── Inject settings button in notif header ───────────────── */
+    /* ── Inject settings button in notif header (REMOVED for unified settings) ───────────────── */
     function injectSettingsButton() {
-        const btn = document.getElementById('btn-notif-global');
-        if (!btn) { setTimeout(injectSettingsButton, 500); return; }
-        if (document.getElementById('btn-notif-settings')) return;
-
-        const settingsBtn = document.createElement('button');
-        settingsBtn.id = 'btn-notif-settings';
-        settingsBtn.title = 'Paramètres des notifications';
-        settingsBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>`;
-        settingsBtn.onclick = function (e) {
-            e.stopPropagation();
-            nsOpen();
-        };
-
-        // Insert before the notif button in header-right
-        const headerRight = document.querySelector('.header-right');
-        if (headerRight) {
-            headerRight.insertBefore(settingsBtn, btn);
-        }
+        // Obsolete
     }
-    injectSettingsButton();
 
     /* ── Also inject a shortcut button inside the GND panel ─────
        Adds a ⚙ settings link in the gnd-header-actions area      */
@@ -756,7 +580,11 @@
             Filtres`;
         shortcut.onclick = function (e) {
             e.stopPropagation();
-            nsOpen();
+            if (typeof window.openSettingsPanel === 'function') {
+                window.openSettingsPanel();
+            } else {
+                nsOpen();
+            }
         };
 
         headerActions.insertBefore(shortcut, headerActions.firstChild);
