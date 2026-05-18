@@ -181,12 +181,19 @@
     #topbar-settings-btn:hover { background: rgba(255,255,255,0.24); }
     #topbar-settings-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
-    /* Masquer les anciens boutons/éléments remplacés */
+    /* Masquer les doublons créés par topbarActionsPatch.js */
     .user-badge,
     #btn-notif-settings,
     #btn-offline-sync,
-    #btn-xl-import {
+    #btn-xl-import,
+    #topbar-refresh-btn,
+    #topbar-sync-btn {
         display: none !important;
+    }
+
+    /* Bouton notifications — toujours visible et fonctionnel */
+    #btn-notif-global {
+        display: flex !important;
     }
     `;
     document.head.appendChild(css);
@@ -466,6 +473,14 @@
     function injectTopbarSettingsBtn() {
         const headerRight = document.querySelector('.header-right');
         if (!headerRight || document.getElementById('topbar-settings-btn')) return;
+
+        // Supprimer les boutons injectés par topbarActionsPatch.js s'ils existent
+        ['topbar-refresh-btn','topbar-sync-btn'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.remove();
+        });
+        // Supprimer aussi le séparateur topbar-divider s'il existe
+        document.querySelectorAll('.topbar-divider').forEach(function(el) { el.remove(); });
 
         const btn = document.createElement('button');
         btn.id        = 'topbar-settings-btn';
