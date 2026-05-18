@@ -1,554 +1,1373 @@
-// ============================================================
-//  AW27 CHECKERS — Settings Panel (Paramètres unifiés)
-//  Regroupe : Compte, GAS URL, Sync offline, Import Excel,
-//             Notifications, Menus custom
-//  Inclure après tous les autres scripts dans index.html :
-//    <script src="settingsPanel.js"></script>
-// ============================================================
+<!DOCTYPE html>
+<html lang="fr">
 
-(function () {
-    'use strict';
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Dashboard de suivi des commandes AW27 – SOCOTA Checkers" />
+    <title>AW27 CHECKERS – Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="color-tags.css">
+    <script src="chat.js"></script>
+    <script src="save-loader-patch.js"></script>
+    <style>
+        /* Forcer un layout CSS Flex 100vh strict pour garder le scroll DANS les composants */
+        .layout-body {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            overflow: hidden !important;
+        }
 
-    // ═══════════════════════════════════════════════════════════
-    //  CSS
-    // ═══════════════════════════════════════════════════════════
-    const css = document.createElement('style');
-    css.id = 'settings-panel-styles';
-    css.textContent = `
-    /* ── Overlay ── */
-    #sp-overlay {
-        position: fixed; inset: 0; z-index: 13000;
-        background: rgba(15,23,42,0.5);
-        backdrop-filter: blur(4px);
-        display: none; align-items: flex-start; justify-content: flex-end;
-        padding: 56px 12px 0 0;
-    }
-    #sp-overlay.open { display: flex; }
+        main.main {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 !important;
+            overflow: hidden !important;
+            min-height: 0 !important;
+            padding-bottom: 1.5rem !important;
+        }
 
-    /* ── Panel ── */
-    #sp-panel {
-        width: 340px;
-        background: var(--color-background-primary, #fff);
-        border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-        border-radius: 16px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.08);
-        display: flex; flex-direction: column;
-        overflow: hidden;
-        font-family: 'Inter', sans-serif;
-        max-height: calc(100vh - 70px);
-        animation: sp-in .2s cubic-bezier(.34,1.56,.64,1);
-    }
-    @keyframes sp-in {
-        from { opacity:0; transform: translateY(-10px) scale(0.97); }
-        to   { opacity:1; transform: none; }
-    }
+        /* Dashboard : scroll vertical complet, cards jamais coupées */
+        #dashboard-screen {
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            min-height: 0;
+        }
 
-    /* ── Header profil ── */
-    #sp-profile {
-        padding: 16px 16px 14px;
-        border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-        display: flex; align-items: center; gap: 11px;
-        background: var(--color-background-secondary, #f9fafb);
-    }
-    #sp-avatar {
-        width: 40px; height: 40px; border-radius: 50%;
-        background: #e0f2fe; border: 2px solid #bae6fd;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 14px; font-weight: 700; color: #0284c7;
-        flex-shrink: 0; overflow: hidden;
-    }
-    #sp-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    #sp-user-name  { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #111827); }
-    #sp-user-email { font-size: 11px; color: var(--color-text-secondary, #6b7280); margin-top: 1px; }
-    #sp-close {
-        margin-left: auto; width: 26px; height: 26px;
-        border-radius: 7px; border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-        background: transparent; color: var(--color-text-secondary, #9ca3af);
-        cursor: pointer; display: flex; align-items: center; justify-content: center;
-        font-size: 13px; flex-shrink: 0; transition: all .15s;
-    }
-    #sp-close:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+        /* Blocs conteneurs : hauteur auto, jamais contrainte */
+        .dbs-szn-block,
+        .dbs-cli-block,
+        .dbs-main,
+        .dbs-dept-grp,
+        .dbs-cards-wrap {
+            overflow: visible !important;
+            height: auto !important;
+            max-height: none !important;
+        }
 
-    /* ── Scrollable body ── */
-    #sp-body {
-        flex: 1; overflow-y: auto; padding: 8px 0;
-    }
-    #sp-body::-webkit-scrollbar { width: 3px; }
-    #sp-body::-webkit-scrollbar-thumb { background: var(--color-border-secondary, #d1d5db); border-radius: 3px; }
+        /* Card individuelle : contenu visible + border-radius préservé */
+        .dbs-sc {
+            overflow: hidden !important;
+            height: auto !important;
+            max-height: none !important;
+        }
 
-    /* ── Section label ── */
-    .sp-section-label {
-        padding: 10px 16px 4px;
-        font-size: 10px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .08em; color: var(--color-text-secondary, #9ca3af);
-    }
+        /* Table CSS : elle occupe le reste et scrolle elle-même */
+        #table-card-wrap {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
 
-    /* ── Item ── */
-    .sp-item {
-        display: flex; align-items: center; gap: 11px;
-        padding: 9px 16px; cursor: pointer;
-        transition: background .12s;
-        border: none; background: transparent;
-        width: 100%; text-align: left; font-family: inherit;
-    }
-    .sp-item:hover { background: var(--color-background-secondary, #f3f4f6); }
-    .sp-item-icon {
-        width: 32px; height: 32px; border-radius: 8px;
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0;
-    }
-    .sp-item-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-    .sp-item-body { flex: 1; min-width: 0; }
-    .sp-item-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary, #111827); }
-    .sp-item-sub   { font-size: 11px; color: var(--color-text-secondary, #6b7280); margin-top: 1px; }
-    .sp-item-arrow { color: var(--color-text-secondary, #d1d5db); flex-shrink: 0; }
-    .sp-item-arrow svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
-    .sp-item-badge {
-        font-size: 10px; font-weight: 700; padding: 2px 7px;
-        border-radius: 20px; flex-shrink: 0;
-    }
+        .table-wrap {
+            flex: 1;
+            overflow: auto;
+        }
 
-    /* icon color variants */
-    .sp-ic-blue   { background: #e0f2fe; color: #0284c7; }
-    .sp-ic-green  { background: #dcfce7; color: #16a34a; }
-    .sp-ic-purple { background: #ede9fe; color: #7c3aed; }
-    .sp-ic-amber  { background: #fef3c7; color: #d97706; }
-    .sp-ic-indigo { background: #e0e7ff; color: #4f46e5; }
-    .sp-ic-red    { background: #fee2e2; color: #dc2626; }
-    .sp-ic-slate  { background: #f1f5f9; color: #475569; }
+        /* Fond dégradé bleu */
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #0284c7 50%, #6366f1 100%) !important;
+            background-attachment: fixed !important;
+            min-height: 100vh !important;
+        }
 
-    /* badge variants */
-    .sp-badge-red  { background: #fee2e2; color: #dc2626; }
-    .sp-badge-blue { background: #e0f2fe; color: #0284c7; }
-    .sp-badge-gray { background: #f1f5f9; color: #6b7280; }
+        /* Sidebar glassmorphism */
+        .sidebar {
+            background: rgba(2, 132, 199, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+            color: #f1f5f9 !important;
+        }
 
-    /* ── GAS URL inline section ── */
-    #sp-gas-section {
-        display: none;
-        padding: 0 16px 12px;
-        border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-    }
-    #sp-gas-section.open { display: block; }
-    #sp-gas-input {
-        width: 100%; padding: 7px 10px;
-        border: 1.5px solid var(--color-border-secondary, #d1d5db);
-        border-radius: 7px; font-size: 11px; font-family: monospace;
-        color: var(--color-text-primary, #111827);
-        background: var(--color-background-secondary, #f9fafb);
-        outline: none; transition: border-color .15s; margin-bottom: 7px;
-    }
-    #sp-gas-input:focus { border-color: #0284c7; background: #fff; }
-    #sp-gas-save {
-        width: 100%; padding: 7px; border-radius: 7px; border: none;
-        background: #0284c7; color: #fff; font-size: 12px; font-weight: 600;
-        cursor: pointer; font-family: inherit; transition: background .15s;
-    }
-    #sp-gas-save:hover { background: #0369a1; }
+        /* Tous les textes dans la sidebar */
+        .sidebar *,
+        .sidebar-brand-name,
+        .sidebar-brand-sub,
+        .sidebar-section-label,
+        .nav-label,
+        .nav-item {
+            color: #f1f5f9 !important;
+        }
 
-    /* ── Separator ── */
-    .sp-sep {
-        height: 0.5px;
-        background: var(--color-border-tertiary, #e5e7eb);
-        margin: 4px 0;
-    }
+        /* Header glassmorphism */
+        .topbar,
+        .header,
+        header {
+            background: rgba(2, 132, 199, 0.25) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.18) !important;
+            color: #f1f5f9 !important;
+        }
 
-    /* ── Footer déconnexion ── */
-    #sp-footer {
-        padding: 8px 16px 12px;
-        border-top: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-    }
-    #sp-signout {
-        width: 100%; padding: 8px; border-radius: 8px;
-        border: 1px solid #fecaca; background: #fff5f5;
-        color: #dc2626; font-size: 12px; font-weight: 600;
-        cursor: pointer; font-family: inherit;
-        display: flex; align-items: center; justify-content: center; gap: 6px;
-        transition: background .15s;
-    }
-    #sp-signout:hover { background: #fee2e2; }
-    #sp-signout svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+        .topbar *,
+        .header *,
+        header * {
+            color: #f1f5f9 !important;
+        }
 
-    /* ── Topbar settings button ── */
-    #topbar-settings-btn {
-        display: flex; align-items: center; justify-content: center;
-        height: 34px; width: 34px; border-radius: 8px;
-        border: 1px solid rgba(255,255,255,0.22);
-        background: rgba(255,255,255,0.12);
-        color: #fff; cursor: pointer; flex-shrink: 0;
-        transition: background .15s;
-        position: relative;
-    }
-    #topbar-settings-btn:hover { background: rgba(255,255,255,0.24); }
-    #topbar-settings-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+        /* Bouton notification */
+        .btn-notif-global {
+            background: rgba(255, 255, 255, 0.15) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            border-radius: 8px !important;
+            color: #ffffff !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            position: relative !important;
+        }
 
-    /* Masquer tous les doublons et anciens boutons */
-    .user-badge,
-    #btn-notif-settings,
-    #btn-offline-sync,
-    #btn-xl-import,
-    #topbar-refresh-btn,
-    #topbar-sync-btn,
-    #topbar-export-btn,
-    #topbar-import-btn,
-    .topbar-divider,
-    .topbar-action-btn {
-        display: none !important;
-    }
+        .btn-notif-global svg {
+            stroke: #ffffff !important;
+        }
 
-    /* Bouton notifications — toujours visible et fonctionnel */
-    #btn-notif-global {
-        display: flex !important;
-        pointer-events: all !important;
-    }
+        .notif-global-badge {
+            background: #ef4444 !important;
+            color: #ffffff !important;
+        }
 
-    /* S'assurer que le panel settings n'interfère pas avec la cloche */
-    #btn-notif-global * {
-        pointer-events: none;
-    }
-    `;
-    document.head.appendChild(css);
+        /* Header right alignement */
+        .header-right {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+        }
 
-    // ═══════════════════════════════════════════════════════════
-    //  HTML
-    // ═══════════════════════════════════════════════════════════
-    document.body.insertAdjacentHTML('beforeend', `
-    <div id="sp-overlay">
-      <div id="sp-panel">
+        /* Filtres dashboard - texte visible */
+        .db-filter-search,
+        .db-filter-select,
+        .db-filter-reset,
+        #db-search,
+        #db-client-filter,
+        #db-saison-filter {
+            color: #0f172a !important;
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1px solid rgba(255, 255, 255, 0.5) !important;
+        }
 
-        <!-- Profil -->
-        <div id="sp-profile">
-          <div id="sp-avatar">?</div>
-          <div>
-            <div id="sp-user-name">—</div>
-            <div id="sp-user-email">—</div>
-          </div>
-          <button id="sp-close" title="Fermer">✕</button>
+        .db-filter-search::placeholder {
+            color: #64748b !important;
+        }
+
+        /* User avatar */
+        .user-avatar,
+        .avatar {
+            border: 2px solid rgba(255, 255, 255, 0.4) !important;
+        }
+    </style>
+
+  <!-- Firebase SDK (chat widget) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+  /* ══════════════════════════════════════════
+     CHAT WIDGET
+  ══════════════════════════════════════════ */
+  #chat-fab {
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    color: #fff;
+    width: 36px; height: 36px;
+    cursor: pointer;
+    position: relative;
+    transition: background .15s;
+  }
+  #chat-fab:hover { background: rgba(255,255,255,0.25); }
+  #chat-fab svg { width: 17px; height: 17px; fill: white; }
+  #chat-fab-badge {
+    position: absolute; top: -5px; right: -5px;
+    background: #ef4444; color: #fff;
+    font-size: 9px; font-weight: 700;
+    min-width: 16px; height: 16px; border-radius: 8px;
+    padding: 0 3px; display: none;
+    align-items: center; justify-content: center;
+    border: 1.5px solid rgba(15,23,42,0.8);
+  }
+  #chat-popup {
+    position: fixed;
+    bottom: 60px; right: 16px;
+    width: 340px; height: 500px;
+    background: rgba(15,23,42,0.95);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 16px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.55);
+    display: none; flex-direction: column;
+    z-index: 9998; overflow: hidden;
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+    transition: opacity .18s, transform .18s;
+  }
+  #chat-popup.open {
+    display: flex; opacity: 1; transform: translateY(0) scale(1);
+  }
+  /* Header popup */
+  #cp-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 11px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.09);
+    background: rgba(2,132,199,0.18);
+    flex-shrink: 0;
+  }
+  #cp-header h3 { flex:1; color:#f1f5f9; font-size:.9rem; font-weight:600; margin:0; }
+  .cp-btn-icon {
+    background:none; border:none; cursor:pointer; color:#94a3b8;
+    padding:4px; border-radius:6px;
+    display:flex; align-items:center; justify-content:center;
+    transition:color .15s, background .15s;
+  }
+  .cp-btn-icon:hover { color:#f1f5f9; background:rgba(255,255,255,0.08); }
+  .cp-btn-icon svg { width:15px; height:15px; fill:currentColor; }
+  /* Vues */
+  #cp-view-list { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+  #cp-view-chat { display:none; flex-direction:column; flex:1; overflow:hidden; }
+  /* Barre recherche */
+  #cp-search-bar {
+    display:flex; align-items:center; gap:7px;
+    padding:9px 11px; border-bottom:1px solid rgba(255,255,255,0.07);
+    flex-shrink:0;
+  }
+  #cp-search-bar input {
+    flex:1; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.11); border-radius:7px;
+    padding:5px 9px; color:#f1f5f9; font-size:.8rem; outline:none;
+  }
+  #cp-search-bar input::placeholder { color:#475569; }
+  #cp-search-bar input:focus { border-color:rgba(2,132,199,0.55); }
+  #cp-new-dm-btn {
+    background:rgba(2,132,199,0.22); border:1px solid rgba(2,132,199,0.38);
+    border-radius:7px; color:#7dd3fc; padding:5px 9px; cursor:pointer;
+    font-size:16px; line-height:1; transition:background .15s;
+  }
+  #cp-new-dm-btn:hover { background:rgba(2,132,199,0.38); }
+  /* Liste convs */
+  #cp-conv-list { flex:1; overflow-y:auto; padding:5px 7px; }
+  #cp-conv-list::-webkit-scrollbar { width:3px; }
+  #cp-conv-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  .cp-conv-item {
+    display:flex; align-items:center; gap:9px;
+    padding:8px 9px; border-radius:9px; cursor:pointer; transition:background .15s;
+  }
+  .cp-conv-item:hover { background:rgba(255,255,255,0.07); }
+  .cp-conv-item.active { background:rgba(2,132,199,0.2); }
+  .cp-avatar {
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(99,102,241,0.3); color:#c7d2fe;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.72rem; font-weight:700; flex-shrink:0; position:relative;
+  }
+  .cp-online-dot {
+    position:absolute; bottom:0; right:0;
+    width:8px; height:8px; border-radius:50%;
+    background:#22c55e; border:1.5px solid #0f172a;
+  }
+  .cp-conv-info { flex:1; min-width:0; }
+  .cp-conv-name { font-size:.85rem; font-weight:500; color:#f1f5f9; }
+  .cp-conv-preview { font-size:.73rem; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cp-conv-meta { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+  .cp-conv-time { font-size:.66rem; color:#475569; }
+  .cp-unread-badge {
+    background:#0284c7; color:#fff; font-size:.63rem; font-weight:700;
+    border-radius:7px; padding:1px 5px; min-width:15px; text-align:center;
+  }
+  .cp-empty { color:#475569; font-size:.8rem; text-align:center; padding:20px 14px; line-height:1.5; }
+  /* Panel nouveau DM */
+  #cp-user-panel {
+    position:absolute; bottom:0; left:0; right:0;
+    background:rgba(10,18,35,0.98);
+    border-top:1px solid rgba(255,255,255,0.11);
+    border-radius:0 0 16px 16px;
+    padding:11px; max-height:70%; display:none;
+    flex-direction:column; gap:7px; z-index:10;
+  }
+  #cp-user-panel.open { display:flex; }
+  #cp-user-panel-title { color:#94a3b8; font-size:.74rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
+  #cp-user-search {
+    background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.11);
+    border-radius:7px; padding:6px 10px; color:#f1f5f9;
+    font-size:.8rem; outline:none; width:100%;
+  }
+  #cp-user-search::placeholder { color:#475569; }
+  #cp-user-list { overflow-y:auto; max-height:170px; display:flex; flex-direction:column; gap:1px; }
+  #cp-user-list::-webkit-scrollbar { width:3px; }
+  #cp-user-list::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.1); border-radius:3px; }
+  .cp-user-item {
+    display:flex; align-items:center; gap:9px;
+    padding:6px 8px; border-radius:7px; cursor:pointer; transition:background .15s;
+  }
+  .cp-user-item:hover { background:rgba(255,255,255,0.07); }
+  .cp-user-name { font-size:.83rem; color:#f1f5f9; font-weight:500; }
+  .cp-user-email { font-size:.71rem; color:#64748b; }
+  /* Chat actif */
+  #cp-chat-header {
+    display:flex; align-items:center; gap:9px;
+    padding:10px 13px; border-bottom:1px solid rgba(255,255,255,0.08);
+    background:rgba(2,132,199,0.1); flex-shrink:0;
+  }
+  #cp-chat-name { color:#f1f5f9; font-size:.87rem; font-weight:600; }
+  #cp-chat-status { font-size:.7rem; color:#64748b; }
+  #cp-messages { flex:1; overflow-y:auto; padding:11px; display:flex; flex-direction:column; gap:5px; }
+  #cp-messages::-webkit-scrollbar { width:3px; }
+  #cp-messages::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.08); border-radius:3px; }
+  .cp-msg { display:flex; flex-direction:column; max-width:80%; }
+  .cp-msg.own { align-items:flex-end; align-self:flex-end; }
+  .cp-msg.other { align-items:flex-start; align-self:flex-start; }
+  .cp-bubble {
+    padding:6px 11px; border-radius:13px;
+    font-size:.83rem; line-height:1.45; word-break:break-word;
+  }
+  .cp-msg.own .cp-bubble { background:#0284c7; color:#fff; border-bottom-right-radius:3px; }
+  .cp-msg.other .cp-bubble {
+    background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.1);
+    color:#e2e8f0; border-bottom-left-radius:3px;
+  }
+  .cp-msg-time { font-size:.63rem; color:#475569; margin-top:2px; padding:0 3px; }
+  #cp-input-bar {
+    display:flex; align-items:flex-end; gap:7px;
+    padding:9px 11px; border-top:1px solid rgba(255,255,255,0.08);
+    background:rgba(255,255,255,0.02); flex-shrink:0;
+  }
+  #cp-msg-input {
+    flex:1; background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.11); border-radius:9px;
+    padding:7px 11px; color:#f1f5f9; font-size:.83rem;
+    outline:none; resize:none; max-height:72px; font-family:inherit; line-height:1.4;
+  }
+  #cp-msg-input::placeholder { color:#475569; }
+  #cp-msg-input:focus { border-color:rgba(2,132,199,0.5); }
+  #cp-send-btn {
+    width:32px; height:32px; border-radius:8px;
+    background:#0284c7; border:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    transition:opacity .15s;
+  }
+  #cp-send-btn:hover { opacity:.85; }
+  #cp-send-btn svg { width:15px; height:15px; fill:white; }
+  </style>
+
+</head>
+
+<body>
+
+    <!-- ═══════════════════════════════════════ SIDEBAR ═════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+        <!-- Sidebar Header -->
+        <div class="sidebar-header">
+            <div class="sidebar-brand">
+                <div class="header-logo">AW</div>
+                <div class="sidebar-brand-text">
+                    <span class="sidebar-brand-name">AW27</span>
+                    <span class="sidebar-brand-sub">CHECKERS</span>
+                </div>
+            </div>
+            <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" title="Réduire le menu">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16"
+                    height="16">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+            </button>
         </div>
 
-        <div id="sp-body">
+        <!-- Nav Items -->
+        <nav class="sidebar-nav" role="tablist">
+            <div class="sidebar-section-label">Navigation</div>
 
-          <!-- SECTION : Données -->
-          <div class="sp-section-label">Données</div>
+            <button class="nav-item active" data-view="dashboard" role="tab" aria-selected="true" id="tab-dashboard">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                    </svg>
+                </span>
+                <span class="nav-label">Dashboard</span>
+            </button>
 
-          <!-- GAS URL -->
-          <button class="sp-item" id="sp-item-gas" onclick="spToggleGas()">
-            <div class="sp-item-icon sp-ic-blue">
-              <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Google Apps Script URL</div>
-              <div class="sp-item-sub" id="sp-gas-sub">Connecteur de données</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
+            <button class="nav-item" data-sheet="details" role="tab" aria-selected="false" id="tab-details">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                </span>
+                <span class="nav-label">Details</span>
+                <span class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit('details')" title="Modifier">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </span>
+            </button>
 
-          <!-- GAS URL inline editor -->
-          <div id="sp-gas-section">
-            <input id="sp-gas-input" type="url" placeholder="https://script.google.com/macros/s/…/exec"/>
-            <button id="sp-gas-save" onclick="spSaveGas()">Enregistrer et recharger</button>
-          </div>
+            <button class="nav-item" data-sheet="sample" role="tab" aria-selected="false" id="tab-sample">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                    </svg>
+                </span>
+                <span class="nav-label">Sample</span>
+                <span class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit('sample')" title="Modifier">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </span>
+            </button>
 
-          <!-- Sync offline — Download -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncDownload==='function')openSyncDownload();},150)">
-            <div class="sp-item-icon sp-ic-green">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Télécharger GS → Excel</div>
-              <div class="sp-item-sub">Export offline du matin</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
+            <button class="nav-item" data-sheet="ordering" role="tab" aria-selected="false" id="tab-ordering">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 9H4L5 9z" />
+                    </svg>
+                </span>
+                <span class="nav-label">Ordering</span>
+                <span class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit('ordering')" title="Modifier">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </span>
+            </button>
+            <div class="sidebar-section-label" style="margin-top:0.75rem">Menus perso</div>
+            <div id="custom-nav-items"></div>
+            <button class="nav-item nav-item-add" onclick="openMenuBuilder()" id="btn-add-menu">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                </span>
+                <span class="nav-label">Ajouter menu</span>
+            </button>
+            <div class="sidebar-section-label" style="margin-top:0.75rem">Système</div>
+            <button class="nav-item" onclick="openSettingsPanel()" id="btn-settings">
+                <span class="nav-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </span>
+                <span class="nav-label">Paramètres</span>
+            </button>
+        </nav>
 
-          <!-- Sync offline — Upload -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncUpload==='function')openSyncUpload();},150)">
-            <div class="sp-item-icon sp-ic-blue">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Uploader Excel → GS</div>
-              <div class="sp-item-sub">Synchroniser les modifications du soir</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-          <!-- Import Excel -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openXlImport==='function')openXlImport();},150)">
-            <div class="sp-item-icon sp-ic-indigo">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Import Excel</div>
-              <div class="sp-item-sub">Importer un fichier vers Google Sheets</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-          <div class="sp-sep"></div>
-
-          <!-- SECTION : Interface -->
-          <div class="sp-section-label">Interface</div>
-
-          <!-- Notifications -->
-          <button class="sp-item" id="sp-item-notif" onclick="spClose();setTimeout(function(){if(typeof nsOpen==='function')nsOpen();},150)">
-            <div class="sp-item-icon sp-ic-amber">
-              <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Filtres notifications</div>
-              <div class="sp-item-sub">Clients, urgences, types d'alertes</div>
-            </div>
-            <span class="sp-item-badge sp-badge-red" id="sp-notif-badge" style="display:none">0</span>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-          <!-- Menus custom -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openMenuBuilder==='function')openMenuBuilder();},150)">
-            <div class="sp-item-icon sp-ic-purple">
-              <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Créer un menu</div>
-              <div class="sp-item-sub" id="sp-menus-sub">Ajouter une feuille personnalisée</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-          <div class="sp-sep"></div>
-
-          <!-- SECTION : Actions rapides -->
-          <div class="sp-section-label">Actions</div>
-
-          <!-- Actualiser -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof fetchAllData==='function')fetchAllData();},150)">
-            <div class="sp-item-icon sp-ic-slate">
-              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Actualiser les données</div>
-              <div class="sp-item-sub" id="sp-refresh-sub">Synchroniser depuis Google Sheets</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-          <!-- Export Excel -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof exportExcel==='function')exportExcel();},150)">
-            <div class="sp-item-icon sp-ic-green">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Exporter Excel</div>
-              <div class="sp-item-sub">Télécharger la vue actuelle</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
-
-        </div><!-- /#sp-body -->
-
-        <!-- Footer déconnexion -->
-        <div id="sp-footer">
-          <button id="sp-signout" onclick="spSignOut()">
-            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Se déconnecter
-          </button>
+        <!-- Sidebar Footer Actions -->
+        <div class="sidebar-footer">
+            <!-- Content moved to settings -->
         </div>
+    </aside>
 
-      </div>
+    <!-- ═══════════════════════════════════════ LAYOUT WRAPPER ════════════════════════════════ -->
+    <div class="layout-body" id="layout-body">
+
+        <!-- ═══════════════════════════════════════ HEADER ═══════════════════════════════════════ -->
+        <header class="header">
+            <div class="header-left">
+                <!-- Hamburger (visible when collapsed) -->
+                <button class="hamburger" id="hamburger" onclick="toggleSidebar()" title="Ouvrir le menu">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <div class="header-title-wrap">
+                    <div class="header-title">
+                        <h1 id="header-sheet-title">Tableau de Bord</h1>
+                        <p>Suivi &amp; Gestion des Commandes</p>
+                    </div>
+                    <!-- ═══ DASHBOARD FILTER BAR (sous le titre) ══════ -->
+                    <div class="db-filter-bar" id="db-filter-bar">
+                        <div class="db-filter-search-wrap">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" width="15" height="15">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input class="db-filter-search" type="search" id="db-search"
+                                placeholder="Rechercher un style, client…" aria-label="Rechercher dans le dashboard" />
+                        </div>
+                        <select class="db-filter-select" id="db-client-filter" aria-label="Filtrer par client">
+                            <option value="">Tous les clients</option>
+                        </select>
+                        <select class="db-filter-select" id="db-saison-filter" aria-label="Filtrer par saison">
+                            <option value="">Toutes les saisons</option>
+                        </select>
+                        <button class="db-filter-reset" id="db-filter-reset" onclick="resetDashboardFilters()"
+                            title="Réinitialiser les filtres">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor" width="13" height="13">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="chat-fab" onclick="cpToggle()" title="Messagerie">
+                  <span id="chat-fab-badge"></span>
+                  <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+                </button>
+                <button class="btn-notif-global" id="btn-notif-global" onclick="openGlobalNotifDrawer()"
+                    title="Alertes globales" style="display:none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="17" height="17">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="notif-global-badge" id="notif-global-badge">0</span>
+                </button>
+                <button class="topbar-action-btn" id="btn-topbar-settings" onclick="openSettingsPanel()" title="Paramètres">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+                <button class="btn-header" onclick="openAddModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Ajouter
+                </button>
+            </div>
+        </header>
+
+        <!-- ═══════════════════════════════════════ MAIN ════════════════════════════════════════ -->
+        <main class="main">
+
+            <!-- ═══ DASHBOARD SCREEN ═══════════════════════════════ -->
+            <div id="dashboard-screen">
+                <!-- Rendered by JS -->
+            </div>
+
+            <!-- KPI STAT BAR -->
+            <div class="kpi-bar" id="kpi-grid" style="display:none;">
+                <!-- Rendered by JS -->
+            </div>
+
+            <!-- TABLE CARD -->
+            <div class="table-card" id="table-card-wrap" style="display:none;">
+                <div class="table-header">
+                    <div>
+                        <div class="table-title" id="table-title">Détails des Styles</div>
+                        <div class="table-subtitle" id="table-subtitle">Cliquez sur un en-tête pour trier</div>
+                    </div>
+                    <div class="table-controls">
+                        <!-- Search -->
+                        <div class="search-wrap">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <input class="search-input" type="search" id="search-input" placeholder="Rechercher…"
+                                aria-label="Rechercher dans le tableau" />
+                        </div>
+                        <!-- Dept Filter -->
+                        <select class="filter-select" id="dept-filter" aria-label="Filtrer par département">
+                            <option value="">Tous les depts</option>
+                        </select>
+                        <!-- Client Filter -->
+                        <select class="filter-select" id="client-filter" aria-label="Filtrer par client">
+                            <option value="">Tous les clients</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-wrap">
+                    <table aria-label="Tableau de données">
+                        <thead id="table-head"></thead>
+                        <tbody id="table-body">
+                            <tr>
+                                <td colspan="99">
+                                    <div class="spinner-wrap">
+                                        <div class="spinner"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </main>
+
+    </div><!-- /.layout-body -->
+
+    <!-- ═══════════════════════════════════════ MODAL ADD/EDIT ═══════════════════════════════ -->
+    <div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+        <div class="modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modal-title">Ajouter une ligne</div>
+                    <div class="modal-subtitle" id="modal-subtitle">Remplissez les champs ci-dessous</div>
+                </div>
+                <button class="btn-close" onclick="closeModal()" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <div class="form-grid" id="form-fields">
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+                <button class="btn btn-primary" id="form-save" onclick="saveForm()">Enregistrer</button>
+            </div>
+        </div>
     </div>
-    `);
 
-    // ═══════════════════════════════════════════════════════════
-    //  LOGIQUE
-    // ═══════════════════════════════════════════════════════════
-    const overlay = document.getElementById('sp-overlay');
+    <!-- ═══════════════════════════════════════ CONFIRM MODAL (GENERIC) ════════════════════════ -->
+    <div class="modal-overlay" id="confirm-overlay" role="alertdialog" aria-modal="true">
+        <div class="modal confirm-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="confirm-title">Confirmer la suppression</div>
+                </div>
+                <button class="btn-close" onclick="closeConfirmModal()" aria-label="Annuler">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="confirm-body">
+                <div class="confirm-icon" id="confirm-icon-wrap">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="24" height="24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </div>
+                <h3 id="confirm-h3">Supprimer cette ligne ?</h3>
+                <p id="confirm-text">Cette action supprimera la ligne de votre base de données. Elle est <strong>irréversible</strong>.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeConfirmModal()">Annuler</button>
+                <button class="btn btn-danger" id="confirm-action-btn">Supprimer</button>
+            </div>
+        </div>
+    </div>
 
-    window.spOpen = function () {
-        spPopulateProfile();
-        spUpdateBadges();
-        overlay.classList.add('open');
-    };
+    <!-- ═══════════════════════════════════════ STYLE DETAILS MODAL ════════════════════════════ -->
+    <div class="modal-overlay" id="style-modal-overlay" role="dialog" aria-modal="true">
+        <div class="modal style-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="style-modal-title">Détails du Style</div>
+                    <div class="modal-subtitle" id="style-modal-subtitle">Vue d'ensemble</div>
+                </div>
+                <button class="btn-close" onclick="closeStyleModal()" aria-label="Fermer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="style-modal-body">
+                <!-- Data populated by JS -->
+            </div>
+            <div class="modal-footer" style="justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeStyleModal()">Fermer</button>
+            </div>
+        </div>
+    </div>
 
-    window.spClose = function () {
-        overlay.classList.remove('open');
-        // Fermer aussi le GAS editor
-        document.getElementById('sp-gas-section').classList.remove('open');
-    };
+    <!-- ═══════════════════════════════════════ TOASTS ════════════════════════════════════════ -->
+    <div class="toast-container" id="toast-container" aria-live="polite"></div>
 
-    // Clic en dehors → fermer
-    overlay.addEventListener('click', function (e) {
-        if (e.target === overlay) spClose();
-    });
-    document.getElementById('sp-close').addEventListener('click', spClose);
-
-    // ── Profil ──────────────────────────────────────────────────
-    function spPopulateProfile() {
-        const u = window.currentUser;
-        if (!u) return;
-        const nameEl  = document.getElementById('sp-user-name');
-        const emailEl = document.getElementById('sp-user-email');
-        const avatarEl= document.getElementById('sp-avatar');
-        const gasSub  = document.getElementById('sp-gas-sub');
-        const gasInput= document.getElementById('sp-gas-input');
-
-        if (nameEl)  nameEl.textContent  = u.displayName || u.email || '—';
-        if (emailEl) emailEl.textContent = u.email || '—';
-        if (avatarEl) {
-            if (u.photoURL) {
-                avatarEl.innerHTML = `<img src="${u.photoURL}" alt=""/>`;
-            } else {
-                const init = (u.displayName || u.email || '?').trim().split(' ')
-                    .filter(Boolean).map(p => p[0].toUpperCase()).slice(0,2).join('');
-                avatarEl.textContent = init;
+    <!-- ═══════════════════════════════════════ SCRIPTS ══════════════════════════════════════ -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- SheetJS avec fallback CDN -->
+    <script>
+        (function () {
+            function loadXLSX(url, onDone) {
+                var s = document.createElement('script'); s.src = url;
+                s.onload = function () { onDone(true); };
+                s.onerror = function () { onDone(false); };
+                document.head.appendChild(s);
             }
-        }
-        // GAS URL
-        const gasUrl = u.gasUrl || window.GOOGLE_APPS_SCRIPT_URL || '';
-        if (gasSub) {
-            if (gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
-                const short = gasUrl.replace('https://script.google.com/macros/s/', '').slice(0, 22) + '…';
-                gasSub.textContent = short;
-            } else {
-                gasSub.textContent = 'Non configuré';
-            }
-        }
-        if (gasInput) gasInput.value = gasUrl === 'YOUR_WEB_APP_URL_HERE' ? '' : (gasUrl || '');
-    }
+            loadXLSX('https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js', function (ok) {
+                if (ok) return;
+                loadXLSX('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', function (ok2) {
+                    if (ok2) return;
+                    loadXLSX('https://unpkg.com/xlsx/dist/xlsx.full.min.js', function () { });
+                });
+            });
+        })();
+    </script>
+    <!-- Auth puis App -->
+    <script src="auth.js"></script>
+    <script src="app.js"></script>
+    <script src="menuDeletePatch.js"></script>
+    <script src="pdfGenerator.js"></script>
+    <script src="notif-settings.js"></script>
+    <script src="settings-panel.js"></script>
 
-    // ── GAS URL toggle/save ─────────────────────────────────────
-    window.spToggleGas = function () {
-        const section = document.getElementById('sp-gas-section');
-        section.classList.toggle('open');
-        if (section.classList.contains('open')) {
-            setTimeout(function () { document.getElementById('sp-gas-input').focus(); }, 100);
+    <!-- ══════════════════════ PDF BUTTON INJECTOR ══════════════════════ -->
+    <style>
+      /* Bouton PDF sur les cards du dashboard */
+      .dbs-pdf-btn {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        transition: background 0.18s, transform 0.15s, box-shadow 0.18s;
+        z-index: 10;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .dbs-pdf-btn svg {
+        width: 15px;
+        height: 15px;
+        stroke: #e2e8f0;
+        fill: none;
+        flex-shrink: 0;
+        transition: stroke 0.15s;
+      }
+      /* Révèle le bouton au hover de la card */
+      .dbs-sc:hover .dbs-pdf-btn,
+      .dbs-sc .dbs-pdf-btn:focus {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .dbs-pdf-btn:hover {
+        background: rgba(2, 132, 199, 0.9) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 14px rgba(2,132,199,0.55);
+      }
+      .dbs-pdf-btn:hover svg { stroke: #ffffff; }
+      .dbs-pdf-btn:active { transform: scale(0.94); }
+      /* État "en cours" */
+      .dbs-pdf-btn.loading {
+        background: rgba(99, 102, 241, 0.85) !important;
+        pointer-events: none;
+        opacity: 1;
+      }
+      .dbs-pdf-btn.loading svg { display: none; }
+      .dbs-pdf-btn .pdf-spinner {
+        display: none;
+        width: 13px; height: 13px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: pdf-spin 0.7s linear infinite;
+      }
+      .dbs-pdf-btn.loading .pdf-spinner { display: block; }
+      @keyframes pdf-spin { to { transform: rotate(360deg); } }
+
+      /* S'assurer que les cards ont position relative */
+      .dbs-sc { position: relative !important; }
+    </style>
+
+    <script>
+    (function() {
+      'use strict';
+
+      // ── Attends que jsPDF soit dispo ────────────────────────
+      function waitForPDF(cb) {
+        if (window.AWCheckers && window.AWCheckers.generateStylePDF) return cb();
+        setTimeout(() => waitForPDF(cb), 300);
+      }
+
+      // ── Extrait les données d'une card ───────────────────────
+      function extractCardData(card) {
+        const getText = (sel) => {
+          const el = card.querySelector(sel);
+          return el ? el.textContent.trim() : '';
+        };
+
+        // ── PHOTO : extraire le base64 depuis le <img> déjà chargé dans le DOM
+        const img = card.querySelector('img.dbs-sc-img');
+        const _imageUrl = card.dataset.imageUrl || card.dataset.imageurl || '';
+        const photoUrl = _imageUrl || (img ? img.getAttribute('src') : '');
+
+        // Essayer d'extraire le base64 directement depuis l'élément <img> affiché
+        let photoBase64 = null;
+        if (img && img.naturalWidth > 0 && img.complete) {
+          try {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            c.getContext('2d').drawImage(img, 0, 0);
+            photoBase64 = c.toDataURL('image/jpeg', 0.92);
+            console.log('[PDF] ✅ Image extraite depuis la card (canvas)');
+          } catch (e) {
+            console.warn('[PDF] ⚠️ Canvas CORS bloqué, téléchargement via URL');
+            photoBase64 = null; // sera téléchargé par pdfGenerator
+          }
         }
-    };
 
-    window.spSaveGas = async function () {
-        const input = document.getElementById('sp-gas-input');
-        const url   = (input && input.value || '').trim();
-        if (!url || !url.startsWith('https://')) {
-            input.style.borderColor = '#dc2626';
-            setTimeout(function () { input.style.borderColor = ''; }, 1500);
-            return;
-        }
-        if (typeof updateGasUrl === 'function') {
-            await updateGasUrl(url);
-        } else if (window.currentUser) {
-            window.currentUser.gasUrl = url;
-            window.GOOGLE_APPS_SCRIPT_URL = url;
-            if (typeof fetchAllData === 'function') fetchAllData();
-        }
-        spClose();
-        if (typeof showToast === 'function') showToast('URL mise à jour ✓', 'success', 3000);
-    };
+        // Données depuis les attributs data-* (si présents dans app.js)
+        // Sinon on lit les éléments texte de la card
+        const data = {
+          Style:           card.dataset.styleRaw     || card.dataset.style || getText('.dbs-sc-code, .dbs-style-code, [class*="style-code"]') || getText('.dbs-sc-name, [class*="style-name"]'),
+          Description:     card.dataset.descriptionFull || card.dataset.description || getText('.dbs-sc-desc, [class*="desc"]'),
+          Client:          card.dataset.clientRaw    || card.dataset.client || getText('.dbs-sc-client, [class*="client"]'),
+          Saison:          card.dataset.saison        || getText('.dbs-sc-saison, [class*="saison"], [class*="season"]'),
+          Dept:            card.dataset.dept          || getText('.dbs-sc-dept, [class*="dept"]'),
+          'Fabric Base':   card.dataset.fabricBase   || card.dataset.fabric || getText('[class*="fabric"]'),
+          Costing:         card.dataset.costing       || getText('[class*="cost"]'),
+          'Order Qty':     card.dataset.orderQty     || card.dataset.qty || getText('[class*="qty"], [class*="order-qty"]'),
+          'PLC Booking':   card.dataset.plcBooking   || card.dataset.plc || getText('[class*="plc"]'),
+          'CRP Booking':   card.dataset.crpBooking   || card.dataset.crp || getText('[class*="crp"]'),
+          Status:          card.dataset.status        || getText('.dbs-sc-status, [class*="status"], .color-tag'),
+          PSD:             card.dataset.psd           || getText('[class*="psd"]'),
+          'Ex-Fty':        card.dataset.exFty        || card.dataset.exfty || getText('[class*="ex-fty"], [class*="exfty"]'),
+          Comments:        card.dataset.comments      || getText('[class*="comment"]'),
+          // ── Photo : base64 extrait du DOM + URL de fallback
+          photoBase64,
+          _imageUrl,
+          photoUrl,
+        };
 
-    // ── Badges dynamiques ───────────────────────────────────────
-    function spUpdateBadges() {
-        // Badge notifications
-        const notifBadge = document.getElementById('sp-notif-badge');
-        if (notifBadge && typeof collectAllAlerts === 'function') {
-            try {
-                const all   = collectAllAlerts();
-                const total = Object.values(all).reduce(function (s, v) { return s + v.items.length; }, 0);
-                notifBadge.textContent = total > 99 ? '99+' : String(total);
-                notifBadge.style.display = total > 0 ? '' : 'none';
-            } catch (e) { notifBadge.style.display = 'none'; }
+        // Fallback : si le Style est vide, cherche n'importe quel texte gras/titre
+        if (!data.Style) {
+          const bold = card.querySelector('strong, b, h2, h3, h4, .title, [class*="title"], [class*="name"]');
+          if (bold) data.Style = bold.textContent.trim();
         }
 
-        // Sous-titre menus custom
-        const menusSub = document.getElementById('sp-menus-sub');
-        if (menusSub && window.SHEET_CONFIG) {
-            const customCount = Object.values(window.SHEET_CONFIG).filter(function (c) { return c.custom; }).length;
-            menusSub.textContent = customCount > 0
-                ? customCount + ' menu' + (customCount > 1 ? 's' : '') + ' personnalisé' + (customCount > 1 ? 's' : '')
-                : 'Ajouter une feuille personnalisée';
-        }
+        return data;
+      }
 
-        // Sous-titre refresh (dernière sync)
-        const refreshSub = document.getElementById('sp-refresh-sub');
-        if (refreshSub && window.state && window.state._lastFetch) {
-            const mins = Math.round((Date.now() - window.state._lastFetch) / 60000);
-            refreshSub.textContent = mins < 1 ? 'À l\'instant' : 'Il y a ' + mins + ' min';
-        }
-    }
-
-    // ── Déconnexion ─────────────────────────────────────────────
-    window.spSignOut = function () {
-        if (typeof signOut === 'function') signOut();
-    };
-
-    // ═══════════════════════════════════════════════════════════
-    //  INJECTER LE BOUTON DANS LA TOPBAR
-    // ═══════════════════════════════════════════════════════════
-    function injectTopbarSettingsBtn() {
-        const headerRight = document.querySelector('.header-right');
-        if (!headerRight || document.getElementById('topbar-settings-btn')) return;
-
-        // Supprimer TOUS les boutons topbar injectés par d'autres patches
-        ['topbar-refresh-btn','topbar-sync-btn','topbar-export-btn',
-         'topbar-import-btn','btn-notif-settings'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.remove();
-        });
-        // Supprimer séparateurs et boutons génériques
-        document.querySelectorAll('.topbar-divider, .topbar-action-btn').forEach(function(el) {
-            el.remove();
-        });
+      // ── Crée le bouton PDF et l'injecte dans la card ─────────
+      function injectPDFButton(card) {
+        // Évite les doublons
+        if (card.querySelector('.dbs-pdf-btn')) return;
 
         const btn = document.createElement('button');
-        btn.id        = 'topbar-settings-btn';
-        btn.title     = 'Paramètres';
-        btn.innerHTML = `<svg viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>`;
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
-            if (overlay.classList.contains('open')) spClose();
-            else spOpen();
+        btn.className = 'dbs-pdf-btn';
+        btn.title = 'Télécharger la fiche PDF';
+        btn.setAttribute('aria-label', 'Exporter en PDF');
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="12" y1="18" x2="12" y2="12"/>
+            <line x1="9" y1="15" x2="15" y2="15"/>
+          </svg>
+          <div class="pdf-spinner"></div>
+        `;
+
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation(); // ne pas déclencher le clic de la card
+          e.preventDefault();
+
+          btn.classList.add('loading');
+
+          try {
+            waitForPDF(async () => {
+              const data = extractCardData(card);
+              await window.AWCheckers.generateStylePDF(data);
+              btn.classList.remove('loading');
+              // Feedback visuel bref
+              btn.innerHTML = `<svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="stroke:#4ade80"><polyline points="20 6 9 17 4 12"/></svg>`;
+              setTimeout(() => {
+                btn.innerHTML = `
+                  <svg viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/>
+                    <line x1="9" y1="15" x2="15" y2="15"/>
+                  </svg>
+                  <div class="pdf-spinner"></div>
+                `;
+              }, 2000);
+            });
+          } catch (err) {
+            console.error('[PDF] Erreur:', err);
+            btn.classList.remove('loading');
+          }
         });
 
-        // Insérer avant le premier enfant (avant le bouton notifications)
-        headerRight.insertBefore(btn, headerRight.firstChild);
-    }
+        card.appendChild(btn);
+      }
 
-    // ── Masquer les anciens points d'entrée ─────────────────────
-    // (openUserSettings → redirige vers spOpen)
-    window.openUserSettings = window.spOpen;
+      // ── Scan initial + MutationObserver pour les cards dynamiques ──
+      function scanAndInject() {
+        document.querySelectorAll('.dbs-sc').forEach(injectPDFButton);
+      }
 
-    // ── Init ────────────────────────────────────────────────────
-    function init() {
-        injectTopbarSettingsBtn();
-        // Mise à jour des badges toutes les 30s quand le panel est ouvert
-        setInterval(function () {
-            if (overlay.classList.contains('open')) spUpdateBadges();
-        }, 30000);
-    }
+      // Observer le dashboard (cards générées dynamiquement par app.js)
+      const observer = new MutationObserver(() => scanAndInject());
+      observer.observe(document.body, { childList: true, subtree: true });
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
+      // Premier scan au chargement
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scanAndInject);
+      } else {
+        scanAndInject();
+      }
+    })();
+    </script>
 
-    // Observer pour injecter le bouton settings ET nettoyer les intrus
-    new MutationObserver(function () {
-        var hr = document.querySelector('.header-right');
-        if (!hr) return;
-        // Injecter le bouton settings si absent
-        if (!document.getElementById('topbar-settings-btn')) {
-            injectTopbarSettingsBtn();
+
+    <!-- ══════════════════════ MENU BUILDER MODAL ══════════════════════ -->
+    <div class="modal-overlay" id="menu-builder-overlay">
+        <div class="modal menu-builder-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="menu-builder-title">Créer un menu</div>
+                    <div class="modal-subtitle">Définissez le nom et les colonnes de votre feuille</div>
+                </div>
+                <button class="modal-close" onclick="closeMenuBuilder()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group full">
+                    <label class="form-label">Nom du menu <span style="color:var(--danger)">*</span></label>
+                    <input class="form-input" id="mb-menu-name" placeholder="Ex: Fabric Tracking, QC Report…"
+                        maxlength="30" />
+                </div>
+                <div class="mb-cols-section">
+                    <div class="mb-cols-header">
+                        <span class="mb-cols-title">Colonnes</span>
+                        <div style="display: flex; gap: 0.5rem">
+                            <input type="file" id="mb-excel-upload" accept=".xlsx, .xls" style="display:none" onchange="handleExcelUpload(event)">
+                            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('mb-excel-upload').click()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" width="13" height="13">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Importer Excel
+                            </button>
+                            <button class="btn btn-ghost btn-sm" onclick="mbAddColumn()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" width="13" height="13">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 4v16m8-8H4" />
+                                </svg>
+                                Ajouter colonne
+                            </button>
+                        </div>
+                    </div>
+                    <div id="mb-cols-list"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeMenuBuilder()">Annuler</button>
+                <button class="btn btn-primary" id="mb-save-btn" onclick="saveMenuBuilder()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                        width="14" height="14">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Créer le menu
+                </button>
+            </div>
+        </div>
+    </div>
+<script src="offlineSync.js"></script>
+</body>
+
+<canvas id="notif-particle-container"
+    style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;"></canvas>
+
+<script>
+    (function () {
+        const canvas = document.getElementById('notif-particle-container');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         }
-        // Nettoyer en continu les boutons indésirables
-        ['topbar-refresh-btn','topbar-sync-btn','topbar-export-btn',
-         'topbar-import-btn','btn-notif-settings'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.remove();
-        });
-        document.querySelectorAll('.topbar-divider, .topbar-action-btn').forEach(function(el) {
-            el.remove();
-        });
-    }).observe(document.body, { childList: true, subtree: true });
+        resize();
+        window.addEventListener('resize', resize);
 
-    console.log('[AW27] Settings Panel chargé ✓');
-})();
+        /* ── Types de particules professionnels ──────────────────────
+           1. ring   : onde circulaire qui s'élargit et s'estompe (halo d'alerte)
+           2. streak : fine ligne lumineuse qui monte lentement (donnée qui remonte)
+           3. dot    : micro-point discret, dérive vers le haut              */
+
+        let particles = [];
+
+        function spawnEffect(x, y) {
+            // 1 — Onde principale
+            particles.push({ type: 'ring', x, y, r: 4, maxR: 48, alpha: 0.7, color: '#38bdf8' });
+            // 2 — Onde secondaire (légèrement décalée)
+            particles.push({ type: 'ring', x, y, r: 4, maxR: 32, alpha: 0.4, color: '#6366f1', delay: 120 });
+
+            // 3 — Streaks (lignes fines qui montent)
+            const streakCount = 6;
+            for (let i = 0; i < streakCount; i++) {
+                const angle = -Math.PI / 2 + (Math.random() - 0.5) * 1.0; // vers le haut, léger étalement
+                const speed = 0.6 + Math.random() * 1.0;
+                const len = 8 + Math.random() * 18;
+                particles.push({
+                    type: 'streak',
+                    x: x + (Math.random() - 0.5) * 14,
+                    y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    len,
+                    alpha: 0.65 + Math.random() * 0.25,
+                    color: Math.random() > 0.5 ? '#7dd3fc' : '#a5b4fc',
+                    life: 1
+                });
+            }
+
+            // 4 — Micro-dots (points 1 px qui dérivent)
+            for (let i = 0; i < 10; i++) {
+                const a = -Math.PI / 2 + (Math.random() - 0.5) * 1.6;
+                particles.push({
+                    type: 'dot',
+                    x: x + (Math.random() - 0.5) * 20,
+                    y: y + (Math.random() - 0.5) * 8,
+                    vx: Math.cos(a) * (0.3 + Math.random() * 0.5),
+                    vy: Math.sin(a) * (0.3 + Math.random() * 0.5),
+                    alpha: 0.9,
+                    color: Math.random() > 0.6 ? '#e0f2fe' : '#c7d2fe',
+                    life: 1
+                });
+            }
+        }
+
+        let last = 0;
+        function loop(ts) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const dt = ts - last; last = ts;
+
+            particles = particles.filter(p => p.alpha > 0.01);
+
+            particles.forEach(p => {
+                // — Délai optionnel
+                if (p.delay > 0) { p.delay -= dt; return; }
+
+                ctx.save();
+
+                if (p.type === 'ring') {
+                    p.r += (p.maxR - p.r) * 0.07;
+                    p.alpha *= 0.93;
+                    const grad = ctx.createRadialGradient(p.x, p.y, p.r * 0.7, p.x, p.y, p.r);
+                    grad.addColorStop(0, 'rgba(0,0,0,0)');
+                    grad.addColorStop(0.8, hexAlpha(p.color, p.alpha * 0.6));
+                    grad.addColorStop(1, hexAlpha(p.color, p.alpha));
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.strokeStyle = hexAlpha(p.color, p.alpha);
+                    ctx.lineWidth = 1.2;
+                    ctx.stroke();
+
+                } else if (p.type === 'streak') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vx *= 0.97;
+                    p.vy *= 0.97;
+                    p.alpha *= 0.955;
+                    p.life -= 0.022;
+                    const ex = p.x - p.vx * p.len;
+                    const ey = p.y - p.vy * p.len;
+                    const g = ctx.createLinearGradient(ex, ey, p.x, p.y);
+                    g.addColorStop(0, 'rgba(0,0,0,0)');
+                    g.addColorStop(1, hexAlpha(p.color, p.alpha));
+                    ctx.beginPath();
+                    ctx.moveTo(ex, ey);
+                    ctx.lineTo(p.x, p.y);
+                    ctx.strokeStyle = g;
+                    ctx.lineWidth = 1;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+
+                } else if (p.type === 'dot') {
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.alpha *= 0.945;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 1, 0, Math.PI * 2);
+                    ctx.fillStyle = hexAlpha(p.color, p.alpha);
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            });
+
+            requestAnimationFrame(loop);
+        }
+        requestAnimationFrame(loop);
+
+        // Utilitaire hex → rgba
+        function hexAlpha(hex, a) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r},${g},${b},${Math.max(0, Math.min(1, a))})`;
+        }
+
+        // ── Déclencheurs ──────────────────────────────────────────────
+        const badge = document.getElementById('notif-global-badge');
+        const btn = document.getElementById('btn-notif-global');
+
+        function triggerEffect() {
+            if (!btn) return;
+            const rect = btn.getBoundingClientRect();
+            spawnEffect(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        }
+
+        if (btn) btn.addEventListener('click', triggerEffect);
+
+        if (badge) {
+            new MutationObserver(() => triggerEffect())
+                .observe(badge, { childList: true, characterData: true, subtree: true });
+        }
+
+        if (btn) {
+            new MutationObserver(mutations => {
+                mutations.forEach(m => {
+                    if (m.attributeName === 'style' && btn.style.display !== 'none') triggerEffect();
+                });
+            }).observe(btn, { attributes: true });
+        }
+
+        // ── Shake CSS (retenu, plus sobre) ───────────────────────────
+        const shakeStyle = document.createElement('style');
+        shakeStyle.textContent = `
+    @keyframes notif-shake {
+      0%,100% { transform: translateY(0);    }
+      20%      { transform: translateY(-3px); }
+      40%      { transform: translateY(2px);  }
+      60%      { transform: translateY(-2px); }
+      80%      { transform: translateY(1px);  }
+    }
+    .notif-shaking { animation: notif-shake 0.45s ease !important; }
+  `;
+        document.head.appendChild(shakeStyle);
+
+        function pulseAndEffect() {
+            if (!btn) return;
+            btn.classList.remove('notif-shaking');
+            void btn.offsetWidth;
+            btn.classList.add('notif-shaking');
+            btn.addEventListener('animationend', () => btn.classList.remove('notif-shaking'), { once: true });
+            triggerEffect();
+        }
+
+        setInterval(() => {
+            if (btn && btn.style.display !== 'none' && badge && parseInt(badge.textContent) > 0) {
+                pulseAndEffect();
+            }
+        }, 4000);
+
+    })();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     CHAT WIDGET POPUP
+════════════════════════════════════════════════════════ -->
+
+<!-- Context menu supprimer conv -->
+<div id="cp-ctx-menu">
+  <button onclick="cpDeleteConv()">
+    <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+    Supprimer la conversation
+  </button>
+</div>
+
+<div id="chat-popup">
+
+  <!-- ── Header ── -->
+  <div id="cp-header">
+    <div id="cp-header-me">
+      <div id="cp-me-avatar" class="cp-avatar" style="width:28px;height:28px;font-size:.68rem">?</div>
+      <div id="cp-me-dot" class="cp-status-dot cp-dot-online"></div>
+    </div>
+    <h3>Messages</h3>
+    <button class="cp-btn-icon" onclick="cpToggle()" title="Fermer">
+      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </button>
+  </div>
+
+  <!-- ── Vue liste conversations ── -->
+  <div id="cp-view-list">
+    <div id="cp-search-bar">
+      <div id="cp-search-wrap">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+        <input type="text" placeholder="Rechercher…" oninput="cpFilterConvs(this.value)"/>
+      </div>
+      <button id="cp-new-dm-btn" onclick="cpToggleUserPanel()" title="Nouveau message">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+      </button>
+    </div>
+
+    <div id="cp-conv-list"><div class="cp-empty">Chargement…</div></div>
+
+    <!-- Panel liste users -->
+    <div id="cp-user-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span id="cp-user-panel-title">Nouvelle conversation</span>
+        <button class="cp-btn-icon" onclick="cpToggleUserPanel()" style="padding:2px">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <input id="cp-user-search" type="text" placeholder="Rechercher un utilisateur…" oninput="cpFilterUsers(this.value)"/>
+      <div id="cp-user-list"></div>
+    </div>
+  </div>
+
+  <!-- ── Vue chat actif ── -->
+  <div id="cp-view-chat">
+    <div id="cp-chat-header">
+      <button class="cp-btn-icon" onclick="cpBackToList()" title="Retour">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div id="cp-chat-avatar" class="cp-avatar" style="width:30px;height:30px;font-size:.7rem;position:relative;">
+        ?
+        <div id="cp-chat-online-dot" class="cp-status-dot" style="display:none"></div>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div id="cp-chat-name" style="font-size:.87rem;font-weight:600;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">-</div>
+        <div id="cp-chat-status" style="font-size:.69rem;color:#64748b;">-</div>
+      </div>
+      <button class="cp-btn-icon" onclick="cpShowOptions(event)" title="Options">
+        <svg viewBox="0 0 24 24"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      </button>
+    </div>
+
+    <div id="cp-typing-bar" style="display:none;">
+      <div class="cp-typing-dots"><span></span><span></span><span></span></div>
+      <span id="cp-typing-name"></span> est en train d'écrire…
+    </div>
+
+    <div id="cp-messages"></div>
+
+    <div id="cp-input-bar">
+      <textarea id="cp-msg-input" rows="1" placeholder="Écrire un message…"
+        onkeydown="cpHandleKey(event)" oninput="cpAutoResize(this); cpOnTyping()"></textarea>
+      <button id="cp-send-btn" onclick="cpSend()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div><!-- /#chat-popup -->
+
+<style>
+/* ── Context menu ── */
+#cp-ctx-menu {
+  position: fixed; z-index: 10001;
+  background: rgba(15,23,42,0.97);
+  border: 1px solid rgba(255,255,255,0.13);
+  border-radius: 9px; padding: 5px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  display: none; min-width: 190px;
+}
+#cp-ctx-menu.open { display: block; }
+#cp-ctx-menu button {
+  display: flex; align-items: center; gap: 9px;
+  width: 100%; background: none; border: none;
+  color: #f87171; font-size: .83rem; padding: 8px 10px;
+  border-radius: 6px; cursor: pointer; text-align: left;
+  transition: background .12s;
+}
+#cp-ctx-menu button:hover { background: rgba(248,113,113,0.12); }
+#cp-ctx-menu button svg { width: 14px; height: 14px; fill: #f87171; flex-shrink: 0; }
+
+/* ── Status dots ── */
+.cp-status-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  border: 1.5px solid #0f172a;
+  position: absolute; bottom: 0; right: 0;
+}
+.cp-dot-online { background: #22c55e; }
+.cp-dot-offline { background: #475569; }
+#cp-me-avatar { position: relative; }
+#cp-me-dot { position: absolute; bottom: -1px; right: -1px; }
+
+/* ── Header me zone ── */
+#cp-header-me { position: relative; flex-shrink: 0; }
+
+/* ── Search wrap ── */
+#cp-search-wrap {
+  flex: 1; display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11); border-radius: 7px;
+  padding: 5px 9px;
+}
+#cp-search-wrap svg { width: 13px; height: 13px; fill: #475569; flex-shrink: 0; }
+#cp-search-wrap input {
+  flex: 1; background: none; border: none; outline: none;
+  color: #f1f5f9; font-size: .8rem;
+}
+#cp-search-wrap input::placeholder { color: #475569; }
+#cp-new-dm-btn {
+  background: rgba(2,132,199,0.22); border: 1px solid rgba(2,132,199,0.38);
+  border-radius: 7px; color: #7dd3fc; padding: 7px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s; flex-shrink: 0;
+}
+#cp-new-dm-btn:hover { background: rgba(2,132,199,0.38); }
+#cp-new-dm-btn svg { width: 15px; height: 15px; fill: #7dd3fc; }
+
+/* ── Typing indicator ── */
+#cp-typing-bar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 4px 14px 0;
+  font-size: .72rem; color: #64748b; flex-shrink: 0;
+}
+.cp-typing-dots { display: flex; gap: 3px; align-items: center; }
+.cp-typing-dots span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #475569; animation: cpBounce 1.2s infinite;
+}
+.cp-typing-dots span:nth-child(2) { animation-delay: .2s; }
+.cp-typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes cpBounce {
+  0%,80%,100% { transform: translateY(0); opacity:.5; }
+  40% { transform: translateY(-4px); opacity:1; }
+}
+
+/* ── Conv item with online dot ── */
+.cp-conv-item { position: relative; }
+.cp-conv-avatar-wrap { position: relative; flex-shrink: 0; }
+.cp-conv-online { position: absolute; bottom:0; right:0; width:9px; height:9px; border-radius:50%; background:#22c55e; border:1.5px solid #0f172a; }
+
+/* ── Message réactions / hover ── */
+.cp-msg:hover .cp-msg-time { opacity: 1; }
+.cp-msg-time { opacity: 0; transition: opacity .15s; }
+
+  /* ── Online label dans conv list ── */
+  .cp-online-label { color: #22c55e; font-size: .68rem; margin-left: 4px; }
+  .cp-preview-bold { color: #94a3b8 !important; font-weight: 500; }
+
+  /* ── Day separator ── */
+  .cp-day-sep {
+    display: flex; align-items: center; gap: 8px;
+    margin: 10px 0 4px; font-size: .68rem; color: #475569;
+  }
+  .cp-day-sep::before, .cp-day-sep::after {
+    content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07);
+  }
+  .cp-day-sep span { white-space: nowrap; }
+
+</style>
+</html>
