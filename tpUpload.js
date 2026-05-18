@@ -461,43 +461,22 @@
     //  INJECTION BOUTONS TP DANS LE TABLEAU
     // ═══════════════════════════════════════════════════════
 
-    // Patch showTableView pour détecter le passage sur Style
     function patchRenderTable() {
-        // Patch showTableView (fonction de navigation réelle dans app.js)
-        if (window.showTableView && !window._tpShowTablePatched) {
-            const _origShow = window.showTableView;
-            window.showTableView = function () {
-                _origShow.apply(this, arguments);
-                setTimeout(injectTpButtons, 400);
-            };
-            window._tpShowTablePatched = true;
-        } else if (!window.showTableView) {
-            setTimeout(patchRenderTable, 400);
-            return;
-        }
-
-        // Aussi patcher renderTable si disponible
-        if (window.renderTable && !window._tpRenderTablePatched) {
-            const _origRender = window.renderTable;
-            window.renderTable = function () {
-                _origRender.apply(this, arguments);
-                setTimeout(injectTpButtons, 400);
-            };
-            window._tpRenderTablePatched = true;
-        }
-
-        // Observer les mutations du tbody directement
+        // Observer les mutations du tbody — s'active à chaque changement de feuille
         const tbody = document.getElementById('table-body');
-        if (tbody) {
-            new MutationObserver(function () {
-                if (window.state && window.state.activeSheet === 'style') {
-                    injectTpButtons();
-                }
-            }).observe(tbody, { childList: true });
-        }
+        if (!tbody) { setTimeout(patchRenderTable, 500); return; }
 
-        // Tentative immédiate si déjà sur Style
-        injectTpButtons();
+        new MutationObserver(function () {
+            // Délai pour laisser le tableau se remplir complètement
+            setTimeout(injectTpButtons, 200);
+        }).observe(tbody, { childList: true });
+
+        // Écouter les clics sur les nav-items
+        document.addEventListener('click', function (e) {
+            const navItem = e.target.closest('.nav-item');
+            if (navItem) setTimeout(injectTpButtons, 400);
+        }, true);
+
         console.log('[AW27] TP Upload: observer actif ✓');
     }
 
@@ -508,29 +487,35 @@
         const tableRows = tbody.querySelectorAll('tr');
         if (!tableRows.length) return;
 
-        // Détecter si on est sur Style en vérifiant les données
+        // Données Style
         const styleRows = window.state && window.state.data && window.state.data.style;
         if (!styleRows || !styleRows.length) return;
 
-        // Vérifier que le tableau affiché correspond aux données Style
-        // On compare le nombre de lignes du tableau avec styleRows
-        // ET on vérifie qu'aucun bouton TP n'est déjà présent
-        const alreadyInjected = tbody.querySelector('.btn-tp');
+        // Détecter si on est sur Style :
+        // Vérifier que la première ligne du thead contient des colonnes de Style
+        const thead = document.getElementById('table-head');
+        const firstHeaderRow = thead && thead.querySelector('tr');
+        if (!firstHeaderRow) return;
 
-        // Compter les lignes visibles vs données style
-        const visibleCount = tableRows.length;
-        const styleCount   = styleRows.length;
+        const headers = Array.from(firstHeaderRow.querySelectorAll('th, td')).map(function(h) {
+            return (h.textContent || '').trim().toLowerCase();
+        });
 
-        // Si le nombre de lignes ne correspond pas aux données style → pas sur Style
-        if (visibleCount !== styleCount) return;
+        // Colonnes caractéristiques de Style
+        const styleSignatures = ['style', 'pantone', 'color code', 'approval', 'gmt color', 'prepack'];
+        const matchCount = styleSignatures.filter(function(sig) {
+            return headers.some(function(h) { return h.includes(sig); });
+        }).length;
 
-        // Si déjà injecté → juste mettre à jour les URLs
-        if (alreadyInjected) return;
+        // Si moins de 2 colonnes Style trouvées → pas sur Style
+        if (matchCount < 2) return;
 
-        // Injecter les boutons
+        // Déjà injecté ?
+        if (tbody.querySelector('.btn-tp')) return;
+
+        // Injecter les boutons TP
         tableRows.forEach(function (tr, i) {
             if (tr.querySelector('.btn-tp')) return;
-
             const row = styleRows[i];
             if (!row) return;
 
@@ -558,19 +543,15 @@
         });
 
         // Ajouter l'en-tête TP si absent
-        const thead = document.getElementById('table-head');
-        if (thead) {
-            const headerRow = thead.querySelector('tr');
-            if (headerRow && !headerRow.querySelector('.th-tp')) {
-                const th = document.createElement('th');
-                th.className     = 'th-tp';
-                th.textContent   = 'Tech Pack';
-                th.style.cssText = 'padding:8px;text-align:center;font-size:11px;font-weight:600;white-space:nowrap;';
-                headerRow.appendChild(th);
-            }
+        if (firstHeaderRow && !firstHeaderRow.querySelector('.th-tp')) {
+            const th = document.createElement('th');
+            th.className     = 'th-tp';
+            th.textContent   = 'Tech Pack';
+            th.style.cssText = 'padding:8px;text-align:center;font-size:11px;font-weight:600;white-space:nowrap;';
+            firstHeaderRow.appendChild(th);
         }
 
-        console.log('[AW27] TP buttons injectés ✓ (' + styleRows.length + ' styles)');
+        console.log('[AW27] TP buttons injectés ✓ (' + styleRows.length + ' styles, matchCount=' + matchCount + ')');
     }
 
     // Démarrer le patch
