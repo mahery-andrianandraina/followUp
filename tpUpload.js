@@ -461,28 +461,40 @@
     //  INJECTION BOUTONS TP DANS LE TABLEAU
     // ═══════════════════════════════════════════════════════
 
-    // Patch renderTable + switchTab pour détecter le passage sur Style
+    // Patch showTableView pour détecter le passage sur Style
     function patchRenderTable() {
-        // Patch switchTab pour injecter les boutons à chaque changement de feuille
-        if (window.switchTab && !window._tpSwitchTabPatched) {
-            const _origSwitch = window.switchTab;
-            window.switchTab = function (el) {
-                _origSwitch(el);
-                setTimeout(injectTpButtons, 300);
+        // Patch showTableView (fonction de navigation réelle dans app.js)
+        if (window.showTableView && !window._tpShowTablePatched) {
+            const _origShow = window.showTableView;
+            window.showTableView = function () {
+                _origShow.apply(this, arguments);
+                setTimeout(injectTpButtons, 400);
             };
-            window._tpSwitchTabPatched = true;
-        } else if (!window.switchTab) {
+            window._tpShowTablePatched = true;
+        } else if (!window.showTableView) {
             setTimeout(patchRenderTable, 400);
             return;
         }
 
-        // Observer les mutations du tableau
-        const observer = new MutationObserver(function () {
-            if (window.state && window.state.activeSheet === 'style') {
-                injectTpButtons();
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
+        // Aussi patcher renderTable si disponible
+        if (window.renderTable && !window._tpRenderTablePatched) {
+            const _origRender = window.renderTable;
+            window.renderTable = function () {
+                _origRender.apply(this, arguments);
+                setTimeout(injectTpButtons, 400);
+            };
+            window._tpRenderTablePatched = true;
+        }
+
+        // Observer les mutations du tbody directement
+        const tbody = document.getElementById('table-body');
+        if (tbody) {
+            new MutationObserver(function () {
+                if (window.state && window.state.activeSheet === 'style') {
+                    injectTpButtons();
+                }
+            }).observe(tbody, { childList: true });
+        }
 
         // Tentative immédiate si déjà sur Style
         injectTpButtons();
