@@ -1,360 +1,513 @@
 // ============================================================
-// AW27 CHECKERS — Settings Panel (Unified)
-// Regroupe les actions système (Actualiser, Export, Sync),
-// les paramètres de notification et autres liens utiles.
+//  AW27 CHECKERS — Settings Panel (Paramètres unifiés)
+//  Regroupe : Compte, GAS URL, Sync offline, Import Excel,
+//             Notifications, Menus custom
+//  Inclure après tous les autres scripts dans index.html :
+//    <script src="settingsPanel.js"></script>
 // ============================================================
 
 (function () {
     'use strict';
 
-    const CSS = `
-    /* ── Main overlay ── */
-    #settings-overlay {
-        position: fixed; inset: 0; z-index: 20000;
-        background: rgba(0,0,0,0.45);
-        backdrop-filter: blur(3px);
+    // ═══════════════════════════════════════════════════════════
+    //  CSS
+    // ═══════════════════════════════════════════════════════════
+    const css = document.createElement('style');
+    css.id = 'settings-panel-styles';
+    css.textContent = `
+    /* ── Overlay ── */
+    #sp-overlay {
+        position: fixed; inset: 0; z-index: 13000;
+        background: rgba(15,23,42,0.5);
+        backdrop-filter: blur(4px);
         display: none; align-items: flex-start; justify-content: flex-end;
-        padding: 72px 16px 0 0;
-        animation: ns-fade-in .18s ease;
+        padding: 56px 12px 0 0;
     }
-    #settings-overlay.open { display: flex; }
-    @keyframes ns-fade-in { from { opacity:0 } to { opacity:1 } }
+    #sp-overlay.open { display: flex; }
 
-    #settings-panel {
-        width: 380px; max-height: 82vh;
-        background: #0f1a2e;
-        border: 1px solid rgba(99,162,255,0.18);
-        border-radius: 18px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    /* ── Panel ── */
+    #sp-panel {
+        width: 340px;
+        background: var(--color-background-primary, #fff);
+        border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+        border-radius: 16px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.08);
         display: flex; flex-direction: column;
         overflow: hidden;
-        animation: ns-slide-in .22s cubic-bezier(.34,1.56,.64,1);
         font-family: 'Inter', sans-serif;
+        max-height: calc(100vh - 70px);
+        animation: sp-in .2s cubic-bezier(.34,1.56,.64,1);
     }
-    @keyframes ns-slide-in { from { opacity:0; transform:translateY(-16px) scale(0.96) } to { opacity:1; transform:translateY(0) scale(1) } }
+    @keyframes sp-in {
+        from { opacity:0; transform: translateY(-10px) scale(0.97); }
+        to   { opacity:1; transform: none; }
+    }
 
-    /* Header */
-    #settings-header {
-        display: flex; align-items: center; gap: 10px;
-        padding: 15px 18px 14px;
-        background: linear-gradient(135deg, rgba(2,132,199,0.3), rgba(99,102,241,0.2));
-        border-bottom: 1px solid rgba(255,255,255,0.08);
+    /* ── Header profil ── */
+    #sp-profile {
+        padding: 16px 16px 14px;
+        border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+        display: flex; align-items: center; gap: 11px;
+        background: var(--color-background-secondary, #f9fafb);
+    }
+    #sp-avatar {
+        width: 40px; height: 40px; border-radius: 50%;
+        background: #e0f2fe; border: 2px solid #bae6fd;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 14px; font-weight: 700; color: #0284c7;
+        flex-shrink: 0; overflow: hidden;
+    }
+    #sp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    #sp-user-name  { font-size: 13px; font-weight: 600; color: var(--color-text-primary, #111827); }
+    #sp-user-email { font-size: 11px; color: var(--color-text-secondary, #6b7280); margin-top: 1px; }
+    #sp-close {
+        margin-left: auto; width: 26px; height: 26px;
+        border-radius: 7px; border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+        background: transparent; color: var(--color-text-secondary, #9ca3af);
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        font-size: 13px; flex-shrink: 0; transition: all .15s;
+    }
+    #sp-close:hover { background: #fef2f2; color: #dc2626; border-color: #fca5a5; }
+
+    /* ── Scrollable body ── */
+    #sp-body {
+        flex: 1; overflow-y: auto; padding: 8px 0;
+    }
+    #sp-body::-webkit-scrollbar { width: 3px; }
+    #sp-body::-webkit-scrollbar-thumb { background: var(--color-border-secondary, #d1d5db); border-radius: 3px; }
+
+    /* ── Section label ── */
+    .sp-section-label {
+        padding: 10px 16px 4px;
+        font-size: 10px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: .08em; color: var(--color-text-secondary, #9ca3af);
+    }
+
+    /* ── Item ── */
+    .sp-item {
+        display: flex; align-items: center; gap: 11px;
+        padding: 9px 16px; cursor: pointer;
+        transition: background .12s;
+        border: none; background: transparent;
+        width: 100%; text-align: left; font-family: inherit;
+    }
+    .sp-item:hover { background: var(--color-background-secondary, #f3f4f6); }
+    .sp-item-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
         flex-shrink: 0;
     }
-    #settings-header-icon {
-        width: 34px; height: 34px; border-radius: 10px;
-        background: rgba(2,132,199,0.25); border: 1px solid rgba(2,132,199,0.4);
-        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    .sp-item-icon svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .sp-item-body { flex: 1; min-width: 0; }
+    .sp-item-title { font-size: 13px; font-weight: 500; color: var(--color-text-primary, #111827); }
+    .sp-item-sub   { font-size: 11px; color: var(--color-text-secondary, #6b7280); margin-top: 1px; }
+    .sp-item-arrow { color: var(--color-text-secondary, #d1d5db); flex-shrink: 0; }
+    .sp-item-arrow svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2.5; stroke-linecap: round; }
+    .sp-item-badge {
+        font-size: 10px; font-weight: 700; padding: 2px 7px;
+        border-radius: 20px; flex-shrink: 0;
     }
-    #settings-header-icon svg { width: 16px; height: 16px; stroke: #7dd3fc; fill: none; }
-    #settings-header-text { flex: 1; }
-    #settings-header-title { font-size: 14px; font-weight: 600; color: #f1f5f9; }
-    #settings-header-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
-    #settings-close-btn {
-        width: 28px; height: 28px; border-radius: 8px;
-        background: rgba(255,255,255,0.07); border: none;
-        color: #64748b; cursor: pointer; display: flex; align-items: center; justify-content: center;
-        transition: all .15s;
-    }
-    #settings-close-btn:hover { background: rgba(255,255,255,0.14); color: #f1f5f9; }
-    #settings-close-btn svg { width: 13px; height: 13px; fill: currentColor; }
 
-    /* Body scrollable */
-    #settings-body { flex: 1; overflow-y: auto; padding: 0 0 10px; }
-    #settings-body::-webkit-scrollbar { width: 3px; }
-    #settings-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    /* icon color variants */
+    .sp-ic-blue   { background: #e0f2fe; color: #0284c7; }
+    .sp-ic-green  { background: #dcfce7; color: #16a34a; }
+    .sp-ic-purple { background: #ede9fe; color: #7c3aed; }
+    .sp-ic-amber  { background: #fef3c7; color: #d97706; }
+    .sp-ic-indigo { background: #e0e7ff; color: #4f46e5; }
+    .sp-ic-red    { background: #fee2e2; color: #dc2626; }
+    .sp-ic-slate  { background: #f1f5f9; color: #475569; }
 
-    /* Grand titre de section */
-    .st-main-title {
-        font-size: 11px; font-weight: 700; color: #cbd5e1;
-        text-transform: uppercase; letter-spacing: .08em;
-        padding: 14px 18px 6px;
-        display: flex; align-items: center; gap: 6px;
-        background: rgba(0,0,0,0.1);
-        border-top: 1px solid rgba(255,255,255,0.04);
-        border-bottom: 1px solid rgba(255,255,255,0.02);
-    }
-    .st-main-title:first-child { border-top: none; }
+    /* badge variants */
+    .sp-badge-red  { background: #fee2e2; color: #dc2626; }
+    .sp-badge-blue { background: #e0f2fe; color: #0284c7; }
+    .sp-badge-gray { background: #f1f5f9; color: #6b7280; }
 
-    /* ── Actions buttons (Données / Liens) ── */
-    .st-action-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-        padding: 12px 18px;
+    /* ── GAS URL inline section ── */
+    #sp-gas-section {
+        display: none;
+        padding: 0 16px 12px;
+        border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);
     }
-    .st-action-btn {
-        display: flex; align-items: center; gap: 8px;
-        padding: 10px 12px; border-radius: 9px;
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        color: #e2e8f0; font-size: 12px; font-weight: 500; font-family: inherit;
-        cursor: pointer; transition: all .15s; text-decoration: none;
-        justify-content: flex-start;
+    #sp-gas-section.open { display: block; }
+    #sp-gas-input {
+        width: 100%; padding: 7px 10px;
+        border: 1.5px solid var(--color-border-secondary, #d1d5db);
+        border-radius: 7px; font-size: 11px; font-family: monospace;
+        color: var(--color-text-primary, #111827);
+        background: var(--color-background-secondary, #f9fafb);
+        outline: none; transition: border-color .15s; margin-bottom: 7px;
     }
-    .st-action-btn:hover { background: rgba(2,132,199,0.2); border-color: rgba(2,132,199,0.4); color: #fff; }
-    .st-action-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; flex-shrink: 0; }
-    
-    .st-action-btn.full-w { grid-column: 1 / -1; }
-    
-    /* Bouton Actualiser en cours de chargement */
-    .st-action-btn.loading svg { animation: st-spin 0.7s linear infinite; }
-    @keyframes st-spin { to { transform: rotate(360deg); } }
+    #sp-gas-input:focus { border-color: #0284c7; background: #fff; }
+    #sp-gas-save {
+        width: 100%; padding: 7px; border-radius: 7px; border: none;
+        background: #0284c7; color: #fff; font-size: 12px; font-weight: 600;
+        cursor: pointer; font-family: inherit; transition: background .15s;
+    }
+    #sp-gas-save:hover { background: #0369a1; }
 
-    /* Stale dot pour Actualiser */
-    .st-stale-dot {
-        width: 6px; height: 6px; border-radius: 50%; background: #ef4444;
-        display: none; position: absolute; top: 6px; right: 6px;
+    /* ── Separator ── */
+    .sp-sep {
+        height: 0.5px;
+        background: var(--color-border-tertiary, #e5e7eb);
+        margin: 4px 0;
     }
-    #btn-st-refresh { position: relative; }
-    #btn-st-refresh.stale .st-stale-dot { display: block; }
+
+    /* ── Footer déconnexion ── */
+    #sp-footer {
+        padding: 8px 16px 12px;
+        border-top: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+    }
+    #sp-signout {
+        width: 100%; padding: 8px; border-radius: 8px;
+        border: 1px solid #fecaca; background: #fff5f5;
+        color: #dc2626; font-size: 12px; font-weight: 600;
+        cursor: pointer; font-family: inherit;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        transition: background .15s;
+    }
+    #sp-signout:hover { background: #fee2e2; }
+    #sp-signout svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+    /* ── Topbar settings button ── */
+    #topbar-settings-btn {
+        display: flex; align-items: center; justify-content: center;
+        height: 34px; width: 34px; border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.22);
+        background: rgba(255,255,255,0.12);
+        color: #fff; cursor: pointer; flex-shrink: 0;
+        transition: background .15s;
+        position: relative;
+    }
+    #topbar-settings-btn:hover { background: rgba(255,255,255,0.24); }
+    #topbar-settings-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+    /* Masquer les anciens boutons/éléments remplacés */
+    .user-badge,
+    #btn-notif-settings,
+    #btn-offline-sync,
+    #btn-xl-import {
+        display: none !important;
+    }
     `;
+    document.head.appendChild(css);
 
-    const styleEl = document.createElement('style');
-    styleEl.textContent = CSS;
-    document.head.appendChild(styleEl);
-
-    // Injection du panneau HTML
+    // ═══════════════════════════════════════════════════════════
+    //  HTML
+    // ═══════════════════════════════════════════════════════════
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="settings-overlay">
-        <div id="settings-panel">
+    <div id="sp-overlay">
+      <div id="sp-panel">
 
-            <div id="settings-header">
-                <div id="settings-header-icon">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                    </svg>
-                </div>
-                <div id="settings-header-text">
-                    <div id="settings-header-title">Paramètres Système</div>
-                    <div id="settings-header-sub">Gérez vos données et notifications</div>
-                </div>
-                <button id="settings-close-btn" onclick="closeSettingsPanel()">
-                    <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-                </button>
-            </div>
-
-            <div id="settings-body">
-                
-                <!-- DONNÉES -->
-                <div class="st-main-title">🔄 Données & Action</div>
-                <div class="st-action-grid">
-                    <button class="st-action-btn" id="btn-st-refresh" onclick="stRefreshData()">
-                        <div class="st-stale-dot"></div>
-                        <svg viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                        Actualiser
-                    </button>
-                    <button class="st-action-btn" onclick="openSyncPanel(); closeSettingsPanel();">
-                        <svg viewBox="0 0 24 24"><path d="M8 17l-4-4 4-4"/><path d="M4 13h10.5a4.5 4.5 0 0 0 0-9H11"/><path d="M16 7l4 4-4 4"/><path d="M20 11H9.5a4.5 4.5 0 0 0 0 9H13"/></svg>
-                        Sync Offline
-                    </button>
-                    <button class="st-action-btn" onclick="exportExcel(); closeSettingsPanel();">
-                        <svg viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Export Excel
-                    </button>
-                    <button class="st-action-btn" onclick="cpToggle(); closeSettingsPanel();">
-                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                        Ouvrir Chat
-                    </button>
-                </div>
-
-                <!-- NOTIFICATIONS (Récupération des IDs de notif-settings.js) -->
-                <div class="st-main-title">🔔 Filtres de Notifications</div>
-                
-                <div id="ns-master">
-                    <div>
-                        <div id="ns-master-label">Activer les alertes</div>
-                        <div id="ns-master-sub">Afficher les badges et toasts</div>
-                    </div>
-                    <label class="ns-toggle">
-                        <input type="checkbox" id="ns-toggle-main" onchange="nsToggleMain(this.checked)" checked/>
-                        <div class="ns-toggle-track"></div>
-                    </label>
-                </div>
-
-                <div id="ns-body">
-                    <!-- Urgence -->
-                    <div class="ns-section">
-                        <div class="ns-section-header">
-                            <div class="ns-section-title">
-                                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                                Urgence
-                            </div>
-                            <button class="ns-select-all" onclick="nsToggleAll('urgencies', ['high','mid','low'])">Tout</button>
-                        </div>
-                        <div class="ns-chips" id="ns-chips-urgency">
-                            <div class="ns-chip urg-high active" data-group="urgencies" data-val="high" onclick="nsChipToggle(this)">🔴 Critique</div>
-                            <div class="ns-chip urg-mid active" data-group="urgencies" data-val="mid" onclick="nsChipToggle(this)">🟡 Moyen</div>
-                            <div class="ns-chip urg-low active" data-group="urgencies" data-val="low" onclick="nsChipToggle(this)">⚪ Faible</div>
-                        </div>
-                    </div>
-
-                    <div class="ns-sep"></div>
-
-                    <!-- Type d'alerte -->
-                    <div class="ns-section">
-                        <div class="ns-section-header">
-                            <div class="ns-section-title">
-                                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                                Type d'alerte
-                            </div>
-                            <button class="ns-select-all" onclick="nsToggleAll('dotTypes', ['dot-late','dot-today','dot-send','dot-approve','dot-nopo','dot-risk'])">Tout</button>
-                        </div>
-                        <div class="ns-chips">
-                            <div class="ns-chip type-active-late active" data-group="dotTypes" data-val="dot-late" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#FF6B6B"></span>En retard</div>
-                            <div class="ns-chip type-active-today active" data-group="dotTypes" data-val="dot-today" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#FFD600"></span>Aujourd'hui</div>
-                            <div class="ns-chip type-active-send active" data-group="dotTypes" data-val="dot-send" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#22C55E"></span>À envoyer</div>
-                            <div class="ns-chip type-active-approve active" data-group="dotTypes" data-val="dot-approve" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#3B82F6"></span>Approval</div>
-                            <div class="ns-chip type-active-nopo active" data-group="dotTypes" data-val="dot-nopo" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#D946EF"></span>Info manquante</div>
-                            <div class="ns-chip type-active-risk active" data-group="dotTypes" data-val="dot-risk" onclick="nsChipToggle(this)"><span class="ns-chip-dot" style="background:#EAB308"></span>À risque</div>
-                        </div>
-                    </div>
-
-                    <div class="ns-sep"></div>
-
-                    <!-- Clients -->
-                    <div class="ns-section">
-                        <div class="ns-section-header">
-                            <div class="ns-section-title">
-                                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                                Clients
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <span id="ns-count-clients" class="ns-section-count"></span>
-                                <button class="ns-select-all" onclick="nsSelectAllClients()">Tout</button>
-                            </div>
-                        </div>
-                        <div class="ns-chips" id="ns-chips-clients">
-                            <div class="ns-empty">Chargement…</div>
-                        </div>
-                    </div>
-
-                    <div class="ns-sep"></div>
-
-                    <!-- Saisons -->
-                    <div class="ns-section">
-                        <div class="ns-section-header">
-                            <div class="ns-section-title">
-                                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                                Saisons
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <span id="ns-count-saisons" class="ns-section-count"></span>
-                                <button class="ns-select-all" onclick="nsSelectAllSaisons()">Tout</button>
-                            </div>
-                        </div>
-                        <div class="ns-chips" id="ns-chips-saisons">
-                            <div class="ns-empty">Chargement…</div>
-                        </div>
-                    </div>
-
-                    <div class="ns-sep"></div>
-
-                    <!-- Menus source -->
-                    <div class="ns-section">
-                        <div class="ns-section-header">
-                            <div class="ns-section-title">
-                                <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                                Menus source
-                            </div>
-                            <div style="display:flex;gap:8px;align-items:center;">
-                                <span id="ns-count-sheets" class="ns-section-count"></span>
-                                <button class="ns-select-all" onclick="nsSelectAllSheets()">Tout</button>
-                            </div>
-                        </div>
-                        <div class="ns-chips" id="ns-chips-sheets">
-                            <div class="ns-empty">Chargement…</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- LIENS RAPIDES -->
-                <div class="st-main-title">🔗 Liens Rapides</div>
-                <div class="st-action-grid">
-                    <a class="st-action-btn" href="admin.html" target="_blank">
-                        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        Admin Panel
-                    </a>
-                    <a class="st-action-btn" href="access-request.html" target="_blank">
-                        <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                        Demander un accès
-                    </a>
-                </div>
-
-            </div><!-- /#settings-body -->
-
-            <div id="ns-footer">
-                <button id="ns-reset-btn" onclick="nsReset()">
-                    <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-                    Réinitialiser Filtres
-                </button>
-                <div id="ns-active-count"></div>
-            </div>
-
+        <!-- Profil -->
+        <div id="sp-profile">
+          <div id="sp-avatar">?</div>
+          <div>
+            <div id="sp-user-name">—</div>
+            <div id="sp-user-email">—</div>
+          </div>
+          <button id="sp-close" title="Fermer">✕</button>
         </div>
+
+        <div id="sp-body">
+
+          <!-- SECTION : Données -->
+          <div class="sp-section-label">Données</div>
+
+          <!-- GAS URL -->
+          <button class="sp-item" id="sp-item-gas" onclick="spToggleGas()">
+            <div class="sp-item-icon sp-ic-blue">
+              <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Google Apps Script URL</div>
+              <div class="sp-item-sub" id="sp-gas-sub">Connecteur de données</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- GAS URL inline editor -->
+          <div id="sp-gas-section">
+            <input id="sp-gas-input" type="url" placeholder="https://script.google.com/macros/s/…/exec"/>
+            <button id="sp-gas-save" onclick="spSaveGas()">Enregistrer et recharger</button>
+          </div>
+
+          <!-- Sync offline — Download -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncDownload==='function')openSyncDownload();},150)">
+            <div class="sp-item-icon sp-ic-green">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Télécharger GS → Excel</div>
+              <div class="sp-item-sub">Export offline du matin</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- Sync offline — Upload -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncUpload==='function')openSyncUpload();},150)">
+            <div class="sp-item-icon sp-ic-blue">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Uploader Excel → GS</div>
+              <div class="sp-item-sub">Synchroniser les modifications du soir</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- Import Excel -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openXlImport==='function')openXlImport();},150)">
+            <div class="sp-item-icon sp-ic-indigo">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Import Excel</div>
+              <div class="sp-item-sub">Importer un fichier vers Google Sheets</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <div class="sp-sep"></div>
+
+          <!-- SECTION : Interface -->
+          <div class="sp-section-label">Interface</div>
+
+          <!-- Notifications -->
+          <button class="sp-item" id="sp-item-notif" onclick="spClose();setTimeout(function(){if(typeof nsOpen==='function')nsOpen();},150)">
+            <div class="sp-item-icon sp-ic-amber">
+              <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Filtres notifications</div>
+              <div class="sp-item-sub">Clients, urgences, types d'alertes</div>
+            </div>
+            <span class="sp-item-badge sp-badge-red" id="sp-notif-badge" style="display:none">0</span>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- Menus custom -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openMenuBuilder==='function')openMenuBuilder();},150)">
+            <div class="sp-item-icon sp-ic-purple">
+              <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Créer un menu</div>
+              <div class="sp-item-sub" id="sp-menus-sub">Ajouter une feuille personnalisée</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <div class="sp-sep"></div>
+
+          <!-- SECTION : Actions rapides -->
+          <div class="sp-section-label">Actions</div>
+
+          <!-- Actualiser -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof fetchAllData==='function')fetchAllData();},150)">
+            <div class="sp-item-icon sp-ic-slate">
+              <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Actualiser les données</div>
+              <div class="sp-item-sub" id="sp-refresh-sub">Synchroniser depuis Google Sheets</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- Export Excel -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof exportExcel==='function')exportExcel();},150)">
+            <div class="sp-item-icon sp-ic-green">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Exporter Excel</div>
+              <div class="sp-item-sub">Télécharger la vue actuelle</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+        </div><!-- /#sp-body -->
+
+        <!-- Footer déconnexion -->
+        <div id="sp-footer">
+          <button id="sp-signout" onclick="spSignOut()">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Se déconnecter
+          </button>
+        </div>
+
+      </div>
     </div>
     `);
 
-    // ── GESTION DES CLICS ──
-    window.openSettingsPanel = function () {
-        // Appeler la fonction existante de notif-settings.js pour repeupler les chips
-        if (typeof window.nsOpen === 'function') {
-            window.nsOpen(); // Ceci va aussi synchroniser le #ns-body et les chips
-            
-            // S'assurer que le panel unifié s'ouvre bien au cas où notif-settings manipulait l'ancien #ns-overlay
-            document.getElementById('settings-overlay').classList.add('open');
-        } else {
-            document.getElementById('settings-overlay').classList.add('open');
-        }
+    // ═══════════════════════════════════════════════════════════
+    //  LOGIQUE
+    // ═══════════════════════════════════════════════════════════
+    const overlay = document.getElementById('sp-overlay');
+
+    window.spOpen = function () {
+        spPopulateProfile();
+        spUpdateBadges();
+        overlay.classList.add('open');
     };
 
-    window.closeSettingsPanel = function () {
-        document.getElementById('settings-overlay').classList.remove('open');
-        // Optionnel : fermer aussi côté nsClose s'il reste des dépendances
-        if (typeof window.nsClose === 'function') window.nsClose();
+    window.spClose = function () {
+        overlay.classList.remove('open');
+        // Fermer aussi le GAS editor
+        document.getElementById('sp-gas-section').classList.remove('open');
     };
 
-    // Fermer en cliquant à l'extérieur
-    document.getElementById('settings-overlay').addEventListener('click', function (e) {
-        if (e.target === this) closeSettingsPanel();
+    // Clic en dehors → fermer
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) spClose();
     });
+    document.getElementById('sp-close').addEventListener('click', spClose);
 
-    // ── ACTION: ACTUALISER ──
-    window.stRefreshData = function() {
-        if (typeof window.fetchAllData !== 'function') return;
-        
-        const btn = document.getElementById('btn-st-refresh');
-        btn.classList.add('loading');
-        btn.classList.remove('stale');
-        
-        // Cacher le dot global s'il existe
-        const dot = document.getElementById('refresh-dot');
-        if (dot) dot.style.display = 'none';
+    // ── Profil ──────────────────────────────────────────────────
+    function spPopulateProfile() {
+        const u = window.currentUser;
+        if (!u) return;
+        const nameEl  = document.getElementById('sp-user-name');
+        const emailEl = document.getElementById('sp-user-email');
+        const avatarEl= document.getElementById('sp-avatar');
+        const gasSub  = document.getElementById('sp-gas-sub');
+        const gasInput= document.getElementById('sp-gas-input');
 
-        const p = window.fetchAllData();
-        if (p && typeof p.finally === 'function') {
-            p.finally(() => btn.classList.remove('loading'));
-        } else {
-            setTimeout(() => btn.classList.remove('loading'), 3000);
+        if (nameEl)  nameEl.textContent  = u.displayName || u.email || '—';
+        if (emailEl) emailEl.textContent = u.email || '—';
+        if (avatarEl) {
+            if (u.photoURL) {
+                avatarEl.innerHTML = `<img src="${u.photoURL}" alt=""/>`;
+            } else {
+                const init = (u.displayName || u.email || '?').trim().split(' ')
+                    .filter(Boolean).map(p => p[0].toUpperCase()).slice(0,2).join('');
+                avatarEl.textContent = init;
+            }
+        }
+        // GAS URL
+        const gasUrl = u.gasUrl || window.GOOGLE_APPS_SCRIPT_URL || '';
+        if (gasSub) {
+            if (gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE') {
+                const short = gasUrl.replace('https://script.google.com/macros/s/', '').slice(0, 22) + '…';
+                gasSub.textContent = short;
+            } else {
+                gasSub.textContent = 'Non configuré';
+            }
+        }
+        if (gasInput) gasInput.value = gasUrl === 'YOUR_WEB_APP_URL_HERE' ? '' : (gasUrl || '');
+    }
+
+    // ── GAS URL toggle/save ─────────────────────────────────────
+    window.spToggleGas = function () {
+        const section = document.getElementById('sp-gas-section');
+        section.classList.toggle('open');
+        if (section.classList.contains('open')) {
+            setTimeout(function () { document.getElementById('sp-gas-input').focus(); }, 100);
         }
     };
 
-    // Observer pour le stale dot (Actualiser)
-    function watchRefreshDot() {
-        const dot = document.getElementById('refresh-dot');
-        if (!dot) { setTimeout(watchRefreshDot, 500); return; }
+    window.spSaveGas = async function () {
+        const input = document.getElementById('sp-gas-input');
+        const url   = (input && input.value || '').trim();
+        if (!url || !url.startsWith('https://')) {
+            input.style.borderColor = '#dc2626';
+            setTimeout(function () { input.style.borderColor = ''; }, 1500);
+            return;
+        }
+        if (typeof updateGasUrl === 'function') {
+            await updateGasUrl(url);
+        } else if (window.currentUser) {
+            window.currentUser.gasUrl = url;
+            window.GOOGLE_APPS_SCRIPT_URL = url;
+            if (typeof fetchAllData === 'function') fetchAllData();
+        }
+        spClose();
+        if (typeof showToast === 'function') showToast('URL mise à jour ✓', 'success', 3000);
+    };
 
-        const observer = new MutationObserver(function () {
-            const btn = document.getElementById('btn-st-refresh');
-            if (!btn) return;
-            const isStale = dot.style.display !== 'none';
-            btn.classList.toggle('stale', isStale);
+    // ── Badges dynamiques ───────────────────────────────────────
+    function spUpdateBadges() {
+        // Badge notifications
+        const notifBadge = document.getElementById('sp-notif-badge');
+        if (notifBadge && typeof collectAllAlerts === 'function') {
+            try {
+                const all   = collectAllAlerts();
+                const total = Object.values(all).reduce(function (s, v) { return s + v.items.length; }, 0);
+                notifBadge.textContent = total > 99 ? '99+' : String(total);
+                notifBadge.style.display = total > 0 ? '' : 'none';
+            } catch (e) { notifBadge.style.display = 'none'; }
+        }
+
+        // Sous-titre menus custom
+        const menusSub = document.getElementById('sp-menus-sub');
+        if (menusSub && window.SHEET_CONFIG) {
+            const customCount = Object.values(window.SHEET_CONFIG).filter(function (c) { return c.custom; }).length;
+            menusSub.textContent = customCount > 0
+                ? customCount + ' menu' + (customCount > 1 ? 's' : '') + ' personnalisé' + (customCount > 1 ? 's' : '')
+                : 'Ajouter une feuille personnalisée';
+        }
+
+        // Sous-titre refresh (dernière sync)
+        const refreshSub = document.getElementById('sp-refresh-sub');
+        if (refreshSub && window.state && window.state._lastFetch) {
+            const mins = Math.round((Date.now() - window.state._lastFetch) / 60000);
+            refreshSub.textContent = mins < 1 ? 'À l\'instant' : 'Il y a ' + mins + ' min';
+        }
+    }
+
+    // ── Déconnexion ─────────────────────────────────────────────
+    window.spSignOut = function () {
+        if (typeof signOut === 'function') signOut();
+    };
+
+    // ═══════════════════════════════════════════════════════════
+    //  INJECTER LE BOUTON DANS LA TOPBAR
+    // ═══════════════════════════════════════════════════════════
+    function injectTopbarSettingsBtn() {
+        const headerRight = document.querySelector('.header-right');
+        if (!headerRight || document.getElementById('topbar-settings-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.id        = 'topbar-settings-btn';
+        btn.title     = 'Paramètres';
+        btn.innerHTML = `<svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>`;
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (overlay.classList.contains('open')) spClose();
+            else spOpen();
         });
-        observer.observe(dot, { attributes: true, attributeFilter: ['style'] });
+
+        // Insérer avant le premier enfant (avant le bouton notifications)
+        headerRight.insertBefore(btn, headerRight.firstChild);
+    }
+
+    // ── Masquer les anciens points d'entrée ─────────────────────
+    // (openUserSettings → redirige vers spOpen)
+    window.openUserSettings = window.spOpen;
+
+    // ── Init ────────────────────────────────────────────────────
+    function init() {
+        injectTopbarSettingsBtn();
+        // Mise à jour des badges toutes les 30s quand le panel est ouvert
+        setInterval(function () {
+            if (overlay.classList.contains('open')) spUpdateBadges();
+        }, 30000);
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', watchRefreshDot);
+        document.addEventListener('DOMContentLoaded', init);
     } else {
-        watchRefreshDot();
+        init();
     }
 
+    new MutationObserver(function () {
+        if (document.querySelector('.header-right') && !document.getElementById('topbar-settings-btn')) {
+            injectTopbarSettingsBtn();
+        }
+    }).observe(document.body, { childList: true, subtree: true });
+
+    console.log('[AW27] Settings Panel chargé ✓');
 })();
