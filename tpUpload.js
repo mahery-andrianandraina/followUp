@@ -487,12 +487,10 @@
         const tableRows = tbody.querySelectorAll('tr');
         if (!tableRows.length) return;
 
-        // Données Style
+        // Données Style (pour lookup TP_URL)
         const styleRows = window.state && window.state.data && window.state.data.style;
-        if (!styleRows || !styleRows.length) return;
 
-        // Détecter si on est sur Style :
-        // Vérifier que la première ligne du thead contient des colonnes de Style
+        // Détecter si on est sur la feuille Details
         const thead = document.getElementById('table-head');
         const firstHeaderRow = thead && thead.querySelector('tr');
         if (!firstHeaderRow) return;
@@ -501,14 +499,20 @@
             return (h.textContent || '').trim().toLowerCase();
         });
 
-        // Colonnes caractéristiques de Style
-        const styleSignatures = ['style', 'pantone', 'color code', 'approval', 'gmt color', 'prepack'];
-        const matchCount = styleSignatures.filter(function(sig) {
+        // Colonnes caractéristiques de Details (qui contient la colonne Style)
+        const detailsSignatures = ['style', 'saison', 'fabric base', 'costing', 'psd', 'ex-fty'];
+        const matchCount = detailsSignatures.filter(function(sig) {
             return headers.some(function(h) { return h.includes(sig); });
         }).length;
 
-        // Si moins de 2 colonnes Style trouvées → pas sur Style
-        if (matchCount < 2) return;
+        // Si moins de 3 colonnes Details trouvées → pas sur Details
+        if (matchCount < 3) return;
+
+        // Trouver l'index de la colonne Style dans le header
+        const styleColIndex = headers.findIndex(function(h) { return h === 'style'; });
+
+        // Données de la feuille active (details)
+        const activeData = window.state && window.state.filteredData;
 
         // Déjà injecté ?
         if (tbody.querySelector('.btn-tp')) return;
@@ -516,12 +520,31 @@
         // Injecter les boutons TP
         tableRows.forEach(function (tr, i) {
             if (tr.querySelector('.btn-tp')) return;
-            const row = styleRows[i];
-            if (!row) return;
 
-            const styleCode   = String(row.Style || row['Style Code'] || '').trim();
-            const existingUrl = String(row.TP_URL || '').trim();
-            const rowIndex    = row._rowIndex || (i + 2);
+            // Récupérer le styleCode depuis la ligne du tableau ou les données filtrées
+            let styleCode = '';
+            if (activeData && activeData[i]) {
+                styleCode = String(activeData[i].Style || activeData[i]['Style Code'] || '').trim();
+            } else if (styleColIndex >= 0) {
+                const cells = tr.querySelectorAll('td');
+                if (cells[styleColIndex]) {
+                    styleCode = (cells[styleColIndex].textContent || '').trim();
+                }
+            }
+            if (!styleCode) return;
+
+            // Chercher TP_URL dans state.data.style
+            let existingUrl = '';
+            let rowIndex = i + 2;
+            if (styleRows && styleRows.length) {
+                const matchedStyle = styleRows.find(function(s) {
+                    return String(s.Style || s['Style Code'] || '').trim() === styleCode;
+                });
+                if (matchedStyle) {
+                    existingUrl = String(matchedStyle.TP_URL || '').trim();
+                    rowIndex = matchedStyle._rowIndex || rowIndex;
+                }
+            }
 
             const td  = document.createElement('td');
             td.style.cssText = 'padding:4px 8px;text-align:center;white-space:nowrap;';
@@ -551,7 +574,7 @@
             firstHeaderRow.appendChild(th);
         }
 
-        console.log('[AW27] TP buttons injectés ✓ (' + styleRows.length + ' styles, matchCount=' + matchCount + ')');
+        console.log('[AW27] TP buttons injectés ✓ (matchCount=' + matchCount + ')');
     }
 
     // Démarrer le patch
