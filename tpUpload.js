@@ -461,18 +461,31 @@
     //  INJECTION BOUTONS TP DANS LE TABLEAU
     // ═══════════════════════════════════════════════════════
 
-    // Patch renderTable de app.js pour ajouter les boutons TP
+    // Patch renderTable + switchTab pour détecter le passage sur Style
     function patchRenderTable() {
-        if (!window.renderTable && !window.renderRows) {
+        // Patch switchTab pour injecter les boutons à chaque changement de feuille
+        if (window.switchTab && !window._tpSwitchTabPatched) {
+            const _origSwitch = window.switchTab;
+            window.switchTab = function (el) {
+                _origSwitch(el);
+                setTimeout(injectTpButtons, 300);
+            };
+            window._tpSwitchTabPatched = true;
+        } else if (!window.switchTab) {
             setTimeout(patchRenderTable, 400);
             return;
         }
 
-        // On observe les mutations du tbody pour injecter les boutons
+        // Observer les mutations du tableau
         const observer = new MutationObserver(function () {
-            injectTpButtons();
+            if (window.state && window.state.activeSheet === 'style') {
+                injectTpButtons();
+            }
         });
         observer.observe(document.body, { childList: true, subtree: true });
+
+        // Tentative immédiate si déjà sur Style
+        injectTpButtons();
         console.log('[AW27] TP Upload: observer actif ✓');
     }
 
