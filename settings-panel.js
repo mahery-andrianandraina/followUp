@@ -391,7 +391,7 @@
         if (emailEl) emailEl.textContent = u.email || '—';
         if (avatarEl) {
             if (u.photoURL) {
-                avatarEl.innerHTML = `<img src="${u.photoURL}" alt=""/>`;
+                avatarEl.innerHTML = '<img src="' + u.photoURL + '" alt=""/>';
             } else {
                 const init = (u.displayName || u.email || '?').trim().split(' ')
                     .filter(Boolean).map(p => p[0].toUpperCase()).slice(0,2).join('');
