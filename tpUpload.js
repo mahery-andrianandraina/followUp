@@ -502,39 +502,53 @@
     }
 
     function injectTpButtons() {
-        // Ne s'applique que sur la feuille Style
-        if (!window.state || window.state.activeSheet !== 'style') return;
-
         const tbody = document.getElementById('table-body');
         if (!tbody) return;
 
-        const rows = window.state.data && window.state.data.style ? window.state.data.style : [];
-        if (!rows.length) return;
-
         const tableRows = tbody.querySelectorAll('tr');
+        if (!tableRows.length) return;
+
+        // Détecter si on est sur Style en vérifiant les données
+        const styleRows = window.state && window.state.data && window.state.data.style;
+        if (!styleRows || !styleRows.length) return;
+
+        // Vérifier que le tableau affiché correspond aux données Style
+        // On compare le nombre de lignes du tableau avec styleRows
+        // ET on vérifie qu'aucun bouton TP n'est déjà présent
+        const alreadyInjected = tbody.querySelector('.btn-tp');
+
+        // Compter les lignes visibles vs données style
+        const visibleCount = tableRows.length;
+        const styleCount   = styleRows.length;
+
+        // Si le nombre de lignes ne correspond pas aux données style → pas sur Style
+        if (visibleCount !== styleCount) return;
+
+        // Si déjà injecté → juste mettre à jour les URLs
+        if (alreadyInjected) return;
+
+        // Injecter les boutons
         tableRows.forEach(function (tr, i) {
-            // Éviter de double-injecter
             if (tr.querySelector('.btn-tp')) return;
 
-            const row = rows[i];
+            const row = styleRows[i];
             if (!row) return;
 
-            const styleCode  = String(row.Style || row['Style Code'] || '').trim();
-            const existingUrl = row.TP_URL || '';
-            const rowIndex   = row._rowIndex || (i + 2);
+            const styleCode   = String(row.Style || row['Style Code'] || '').trim();
+            const existingUrl = String(row.TP_URL || '').trim();
+            const rowIndex    = row._rowIndex || (i + 2);
 
-            // Créer la cellule bouton TP
             const td  = document.createElement('td');
             td.style.cssText = 'padding:4px 8px;text-align:center;white-space:nowrap;';
 
             const btn = document.createElement('button');
-            btn.className        = 'btn-tp ' + (existingUrl ? 'has-tp' : 'no-tp');
-            btn.textContent      = existingUrl ? '📄 TP' : '+ TP';
-            btn.title            = existingUrl ? 'Voir / Mettre à jour le Tech Pack' : 'Ajouter le Tech Pack';
-            btn.dataset.tpStyle  = styleCode;
-            btn.dataset.tpRow    = rowIndex;
-            btn.dataset.tpUrl    = existingUrl;
-            btn.onclick          = function (e) {
+            btn.className       = 'btn-tp ' + (existingUrl ? 'has-tp' : 'no-tp');
+            btn.textContent     = existingUrl ? '📄 TP' : '+ TP';
+            btn.title           = existingUrl ? 'Voir / Mettre à jour le Tech Pack' : 'Ajouter le Tech Pack';
+            btn.dataset.tpStyle = styleCode;
+            btn.dataset.tpRow   = rowIndex;
+            btn.dataset.tpUrl   = existingUrl;
+            btn.onclick         = function (e) {
                 e.stopPropagation();
                 tpOpen(styleCode, rowIndex, existingUrl);
             };
@@ -549,12 +563,14 @@
             const headerRow = thead.querySelector('tr');
             if (headerRow && !headerRow.querySelector('.th-tp')) {
                 const th = document.createElement('th');
-                th.className = 'th-tp';
-                th.textContent = 'Tech Pack';
+                th.className     = 'th-tp';
+                th.textContent   = 'Tech Pack';
                 th.style.cssText = 'padding:8px;text-align:center;font-size:11px;font-weight:600;white-space:nowrap;';
                 headerRow.appendChild(th);
             }
         }
+
+        console.log('[AW27] TP buttons injectés ✓ (' + styleRows.length + ' styles)');
     }
 
     // Démarrer le patch
