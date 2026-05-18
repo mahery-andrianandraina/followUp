@@ -181,20 +181,27 @@
     #topbar-settings-btn:hover { background: rgba(255,255,255,0.24); }
     #topbar-settings-btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
 
-    /* Masquer les doublons créés par topbarActionsPatch.js */
+    /* Masquer tous les doublons et anciens boutons */
     .user-badge,
     #btn-notif-settings,
     #btn-offline-sync,
     #btn-xl-import,
     #topbar-refresh-btn,
-    #topbar-sync-btn {
+    #topbar-sync-btn,
+    #topbar-export-btn,
+    #topbar-import-btn,
+    .topbar-divider,
+    .topbar-action-btn {
         display: none !important;
     }
 
     /* Bouton notifications — toujours visible et fonctionnel */
     #btn-notif-global {
         display: flex !important;
+        pointer-events: all !important;
     }
+
+
     `;
     document.head.appendChild(css);
 
@@ -471,16 +478,18 @@
     //  INJECTER LE BOUTON DANS LA TOPBAR
     // ═══════════════════════════════════════════════════════════
     function injectTopbarSettingsBtn() {
-        const headerRight = document.querySelector('.header-right');
+        var headerRight = document.querySelector('.header-right');
         if (!headerRight || document.getElementById('topbar-settings-btn')) return;
 
-        // Supprimer les boutons injectés par topbarActionsPatch.js s'ils existent
-        ['topbar-refresh-btn','topbar-sync-btn'].forEach(function(id) {
+        // Nettoyer une seule fois les boutons des anciens patches
+        ['topbar-refresh-btn','topbar-sync-btn','topbar-export-btn',
+         'topbar-import-btn','btn-notif-settings'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el) el.remove();
         });
-        // Supprimer aussi le séparateur topbar-divider s'il existe
-        document.querySelectorAll('.topbar-divider').forEach(function(el) { el.remove(); });
+        document.querySelectorAll('.topbar-divider, .topbar-action-btn').forEach(function(el) {
+            el.remove();
+        });
 
         const btn = document.createElement('button');
         btn.id        = 'topbar-settings-btn';
@@ -518,11 +527,14 @@
         init();
     }
 
-    new MutationObserver(function () {
+    // Observer UNIQUEMENT pour injecter le bouton settings quand le header est prêt
+    // (pas de nettoyage ici pour éviter les boucles infinies)
+    var _spObserver = new MutationObserver(function () {
         if (document.querySelector('.header-right') && !document.getElementById('topbar-settings-btn')) {
             injectTopbarSettingsBtn();
         }
-    }).observe(document.body, { childList: true, subtree: true });
+    });
+    _spObserver.observe(document.body, { childList: true, subtree: false });
 
     console.log('[AW27] Settings Panel chargé ✓');
 })();
