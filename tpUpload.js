@@ -378,6 +378,8 @@
 
                 const res  = await fetch(gasUrl, {
                     method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    redirect: 'follow',
                     body: JSON.stringify({
                         action:    'UPLOAD_TP',
                         styleCode: _currentStyle.styleCode,
@@ -390,7 +392,10 @@
                 document.getElementById('tp-progress-fill').style.width = '80%';
                 document.getElementById('tp-progress-label').textContent = 'Finalisation…';
 
-                const json = await res.json();
+                const text = await res.text();
+                let json;
+                try { json = JSON.parse(text); }
+                catch (parseErr) { throw new Error('Réponse invalide du serveur. Vérifiez que le script Google est bien déployé en accès "Tout le monde".'); }
                 if (json.status !== 'ok') throw new Error(json.message || 'Erreur GAS');
 
                 document.getElementById('tp-progress-fill').style.width = '100%';

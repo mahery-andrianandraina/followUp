@@ -72,6 +72,84 @@ function doPost(e) {
       }
     }
 
+    // ── UPLOAD TECH PACK (PDF → Google Drive) ──
+    if (action === "UPLOAD_TP") {
+      var styleCode = (payload.styleCode || "").trim();
+      var fileName  = payload.fileName || (styleCode + ".pdf");
+      var base64Data = payload.base64Data || "";
+      var mimeType   = payload.mimeType || "application/pdf";
+
+      if (!styleCode) throw new Error("styleCode manquant.");
+      if (!base64Data) throw new Error("Aucune donnée PDF reçue.");
+
+      // 1. Trouver ou créer le dossier "TP" dans le même dossier que le spreadsheet
+      var ssFile = DriveApp.getFileById(SPREADSHEET_ID);
+      var parents = ssFile.getParents();
+      var parentFolder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+      
+      var tpFolder;
+      var tpFolders = parentFolder.getFoldersByName("TP");
+      if (tpFolders.hasNext()) {
+        tpFolder = tpFolders.next();
+      } else {
+        tpFolder = parentFolder.createFolder("TP");
+      }
+
+      // 2. Supprimer l'ancien fichier s'il existe (même nom)
+      var existingFiles = tpFolder.getFilesByName(fileName);
+      while (existingFiles.hasNext()) {
+        var old = existingFiles.next();
+        old.setTrashed(true);
+      }
+
+      // 3. Créer le blob et uploader
+      var blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
+      var newFile = tpFolder.createFile(blob);
+      
+      // 4. Rendre accessible via lien (anyone with link can view)
+      newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      var fileUrl = "https://drive.google.com/file/d/" + newFile.getId() + "/view";
+
+      // 5. Écrire l'URL dans la colonne TP_URL de la feuille Details
+      try {
+        var ss2 = SpreadsheetApp.openById(SPREADSHEET_ID);
+        var detailsSheet = ss2.getSheetByName("Details");
+        if (detailsSheet) {
+          var dData = detailsSheet.getDataRange().getValues();
+          var dHeaders = dData[0].map(function(x) { return String(x).trim(); });
+          
+          // Trouver ou créer la colonne TP_URL
+          var tpColIdx = dHeaders.indexOf("TP_URL");
+          if (tpColIdx === -1) {
+            // Ajouter la colonne TP_URL
+            tpColIdx = dHeaders.length;
+            detailsSheet.getRange(1, tpColIdx + 1).setValue("TP_URL");
+          }
+          
+          // Trouver la colonne Style
+          var styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase() === "style"; });
+          if (styleIdx !== -1) {
+            for (var i = 1; i < dData.length; i++) {
+              if (String(dData[i][styleIdx]).trim() === styleCode) {
+                detailsSheet.getRange(i + 1, tpColIdx + 1).setValue(fileUrl);
+                break;
+              }
+            }
+          }
+        }
+      } catch(writeErr) {
+        // Non-bloquant : le fichier est uploadé même si l'écriture échoue
+        Logger.log("TP_URL write error: " + writeErr.message);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "ok",
+        url: fileUrl,
+        fileId: newFile.getId(),
+        fileName: fileName
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ── GESTION DONNÉES (CREATE/UPDATE/DELETE) ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheetKey = payload.sheet;
