@@ -24,8 +24,20 @@ function doGet(e) {
       if (standardNames.indexOf(name) !== -1) return;
       result[name.toLowerCase()] = readSheet(ss, name);
     });
+
+    // Lire la configuration des menus sauvegardés depuis le Spreadsheet
+    var menus = [];
+    var configSheet = ss.getSheetByName("_menus_config");
+    if (configSheet) {
+      var val = configSheet.getRange(1, 1).getValue();
+      if (val) {
+        try {
+          menus = JSON.parse(val);
+        } catch(e) {}
+      }
+    }
     
-    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result })).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify({ status: "ok", data: result, menus: menus })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.message })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -148,6 +160,33 @@ function doPost(e) {
         fileId: newFile.getId(),
         fileName: fileName
       })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── SAUVEGARDE DES CONFIGURATIONS DE MENUS PERSO (Cross-navigateur) ──
+    if (action === "SAVE_MENUS") {
+      var ssConfig = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var configSheet = ssConfig.getSheetByName("_menus_config");
+      if (!configSheet) {
+        configSheet = ssConfig.insertSheet("_menus_config");
+        configSheet.hideSheet();
+      }
+      var menusJson = JSON.stringify(payload.menus || []);
+      configSheet.getRange(1, 1).setValue(menusJson);
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── SUPPRESSION D'UNE FEUILLE ENTIÈRE ──
+    if (action === "DELETE_SHEET") {
+      var sheetNameToDelete = (payload.sheetName || "").trim();
+      if (!sheetNameToDelete) throw new Error("Nom de feuille manquant.");
+      var ssConfig = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var targetSheet = ssConfig.getSheetByName(sheetNameToDelete);
+      if (targetSheet) {
+        ssConfig.deleteSheet(targetSheet);
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ status: "error", message: "Feuille introuvable." })).setMimeType(ContentService.MimeType.JSON);
+      }
     }
 
     // ── GESTION DONNÉES (CREATE/UPDATE/DELETE) ──
