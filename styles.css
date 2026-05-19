@@ -5848,6 +5848,72 @@ select.filter-select {
     white-space: nowrap;
 }
 
+/* ─── TP Button in Dashboard Card ────────────────────────── */
+.dbs-sc-tp-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px 10px;
+}
+
+.dbs-sc-tp-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all .15s ease;
+    white-space: nowrap;
+    border: none;
+    line-height: 1.2;
+}
+
+.dbs-sc-tp-btn svg {
+    flex-shrink: 0;
+}
+
+.dbs-sc-tp-btn.has-tp {
+    background: #dcfce7;
+    color: #166534;
+    flex: 1;
+    justify-content: center;
+}
+
+.dbs-sc-tp-btn.has-tp:hover {
+    background: #bbf7d0;
+    box-shadow: 0 1px 4px rgba(22,101,52,0.15);
+}
+
+.dbs-sc-tp-btn.update-tp {
+    background: #f0f9ff;
+    color: #0369a1;
+    border: 0.5px solid #bae6fd;
+    padding: 4px 6px;
+}
+
+.dbs-sc-tp-btn.update-tp:hover {
+    background: #e0f2fe;
+    box-shadow: 0 1px 4px rgba(3,105,161,0.15);
+}
+
+.dbs-sc-tp-btn.no-tp {
+    background: #fff5f5;
+    color: #dc2626;
+    border: 1px dashed #fca5a5;
+    flex: 1;
+    justify-content: center;
+}
+
+.dbs-sc-tp-btn.no-tp:hover {
+    background: #fee2e2;
+    border-color: #f87171;
+    box-shadow: 0 1px 4px rgba(220,38,38,0.12);
+}
+
 /* ─── Dashboard Filter Bar ────────────────────────────────── */
 .db-filter-bar {
     display: flex;

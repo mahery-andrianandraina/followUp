@@ -885,6 +885,17 @@ function renderDashboard() {
                         ? '<div class="sc-prog-wrap"><div class="sc-prog-track"><div class="sc-prog-fill" style="width:' + progPct + '%"></div></div><span class="sc-prog-lbl">' + progPct + '% livré</span></div>'
                         : '';
 
+                    // ── TP (Tech Pack) button
+                    const tpUrl = String(r.TP_URL || r["TP_URL"] || "").trim();
+                    const styleCode = r.Style || "";
+                    const rowIdx = r._rowIndex || 2;
+                    let tpBtn = "";
+                    if (tpUrl) {
+                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn has-tp" onclick="event.stopPropagation();window.open(\'' + esc(tpUrl) + '\',\'_blank\')" title="Ouvrir le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Voir TP</button><button class="dbs-sc-tp-btn update-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'' + esc(tpUrl) + '\')" title="Mettre à jour le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></button></div>';
+                    } else {
+                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn no-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'\')" title="Ajouter un Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Ajouter TP</button></div>';
+                    }
+
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
@@ -935,6 +946,7 @@ function renderDashboard() {
                         '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
+                        tpBtn +
                         '</div>';
                 }).join("");
 
