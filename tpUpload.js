@@ -414,6 +414,16 @@
                 // Mettre à jour state.data
                 _updateStateData(_currentStyle.styleCode, json.url);
 
+                // Forcer la re-injection des boutons TP dans le tableau Details
+                var oldBtns = document.querySelectorAll('.btn-tp');
+                oldBtns.forEach(function(b) { if (b.parentElement) b.parentElement.remove(); });
+                var oldTh = document.querySelector('.th-tp');
+                if (oldTh) oldTh.remove();
+                setTimeout(injectTpButtons, 300);
+
+                // Mettre à jour le bouton TP dans la carte du dashboard
+                _updateDashboardTpButton(_currentStyle.styleCode, json.url);
+
                 if (typeof showToast === 'function') {
                     showToast('Tech Pack "' + _currentStyle.styleCode + '" uploadé ✓', 'success', 5000);
                 }
@@ -454,12 +464,32 @@
 
     function _updateStateData(styleCode, url) {
         try {
+            // Mettre à jour state.data.style
             const styleData = (window.state && window.state.data && window.state.data.style) || [];
             const row = styleData.find(function (r) {
                 return String(r.Style || r['Style Code'] || '').trim() === String(styleCode).trim();
             });
             if (row) row.TP_URL = url;
+
+            // Mettre à jour state.data.details (pour que le bouton TP dans Details passe au vert)
+            const detailsData = (window.state && window.state.data && window.state.data.details) || [];
+            detailsData.forEach(function (r) {
+                if (String(r.Style || r['Style Code'] || '').trim() === String(styleCode).trim()) {
+                    r.TP_URL = url;
+                }
+            });
         } catch (e) {}
+    }
+
+    function _updateDashboardTpButton(styleCode, url) {
+        // Trouver la carte du dashboard pour ce style et mettre à jour le bouton TP
+        var cards = document.querySelectorAll('.dbs-sc[data-style-raw="' + styleCode + '"]');
+        cards.forEach(function (card) {
+            var wrap = card.querySelector('.dbs-sc-tp-wrap');
+            if (!wrap) return;
+            var rowIdx = card.dataset.rowIndex || 2;
+            wrap.innerHTML = '<button class="dbs-sc-tp-btn has-tp" onclick="event.stopPropagation();window.open(\'' + url + '\',\'_blank\')" title="Ouvrir le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Voir TP</button><button class="dbs-sc-tp-btn update-tp" onclick="event.stopPropagation();tpOpen(\'' + styleCode + '\',' + rowIdx + ',\'' + url + '\')" title="Mettre à jour le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></button>';
+        });
     }
 
     // ═══════════════════════════════════════════════════════
@@ -538,10 +568,32 @@
             }
             if (!styleCode) return;
 
-            // Chercher TP_URL dans state.data.style
+            // Chercher TP_URL dans state.data.details (priorité), puis state.data.style, puis filteredData
             let existingUrl = '';
             let rowIndex = i + 2;
-            if (styleRows && styleRows.length) {
+
+            // 1. Chercher dans activeData (filteredData — données affichées)
+            if (activeData && activeData[i]) {
+                existingUrl = String(activeData[i].TP_URL || activeData[i]['TP_URL'] || '').trim();
+                rowIndex = activeData[i]._rowIndex || rowIndex;
+            }
+
+            // 2. Chercher dans state.data.details
+            if (!existingUrl) {
+                const detailsRows = window.state && window.state.data && window.state.data.details;
+                if (detailsRows && detailsRows.length) {
+                    const matchedDetail = detailsRows.find(function(d) {
+                        return String(d.Style || d['Style Code'] || '').trim() === styleCode;
+                    });
+                    if (matchedDetail) {
+                        existingUrl = String(matchedDetail.TP_URL || '').trim();
+                        rowIndex = matchedDetail._rowIndex || rowIndex;
+                    }
+                }
+            }
+
+            // 3. Fallback: chercher dans state.data.style
+            if (!existingUrl && styleRows && styleRows.length) {
                 const matchedStyle = styleRows.find(function(s) {
                     return String(s.Style || s['Style Code'] || '').trim() === styleCode;
                 });
