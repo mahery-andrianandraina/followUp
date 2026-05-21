@@ -2316,6 +2316,70 @@ async function sendRequest(action, payload, sheetOverride = null) {
     return json;
 }
 
+
+// ─── Image Upload ────────────────────────────────────────────
+function imgOpen(styleCode, rowIndex, currentUrl) {
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    const MAX_SIZE = 1.5 * 1024 * 1024;
+    let fileToUpload = file;
+    if (file.size > MAX_SIZE) fileToUpload = await _compressImage(file, 0.75);
+    const ext = file.name.split(".").pop().toLowerCase() || "jpg";
+    const fileName = styleCode + "." + ext;
+    showToast("Upload de l'image en cours…", "info", 8000);
+    try {
+      const base64 = await _fileToBase64(fileToUpload);
+      const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "UPLOAD_IMAGE",
+          styleCode, fileName,
+          base64Data: base64.split(",")[1],
+          mimeType: fileToUpload.type || "image/jpeg"
+        })
+      });
+      const json = await res.json();
+      if (json.status !== "ok") throw new Error(json.message);
+      const row = (state.data.details || []).find(r => r._rowIndex === rowIndex);
+      if (row) { row["_imageUrl"] = json.thumbUrl; row["Image"] = json.url; }
+      showToast("Image uploadée ✓", "success");
+      renderDashboard();
+    } catch (err) { showToast("Erreur upload image : " + err.message, "error"); }
+  };
+  input.click();
+}
+
+function _fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function _compressImage(file, quality = 0.75) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX_W = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => resolve(blob), "image/jpeg", quality);
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  });
+}
+
 function showToast(msg, type = "info", duration = 3500) {
     const toast = document.createElement("div"); toast.className = `toast ${type}`; toast.innerHTML = `<span class="toast-msg">${msg}</span>`;
     toastContainer.appendChild(toast);
