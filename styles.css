@@ -6469,5 +6469,33 @@ select.filter-select {
     color: var(--text-muted);
     margin-left: 4px;
 }
+/* ─── Upload image sur les cards dashboard ──────────────── */
+.dbs-sc-img-wrap { position: relative; }
+
+.dbs-img-upload-btn {
+  position: absolute; bottom: 6px; right: 6px;
+  background: rgba(0,0,0,0.55); border: none;
+  border-radius: 6px; cursor: pointer; color: #fff;
+  padding: 4px 8px; display: flex; align-items: center;
+  gap: 4px; font-size: 10px; font-weight: 600;
+  opacity: 0; transition: opacity 0.18s;
+  backdrop-filter: blur(4px); white-space: nowrap;
+  font-family: inherit;
+}
+.dbs-sc-img-wrap:hover .dbs-img-upload-btn { opacity: 1; }
+.dbs-img-upload-btn:hover { background: rgba(2,132,199,0.85); }
+
+.dbs-img-add-btn {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 6px; width: 100%; height: 100%;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted, #9ca3af);
+  font-size: 11px; font-weight: 500;
+  transition: color 0.15s; font-family: inherit;
+}
+.dbs-sc-img-placeholder:hover .dbs-img-add-btn {
+  color: var(--accent, #0284c7);
+}
 
 
