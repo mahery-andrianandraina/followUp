@@ -900,80 +900,15 @@ function renderDashboard() {
                     const delay = (cardIdx * 60) + (di * 30);
 
                     // ── Image du style (normalisé dans fixRows — supporte base64 GAS, Drive /file/d/, open?id=)
-                    // ── Image du style
                     const imgUrl = r["_imageUrl"] || "";
-                    const _lbStyle = esc(r.Style || "");
-                    const _lbDesc = esc(r["Description"] || r["StyleDescription"] || "");
-                    const _rowIdx = r._rowIndex || 2;
                     let imgBlock;
                     if (imgUrl) {
-                        imgBlock = '<div class="dbs-sc-img-wrap">' +
-                            '<img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy"' +
-                            ' style="cursor:zoom-in" onclick="openImageLightbox(this.src,\'' + _lbStyle + '\',\'' + _lbDesc + '\')"/>' +
-                            '<button class="dbs-img-upload-btn" title="Changer la photo"' +
-                            ' onclick="event.stopPropagation();imgOpen(\'' + _lbStyle + '\',' + _rowIdx + ',\'' + esc(imgUrl) + '\')">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11">' +
-                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>' +
-                            ' Changer</button></div>';
+                        const _lbStyle = esc(r.Style || "");
+                        const _lbDesc = esc(r["Description"] || r["StyleDescription"] || "");
+                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
                     } else {
-                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder">' +
-                            '<button class="dbs-img-add-btn" title="Ajouter une photo"' +
-                            ' onclick="event.stopPropagation();imgOpen(\'' + _lbStyle + '\',' + _rowIdx + ',\'\')">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16">' +
-                            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"' +
-                            ' d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M14 8h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>' +
-                            '<span>Ajouter photo</span></button></div>';
+                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
                     }
-
-                    return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
-                        ' data-style="' + esc((r.Style || "").toLowerCase()) + '"' +
-                        ' data-desc="' + esc((r["Description"] || r["StyleDescription"] || "").toLowerCase()) + '"' +
-                        ' data-fabric="' + esc((r["Fabric Base"] || "").toLowerCase()) + '"' +
-                        ' data-client="' + esc((r.Client || "").toLowerCase()) + '"' +
-                        ' data-style-raw="' + esc(r.Style || "") + '"' +
-                        ' data-client-raw="' + esc(r.Client || "") + '"' +
-                        ' data-saison="' + esc(r.Saison || "") + '"' +
-                        ' data-dept="' + esc(r.Dept || "") + '"' +
-                        ' data-status="' + esc(r.Status || "") + '"' +
-                        ' data-costing="' + esc(r.Costing || "") + '"' +
-                        ' data-order-qty="' + esc(String(r["Order Qty"] || "")) + '"' +
-                        ' data-plc="' + esc(r["PLC Booking"] || "") + '"' +
-                        ' data-crp="' + esc(r["CRP Booking"] || "") + '"' +
-                        ' data-psd="' + esc(r["PSD"] || "") + '"' +
-                        ' data-exfty="' + esc(r["Ex-Fty"] || "") + '"' +
-                        ' data-comments="' + esc(r.Comments || "") + '"' +
-                        ' data-description-full="' + esc(r["Description"] || r["StyleDescription"] || "") + '"' +
-                        ' data-image-url="' + (r["_imageUrl"] ? esc(r["_imageUrl"]) : "") + '"' +
-                        '>' +
-                        imgBlock +
-                        '<div class="dbs-sc-head">' +
-                        '<div class="dbs-sc-id">' +
-                        '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
-                        (desc ? '<span class="dbs-sc-desc">' + desc + '</span>' : '') +
-                        '</div>' +
-                        exFtyBadge(r["Ex-Fty"]) +
-                        '</div>' +
-                        (colorWrap ? colorWrap : '') +
-                        '<hr class="dbs-sc-div">' +
-                        '<div class="dbs-sc-fields">' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
-                        '</div>' +
-                        tpBtn +
-                        '</div>';
-                }).join("");
-
-                return '<div class="dbs-dept-grp">' +
-                    '<div class="dbs-dept-title">' +
-                    '<span class="dbs-dept-name-lbl">' + esc(dd.dept) + '</span>' +
-                    '<div class="dbs-dept-line" style="background:' + c.stroke + '"></div>' +
-                    '</div>' +
-                    '<div class="dbs-cards-wrap">' + cards + '</div>' +
-                    '</div>';
-            }).join("");
-
 
                     return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
                         ' data-style="' + esc((r.Style || "").toLowerCase()) + '"' +
