@@ -14,6 +14,7 @@
     let _todoLoading = false;
 
     // ─── Inject CSS ──────────────────────────────────────────
+    // ─── Inject CSS ──────────────────────────────────────────
     const style = document.createElement('style');
     style.textContent = `
     /* ── Todo Sidebar Nav Item ── */
@@ -34,59 +35,124 @@
 
     /* ── Todo Panel Overlay ── */
     #todo-overlay {
-        position: fixed; inset: 0; z-index: 1050;
+        position: fixed; inset: 0; z-index: 10050;
         pointer-events: none; opacity: 0;
         transition: opacity 0.25s ease;
     }
     #todo-overlay.open { pointer-events: all; opacity: 1; }
     .todo-backdrop {
         position: absolute; inset: 0;
-        background: rgba(15,23,42,0.35);
-        backdrop-filter: blur(2px);
+        background: rgba(15,23,42,0.1);
+        backdrop-filter: blur(1px);
+        pointer-events: all;
     }
     .todo-panel {
-        position: absolute; top: 0; right: 0; bottom: 0;
-        width: 50vw; min-width: 420px; max-width: 800px;
+        position: fixed; bottom: 156px; right: 28px;
+        width: 380px; height: 550px;
         background: #fff;
-        border-left: 1px solid #e5e7eb;
-        box-shadow: -8px 0 40px rgba(0,0,0,0.12);
+        border-radius: 20px;
+        border: 1px solid #dce8f8;
+        box-shadow: 0 8px 40px rgba(99,102,241,0.15), 0 2px 8px rgba(0,0,0,0.08);
         display: flex; flex-direction: column;
-        transform: translateX(100%);
-        transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+        transform: translateY(20px) scale(0.95);
+        transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: hidden;
+        pointer-events: all;
     }
-    #todo-overlay.open .todo-panel { transform: translateX(0); }
+    #todo-overlay.open .todo-panel { transform: translateY(0) scale(1); }
+
+    /* ── Floating Action Button (FAB) ── */
+    #todo-fab {
+        position: fixed; bottom: 92px; right: 28px;
+        width: 52px; height: 52px; border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none; cursor: pointer;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.45);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10001; transition: transform 0.2s, box-shadow 0.2s;
+    }
+    #todo-fab:hover { transform: scale(1.07); box-shadow: 0 6px 24px rgba(99,102,241,0.55); }
+    #todo-fab svg { width: 22px; height: 22px; stroke: #fff; }
+    .todo-fab-badge {
+        position: absolute; top: -2px; right: -2px;
+        min-width: 16px; height: 16px; border-radius: 8px;
+        background: #ef4444; border: 2px solid white;
+        color: #fff; font-size: 9px; font-weight: 700;
+        display: none; align-items: center; justify-content: center;
+        padding: 0 4px;
+        z-index: 1;
+    }
+    .todo-fab-badge.visible { display: flex; }
+
+    /* ── Signal Speech Bubble ── */
+    .todo-signal-bubble {
+        position: fixed; bottom: 156px; right: 28px;
+        background: #ffffff; border: 1.5px solid #e0e3ff;
+        border-radius: 12px; padding: 10px 14px;
+        box-shadow: 0 6px 20px rgba(99,102,241,0.15);
+        z-index: 10002; max-width: 250px;
+        animation: todo-bubble-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        cursor: pointer; display: none; align-items: center; gap: 8px;
+        pointer-events: all;
+    }
+    .todo-signal-bubble.visible { display: flex; }
+    .todo-signal-bubble:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(99,102,241,0.2); }
+    .todo-signal-bubble::after {
+        content: ''; position: absolute; bottom: -8px; right: 21px;
+        width: 12px; height: 12px; background: #fff;
+        border-right: 1.5px solid #e0e3ff; border-bottom: 1.5px solid #e0e3ff;
+        transform: rotate(45deg);
+    }
+    .todo-bubble-close {
+        background: transparent; border: none; font-size: 12px;
+        color: #9ca3af; cursor: pointer; padding: 2px;
+        display: flex; align-items: center; justify-content: center;
+        margin-left: auto; border-radius: 4px;
+    }
+    .todo-bubble-close:hover { background: #fee2e2; color: #dc2626; }
+    .todo-bubble-text {
+        font-size: 11px; font-weight: 600; color: #1a1f36; line-height: 1.3;
+    }
+    @keyframes todo-bubble-in {
+        from { opacity: 0; transform: translateY(10px) scale(0.9); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
 
     /* ── Header ── */
     .todo-header {
-        display: flex; align-items: center; gap: 12px;
-        padding: 18px 24px 16px;
+        display: grid;
+        grid-template-areas: 
+            "icon title close"
+            "stats stats stats";
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 20px 14px;
         border-bottom: 1px solid #e5e7eb;
         background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%);
         flex-shrink: 0;
     }
-    .todo-header-icon {
-        width: 40px; height: 40px; border-radius: 12px;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        display: flex; align-items: center; justify-content: center;
-        flex-shrink: 0; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
-    }
-    .todo-header-icon svg { width: 18px; height: 18px; stroke: #fff; }
-    .todo-header-title { font-size: 16px; font-weight: 800; color: #1a1f36; flex: 1; letter-spacing: -0.01em; }
-    .todo-header-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .todo-header-icon { grid-area: icon; }
+    .todo-header > div:nth-child(2) { grid-area: title; }
     .todo-header-stats {
-        display: flex; gap: 12px; margin-left: auto; margin-right: 12px;
+        grid-area: stats; margin-top: 6px;
+        display: grid; grid-template-columns: repeat(4, 1fr);
+        gap: 8px; margin-left: 0; margin-right: 0;
     }
+    .todo-header-title { font-size: 16px; font-weight: 800; color: #1a1f36; letter-spacing: -0.01em; }
+    .todo-header-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
     .todo-stat-pill {
         display: flex; flex-direction: column; align-items: center;
-        padding: 4px 12px; border-radius: 10px; background: #fff;
-        border: 1px solid #e5e7eb; min-width: 52px;
+        padding: 4px 6px; border-radius: 10px; background: #fff;
+        border: 1px solid #e5e7eb; min-width: 0;
     }
-    .todo-stat-num { font-size: 16px; font-weight: 800; color: #1a1f36; line-height: 1.2; }
+    .todo-stat-num { font-size: 14px; font-weight: 800; color: #1a1f36; line-height: 1.2; }
     .todo-stat-num.red { color: #dc2626; }
     .todo-stat-num.green { color: #16a34a; }
     .todo-stat-num.amber { color: #d97706; }
-    .todo-stat-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
+    .todo-stat-label { font-size: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; color: #9ca3af; text-align: center; }
     .todo-close-btn {
+        grid-area: close; justify-self: end;
         width: 30px; height: 30px; border-radius: 7px;
         border: 1px solid #e5e7eb; background: transparent;
         color: #9ca3af; cursor: pointer;
@@ -97,7 +163,7 @@
 
     /* ── Add Form ── */
     .todo-add-wrap {
-        padding: 16px 24px;
+        padding: 12px 16px;
         border-bottom: 1px solid #e5e7eb;
         flex-shrink: 0;
         background: #f8f9ff;
@@ -149,7 +215,7 @@
 
     /* ── Filters ── */
     .todo-filters {
-        display: flex; gap: 6px; padding: 12px 24px;
+        display: flex; gap: 6px; padding: 10px 16px;
         border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
         overflow-x: auto; scrollbar-width: none;
         background: #fafbfc;
@@ -175,7 +241,7 @@
 
     /* ── Task List ── */
     .todo-list {
-        flex: 1; overflow-y: auto; padding: 8px 20px 20px;
+        flex: 1; overflow-y: auto; padding: 8px 16px 16px;
     }
     .todo-list::-webkit-scrollbar { width: 4px; }
     .todo-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
@@ -191,7 +257,7 @@
     /* ── Task Card ── */
     .todo-task {
         display: flex; align-items: flex-start; gap: 12px;
-        padding: 14px 16px; border-radius: 12px;
+        padding: 10px 12px; border-radius: 12px;
         border: 1px solid #e5e7eb; background: #fff;
         margin-bottom: 8px; transition: all 0.2s ease;
         cursor: default; position: relative;
@@ -217,7 +283,7 @@
 
     .todo-task-body { flex: 1; min-width: 0; }
     .todo-task-title {
-        font-size: 14px; font-weight: 700; color: #1a1f36;
+        font-size: 13.5px; font-weight: 700; color: #1a1f36;
         line-height: 1.4; margin-bottom: 2px;
     }
     .todo-task-created {
@@ -242,7 +308,7 @@
     .due-soon { background: #eff6ff; color: #2563eb; }
     .due-ok { background: #f1f5f9; color: #64748b; }
     .todo-linked-badge {
-        font-size: 10.5px; font-weight: 600; padding: 3px 10px;
+        font-size: 10px; font-weight: 600; padding: 2px 8px;
         border-radius: 20px; background: #eef2ff; color: #4338ca;
         cursor: pointer; transition: all 0.15s;
         display: inline-flex; align-items: center; gap: 3px;
@@ -276,7 +342,7 @@
 
     /* ── Footer stats ── */
     .todo-footer {
-        padding: 12px 24px; border-top: 1px solid #e5e7eb;
+        padding: 10px 16px; border-top: 1px solid #e5e7eb;
         display: flex; align-items: center; justify-content: space-between;
         flex-shrink: 0; background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%);
     }
@@ -298,7 +364,7 @@
 
     /* ── Search bar ── */
     .todo-search-wrap {
-        padding: 0 24px 12px;
+        padding: 0 16px 10px;
         background: #fafbfc;
         border-bottom: 1px solid #e5e7eb;
         flex-shrink: 0;
@@ -361,40 +427,40 @@
 
     /* ── Welcome Page ── */
     .todo-welcome {
-        flex: 1; overflow-y: auto; padding: 24px;
-        display: flex; flex-direction: column; gap: 20px;
+        flex: 1; overflow-y: auto; padding: 16px;
+        display: flex; flex-direction: column; gap: 16px;
         animation: todo-fadeIn 0.4s ease;
     }
     @keyframes todo-fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
     .todo-welcome-hero {
-        text-align: center; padding: 28px 20px 20px;
+        text-align: center; padding: 20px 16px;
         background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #fff7ed 100%);
         border-radius: 16px; border: 1px solid #e0e7ff;
     }
     .todo-welcome-icon {
-        width: 56px; height: 56px; border-radius: 16px;
+        width: 44px; height: 44px; border-radius: 12px;
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
         display: inline-flex; align-items: center; justify-content: center;
-        margin-bottom: 12px; box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+        margin-bottom: 8px; box-shadow: 0 4px 12px rgba(99,102,241,0.3);
     }
-    .todo-welcome-icon svg { width: 26px; height: 26px; stroke: #fff; }
+    .todo-welcome-icon svg { width: 22px; height: 22px; stroke: #fff; }
     .todo-welcome-h1 {
-        font-size: 20px; font-weight: 800; color: #1a1f36;
+        font-size: 18px; font-weight: 800; color: #1a1f36;
         margin-bottom: 4px; letter-spacing: -0.02em;
     }
     .todo-welcome-sub {
-        font-size: 13px; color: #6b7280; line-height: 1.5;
+        font-size: 12px; color: #6b7280; line-height: 1.5;
     }
 
     .todo-welcome-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
     }
     .todo-welcome-card {
         background: #fff; border: 1.5px solid #e5e7eb;
-        border-radius: 14px; padding: 16px;
+        border-radius: 12px; padding: 12px;
         cursor: pointer; transition: all 0.2s ease;
-        display: flex; flex-direction: column; gap: 8px;
+        display: flex; flex-direction: column; gap: 6px;
         position: relative; overflow: hidden;
     }
     .todo-welcome-card:hover {
@@ -402,19 +468,19 @@
         box-shadow: 0 6px 20px rgba(99,102,241,0.12);
     }
     .todo-welcome-card-icon {
-        width: 36px; height: 36px; border-radius: 10px;
+        width: 30px; height: 30px; border-radius: 8px;
         display: flex; align-items: center; justify-content: center;
-        font-size: 18px; flex-shrink: 0;
+        font-size: 16px; flex-shrink: 0;
     }
     .todo-welcome-card-num {
-        font-size: 28px; font-weight: 900; line-height: 1;
+        font-size: 24px; font-weight: 900; line-height: 1;
         letter-spacing: -0.02em;
     }
     .todo-welcome-card-label {
-        font-size: 12px; font-weight: 700; color: #1a1f36;
+        font-size: 11px; font-weight: 700; color: #1a1f36;
     }
     .todo-welcome-card-desc {
-        font-size: 11px; color: #9ca3af; line-height: 1.4;
+        font-size: 9.5px; color: #9ca3af; line-height: 1.3;
     }
     .todo-welcome-card.card-overdue { border-left: 4px solid #ef4444; }
     .todo-welcome-card.card-overdue .todo-welcome-card-icon { background: #fee2e2; }
@@ -434,9 +500,9 @@
     }
     .todo-welcome-start-btn {
         display: inline-flex; align-items: center; gap: 8px;
-        padding: 12px 28px; border-radius: 12px;
+        padding: 10px 24px; border-radius: 12px;
         background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: #fff; font-size: 14px; font-weight: 700;
+        color: #fff; font-size: 13px; font-weight: 700;
         border: none; cursor: pointer;
         box-shadow: 0 4px 16px rgba(99,102,241,0.3);
         transition: all 0.2s ease; font-family: inherit;
@@ -445,26 +511,26 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 24px rgba(99,102,241,0.4);
     }
-    .todo-welcome-start-btn svg { width: 16px; height: 16px; stroke: #fff; }
+    .todo-welcome-start-btn svg { width: 14px; height: 14px; stroke: #fff; }
 
     .todo-welcome-recent-title {
-        font-size: 12px; font-weight: 800; text-transform: uppercase;
-        letter-spacing: .06em; color: #94a3b8; margin-bottom: 8px;
+        font-size: 11px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .06em; color: #94a3b8; margin-bottom: 6px;
     }
     .todo-welcome-recent-item {
-        display: flex; align-items: center; gap: 10px;
-        padding: 10px 12px; border-radius: 10px;
+        display: flex; align-items: center; gap: 8px;
+        padding: 8px 10px; border-radius: 8px;
         border: 1px solid #f0f1f3; background: #fff;
-        margin-bottom: 4px; font-size: 13px; color: #1a1f36;
+        margin-bottom: 4px; font-size: 12px; color: #1a1f36;
     }
     .todo-welcome-recent-item .prio-dot {
-        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+        width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
     }
     .prio-dot-high { background: #ef4444; }
     .prio-dot-medium { background: #f59e0b; }
     .prio-dot-low { background: #22c55e; }
     .todo-welcome-recent-meta {
-        font-size: 10px; color: #9ca3af; margin-left: auto; flex-shrink: 0;
+        font-size: 9.5px; color: #9ca3af; margin-left: auto; flex-shrink: 0;
     }
 
     .todo-style-badge {
@@ -687,6 +753,8 @@
             if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') {
                 _tasks = _demoTasks();
                 _renderAll();
+                _updateBadge();
+                _checkStartupNotif();
                 return;
             }
             const res = await fetch(gasUrl, {
@@ -704,6 +772,7 @@
             console.warn('[Todo] Load error:', e);
             _tasks = [];
             _renderAll();
+            _updateBadge();
         }
     }
 
@@ -1030,22 +1099,111 @@
         }
     }
 
-    // ─── Badge ────────────────────────────────────────────────
+    // ─── Badge & Signal Bubble ────────────────────────────────
+    let _bubbleDismissed = false;
+
     function _updateBadge() {
         const badge = document.getElementById('todo-nav-badge');
-        if (!badge) return;
+        const fabBadge = document.getElementById('todo-fab-badge');
+
         const urgent = _tasks.filter(t => {
             if (t.status === 'done') return false;
             if (t.priority === 'High') return true;
             if (t.dueDate && _daysDiff(t.dueDate) <= 0) return true;
             return false;
         }).length;
-        if (urgent > 0) {
-            badge.textContent = urgent > 9 ? '9+' : urgent;
-            badge.classList.add('visible');
-        } else {
-            badge.classList.remove('visible');
+
+        // Nav badge
+        if (badge) {
+            if (urgent > 0) {
+                badge.textContent = urgent > 9 ? '9+' : urgent;
+                badge.classList.add('visible');
+            } else {
+                badge.classList.remove('visible');
+            }
         }
+
+        // FAB badge
+        if (fabBadge) {
+            if (urgent > 0) {
+                fabBadge.textContent = urgent > 9 ? '9+' : urgent;
+                fabBadge.classList.add('visible');
+            } else {
+                fabBadge.classList.remove('visible');
+            }
+        }
+
+        // Show/Update signal bubble
+        _updateSignalBubble(urgent);
+    }
+
+    function _updateSignalBubble(urgentCount) {
+        if (_bubbleDismissed || _todoOpen) {
+            _hideSignalBubble();
+            return;
+        }
+
+        const chatbotPanel = document.getElementById('fu-chatbot-panel');
+        if (chatbotPanel && chatbotPanel.classList.contains('open')) {
+            _hideSignalBubble();
+            return;
+        }
+
+        const overdue = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) < 0);
+        const todayTasks = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) === 0);
+
+        if (!overdue.length && !todayTasks.length && urgentCount === 0) {
+            _hideSignalBubble();
+            return;
+        }
+
+        // Inject bubble if not present
+        let bubble = document.getElementById('todo-signal-bubble');
+        if (!bubble) {
+            bubble = document.createElement('div');
+            bubble.id = 'todo-signal-bubble';
+            bubble.className = 'todo-signal-bubble';
+            bubble.onclick = (e) => {
+                openTodoPanel();
+                _hideSignalBubble();
+            };
+            document.body.appendChild(bubble);
+        }
+
+        let msg = '';
+        if (overdue.length) {
+            msg = `⚠️ <strong>${overdue.length}</strong> tâche${overdue.length > 1 ? 's' : ''} en retard !`;
+        } else if (todayTasks.length) {
+            msg = `📅 <strong>${todayTasks.length}</strong> tâche${todayTasks.length > 1 ? 's' : ''} aujourd'hui`;
+        } else {
+            msg = `🔔 <strong>${urgentCount}</strong> tâche${urgentCount > 1 ? 's' : ''} urgente${urgentCount > 1 ? 's' : ''}`;
+        }
+
+        bubble.innerHTML = `
+            <div class="todo-bubble-text">${msg}</div>
+            <button class="todo-bubble-close" title="Fermer">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        `;
+
+        const closeBtn = bubble.querySelector('.todo-bubble-close');
+        if (closeBtn) {
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                _bubbleDismissed = true;
+                _hideSignalBubble();
+            };
+        }
+
+        if (!_todoOpen && !_bubbleDismissed) {
+            bubble.classList.add('visible');
+        }
+    }
+
+    function _hideSignalBubble() {
+        document.getElementById('todo-signal-bubble')?.classList.remove('visible');
     }
 
     // ─── Startup notification ─────────────────────────────────
@@ -1362,6 +1520,13 @@
     // ─── Open / Close ─────────────────────────────────────────
     window.openTodoPanel = function() {
         _injectPanel();
+        
+        // Hide signal bubble when opening panel
+        _hideSignalBubble();
+        
+        // Close chatbot panel if open
+        document.getElementById('fu-chatbot-panel')?.classList.remove('open');
+
         requestAnimationFrame(() => {
             document.getElementById('todo-overlay')?.classList.add('open');
         });
@@ -1394,16 +1559,79 @@
     window.closeTodoPanel = function() {
         document.getElementById('todo-overlay')?.classList.remove('open');
         _todoOpen = false;
+
+        // Re-evaluate showing the signal bubble
+        const urgent = _tasks.filter(t => {
+            if (t.status === 'done') return false;
+            if (t.priority === 'High') return true;
+            if (t.dueDate && _daysDiff(t.dueDate) <= 0) return true;
+            return false;
+        }).length;
+        _updateSignalBubble(urgent);
     };
 
     function _escHtml(s) {
         return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    // ─── Inject Floating Action Button ────────────────────────
+    function _injectTodoFab() {
+        if (document.getElementById('todo-fab')) return;
+
+        const btn = document.createElement('button');
+        btn.id = 'todo-fab';
+        btn.title = 'To-Do List';
+        btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+            </svg>
+            <span class="todo-fab-badge" id="todo-fab-badge"></span>
+        `;
+        
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            if (_todoOpen) {
+                closeTodoPanel();
+            } else {
+                openTodoPanel();
+            }
+        };
+
+        document.body.appendChild(btn);
+    }
+
     // ─── Init ─────────────────────────────────────────────────
     function _init() {
         _injectNavItem();
         _injectPanel();
+        _injectTodoFab();
+
+        // Listen for document clicks to close To-Do when clicking outside and handle chatbot toggle
+        document.addEventListener('click', (e) => {
+            // Close todo panel if chatbot button is clicked
+            if (e.target.closest('#fu-chatbot-btn')) {
+                closeTodoPanel();
+                _hideSignalBubble();
+                return;
+            }
+
+            // Close todo panel if clicking outside
+            const overlay = document.getElementById('todo-overlay');
+            const fab = document.getElementById('todo-fab');
+            const navBtn = document.getElementById('tab-todo');
+            const bubble = document.getElementById('todo-signal-bubble');
+            
+            if (_todoOpen && overlay && overlay.classList.contains('open')) {
+                const panel = overlay.querySelector('.todo-panel');
+                if (panel && !panel.contains(e.target) && 
+                    (!fab || !fab.contains(e.target)) && 
+                    (!navBtn || !navBtn.contains(e.target)) &&
+                    (!bubble || !bubble.contains(e.target))) {
+                    closeTodoPanel();
+                }
+            }
+        });
 
         // Load tasks after app data is ready
         const waitForApp = setInterval(() => {

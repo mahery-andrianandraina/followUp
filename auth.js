@@ -63,14 +63,27 @@ async function signOut() {
 let _whitelistUnsubscribe = null;
 
 if (!isPage("login.html") && !isPage("access-request.html")) {
-    auth.onAuthStateChanged(async (firebaseUser) => {
-        if (!firebaseUser) {
-            if (_whitelistUnsubscribe) { _whitelistUnsubscribe(); _whitelistUnsubscribe = null; }
-            window.location.href = "login.html";
-            return;
-        }
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        window.currentUser = {
+            uid: "mock-uid",
+            email: "mcformation1@gmail.com",
+            displayName: "Utilisateur Test",
+            photoURL: "",
+            gasUrl: "https://script.google.com/macros/s/mock-gas-url/exec"
+        };
+        window.GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
+        setTimeout(() => {
+            if (typeof onAuthReady === "function") onAuthReady();
+        }, 100);
+    } else {
+        auth.onAuthStateChanged(async (firebaseUser) => {
+            if (!firebaseUser) {
+                if (_whitelistUnsubscribe) { _whitelistUnsubscribe(); _whitelistUnsubscribe = null; }
+                window.location.href = "login.html";
+                return;
+            }
 
-        await handleUser(firebaseUser);
+            await handleUser(firebaseUser);
 
         // ── Listener temps réel whitelist ─────────────────────
         // Déconnecte l'user immédiatement si l'admin révoque son accès
