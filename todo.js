@@ -584,9 +584,9 @@
                     <div class="todo-form-group">
                         <label class="todo-form-label">Priorité</label>
                         <select class="todo-form-select" id="todo-priority">
-                            <option value="High">🔴 Haute</option>
-                            <option value="Medium" selected>🟡 Moyenne</option>
-                            <option value="Low">🟢 Basse</option>
+                            <option value="High">Haute</option>
+                            <option value="Medium" selected>Moyenne</option>
+                            <option value="Low">Basse</option>
                         </select>
                     </div>
                     <div class="todo-form-group">
@@ -626,7 +626,7 @@
                         placeholder="Rechercher tâche, style, client…"
                         oninput="_todoOnSearch(this.value)"/>
                     <span class="todo-search-count" id="todo-search-count"></span>
-                    <button class="todo-search-clear" id="todo-search-clear" onclick="_todoClearSearch()">✕</button>
+                    <button class="todo-search-clear" id="todo-search-clear" onclick="_todoClearSearch()"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
                 </div>
             </div>
 
@@ -658,7 +658,7 @@
         const diff = _daysDiff(dueDate);
         if (diff === null) return '';
         const fmt = new Date(dueDate).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' });
-        if (diff < 0) return `<span class="todo-due-badge due-overdue">⚠ ${fmt} (${Math.abs(diff)}j)</span>`;
+        if (diff < 0) return `<span class="todo-due-badge due-overdue">${fmt} (${Math.abs(diff)}j en retard)</span>`;
         if (diff === 0) return `<span class="todo-due-badge due-today">Aujourd'hui</span>`;
         if (diff <= 3) return `<span class="todo-due-badge due-soon">dans ${diff}j · ${fmt}</span>`;
         return `<span class="todo-due-badge due-ok">${fmt}</span>`;
@@ -666,7 +666,7 @@
 
     function _prioBadge(prio) {
         const map = { High: 'prio-high', Medium: 'prio-medium', Low: 'prio-low' };
-        const labels = { High: '🔴 Haute', Medium: '🟡 Moyenne', Low: '🟢 Basse' };
+        const labels = { High: 'Haute', Medium: 'Moyenne', Low: 'Basse' };
         return `<span class="todo-priority ${map[prio] || 'prio-medium'}">${labels[prio] || prio}</span>`;
     }
 
@@ -797,10 +797,10 @@
         if (!el) return;
         const filters = [
             { id: 'all', label: 'Toutes' },
-            { id: 'overdue', label: '🔴 En retard' },
-            { id: 'today', label: '🟡 Aujourd\'hui' },
-            { id: 'high', label: '⚡ Urgent' },
-            { id: 'done', label: '✓ Terminées' },
+            { id: 'overdue', label: 'En retard' },
+            { id: 'today', label: 'Aujourd\'hui' },
+            { id: 'high', label: 'Urgent' },
+            { id: 'done', label: 'Terminées' },
         ];
         el.innerHTML = filters.map(f => {
             const count = _countFilter(f.id);
@@ -844,8 +844,8 @@
         const filtered = _getFiltered();
         if (!filtered.length) {
             const msgs = {
-                all: _todoSearch ? 'Aucun résultat pour « ' + _escHtml(_todoSearch) + ' »' : 'Aucune tâche en cours 🎉',
-                overdue: 'Aucune tâche en retard ✓',
+                all: _todoSearch ? 'Aucun résultat pour « ' + _escHtml(_todoSearch) + ' »' : 'Aucune tâche en cours',
+                overdue: 'Aucune tâche en retard',
                 today: 'Rien pour aujourd\'hui',
                 high: 'Aucune tâche urgente',
                 done: _todoSearch ? 'Aucun résultat' : 'Aucune tâche terminée'
@@ -876,7 +876,7 @@
                 const label = dateKey === 'unknown' ? 'Date inconnue' : _formatDateLabel(dateKey);
                 const groupId = 'done-group-' + idx;
                 const tasksHtml = tasks.map(t => _renderTask(t)).join('');
-                html += _renderDateGroup(groupId, '✓ ' + label, tasks.length, tasksHtml, '');
+                html += _renderDateGroup(groupId, label, tasks.length, tasksHtml, '');
             });
         } else {
             // Group pending tasks by due date sections
@@ -895,25 +895,25 @@
 
             // Overdue
             if (groups.overdue.length) {
-                html += _renderDateGroup('grp-overdue', '⚠ En retard', groups.overdue.length,
+                html += _renderDateGroup('grp-overdue', 'En retard', groups.overdue.length,
                     groups.overdue.map(t => _renderTask(t)).join(''), '');
             }
             // Today
             if (groups.today.length) {
-                html += _renderDateGroup('grp-today', "📅 Aujourd'hui", groups.today.length,
+                html += _renderDateGroup('grp-today', "Aujourd'hui", groups.today.length,
                     groups.today.map(t => _renderTask(t)).join(''), '');
             }
             // Upcoming — sub-grouped by date
             const upDates = Object.keys(groups.upcoming).sort();
             upDates.forEach((dateKey, idx) => {
                 const tasks = groups.upcoming[dateKey];
-                const label = '🕐 ' + _formatDateLabel(dateKey);
+                const label = _formatDateLabel(dateKey);
                 html += _renderDateGroup('grp-up-' + idx, label, tasks.length,
                     tasks.map(t => _renderTask(t)).join(''), '');
             });
             // No date
             if (groups.nodate.length) {
-                html += _renderDateGroup('grp-nodate', '📋 Sans date', groups.nodate.length,
+                html += _renderDateGroup('grp-nodate', 'Sans date', groups.nodate.length,
                     groups.nodate.map(t => _renderTask(t)).join(''), '');
             }
         }
@@ -1068,7 +1068,7 @@
         toast.className = 'toast info todo-startup-toast';
         toast.onclick = openTodoPanel;
         toast.innerHTML = `
-            <div class="todo-startup-title">📋 To-Do List — ${msg}</div>
+            <div class="todo-startup-title">To-Do List — ${msg}</div>
             <div class="todo-startup-sub">Cliquez pour voir les tâches →</div>
         `;
         toastContainer.appendChild(toast);
@@ -1094,7 +1094,7 @@
             });
             if (urgentTasks.length) {
                 all['__todo__'] = {
-                    label: '📋 To-Do List',
+                    label: 'To-Do List',
                     items: urgentTasks.map(t => {
                         const diff = t.dueDate ? _daysDiff(t.dueDate) : null;
                         const isOverdue = diff !== null && diff < 0;
@@ -1103,8 +1103,8 @@
                             dotCls: isOverdue ? 'dot-late' : isToday ? 'dot-today' : 'dot-approve',
                             tagCls: isOverdue ? 'tag-late' : isToday ? 'tag-today' : 'tag-approve',
                             tagLabel: isOverdue
-                                ? `⚠ En retard de ${Math.abs(diff)}j`
-                                : isToday ? '📅 Aujourd\'hui' : '⚡ Urgent',
+                                ? `En retard de ${Math.abs(diff)}j`
+                                : isToday ? 'Aujourd\'hui' : 'Urgent',
                             title: t.title,
                             action: t.description || 'Voir la tâche dans la To-Do List',
                             style: t.linkedStyle || '—',
@@ -1167,7 +1167,7 @@
             }
         } catch (e) { console.warn('[Todo] Create error:', e); }
 
-        if (typeof window.showToast === 'function') showToast('Tâche ajoutée ✓', 'success', 2000);
+        if (typeof window.showToast === 'function') showToast('Tâche ajoutée', 'success', 2000);
         if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
     };
 
@@ -1298,22 +1298,22 @@
         // Grid cards
         html += '<div class="todo-welcome-grid">';
         html += '<div class="todo-welcome-card card-overdue" onclick="_todoDismissWelcome(&quot;overdue&quot;)">' +
-            '<div class="todo-welcome-card-icon">⚠️</div>' +
+            '<div class="todo-welcome-card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#dc2626" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg></div>' +
             '<div class="todo-welcome-card-num">' + overdueCount + '</div>' +
             '<div class="todo-welcome-card-label">En retard</div>' +
             '<div class="todo-welcome-card-desc">Tâches dont la date limite est dépassée</div></div>';
         html += '<div class="todo-welcome-card card-today" onclick="_todoDismissWelcome(&quot;today&quot;)">' +
-            '<div class="todo-welcome-card-icon">📅</div>' +
+            '<div class="todo-welcome-card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#d97706" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg></div>' +
             '<div class="todo-welcome-card-num">' + todayCount + '</div>' +
             '<div class="todo-welcome-card-label">Aujourd\'hui</div>' +
             '<div class="todo-welcome-card-desc">Tâches à terminer aujourd\'hui</div></div>';
         html += '<div class="todo-welcome-card card-high" onclick="_todoDismissWelcome(&quot;high&quot;)">' +
-            '<div class="todo-welcome-card-icon">⚡</div>' +
+            '<div class="todo-welcome-card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#4f46e5" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>' +
             '<div class="todo-welcome-card-num">' + highCount + '</div>' +
             '<div class="todo-welcome-card-label">Urgentes</div>' +
             '<div class="todo-welcome-card-desc">Priorité haute à traiter en premier</div></div>';
         html += '<div class="todo-welcome-card card-done" onclick="_todoDismissWelcome(&quot;done&quot;)">' +
-            '<div class="todo-welcome-card-icon">✅</div>' +
+            '<div class="todo-welcome-card-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#16a34a" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>' +
             '<div class="todo-welcome-card-num">' + doneCount + '</div>' +
             '<div class="todo-welcome-card-label">Terminées</div>' +
             '<div class="todo-welcome-card-desc">Historique des tâches accomplies</div></div>';
