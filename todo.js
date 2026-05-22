@@ -267,6 +267,14 @@
     }
     .todo-clear-done:hover { background: #fee2e2; color: #dc2626; }
 
+    .todo-style-badge {
+        background: #eef2ff; color: #4338ca; cursor: pointer;
+    }
+    .todo-style-badge:hover { background: #e0e7ff; }
+    .todo-client-badge {
+        background: #f0fdf4; color: #166534; cursor: default;
+    }
+
     /* ── Startup toast ── */
     .todo-startup-toast {
         background: #fff; border: 1px solid #e0e3ff;
@@ -617,26 +625,40 @@
     function _renderTask(task) {
         const isDone = task.status === 'done';
         const cls = _taskCls(task);
-        const linked = task.linkedStyle
-            ? `<span class="todo-linked-badge" onclick="_todoNavToStyle('${task.linkedStyle}','${task.linkedSheet || ''}')">${task.linkedClient ? task.linkedClient + ' · ' : ''}${task.linkedStyle}</span>`
-            : (task.linkedClient ? `<span class="todo-linked-badge">${task.linkedClient}</span>` : '');
+        const hasDesc = task.description && task.description.trim();
+        const descId = 'todo-desc-' + task.id;
 
-        return `<div class="todo-task ${cls} ${isDone ? 'done' : ''}" id="todo-task-${task.id}">
-            <div class="todo-check ${isDone ? 'checked' : ''}" onclick="_todoToggleDone('${task.id}')">
+        // Style badge (cliquable → ouvre le style)
+        const styleBadge = task.linkedStyle
+            ? `<span class="todo-linked-badge todo-style-badge" onclick="event.stopPropagation();_todoNavToStyle('${task.linkedStyle}','${task.linkedSheet || ''}')">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9" style="margin-right:2px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h10M7 11h10M7 15h6"/></svg>
+                ${_escHtml(task.linkedStyle)}</span>`
+            : '';
+
+        // Client badge
+        const clientBadge = task.linkedClient
+            ? `<span class="todo-linked-badge todo-client-badge">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9" style="margin-right:2px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                ${_escHtml(task.linkedClient)}</span>`
+            : '';
+
+        return `<div class="todo-task ${cls} ${isDone ? 'done' : ''}" id="todo-task-${task.id}" onclick="_todoToggleDesc('${task.id}')" style="cursor:pointer">
+            <div class="todo-check ${isDone ? 'checked' : ''}" onclick="event.stopPropagation();_todoToggleDone('${task.id}')">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
                 </svg>
             </div>
             <div class="todo-task-body">
                 <div class="todo-task-title">${_escHtml(task.title)}</div>
-                ${task.description ? `<div class="todo-task-desc">${_escHtml(task.description)}</div>` : ''}
-                <div class="todo-task-meta">
+                <div class="todo-task-meta" style="margin-top:5px;flex-wrap:wrap;gap:4px;">
                     ${_prioBadge(task.priority)}
                     ${_dueBadge(task.dueDate, task.status)}
-                    ${linked}
                 </div>
+                ${(styleBadge || clientBadge) ? `<div class="todo-task-links" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${styleBadge}${clientBadge}</div>` : ''}
+                ${hasDesc ? `<div class="todo-task-desc todo-desc-hidden" id="${descId}" style="display:none;margin-top:6px;padding:6px 8px;background:#f8f9ff;border-radius:6px;border-left:2px solid #6366f1;">${_escHtml(task.description)}</div>` : ''}
+                ${hasDesc ? `<div class="todo-desc-hint" id="hint-${task.id}" style="font-size:10px;color:#c4c9d4;margin-top:4px;">▾ voir description</div>` : ''}
             </div>
-            <div class="todo-task-actions">
+            <div class="todo-task-actions" onclick="event.stopPropagation()">
                 <button class="todo-act-btn" onclick="_todoDelete('${task.id}')" title="Supprimer">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -858,6 +880,15 @@
             try { await _sendRequest('DELETE_TASK', { id: t.id }); } catch (e) {}
         }
         if (typeof window.showToast === 'function') showToast(`${done.length} tâche(s) supprimée(s)`, 'info', 2000);
+    };
+
+    window._todoToggleDesc = function(id) {
+        const desc = document.getElementById('todo-desc-' + id);
+        const hint = document.getElementById('hint-' + id);
+        if (!desc) return;
+        const isOpen = desc.style.display !== 'none';
+        desc.style.display = isOpen ? 'none' : 'block';
+        if (hint) hint.textContent = isOpen ? '▾ voir description' : '▴ masquer';
     };
 
     window._todoToggleExpand = function() {
