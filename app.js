@@ -341,10 +341,13 @@ async function fetchAllData() {
     state._lastFetch = Date.now();
 
     showDashboardLoading();
+    _setProgress(5); // Connexion au serveur...
 
     try {
         const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
+        _setProgress(25); // Réponse reçue
         const json = await res.json();
+        _setProgress(40); // Données décodées
         if (json.status !== "ok") throw new Error(json.message);
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
@@ -366,9 +369,13 @@ async function fetchAllData() {
         });
 
         state.data.details = computeSheetCalculations(fixRows(json.data.details?.rows), SHEET_CONFIG.details);
+        _setProgress(50); // Details chargés
         state.data.sample = computeSheetCalculations(fixRows(json.data.sample?.rows), SHEET_CONFIG.sample);
+        _setProgress(58); // Samples chargés
         state.data.ordering = computeSheetCalculations(fixRows(json.data.ordering?.rows), SHEET_CONFIG.ordering);
+        _setProgress(66); // Ordering chargé
         state.data.style = fixRows(json.data.style?.rows);
+        _setProgress(72); // Styles chargés
 
         // ── Charger les menus custom depuis GAS (priorité sur localStorage)
         if (json.menus && Array.isArray(json.menus)) {
@@ -390,6 +397,7 @@ async function fetchAllData() {
             );
             state.data[k] = computeSheetCalculations(fixRows(fromGAS ? fromGAS[1].rows : []), SHEET_CONFIG[k]);
         });
+        _setProgress(85); // Menus custom chargés
 
         state.loading = false;
 
@@ -405,7 +413,9 @@ async function fetchAllData() {
         console.info("[AW27] Images chargées :", detailsWithImg + "/" + detailsTotal);
         console.table(sampleImg);
 
+        _setProgress(92); // Rendu en cours...
         renderAll();
+        _setProgress(98); // Finalisation...
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
         // Log any Pantone names from GS that are not in the TCX database
         setTimeout(_debugUnresolvedPantones, 500);
@@ -425,19 +435,8 @@ async function fetchAllData() {
     }
 }
 
-let _progressInterval = null;
-function _startProgress() {
-    let pct = 0;
-    _setProgress(pct);
-    _progressInterval = setInterval(() => {
-        pct = Math.min(pct + 5, 95);
-        _setProgress(pct);
-    }, 250);
-}
 function _stopProgress() {
-    if (_progressInterval) clearInterval(_progressInterval);
     _setProgress(100);
-    _progressInterval = null;
 }
 
 // Helper to update progress bar
@@ -465,7 +464,6 @@ function showDashboardLoading() {
         main.appendChild(container);
     }
     _setProgress(0);
-    _startProgress();
 }
 
 function hideDashboardLoading() {
