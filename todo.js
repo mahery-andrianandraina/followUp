@@ -44,8 +44,9 @@
         position: absolute; inset: 0;
         background: rgba(15,23,42,0.1);
         backdrop-filter: blur(1px);
-        pointer-events: all;
+        pointer-events: none;
     }
+    #todo-overlay.open .todo-backdrop { pointer-events: all; }
     .todo-panel {
         position: fixed; bottom: 156px; right: 28px;
         width: 380px; height: 550px;
@@ -57,9 +58,9 @@
         transform: translateY(20px) scale(0.95);
         transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
         overflow: hidden;
-        pointer-events: all;
+        pointer-events: none;
     }
-    #todo-overlay.open .todo-panel { transform: translateY(0) scale(1); }
+    #todo-overlay.open .todo-panel { transform: translateY(0) scale(1); pointer-events: all; }
 
     /* ── Floating Action Button (FAB) ── */
     #todo-fab {
