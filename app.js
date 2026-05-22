@@ -425,28 +425,80 @@ async function fetchAllData() {
     }
 }
 
+let _progressInterval = null;
+function _startProgress() {
+    let pct = 0;
+    _setProgress(pct);
+    _progressInterval = setInterval(() => {
+        pct = Math.min(pct + 5, 95);
+        _setProgress(pct);
+    }, 250);
+}
+function _stopProgress() {
+    if (_progressInterval) clearInterval(_progressInterval);
+    _setProgress(100);
+    _progressInterval = null;
+}
 function showDashboardLoading() {
-    const main = document.querySelector("main.main");
+    const main = document.querySelector('main.main');
     if (!main) return;
-    main.classList.add("dashboard-loading");
-    // Only add if not already present
-    if (!document.getElementById("dashboard-spinner")) {
-        const container = document.createElement("div");
-        container.id = "dashboard-spinner";
-        container.className = "loading-spinner-container";
+    main.classList.add('dashboard-loading');
+    // Create progress bar container if not already present
+    if (!document.getElementById('dashboard-progress')) {
+        const container = document.createElement('div');
+        container.id = 'dashboard-progress';
+        container.className = 'loading-progress-container';
         container.innerHTML = `
-            <div class="loader"></div>
-            <div class="loading-text-glow">Synchronisation des données</div>
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-percentage" id="progress-percentage">0%</div>
         `;
         main.appendChild(container);
     }
+    // Initialise à 0%
+    _setProgress(0);
+    _startProgress();
+}
+    const main = document.querySelector('main.main');
+    if (!main) return;
+    main.classList.add('dashboard-loading');
+    // Create progress bar container if not already present
+    if (!document.getElementById('dashboard-progress')) {
+        const container = document.createElement('div');
+        container.id = 'dashboard-progress';
+        container.className = 'loading-progress-container';
+        container.innerHTML = `
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" style="width: 0%;"></div>
+            </div>
+            <div class="progress-percentage" id="progress-percentage">0%</div>
+        `;
+        main.appendChild(container);
+    }
+    // Initialise à 0%
+    _setProgress(0);
 }
 
 function hideDashboardLoading() {
-    const main = document.querySelector("main.main");
-    if (main) main.classList.remove("dashboard-loading");
-    const spinner = document.getElementById("dashboard-spinner");
-    if (spinner) spinner.remove();
+    const main = document.querySelector('main.main');
+    if (main) main.classList.remove('dashboard-loading');
+    const prog = document.getElementById('dashboard-progress');
+    if (prog) prog.remove();
+    _stopProgress();
+}
+    const main = document.querySelector('main.main');
+    if (main) main.classList.remove('dashboard-loading');
+    const prog = document.getElementById('dashboard-progress');
+    if (prog) prog.remove();
+}
+
+// Helper to update progress bar
+function _setProgress(pct) {
+    const fill = document.querySelector('.progress-bar-fill');
+    const label = document.getElementById('progress-percentage');
+    if (fill) fill.style.width = pct + '%';
+    if (label) label.textContent = pct + '%';
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
