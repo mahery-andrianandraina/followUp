@@ -805,16 +805,13 @@
         const title = (input?.value || '').trim();
         if (!title) return;
 
-        const expandForm = document.getElementById('todo-expand-form');
-        const isExpanded = expandForm?.classList.contains('visible');
-
         const task = {
             title,
-            priority: isExpanded ? (document.getElementById('todo-priority')?.value || 'Medium') : 'Medium',
-            dueDate: isExpanded ? (document.getElementById('todo-due-date')?.value || '') : '',
-            linkedStyle: isExpanded ? (document.getElementById('todo-linked-style')?.value || '') : '',
-            linkedClient: isExpanded ? (document.getElementById('todo-linked-client')?.value || '') : '',
-            description: isExpanded ? (document.getElementById('todo-desc')?.value || '') : '',
+            priority: document.getElementById('todo-priority')?.value || 'Medium',
+            dueDate: document.getElementById('todo-due-date')?.value || '',
+            linkedStyle: (document.getElementById('todo-linked-style')?.value || '').trim(),
+            linkedClient: (document.getElementById('todo-linked-client')?.value || '').trim(),
+            description: (document.getElementById('todo-desc')?.value || '').trim(),
             createdBy: window.currentUser?.email || ''
         };
 
@@ -824,13 +821,13 @@
         _renderAll();
         _updateBadge();
 
-        // Reset form
+        // Reset form — toujours vider tous les champs
         if (input) input.value = '';
-        if (isExpanded) {
-            ['todo-due-date','todo-linked-style','todo-linked-client','todo-desc'].forEach(id => {
-                const el = document.getElementById(id); if (el) el.value = '';
-            });
-        }
+        ['todo-due-date','todo-linked-style','todo-linked-client','todo-desc'].forEach(id => {
+            const el = document.getElementById(id); if (el) el.value = '';
+        });
+        const priorityEl = document.getElementById('todo-priority');
+        if (priorityEl) priorityEl.value = 'Medium';
 
         try {
             const res = await _sendRequest('CREATE_TASK', { task });
