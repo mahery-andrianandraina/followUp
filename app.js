@@ -335,6 +335,8 @@ function setupTabListeners() {
 
 // ─── Fetch ────────────────────────────────────────────────────
 async function fetchAllData() {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    
     // Update refresh badge
     const refreshDot = document.getElementById("refresh-dot");
     if (refreshDot) refreshDot.style.display = "none";
@@ -346,8 +348,10 @@ async function fetchAllData() {
     try {
         const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
         _setProgress(25); // Réponse reçue
+        await sleep(150);
         const json = await res.json();
         _setProgress(40); // Données décodées
+        await sleep(150);
         if (json.status !== "ok") throw new Error(json.message);
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
@@ -370,12 +374,16 @@ async function fetchAllData() {
 
         state.data.details = computeSheetCalculations(fixRows(json.data.details?.rows), SHEET_CONFIG.details);
         _setProgress(50); // Details chargés
+        await sleep(150);
         state.data.sample = computeSheetCalculations(fixRows(json.data.sample?.rows), SHEET_CONFIG.sample);
         _setProgress(58); // Samples chargés
+        await sleep(150);
         state.data.ordering = computeSheetCalculations(fixRows(json.data.ordering?.rows), SHEET_CONFIG.ordering);
         _setProgress(66); // Ordering chargé
+        await sleep(150);
         state.data.style = fixRows(json.data.style?.rows);
         _setProgress(72); // Styles chargés
+        await sleep(150);
 
         // ── Charger les menus custom depuis GAS (priorité sur localStorage)
         if (json.menus && Array.isArray(json.menus)) {
@@ -398,6 +406,7 @@ async function fetchAllData() {
             state.data[k] = computeSheetCalculations(fixRows(fromGAS ? fromGAS[1].rows : []), SHEET_CONFIG[k]);
         });
         _setProgress(85); // Menus custom chargés
+        await sleep(150);
 
         state.loading = false;
 
@@ -414,8 +423,10 @@ async function fetchAllData() {
         console.table(sampleImg);
 
         _setProgress(92); // Rendu en cours...
+        await sleep(150);
         renderAll();
         _setProgress(98); // Finalisation...
+        await sleep(150);
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
         // Log any Pantone names from GS that are not in the TCX database
         setTimeout(_debugUnresolvedPantones, 500);
