@@ -1672,26 +1672,28 @@
             }
         });
 
-        // Load tasks after app data is ready
-        const waitForApp = setInterval(() => {
-            if (window.state && !window.state.loading) {
-                clearInterval(waitForApp);
-                _loadTasks().then(() => {
-                    _injectIntoAlerts();
-                    if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
-                });
+        // Attendre que l'URL GAS soit disponible (set par auth.js), puis
+        // charger les tâches avec un délai pour ne pas concurrencer les
+        // requêtes GAS principales de l'app.
+        let _waitAttempts = 0;
+        const waitForGas = setInterval(() => {
+            _waitAttempts++;
+            const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+            const gasReady = gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE' && !gasUrl.includes('mock-gas-url');
+
+            if (gasReady || _waitAttempts >= 20) { // max 10s d'attente
+                clearInterval(waitForGas);
+                // Délai supplémentaire de 4s pour ne pas concurrencer le chargement principal
+                setTimeout(() => {
+                    if (!_tasks.length) {
+                        _loadTasks().then(() => {
+                            _injectIntoAlerts();
+                            if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
+                        });
+                    }
+                }, 4000);
             }
         }, 500);
-
-        // Fallback: load after 3s anyway
-        setTimeout(() => {
-            if (!_tasks.length) {
-                _loadTasks().then(() => {
-                    _injectIntoAlerts();
-                    if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
-                });
-            }
-        }, 3000);
     }
 
     if (document.readyState === 'loading') {
