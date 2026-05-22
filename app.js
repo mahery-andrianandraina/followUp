@@ -457,17 +457,36 @@ function _startNetworkTimer() {
 }
 
 // Helper to update progress bar
-function _setProgress(pct) {
+function _setProgress(pct, statusText) {
     // Si on dépasse la phase réseau, arrêter le timer
     if (pct >= 25 && _networkTimer) {
         clearInterval(_networkTimer);
         _networkTimer = null;
     }
     _currentPct = pct;
+
+    // Déterminer le message de statut s'il n'est pas fourni
+    if (!statusText) {
+        if (pct < 5) statusText = "Initialisation...";
+        else if (pct < 25) statusText = "Connexion au serveur Google Sheets...";
+        else if (pct < 40) statusText = "Réception des données...";
+        else if (pct < 50) statusText = "Décodage et structuration...";
+        else if (pct < 58) statusText = "Chargement des Détails...";
+        else if (pct < 66) statusText = "Chargement des Échantillons (Samples)...";
+        else if (pct < 72) statusText = "Chargement des Commandes (Ordering)...";
+        else if (pct < 85) statusText = "Chargement de la feuille des Styles...";
+        else if (pct < 92) statusText = "Configuration des Menus...";
+        else if (pct < 98) statusText = "Génération du tableau de bord...";
+        else if (pct < 100) statusText = "Finalisation de l'affichage...";
+        else statusText = "Prêt !";
+    }
+
     const fill = document.querySelector('.progress-bar-fill');
     const label = document.getElementById('progress-percentage');
+    const stepLabel = document.getElementById('progress-step-text');
     if (fill) fill.style.width = pct + '%';
     if (label) label.textContent = Math.round(pct) + '%';
+    if (stepLabel) stepLabel.textContent = statusText;
 }
 
 function showDashboardLoading() {
@@ -479,6 +498,7 @@ function showDashboardLoading() {
         container.id = 'dashboard-progress';
         container.className = 'loading-progress-container';
         container.innerHTML = `
+            <div class="progress-step-text" id="progress-step-text">Initialisation...</div>
             <div class="progress-bar-background">
                 <div class="progress-bar-fill" style="width: 0%;"></div>
             </div>
