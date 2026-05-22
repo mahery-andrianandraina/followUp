@@ -439,11 +439,19 @@ function _stopProgress() {
     _setProgress(100);
     _progressInterval = null;
 }
+
+// Helper to update progress bar
+function _setProgress(pct) {
+    const fill = document.querySelector('.progress-bar-fill');
+    const label = document.getElementById('progress-percentage');
+    if (fill) fill.style.width = pct + '%';
+    if (label) label.textContent = pct + '%';
+}
+
 function showDashboardLoading() {
     const main = document.querySelector('main.main');
     if (!main) return;
     main.classList.add('dashboard-loading');
-    // Create progress bar container if not already present
     if (!document.getElementById('dashboard-progress')) {
         const container = document.createElement('div');
         container.id = 'dashboard-progress';
@@ -456,28 +464,8 @@ function showDashboardLoading() {
         `;
         main.appendChild(container);
     }
-    // Initialise à 0%
     _setProgress(0);
     _startProgress();
-}
-    const main = document.querySelector('main.main');
-    if (!main) return;
-    main.classList.add('dashboard-loading');
-    // Create progress bar container if not already present
-    if (!document.getElementById('dashboard-progress')) {
-        const container = document.createElement('div');
-        container.id = 'dashboard-progress';
-        container.className = 'loading-progress-container';
-        container.innerHTML = `
-            <div class="progress-bar-background">
-                <div class="progress-bar-fill" style="width: 0%;"></div>
-            </div>
-            <div class="progress-percentage" id="progress-percentage">0%</div>
-        `;
-        main.appendChild(container);
-    }
-    // Initialise à 0%
-    _setProgress(0);
 }
 
 function hideDashboardLoading() {
@@ -486,19 +474,6 @@ function hideDashboardLoading() {
     const prog = document.getElementById('dashboard-progress');
     if (prog) prog.remove();
     _stopProgress();
-}
-    const main = document.querySelector('main.main');
-    if (main) main.classList.remove('dashboard-loading');
-    const prog = document.getElementById('dashboard-progress');
-    if (prog) prog.remove();
-}
-
-// Helper to update progress bar
-function _setProgress(pct) {
-    const fill = document.querySelector('.progress-bar-fill');
-    const label = document.getElementById('progress-percentage');
-    if (fill) fill.style.width = pct + '%';
-    if (label) label.textContent = pct + '%';
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
