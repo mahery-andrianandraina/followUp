@@ -435,16 +435,39 @@ async function fetchAllData() {
     }
 }
 
+let _networkTimer = null;
+let _currentPct = 0;
+
 function _stopProgress() {
+    if (_networkTimer) { clearInterval(_networkTimer); _networkTimer = null; }
+    _currentPct = 100;
     _setProgress(100);
+}
+
+// Slow timer pendant le fetch réseau (5→24% sur ~8s)
+function _startNetworkTimer() {
+    if (_networkTimer) clearInterval(_networkTimer);
+    _currentPct = 5;
+    _setProgress(5);
+    _networkTimer = setInterval(() => {
+        _currentPct = Math.min(_currentPct + 1, 24);
+        _setProgress(_currentPct);
+        if (_currentPct >= 24) clearInterval(_networkTimer);
+    }, 400);
 }
 
 // Helper to update progress bar
 function _setProgress(pct) {
+    // Si on dépasse la phase réseau, arrêter le timer
+    if (pct >= 25 && _networkTimer) {
+        clearInterval(_networkTimer);
+        _networkTimer = null;
+    }
+    _currentPct = pct;
     const fill = document.querySelector('.progress-bar-fill');
     const label = document.getElementById('progress-percentage');
     if (fill) fill.style.width = pct + '%';
-    if (label) label.textContent = pct + '%';
+    if (label) label.textContent = Math.round(pct) + '%';
 }
 
 function showDashboardLoading() {
@@ -464,14 +487,17 @@ function showDashboardLoading() {
         main.appendChild(container);
     }
     _setProgress(0);
+    _startNetworkTimer();
 }
 
 function hideDashboardLoading() {
-    const main = document.querySelector('main.main');
-    if (main) main.classList.remove('dashboard-loading');
-    const prog = document.getElementById('dashboard-progress');
-    if (prog) prog.remove();
     _stopProgress();
+    setTimeout(() => {
+        const main = document.querySelector('main.main');
+        if (main) main.classList.remove('dashboard-loading');
+        const prog = document.getElementById('dashboard-progress');
+        if (prog) prog.remove();
+    }, 400); // laisser voir 100% un instant
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
