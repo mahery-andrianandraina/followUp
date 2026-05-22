@@ -746,17 +746,46 @@
         return '';
     }
 
-    // ─── Load from GAS ────────────────────────────────────────
-    async function _loadTasks() {
+    // ─── Cache localStorage ────────────────────────────────────
+    const _CACHE_KEY = 'todo_tasks_cache';
+    function _saveCache(tasks) {
+        try { localStorage.setItem(_CACHE_KEY, JSON.stringify({ ts: Date.now(), tasks })); } catch(e) {}
+    }
+    function _loadCache() {
         try {
-            const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL;
-            if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') {
-                _tasks = _demoTasks();
+            const raw = localStorage.getItem(_CACHE_KEY);
+            if (!raw) return null;
+            const { ts, tasks } = JSON.parse(raw);
+            // Cache valide 10 minutes
+            if (Date.now() - ts < 10 * 60 * 1000) return tasks;
+        } catch(e) {}
+        return null;
+    }
+
+    // ─── Load from GAS (with guard + cache) ───────────────────
+    async function _loadTasks() {
+        if (_todoLoading) return;   // ← empêche les double-fetches
+        _todoLoading = true;
+        try {
+            const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+            if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE' || gasUrl.includes('mock-gas-url')) {
+                // Mode démo : charger le cache ou données fictives
+                const cached = _loadCache();
+                _tasks = cached || _demoTasks();
                 _renderAll();
                 _updateBadge();
                 _checkStartupNotif();
                 return;
             }
+
+            // Afficher le cache immédiatement (stale-while-revalidate)
+            const cached = _loadCache();
+            if (cached) {
+                _tasks = cached;
+                _renderAll();
+                _updateBadge();
+            }
+
             const res = await fetch(gasUrl, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'GET_TASKS' })
@@ -764,21 +793,27 @@
             const json = await res.json();
             if (json.status === 'ok') {
                 _tasks = json.tasks || [];
+                _saveCache(_tasks);
                 _renderAll();
                 _updateBadge();
-                _checkStartupNotif();
+                if (!cached) _checkStartupNotif(); // notif seulement au 1er chargement
             }
         } catch (e) {
             console.warn('[Todo] Load error:', e);
-            _tasks = [];
+            const cached = _loadCache();
+            if (cached) {
+                _tasks = cached;
+            }
             _renderAll();
             _updateBadge();
+        } finally {
+            _todoLoading = false;
         }
     }
 
     async function _sendRequest(action, payload) {
-        const gasUrl = window.GOOGLE_APPS_SCRIPT_URL || GOOGLE_APPS_SCRIPT_URL;
-        if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE') return { status: 'ok' };
+        const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+        if (!gasUrl || gasUrl === 'YOUR_WEB_APP_URL_HERE' || gasUrl.includes('mock-gas-url')) return { status: 'ok' };
         const res = await fetch(gasUrl, {
             method: 'POST',
             body: JSON.stringify({ action, ...payload })
@@ -1324,6 +1359,7 @@
                 if (idx !== -1) _tasks[idx].id = res.id;
             }
         } catch (e) { console.warn('[Todo] Create error:', e); }
+        _saveCache(_tasks); // sync cache
 
         if (typeof window.showToast === 'function') showToast('Tâche ajoutée', 'success', 2000);
         if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
@@ -1343,6 +1379,7 @@
                 updates: { status: newStatus, completedAt: newStatus === 'done' ? task.completedAt : '' }
             });
         } catch (e) { console.warn('[Todo] Update error:', e); }
+        _saveCache(_tasks); // sync cache
         if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
     };
 
@@ -1353,6 +1390,7 @@
         try {
             await _sendRequest('DELETE_TASK', { id });
         } catch (e) { console.warn('[Todo] Delete error:', e); }
+        _saveCache(_tasks); // sync cache
         if (typeof window.updateGlobalNotifBadge === 'function') updateGlobalNotifBadge();
     };
 
@@ -1364,6 +1402,7 @@
         for (const t of done) {
             try { await _sendRequest('DELETE_TASK', { id: t.id }); } catch (e) {}
         }
+        _saveCache(_tasks); // sync cache
         if (typeof window.showToast === 'function') showToast(`${done.length} tâche(s) supprimée(s)`, 'info', 2000);
     };
 
