@@ -44,7 +44,7 @@
     }
     .todo-panel {
         position: absolute; top: 0; right: 0; bottom: 0;
-        width: min(520px, 100vw);
+        width: 50vw; min-width: 420px; max-width: 800px;
         background: #fff;
         border-left: 1px solid #e5e7eb;
         box-shadow: -8px 0 40px rgba(0,0,0,0.12);
@@ -56,20 +56,34 @@
 
     /* ── Header ── */
     .todo-header {
-        display: flex; align-items: center; gap: 10px;
-        padding: 14px 18px 13px;
-        border-bottom: 1px solid #f0f1f3;
-        background: #fafbfc; flex-shrink: 0;
-    }
-    .todo-header-icon {
-        width: 34px; height: 34px; border-radius: 9px;
-        background: linear-gradient(135deg,#6366f1,#8b5cf6);
-        display: flex; align-items: center; justify-content: center;
+        display: flex; align-items: center; gap: 12px;
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid #e5e7eb;
+        background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%);
         flex-shrink: 0;
     }
-    .todo-header-icon svg { width: 16px; height: 16px; stroke: #fff; }
-    .todo-header-title { font-size: 14px; font-weight: 700; color: #1a1f36; flex: 1; }
-    .todo-header-sub { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .todo-header-icon {
+        width: 40px; height: 40px; border-radius: 12px;
+        background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; box-shadow: 0 2px 8px rgba(99,102,241,0.3);
+    }
+    .todo-header-icon svg { width: 18px; height: 18px; stroke: #fff; }
+    .todo-header-title { font-size: 16px; font-weight: 800; color: #1a1f36; flex: 1; letter-spacing: -0.01em; }
+    .todo-header-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .todo-header-stats {
+        display: flex; gap: 12px; margin-left: auto; margin-right: 12px;
+    }
+    .todo-stat-pill {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 4px 12px; border-radius: 10px; background: #fff;
+        border: 1px solid #e5e7eb; min-width: 52px;
+    }
+    .todo-stat-num { font-size: 16px; font-weight: 800; color: #1a1f36; line-height: 1.2; }
+    .todo-stat-num.red { color: #dc2626; }
+    .todo-stat-num.green { color: #16a34a; }
+    .todo-stat-num.amber { color: #d97706; }
+    .todo-stat-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
     .todo-close-btn {
         width: 30px; height: 30px; border-radius: 7px;
         border: 1px solid #e5e7eb; background: transparent;
@@ -81,8 +95,8 @@
 
     /* ── Add Form ── */
     .todo-add-wrap {
-        padding: 12px 16px;
-        border-bottom: 1px solid #f0f1f3;
+        padding: 16px 24px;
+        border-bottom: 1px solid #e5e7eb;
         flex-shrink: 0;
         background: #f8f9ff;
     }
@@ -133,9 +147,10 @@
 
     /* ── Filters ── */
     .todo-filters {
-        display: flex; gap: 4px; padding: 10px 16px;
-        border-bottom: 1px solid #f0f1f3; flex-shrink: 0;
+        display: flex; gap: 6px; padding: 12px 24px;
+        border-bottom: 1px solid #e5e7eb; flex-shrink: 0;
         overflow-x: auto; scrollbar-width: none;
+        background: #fafbfc;
     }
     .todo-filters::-webkit-scrollbar { display: none; }
     .todo-filter-btn {
@@ -158,7 +173,7 @@
 
     /* ── Task List ── */
     .todo-list {
-        flex: 1; overflow-y: auto; padding: 8px 12px 16px;
+        flex: 1; overflow-y: auto; padding: 8px 20px 20px;
     }
     .todo-list::-webkit-scrollbar { width: 4px; }
     .todo-list::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 2px; }
@@ -173,47 +188,51 @@
 
     /* ── Task Card ── */
     .todo-task {
-        display: flex; align-items: flex-start; gap: 10px;
-        padding: 10px 12px; border-radius: 10px;
-        border: 1px solid #f0f1f3; background: #fff;
-        margin-bottom: 6px; transition: all 0.15s;
-        cursor: default;
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 14px 16px; border-radius: 12px;
+        border: 1px solid #e5e7eb; background: #fff;
+        margin-bottom: 8px; transition: all 0.2s ease;
+        cursor: default; position: relative;
     }
-    .todo-task:hover { border-color: #e0e3ff; box-shadow: 0 2px 8px rgba(99,102,241,0.07); }
-    .todo-task.done { opacity: 0.5; }
+    .todo-task:hover { border-color: #c7d2fe; box-shadow: 0 4px 16px rgba(99,102,241,0.1); transform: translateY(-1px); }
+    .todo-task.done { opacity: 0.45; }
     .todo-task.done .todo-task-title { text-decoration: line-through; color: #9ca3af; }
-    .todo-task.overdue { border-left: 3px solid #ef4444; background: #fff5f5; }
-    .todo-task.due-today { border-left: 3px solid #f59e0b; background: #fffbeb; }
+    .todo-task.done:hover { opacity: 0.7; }
+    .todo-task.overdue { border-left: 4px solid #ef4444; background: linear-gradient(90deg,#fff5f5 0%,#fff 40%); }
+    .todo-task.due-today { border-left: 4px solid #f59e0b; background: linear-gradient(90deg,#fffbeb 0%,#fff 40%); }
 
     .todo-check {
-        width: 18px; height: 18px; border-radius: 50%;
-        border: 2px solid #d1d5db; background: #fff;
-        cursor: pointer; flex-shrink: 0; margin-top: 1px;
+        width: 22px; height: 22px; border-radius: 50%;
+        border: 2.5px solid #d1d5db; background: #fff;
+        cursor: pointer; flex-shrink: 0; margin-top: 2px;
         display: flex; align-items: center; justify-content: center;
-        transition: all 0.15s;
+        transition: all 0.2s ease;
     }
-    .todo-check:hover { border-color: #6366f1; background: #eef2ff; }
-    .todo-check.checked { background: #6366f1; border-color: #6366f1; }
+    .todo-check:hover { border-color: #6366f1; background: #eef2ff; transform: scale(1.1); }
+    .todo-check.checked { background: #6366f1; border-color: #6366f1; box-shadow: 0 2px 6px rgba(99,102,241,0.3); }
     .todo-check.checked svg { display: block; }
-    .todo-check svg { display: none; width: 10px; height: 10px; stroke: #fff; stroke-width: 3; }
+    .todo-check svg { display: none; width: 12px; height: 12px; stroke: #fff; stroke-width: 3; }
 
     .todo-task-body { flex: 1; min-width: 0; }
     .todo-task-title {
-        font-size: 13px; font-weight: 600; color: #1a1f36;
-        line-height: 1.4; margin-bottom: 4px;
+        font-size: 14px; font-weight: 700; color: #1a1f36;
+        line-height: 1.4; margin-bottom: 2px;
+    }
+    .todo-task-created {
+        font-size: 10px; color: #c4c9d4; margin-bottom: 5px;
     }
     .todo-task-meta {
         display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
     }
     .todo-priority {
-        font-size: 9.5px; font-weight: 700; padding: 1px 6px;
+        font-size: 10px; font-weight: 700; padding: 2px 8px;
         border-radius: 20px; text-transform: uppercase; letter-spacing: .04em;
     }
     .prio-high { background: #fee2e2; color: #991b1b; }
     .prio-medium { background: #fef3c7; color: #92400e; }
     .prio-low { background: #dcfce7; color: #166534; }
     .todo-due-badge {
-        font-size: 10px; font-weight: 600; padding: 1px 6px;
+        font-size: 10px; font-weight: 600; padding: 2px 8px;
         border-radius: 20px;
     }
     .due-overdue { background: #fee2e2; color: #dc2626; }
@@ -221,44 +240,46 @@
     .due-soon { background: #eff6ff; color: #2563eb; }
     .due-ok { background: #f1f5f9; color: #64748b; }
     .todo-linked-badge {
-        font-size: 10px; font-weight: 600; padding: 1px 6px;
+        font-size: 10.5px; font-weight: 600; padding: 3px 10px;
         border-radius: 20px; background: #eef2ff; color: #4338ca;
-        cursor: pointer; transition: background 0.15s;
+        cursor: pointer; transition: all 0.15s;
+        display: inline-flex; align-items: center; gap: 3px;
     }
-    .todo-linked-badge:hover { background: #e0e7ff; }
+    .todo-linked-badge:hover { background: #e0e7ff; transform: translateY(-1px); }
     .todo-task-desc {
         font-size: 11px; color: #9ca3af; margin-top: 3px; line-height: 1.4;
     }
 
     .todo-task-actions {
-        display: flex; gap: 3px; flex-shrink: 0; opacity: 0;
-        transition: opacity 0.15s;
+        display: flex; gap: 4px; flex-shrink: 0; opacity: 0;
+        transition: opacity 0.2s;
     }
     .todo-task:hover .todo-task-actions { opacity: 1; }
     .todo-act-btn {
-        width: 24px; height: 24px; border-radius: 6px;
-        border: 1px solid #e5e7eb; background: transparent;
+        width: 28px; height: 28px; border-radius: 8px;
+        border: 1px solid #e5e7eb; background: #fafbfc;
         cursor: pointer; display: flex; align-items: center; justify-content: center;
         transition: all 0.15s; color: #9ca3af;
     }
-    .todo-act-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; }
-    .todo-act-btn svg { width: 12px; height: 12px; stroke: currentColor; }
+    .todo-act-btn:hover { background: #fee2e2; border-color: #fca5a5; color: #dc2626; transform: scale(1.1); }
+    .todo-act-btn svg { width: 13px; height: 13px; stroke: currentColor; }
 
     /* ── Section labels ── */
     .todo-section-label {
-        font-size: 10px; font-weight: 700; text-transform: uppercase;
-        letter-spacing: .07em; color: #c4c9d4;
-        padding: 8px 4px 4px; margin-bottom: 2px;
+        font-size: 11px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .07em; color: #94a3b8;
+        padding: 14px 4px 6px; margin-bottom: 2px;
+        border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; gap: 6px;
     }
 
     /* ── Footer stats ── */
     .todo-footer {
-        padding: 10px 16px; border-top: 1px solid #f0f1f3;
+        padding: 12px 24px; border-top: 1px solid #e5e7eb;
         display: flex; align-items: center; justify-content: space-between;
-        flex-shrink: 0; background: #fafbfc;
+        flex-shrink: 0; background: linear-gradient(135deg,#fafbff 0%,#f5f3ff 100%);
     }
-    .todo-footer-stat { font-size: 11px; color: #9ca3af; }
-    .todo-footer-stat strong { color: #1a1f36; }
+    .todo-footer-stat { font-size: 12px; color: #6b7280; }
+    .todo-footer-stat strong { color: #1a1f36; font-weight: 800; }
     .todo-clear-done {
         font-size: 11px; font-weight: 600; color: #9ca3af;
         background: none; border: none; cursor: pointer;
@@ -342,6 +363,12 @@
                 <div>
                     <div class="todo-header-title">To-Do List</div>
                     <div class="todo-header-sub" id="todo-header-sub">Chargement…</div>
+                </div>
+                <div class="todo-header-stats" id="todo-header-stats">
+                    <div class="todo-stat-pill"><span class="todo-stat-num" id="stat-total">0</span><span class="todo-stat-label">En cours</span></div>
+                    <div class="todo-stat-pill"><span class="todo-stat-num red" id="stat-overdue">0</span><span class="todo-stat-label">En retard</span></div>
+                    <div class="todo-stat-pill"><span class="todo-stat-num amber" id="stat-today">0</span><span class="todo-stat-label">Aujourd'hui</span></div>
+                    <div class="todo-stat-pill"><span class="todo-stat-num green" id="stat-done">0</span><span class="todo-stat-label">Terminées</span></div>
                 </div>
                 <button class="todo-close-btn" onclick="closeTodoPanel()">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
@@ -628,18 +655,35 @@
         const hasDesc = task.description && task.description.trim();
         const descId = 'todo-desc-' + task.id;
 
+        // Created info
+        const createdDate = task.createdAt ? new Date(task.createdAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : '';
+        const createdBy = task.createdBy ? task.createdBy.split('@')[0] : '';
+        const createdInfo = [createdBy, createdDate].filter(Boolean).join(' · ');
+
+        // Completed info
+        const completedInfo = isDone && task.completedAt
+            ? `Terminée le ${new Date(task.completedAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' })}`
+            : '';
+
         // Style badge (cliquable → ouvre le style)
         const styleBadge = task.linkedStyle
             ? `<span class="todo-linked-badge todo-style-badge" onclick="event.stopPropagation();_todoNavToStyle('${task.linkedStyle}','${task.linkedSheet || ''}')">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9" style="margin-right:2px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h10M7 11h10M7 15h6"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h10M7 11h10M7 15h6"/></svg>
                 ${_escHtml(task.linkedStyle)}</span>`
             : '';
 
         // Client badge
         const clientBadge = task.linkedClient
             ? `<span class="todo-linked-badge todo-client-badge">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9" style="margin-right:2px;vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
                 ${_escHtml(task.linkedClient)}</span>`
+            : '';
+
+        // Sheet badge
+        const sheetBadge = task.linkedSheet
+            ? `<span class="todo-linked-badge" style="background:#fff7ed;color:#9a3412;cursor:default;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                ${_escHtml(task.linkedSheet)}</span>`
             : '';
 
         return `<div class="todo-task ${cls} ${isDone ? 'done' : ''}" id="todo-task-${task.id}" onclick="_todoToggleDesc('${task.id}')" style="cursor:pointer">
@@ -650,13 +694,16 @@
             </div>
             <div class="todo-task-body">
                 <div class="todo-task-title">${_escHtml(task.title)}</div>
-                <div class="todo-task-meta" style="margin-top:5px;flex-wrap:wrap;gap:4px;">
+                ${createdInfo ? `<div class="todo-task-created">${createdInfo}${completedInfo ? ' · ' + completedInfo : ''}</div>` : ''}
+                <div class="todo-task-meta" style="margin-top:5px;flex-wrap:wrap;gap:5px;">
                     ${_prioBadge(task.priority)}
                     ${_dueBadge(task.dueDate, task.status)}
                 </div>
-                ${(styleBadge || clientBadge) ? `<div class="todo-task-links" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">${styleBadge}${clientBadge}</div>` : ''}
-                ${hasDesc ? `<div class="todo-task-desc todo-desc-hidden" id="${descId}" style="display:none;margin-top:6px;padding:6px 8px;background:#f8f9ff;border-radius:6px;border-left:2px solid #6366f1;">${_escHtml(task.description)}</div>` : ''}
-                ${hasDesc ? `<div class="todo-desc-hint" id="hint-${task.id}" style="font-size:10px;color:#c4c9d4;margin-top:4px;">▾ voir description</div>` : ''}
+                ${(styleBadge || clientBadge || sheetBadge) ? `<div class="todo-task-links" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${styleBadge}${clientBadge}${sheetBadge}</div>` : ''}
+                ${hasDesc ? `<div class="todo-task-desc" id="${descId}" style="display:none;margin-top:8px;padding:8px 12px;background:#f8f9ff;border-radius:8px;border-left:3px solid #6366f1;font-size:12px;color:#4b5563;line-height:1.5;">${_escHtml(task.description)}</div>` : ''}
+                ${hasDesc ? `<div class="todo-desc-hint" id="hint-${task.id}" style="font-size:10px;color:#c4c9d4;margin-top:4px;display:flex;align-items:center;gap:3px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    voir description</div>` : ''}
             </div>
             <div class="todo-task-actions" onclick="event.stopPropagation()">
                 <button class="todo-act-btn" onclick="_todoDelete('${task.id}')" title="Supprimer">
@@ -683,9 +730,20 @@
         if (!el) return;
         const total = _tasks.filter(t => t.status !== 'done').length;
         const overdue = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) < 0).length;
+        const todayCount = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) === 0).length;
+        const doneCount = _tasks.filter(t => t.status === 'done').length;
         el.textContent = overdue
             ? `${total} tâche${total > 1 ? 's' : ''} · ${overdue} en retard`
             : `${total} tâche${total > 1 ? 's' : ''} en cours`;
+        // Update stat pills
+        const sTotal = document.getElementById('stat-total');
+        const sOverdue = document.getElementById('stat-overdue');
+        const sToday = document.getElementById('stat-today');
+        const sDone = document.getElementById('stat-done');
+        if (sTotal) sTotal.textContent = total;
+        if (sOverdue) sOverdue.textContent = overdue;
+        if (sToday) sToday.textContent = todayCount;
+        if (sDone) sDone.textContent = doneCount;
     }
 
     function _populateDataLists() {
