@@ -9,6 +9,7 @@
     let _tasks = [];
     let _todoFilter = 'all'; // all | today | overdue | high | done
     let _todoSearch = '';
+    let _welcomeShown = false;
     let _todoOpen = false;
     let _todoLoading = false;
 
@@ -289,6 +290,12 @@
     }
     .todo-clear-done:hover { background: #fee2e2; color: #dc2626; }
 
+    /* ── Main content ── */
+    #todo-main-content {
+        display: flex; flex-direction: column; flex: 1;
+        overflow: hidden;
+    }
+
     /* ── Search bar ── */
     .todo-search-wrap {
         padding: 0 24px 12px;
@@ -350,6 +357,114 @@
     }
     .todo-date-group-line {
         flex: 1; height: 1px; background: #f1f5f9;
+    }
+
+    /* ── Welcome Page ── */
+    .todo-welcome {
+        flex: 1; overflow-y: auto; padding: 24px;
+        display: flex; flex-direction: column; gap: 20px;
+        animation: todo-fadeIn 0.4s ease;
+    }
+    @keyframes todo-fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .todo-welcome-hero {
+        text-align: center; padding: 28px 20px 20px;
+        background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 50%, #fff7ed 100%);
+        border-radius: 16px; border: 1px solid #e0e7ff;
+    }
+    .todo-welcome-icon {
+        width: 56px; height: 56px; border-radius: 16px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        display: inline-flex; align-items: center; justify-content: center;
+        margin-bottom: 12px; box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+    }
+    .todo-welcome-icon svg { width: 26px; height: 26px; stroke: #fff; }
+    .todo-welcome-h1 {
+        font-size: 20px; font-weight: 800; color: #1a1f36;
+        margin-bottom: 4px; letter-spacing: -0.02em;
+    }
+    .todo-welcome-sub {
+        font-size: 13px; color: #6b7280; line-height: 1.5;
+    }
+
+    .todo-welcome-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    }
+    .todo-welcome-card {
+        background: #fff; border: 1.5px solid #e5e7eb;
+        border-radius: 14px; padding: 16px;
+        cursor: pointer; transition: all 0.2s ease;
+        display: flex; flex-direction: column; gap: 8px;
+        position: relative; overflow: hidden;
+    }
+    .todo-welcome-card:hover {
+        border-color: #c7d2fe; transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(99,102,241,0.12);
+    }
+    .todo-welcome-card-icon {
+        width: 36px; height: 36px; border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; flex-shrink: 0;
+    }
+    .todo-welcome-card-num {
+        font-size: 28px; font-weight: 900; line-height: 1;
+        letter-spacing: -0.02em;
+    }
+    .todo-welcome-card-label {
+        font-size: 12px; font-weight: 700; color: #1a1f36;
+    }
+    .todo-welcome-card-desc {
+        font-size: 11px; color: #9ca3af; line-height: 1.4;
+    }
+    .todo-welcome-card.card-overdue { border-left: 4px solid #ef4444; }
+    .todo-welcome-card.card-overdue .todo-welcome-card-icon { background: #fee2e2; }
+    .todo-welcome-card.card-overdue .todo-welcome-card-num { color: #dc2626; }
+    .todo-welcome-card.card-today { border-left: 4px solid #f59e0b; }
+    .todo-welcome-card.card-today .todo-welcome-card-icon { background: #fef3c7; }
+    .todo-welcome-card.card-today .todo-welcome-card-num { color: #d97706; }
+    .todo-welcome-card.card-high { border-left: 4px solid #6366f1; }
+    .todo-welcome-card.card-high .todo-welcome-card-icon { background: #eef2ff; }
+    .todo-welcome-card.card-high .todo-welcome-card-num { color: #4f46e5; }
+    .todo-welcome-card.card-done { border-left: 4px solid #16a34a; }
+    .todo-welcome-card.card-done .todo-welcome-card-icon { background: #dcfce7; }
+    .todo-welcome-card.card-done .todo-welcome-card-num { color: #16a34a; }
+
+    .todo-welcome-start {
+        display: flex; justify-content: center; padding-top: 4px;
+    }
+    .todo-welcome-start-btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 28px; border-radius: 12px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: #fff; font-size: 14px; font-weight: 700;
+        border: none; cursor: pointer;
+        box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+        transition: all 0.2s ease; font-family: inherit;
+    }
+    .todo-welcome-start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 24px rgba(99,102,241,0.4);
+    }
+    .todo-welcome-start-btn svg { width: 16px; height: 16px; stroke: #fff; }
+
+    .todo-welcome-recent-title {
+        font-size: 12px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .06em; color: #94a3b8; margin-bottom: 8px;
+    }
+    .todo-welcome-recent-item {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; border-radius: 10px;
+        border: 1px solid #f0f1f3; background: #fff;
+        margin-bottom: 4px; font-size: 13px; color: #1a1f36;
+    }
+    .todo-welcome-recent-item .prio-dot {
+        width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    }
+    .prio-dot-high { background: #ef4444; }
+    .prio-dot-medium { background: #f59e0b; }
+    .prio-dot-low { background: #22c55e; }
+    .todo-welcome-recent-meta {
+        font-size: 10px; color: #9ca3af; margin-left: auto; flex-shrink: 0;
     }
 
     .todo-style-badge {
@@ -441,6 +556,12 @@
                 </button>
             </div>
 
+            <!-- Welcome page (first open only) -->
+            <div class="todo-welcome" id="todo-welcome" style="display:none;"></div>
+
+            <!-- Main content wrapper -->
+            <div id="todo-main-content">
+
             <!-- Add form -->
             <div class="todo-add-wrap">
                 <div class="todo-add-row">
@@ -511,6 +632,8 @@
 
             <!-- Task list -->
             <div class="todo-list" id="todo-list"></div>
+
+            </div><!-- /todo-main-content -->
 
             <!-- Footer -->
             <div class="todo-footer">
@@ -1141,6 +1264,101 @@
         }, 350);
     };
 
+    // ─── Welcome Page ─────────────────────────────────────────
+    function _buildWelcome() {
+        const el = document.getElementById('todo-welcome');
+        if (!el) return;
+
+        const total = _tasks.filter(t => t.status !== 'done').length;
+        const overdueCount = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) < 0).length;
+        const todayCount = _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) === 0).length;
+        const highCount = _tasks.filter(t => t.priority === 'High' && t.status !== 'done').length;
+        const doneCount = _tasks.filter(t => t.status === 'done').length;
+
+        // Recent pending tasks (top 5)
+        const recent = _tasks.filter(t => t.status !== 'done')
+            .sort((a,b) => new Date(b.createdAt||0) - new Date(a.createdAt||0))
+            .slice(0, 5);
+
+        const now = new Date();
+        const greeting = now.getHours() < 12 ? 'Bonjour' : now.getHours() < 18 ? 'Bon après-midi' : 'Bonsoir';
+        const userName = (window.currentUser?.email || '').split('@')[0] || '';
+        const greetText = userName ? greeting + ', ' + userName + ' !' : greeting + ' !';
+
+        let html = '';
+
+        // Hero
+        html += '<div class="todo-welcome-hero">' +
+            '<div class="todo-welcome-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg></div>' +
+            '<div class="todo-welcome-h1">' + _escHtml(greetText) + '</div>' +
+            '<div class="todo-welcome-sub">Vous avez <strong>' + total + '</strong> tâche' + (total > 1 ? 's' : '') + ' en cours' +
+            (overdueCount ? ' dont <strong style="color:#dc2626">' + overdueCount + ' en retard</strong>' : '') + '</div>' +
+        '</div>';
+
+        // Grid cards
+        html += '<div class="todo-welcome-grid">';
+        html += '<div class="todo-welcome-card card-overdue" onclick="_todoDismissWelcome(&quot;overdue&quot;)">' +
+            '<div class="todo-welcome-card-icon">⚠️</div>' +
+            '<div class="todo-welcome-card-num">' + overdueCount + '</div>' +
+            '<div class="todo-welcome-card-label">En retard</div>' +
+            '<div class="todo-welcome-card-desc">Tâches dont la date limite est dépassée</div></div>';
+        html += '<div class="todo-welcome-card card-today" onclick="_todoDismissWelcome(&quot;today&quot;)">' +
+            '<div class="todo-welcome-card-icon">📅</div>' +
+            '<div class="todo-welcome-card-num">' + todayCount + '</div>' +
+            '<div class="todo-welcome-card-label">Aujourd\'hui</div>' +
+            '<div class="todo-welcome-card-desc">Tâches à terminer aujourd\'hui</div></div>';
+        html += '<div class="todo-welcome-card card-high" onclick="_todoDismissWelcome(&quot;high&quot;)">' +
+            '<div class="todo-welcome-card-icon">⚡</div>' +
+            '<div class="todo-welcome-card-num">' + highCount + '</div>' +
+            '<div class="todo-welcome-card-label">Urgentes</div>' +
+            '<div class="todo-welcome-card-desc">Priorité haute à traiter en premier</div></div>';
+        html += '<div class="todo-welcome-card card-done" onclick="_todoDismissWelcome(&quot;done&quot;)">' +
+            '<div class="todo-welcome-card-icon">✅</div>' +
+            '<div class="todo-welcome-card-num">' + doneCount + '</div>' +
+            '<div class="todo-welcome-card-label">Terminées</div>' +
+            '<div class="todo-welcome-card-desc">Historique des tâches accomplies</div></div>';
+        html += '</div>';
+
+        // Recent tasks preview
+        if (recent.length) {
+            html += '<div>';
+            html += '<div class="todo-welcome-recent-title">Dernières tâches ajoutées</div>';
+            recent.forEach(t => {
+                const prioCls = t.priority === 'High' ? 'prio-dot-high' : t.priority === 'Low' ? 'prio-dot-low' : 'prio-dot-medium';
+                const meta = [];
+                if (t.linkedStyle) meta.push(t.linkedStyle);
+                if (t.linkedClient) meta.push(t.linkedClient);
+                if (t.dueDate) meta.push(new Date(t.dueDate).toLocaleDateString('fr-FR', {day:'2-digit',month:'short'}));
+                html += '<div class="todo-welcome-recent-item">' +
+                    '<div class="prio-dot ' + prioCls + '"></div>' +
+                    '<span>' + _escHtml(t.title) + '</span>' +
+                    (meta.length ? '<span class="todo-welcome-recent-meta">' + meta.join(' · ') + '</span>' : '') +
+                '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Start button
+        html += '<div class="todo-welcome-start">' +
+            '<button class="todo-welcome-start-btn" onclick="_todoDismissWelcome(&quot;all&quot;)">' +
+            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>' +
+            'Voir toutes les tâches</button></div>';
+
+        el.innerHTML = html;
+    }
+
+    window._todoDismissWelcome = function(filter) {
+        _welcomeShown = true;
+        const welcome = document.getElementById('todo-welcome');
+        const main = document.getElementById('todo-main-content');
+        if (welcome) welcome.style.display = 'none';
+        if (main) main.style.display = 'flex';
+        if (filter) {
+            _todoFilter = filter;
+        }
+        _renderAll();
+    };
+
     // ─── Open / Close ─────────────────────────────────────────
     window.openTodoPanel = function() {
         _injectPanel();
@@ -1148,9 +1366,29 @@
             document.getElementById('todo-overlay')?.classList.add('open');
         });
         _todoOpen = true;
-        if (!_tasks.length) _loadTasks();
-        else _renderAll();
-        _populateDataLists();
+
+        const showContent = () => {
+            if (!_welcomeShown) {
+                // Show welcome page
+                const welcome = document.getElementById('todo-welcome');
+                const main = document.getElementById('todo-main-content');
+                if (welcome) { welcome.style.display = 'flex'; _buildWelcome(); }
+                if (main) main.style.display = 'none';
+            } else {
+                const welcome = document.getElementById('todo-welcome');
+                const main = document.getElementById('todo-main-content');
+                if (welcome) welcome.style.display = 'none';
+                if (main) main.style.display = 'flex';
+                _renderAll();
+            }
+            _populateDataLists();
+        };
+
+        if (!_tasks.length) {
+            _loadTasks().then(showContent);
+        } else {
+            showContent();
+        }
     };
 
     window.closeTodoPanel = function() {
