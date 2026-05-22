@@ -8,6 +8,7 @@
     // ─── State ──────────────────────────────────────────────
     let _tasks = [];
     let _todoFilter = 'all'; // all | today | overdue | high | done
+    let _todoSearch = '';
     let _todoOpen = false;
     let _todoLoading = false;
 
@@ -288,6 +289,69 @@
     }
     .todo-clear-done:hover { background: #fee2e2; color: #dc2626; }
 
+    /* ── Search bar ── */
+    .todo-search-wrap {
+        padding: 0 24px 12px;
+        background: #fafbfc;
+        border-bottom: 1px solid #e5e7eb;
+        flex-shrink: 0;
+    }
+    .todo-search-row {
+        display: flex; align-items: center; gap: 8px;
+        background: #fff; border: 1.5px solid #e5e7eb;
+        border-radius: 10px; padding: 0 12px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .todo-search-row:focus-within { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+    .todo-search-row svg { width: 14px; height: 14px; stroke: #9ca3af; flex-shrink: 0; }
+    .todo-search-input {
+        flex: 1; border: none; outline: none; background: transparent;
+        font-size: 12.5px; font-family: inherit; color: #1a1f36;
+        padding: 8px 0;
+    }
+    .todo-search-input::placeholder { color: #c4c9d4; }
+    .todo-search-clear {
+        width: 20px; height: 20px; border-radius: 50%;
+        border: none; background: #f1f5f9; cursor: pointer;
+        display: none; align-items: center; justify-content: center;
+        color: #9ca3af; font-size: 12px; transition: all 0.15s;
+        flex-shrink: 0;
+    }
+    .todo-search-clear.visible { display: flex; }
+    .todo-search-clear:hover { background: #fee2e2; color: #dc2626; }
+    .todo-search-count {
+        font-size: 10px; color: #9ca3af; font-weight: 600;
+        flex-shrink: 0; white-space: nowrap;
+    }
+
+    /* ── Completion date group ── */
+    .todo-date-group {
+        margin-bottom: 4px;
+    }
+    .todo-date-group-header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 4px 6px; cursor: pointer;
+        user-select: none;
+    }
+    .todo-date-group-header:hover .todo-date-group-label { color: #6366f1; }
+    .todo-date-group-chevron {
+        width: 16px; height: 16px; stroke: #9ca3af;
+        transition: transform 0.2s ease; flex-shrink: 0;
+    }
+    .todo-date-group.collapsed .todo-date-group-chevron { transform: rotate(-90deg); }
+    .todo-date-group.collapsed .todo-date-group-content { display: none; }
+    .todo-date-group-label {
+        font-size: 11px; font-weight: 800; text-transform: uppercase;
+        letter-spacing: .07em; color: #94a3b8; transition: color 0.15s;
+    }
+    .todo-date-group-count {
+        font-size: 10px; font-weight: 700; color: #c4c9d4;
+        background: #f1f5f9; border-radius: 10px; padding: 1px 7px;
+    }
+    .todo-date-group-line {
+        flex: 1; height: 1px; background: #f1f5f9;
+    }
+
     .todo-style-badge {
         background: #eef2ff; color: #4338ca; cursor: pointer;
     }
@@ -431,6 +495,20 @@
             <!-- Filters -->
             <div class="todo-filters" id="todo-filters"></div>
 
+            <!-- Search -->
+            <div class="todo-search-wrap">
+                <div class="todo-search-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input class="todo-search-input" id="todo-search-input"
+                        placeholder="Rechercher tâche, style, client…"
+                        oninput="_todoOnSearch(this.value)"/>
+                    <span class="todo-search-count" id="todo-search-count"></span>
+                    <button class="todo-search-clear" id="todo-search-clear" onclick="_todoClearSearch()">✕</button>
+                </div>
+            </div>
+
             <!-- Task list -->
             <div class="todo-list" id="todo-list"></div>
 
@@ -537,9 +615,22 @@
         _populateDataLists();
     }
 
+    function _matchesSearch(t) {
+        if (!_todoSearch) return true;
+        const s = _todoSearch;
+        return (t.title || '').toLowerCase().includes(s)
+            || (t.description || '').toLowerCase().includes(s)
+            || (t.linkedStyle || '').toLowerCase().includes(s)
+            || (t.linkedClient || '').toLowerCase().includes(s)
+            || (t.linkedSheet || '').toLowerCase().includes(s)
+            || (t.priority || '').toLowerCase().includes(s)
+            || (t.createdBy || '').toLowerCase().includes(s);
+    }
+
     function _getFiltered() {
         const today = new Date(); today.setHours(0,0,0,0);
         return _tasks.filter(t => {
+            if (!_matchesSearch(t)) return false;
             if (_todoFilter === 'all') return t.status !== 'done';
             if (_todoFilter === 'done') return t.status === 'done';
             if (_todoFilter === 'today') {
@@ -569,11 +660,12 @@
     }
 
     function _countFilter(f) {
-        if (f === 'all') return _tasks.filter(t => t.status !== 'done').length;
-        if (f === 'done') return _tasks.filter(t => t.status === 'done').length;
-        if (f === 'today') return _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) === 0).length;
-        if (f === 'overdue') return _tasks.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) < 0).length;
-        if (f === 'high') return _tasks.filter(t => t.priority === 'High' && t.status !== 'done').length;
+        const m = _tasks.filter(_matchesSearch);
+        if (f === 'all') return m.filter(t => t.status !== 'done').length;
+        if (f === 'done') return m.filter(t => t.status === 'done').length;
+        if (f === 'today') return m.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) === 0).length;
+        if (f === 'overdue') return m.filter(t => t.status !== 'done' && t.dueDate && _daysDiff(t.dueDate) < 0).length;
+        if (f === 'high') return m.filter(t => t.priority === 'High' && t.status !== 'done').length;
         return 0;
     }
 
@@ -597,53 +689,110 @@
         }).join('');
     }
 
+    function _formatDateLabel(dateStr) {
+        if (!dateStr) return 'Date inconnue';
+        const d = new Date(dateStr);
+        const today = new Date(); today.setHours(0,0,0,0);
+        const target = new Date(d); target.setHours(0,0,0,0);
+        const diff = Math.round((target - today) / 86400000);
+        const fmt = d.toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+        if (diff === 0) return "Aujourd'hui — " + fmt;
+        if (diff === -1) return 'Hier — ' + fmt;
+        if (diff === 1) return 'Demain — ' + fmt;
+        return fmt.charAt(0).toUpperCase() + fmt.slice(1);
+    }
+
+    function _renderDateGroup(groupId, label, count, tasksHtml, icon) {
+        return '<div class="todo-date-group" id="' + groupId + '">' +
+            '<div class="todo-date-group-header" onclick="_todoToggleGroup(\'' + groupId + '\')">' +
+                '<svg class="todo-date-group-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>' +
+                (icon ? icon + ' ' : '') +
+                '<span class="todo-date-group-label">' + label + '</span>' +
+                '<span class="todo-date-group-count">' + count + '</span>' +
+                '<div class="todo-date-group-line"></div>' +
+            '</div>' +
+            '<div class="todo-date-group-content">' + tasksHtml + '</div>' +
+        '</div>';
+    }
+
     function _renderList() {
         const el = document.getElementById('todo-list');
         if (!el) return;
         const filtered = _getFiltered();
         if (!filtered.length) {
             const msgs = {
-                all: 'Aucune tâche en cours 🎉',
+                all: _todoSearch ? 'Aucun résultat pour « ' + _escHtml(_todoSearch) + ' »' : 'Aucune tâche en cours 🎉',
                 overdue: 'Aucune tâche en retard ✓',
                 today: 'Rien pour aujourd\'hui',
                 high: 'Aucune tâche urgente',
-                done: 'Aucune tâche terminée'
+                done: _todoSearch ? 'Aucun résultat' : 'Aucune tâche terminée'
             };
-            el.innerHTML = `<div class="todo-empty">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p>${msgs[_todoFilter] || 'Aucune tâche'}</p>
-            </div>`;
+            el.innerHTML = '<div class="todo-empty">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+                    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' +
+                '</svg>' +
+                '<p>' + (msgs[_todoFilter] || 'Aucune tâche') + '</p>' +
+            '</div>';
             return;
         }
 
-        // Group: overdue | today | upcoming | no date
-        const groups = { overdue: [], today: [], upcoming: [], nodate: [] };
-        filtered.forEach(t => {
-            if (t.status === 'done') { groups.nodate.push(t); return; }
-            const diff = t.dueDate ? _daysDiff(t.dueDate) : null;
-            if (diff === null) groups.nodate.push(t);
-            else if (diff < 0) groups.overdue.push(t);
-            else if (diff === 0) groups.today.push(t);
-            else groups.upcoming.push(t);
-        });
-
         let html = '';
-        const renderGroup = (tasks, label) => {
-            if (!tasks.length) return '';
-            return `<div class="todo-section-label">${label}</div>` +
-                tasks.map(t => _renderTask(t)).join('');
-        };
 
         if (_todoFilter === 'done') {
-            html = filtered.map(t => _renderTask(t)).join('');
+            // Group completed tasks by completion date
+            const byDate = {};
+            filtered.forEach(t => {
+                const dateKey = t.completedAt ? new Date(t.completedAt).toISOString().slice(0,10) : 'unknown';
+                if (!byDate[dateKey]) byDate[dateKey] = [];
+                byDate[dateKey].push(t);
+            });
+            // Sort dates newest first
+            const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
+            sortedDates.forEach((dateKey, idx) => {
+                const tasks = byDate[dateKey];
+                const label = dateKey === 'unknown' ? 'Date inconnue' : _formatDateLabel(dateKey);
+                const groupId = 'done-group-' + idx;
+                const tasksHtml = tasks.map(t => _renderTask(t)).join('');
+                html += _renderDateGroup(groupId, '✓ ' + label, tasks.length, tasksHtml, '');
+            });
         } else {
-            html += renderGroup(groups.overdue, '⚠ En retard');
-            html += renderGroup(groups.today, '📅 Aujourd\'hui');
-            html += renderGroup(groups.upcoming, '🕐 À venir');
-            html += renderGroup(groups.nodate, '📋 Sans date');
+            // Group pending tasks by due date sections
+            const groups = { overdue: [], today: [], upcoming: {}, nodate: [] };
+            filtered.forEach(t => {
+                const diff = t.dueDate ? _daysDiff(t.dueDate) : null;
+                if (diff === null) groups.nodate.push(t);
+                else if (diff < 0) groups.overdue.push(t);
+                else if (diff === 0) groups.today.push(t);
+                else {
+                    const dateKey = t.dueDate.toString().slice(0,10);
+                    if (!groups.upcoming[dateKey]) groups.upcoming[dateKey] = [];
+                    groups.upcoming[dateKey].push(t);
+                }
+            });
+
+            // Overdue
+            if (groups.overdue.length) {
+                html += _renderDateGroup('grp-overdue', '⚠ En retard', groups.overdue.length,
+                    groups.overdue.map(t => _renderTask(t)).join(''), '');
+            }
+            // Today
+            if (groups.today.length) {
+                html += _renderDateGroup('grp-today', "📅 Aujourd'hui", groups.today.length,
+                    groups.today.map(t => _renderTask(t)).join(''), '');
+            }
+            // Upcoming — sub-grouped by date
+            const upDates = Object.keys(groups.upcoming).sort();
+            upDates.forEach((dateKey, idx) => {
+                const tasks = groups.upcoming[dateKey];
+                const label = '🕐 ' + _formatDateLabel(dateKey);
+                html += _renderDateGroup('grp-up-' + idx, label, tasks.length,
+                    tasks.map(t => _renderTask(t)).join(''), '');
+            });
+            // No date
+            if (groups.nodate.length) {
+                html += _renderDateGroup('grp-nodate', '📋 Sans date', groups.nodate.length,
+                    groups.nodate.map(t => _renderTask(t)).join(''), '');
+            }
         }
 
         el.innerHTML = html;
@@ -935,6 +1084,39 @@
             try { await _sendRequest('DELETE_TASK', { id: t.id }); } catch (e) {}
         }
         if (typeof window.showToast === 'function') showToast(`${done.length} tâche(s) supprimée(s)`, 'info', 2000);
+    };
+
+    window._todoOnSearch = function(val) {
+        _todoSearch = (val || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('todo-search-clear');
+        if (clearBtn) clearBtn.classList.toggle('visible', _todoSearch.length > 0);
+        _renderList();
+        // Update search count
+        const countEl = document.getElementById('todo-search-count');
+        if (countEl) {
+            if (_todoSearch) {
+                const n = document.querySelectorAll('.todo-task').length;
+                countEl.textContent = n + ' résultat' + (n > 1 ? 's' : '');
+            } else {
+                countEl.textContent = '';
+            }
+        }
+    };
+
+    window._todoClearSearch = function() {
+        _todoSearch = '';
+        const input = document.getElementById('todo-search-input');
+        if (input) input.value = '';
+        const clearBtn = document.getElementById('todo-search-clear');
+        if (clearBtn) clearBtn.classList.remove('visible');
+        const countEl = document.getElementById('todo-search-count');
+        if (countEl) countEl.textContent = '';
+        _renderList();
+    };
+
+    window._todoToggleGroup = function(groupId) {
+        const group = document.getElementById(groupId);
+        if (group) group.classList.toggle('collapsed');
     };
 
     window._todoToggleDesc = function(id) {
