@@ -101,8 +101,10 @@ if (!isPage("login.html") && !isPage("access-request.html")) {
                 console.error("Whitelist listener error:", err);
                 auth.signOut().then(() => { window.location.href = "login.html"; });
             });
-    });
+        });
+    }
 }
+
 
 // ══════════════════════════════════════════════════════════════
 // LOGIQUE CENTRALE : handleUser
