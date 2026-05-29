@@ -55,22 +55,46 @@ const SHEET_CONFIG = {
     details: {
         label: "Details",
         cols: [
-            { key: "Saison", label: "Saison", type: "text" },
-            { key: "Client", label: "Client", type: "text", required: true },
-            { key: "Dept", label: "Dept", type: "text", required: true },
-            { key: "Style", label: "Style", type: "text", required: true },
-            { key: "Description", label: "Description", type: "text", full: true },
-            { key: "Fabric Base", label: "Fabric Base", type: "text" },
-            { key: "Costing", label: "Costing", type: "text" },
-            { key: "Order Qty", label: "Order Qty", type: "number" },
-            { key: "PSD", label: "PSD", type: "date" },
-            { key: "Ex-Fty", label: "Ex-Fty", type: "date" }
+            { key: "Client",                         label: "Client",                 type: "text", required: true },
+            { key: "Full Season",                    label: "Full Season",            type: "text" },
+            { key: "SEASON",                         label: "Season",                 type: "text" },
+            { key: "P1/ P2",                         label: "P1/P2",                  type: "text" },
+            { key: "Theme",                          label: "Theme",                  type: "text" },
+            { key: "Cust Style Ref",                 label: "Cust Style Ref",         type: "text", required: true },
+            { key: "CTLStyleRef",                    label: "CTL Style Ref",          type: "text" },
+            { key: "Coll",                           label: "Coll",                   type: "text" },
+            { key: "Age Group",                      label: "Age Group",              type: "text" },
+            { key: "Order Status",                   label: "Order Status",           type: "select", options: ["", "TBC", "To book", "PO RECEIVED", "Cancelled"] },
+            { key: "remark",                         label: "Remark",                 type: "text" },
+            { key: "CRP Status",                     label: "CRP Status",             type: "text" },
+            { key: "Style Type",                     label: "Style Type",             type: "text" },
+            { key: "FABRIC",                         label: "Fabric",                 type: "text" },
+            { key: "Initial Vsl Date",               label: "Initial Vsl Date",       type: "date" },
+            { key: "Possible Vsl date",              label: "Possible Vsl Date",      type: "date" },
+            { key: "PO Deadline",                    label: "PO Deadline",            type: "date" },
+            { key: "PO Rec Date",                    label: "PO Rec Date",            type: "date" },
+            { key: "Target Qty",                     label: "Target Qty",             type: "number" },
+            { key: "Conf Total",                     label: "Conf Total",             type: "number" },
+            { key: "1st Price $",                    label: "1st Price $",            type: "text" },
+            { key: "Target Price $",                 label: "Target Price $",         type: "text" },
+            { key: "Approved Price $",               label: "Approved Price $",       type: "text" },
+            { key: "TO ($)",                         label: "TO ($)",                 type: "text" },
+            { key: "SAMPLE LENGTH \nREADY DATE",    label: "Sample Ready Date",      type: "date" },
+            { key: "PROV SAMPLE DISPATCH DATE",      label: "Prov Sample Dispatch",   type: "date" },
+            { key: "ACTUAL SAMPLE DISPATCH DATE",    label: "Actual Sample Dispatch", type: "date" },
+            { key: "PRIORITY",                       label: "Priority",               type: "text" },
+            { key: "TRIMS DEVELOPMENT",              label: "Trims Development",      type: "text" },
+            { key: "COMMENT",                        label: "Comment",                type: "textarea", full: true },
+            { key: "DT RECEIVED",                    label: "DT Received",            type: "date" },
+            { key: "SPEC RECEIVED",                  label: "Spec Received",          type: "date" },
+            { key: "BULK FAB",                       label: "Bulk Fab",               type: "text" },
+            { key: "Possible etd",                   label: "Possible ETD",           type: "date" }
         ],
         kpis: [
             { label: "Total Styles", colorClass: "teal", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`, compute: rows => rows.length },
-            { label: "Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0).toLocaleString() },
-            { label: "Departments", colorClass: "yellow", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>`, compute: rows => new Set(rows.map(r => r.Dept).filter(Boolean)).size },
-            { label: "Upcoming ExFty", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r["Ex-Fty"] && new Date(r["Ex-Fty"]) >= new Date()).length }
+            { label: "Conf Total Qty", colorClass: "blue", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`, compute: rows => rows.reduce((s, r) => s + (+r["Conf Total"] || 0), 0).toLocaleString() },
+            { label: "PO Received", colorClass: "green", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`, compute: rows => rows.filter(r => r["Order Status"] === "PO RECEIVED").length },
+            { label: "Upcoming ETD", colorClass: "yellow", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`, compute: rows => rows.filter(r => r["Possible etd"] && new Date(r["Possible etd"]) >= new Date()).length }
         ]
     },
     sample: {
@@ -852,77 +876,107 @@ function renderDashboard() {
     }
 
     // ── Group by Saison
-    const saisons = [...new Set(details.map(r => r.Saison || r["Saison"] || "").filter(Boolean))].sort();
-    const noSaison = details.filter(r => !r.Saison && !r["Saison"]);
+    const saisons = [...new Set(details.map(r => r["Full Season"] || r["SEASON"] || "").filter(Boolean))].sort();
+    const noSaison = details.filter(r => !r["Full Season"] && !r["SEASON"]);
     if (noSaison.length) saisons.push("—");
 
     const saisonBlocks = saisons.map((saison, si) => {
-        const sRows = saison === "—" ? noSaison : details.filter(r => (r.Saison || r["Saison"] || "") === saison);
-        const sTotal = sRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
-        const sClients = [...new Set(sRows.map(r => r.Client).filter(Boolean))];
+        const sRows = saison === "—" ? noSaison : details.filter(r => (r["Full Season"] || r["SEASON"] || "") === saison);
+        const sTotal = sRows.reduce((s, r) => s + (+r["Conf Total"] || 0), 0);
+        const sClients = [...new Set(sRows.map(r => r.Client || r["Coll"] || "").filter(Boolean))];
         const pillCls = si === 0 ? "aw" : si === 1 ? "ss" : "other";
 
         // ── Per client
         const clientBlocks = sClients.sort().map((client, ci) => {
-            const cRows = sRows.filter(r => r.Client === client);
-            const cTotal = cRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0);
+            const cRows = sRows.filter(r => (r.Client || r["Coll"] || "") === client);
+            const cTotal = cRows.reduce((s, r) => s + (+r["Conf Total"] || 0), 0);
             const cStyles = cRows.length;
             const initials = client.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
             const accentColor = CLIENT_ACCENTS[ci % CLIENT_ACCENTS.length];
 
-            const depts = [...new Set(cRows.map(r => r.Dept).filter(Boolean))].sort();
+            const depts = [...new Set(cRows.map(r => r["Age Group"] || "").filter(Boolean))].sort();
             const deptDataArr = depts.map((dept, di) => {
-                const dRows = cRows.filter(r => r.Dept === dept);
-                return { dept, qty: dRows.reduce((s, r) => s + (+r["Order Qty"] || 0), 0), nStyles: dRows.length, rows: dRows, di };
+                const dRows = cRows.filter(r => (r["Age Group"] || "") === dept);
+                return { dept, qty: dRows.reduce((s, r) => s + (+r["Conf Total"] || 0), 0), nStyles: dRows.length, rows: dRows, di };
             });
 
             // ── Style cards per dept
             const deptSections = deptDataArr.map((dd, di) => {
                 const c = DEPT_COLORS[di % DEPT_COLORS.length];
                 const cards = dd.rows.map((r, cardIdx) => {
-                    const qty = r["Order Qty"] ? (+r["Order Qty"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
-                    const psd = r["PSD"] ? new Date(r["PSD"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : '<span class="dbs-dim">—</span>';
-                    const cost = r["Costing"] ? '$' + r["Costing"] : '<span class="dbs-dim">—</span>';
-                    const fab = r["Fabric Base"] ? esc(r["Fabric Base"]) : '<span class="dbs-dim">—</span>';
-                    const desc = esc(r["Description"] || r["StyleDescription"] || "");
+                    const qty = r["Conf Total"] ? (+r["Conf Total"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
+                    const psd = r["PO Deadline"] ? new Date(r["PO Deadline"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : '<span class="dbs-dim">—</span>';
+                    const cost = r["Approved Price $"] ? '$' + r["Approved Price $"] : (r["Target Price $"] ? '$' + r["Target Price $"] : '<span class="dbs-dim">—</span>');
+                    const fab = r["FABRIC"] ? esc(r["FABRIC"]) : '<span class="dbs-dim">—</span>';
+                    const desc = esc(r["Theme"] || r["Style Type"] || "");
 
                     // ── Cross-data: ordering rows for this style
                     const orderRows = (state.data.ordering || []).filter(o =>
-                        o.Style === r.Style && o.Client === r.Client
+                        o.Style === (r["Cust Style Ref"] || r.Style || "") && o.Client === (r.Client || r["Coll"] || "")
                     );
-                    const confirmedOrders = orderRows.filter(o => o.Status === "Confirmed").length;
-                    const pendingOrders = orderRows.filter(o => o.Status === "Pending").length;
-                    const deliveredOrders = orderRows.filter(o => o["Delivery Status"] === "Delivered").length;
-                    const inTransit = orderRows.filter(o => o["Delivery Status"] === "In Transit").length;
-                    const totalColors = orderRows.length;
-
-                    // ── Cross-data: sample approval for this style
-                    const sampleRows = (state.data.sample || []).filter(s =>
-                        s.Style === r.Style && s.Client === r.Client
+                    const isDelivered = orderRows.some(o =>
+                        String(o["Delivery Status"] || "").trim().toLowerCase() === "delivered"
                     );
-                    const approved = sampleRows.filter(s => s.Approval === "Approved").length;
-                    const pending = sampleRows.filter(s => s.Approval === "Pending").length;
-                    const rejected = sampleRows.filter(s => s.Approval === "Rejected").length;
-                    const totalSamples = sampleRows.length;
 
-                    // ── Sample badge
-                    let sampleBadge = "";
-                    if (totalSamples > 0) {
-                        const sampleCls = rejected > 0 ? "sc-badge-danger" : pending > 0 ? "sc-badge-warn" : "sc-badge-ok";
-                        const sampleTxt = rejected > 0 ? rejected + " rejeté" : pending > 0 ? pending + " en attente" : approved + " approuvé";
-                        sampleBadge = '<span class="dbs-sc-badge ' + sampleCls + '"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> ' + sampleTxt + '</span>';
+                    // ── PPS sample : Type contient "PPS", Approval = Approved ou Rejected
+                    const ppsSamples = (state.data.sample || []).filter(s =>
+                        s.Style === (r["Cust Style Ref"] || r.Style || "") &&
+                        s.Client === (r.Client || r["Coll"] || "") &&
+                        /pps/i.test(s.Type || "")
+                    );
+                    // Prendre le plus récent PPS (dernier dans la liste)
+                    const ppsRow = ppsSamples.length > 0 ? ppsSamples[ppsSamples.length - 1] : null;
+                    const ppsApproval = ppsRow ? String(ppsRow.Approval || "").trim().toLowerCase() : "";
+
+                    // Date PPS : Received Date en priorité, sinon Sending Date, sinon SRS Date
+                    let ppsBadge = "";
+                    if (ppsRow && (ppsApproval === "approved" || ppsApproval === "rejected")) {
+                        const rawPpsDate = ppsRow["Received Date"] || ppsRow["Sending Date"] || ppsRow["SRS Date"] || "";
+                        let ppsDateLabel = "";
+                        if (rawPpsDate) {
+                            try { ppsDateLabel = new Date(rawPpsDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch(e) {}
+                        }
+                        if (ppsApproval === "approved") {
+                            ppsBadge = '<div class="dbs-pps-badge dbs-pps-ok">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
+                                '<div class="dbs-pps-text"><span class="dbs-pps-label">PPS approuvé</span>' +
+                                (ppsDateLabel ? '<span class="dbs-pps-date">' + ppsDateLabel + '</span>' : '') +
+                                '</div></div>';
+                        } else {
+                            ppsBadge = '<div class="dbs-pps-badge dbs-pps-ko">' +
+                                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
+                                '<div class="dbs-pps-text"><span class="dbs-pps-label">PPS rejeté</span>' +
+                                (ppsDateLabel ? '<span class="dbs-pps-date">' + ppsDateLabel + '</span>' : '') +
+                                '</div></div>';
+                        }
                     }
 
-                    // ── Order status mini-chips
-                    let orderChips = "";
-                    if (totalColors > 0) {
-                        if (deliveredOrders > 0) orderChips += '<span class="sc-chip sc-chip-delivered">' + deliveredOrders + ' livré' + (deliveredOrders > 1 ? 's' : '') + '</span>';
-                        if (inTransit > 0) orderChips += '<span class="sc-chip sc-chip-transit">' + inTransit + ' en transit</span>';
-                        if (confirmedOrders > 0 && deliveredOrders + inTransit < confirmedOrders) {
-                            const rem = confirmedOrders - deliveredOrders - inTransit;
-                            orderChips += '<span class="sc-chip sc-chip-confirmed">' + rem + ' confirmé' + (rem > 1 ? 's' : '') + '</span>';
-                        }
-                        if (pendingOrders > 0) orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
+                    // ── Delivery status badge — logique par dates (priorité descendante)
+                    // 1. Delivery Status = Delivered dans ordering → Delivered
+                    // 2. Ex-Fty dépassé → Shipped
+                    // 3. PSD dépassé → In Production
+                    // 4. Sinon → rien
+                    let deliveryBadge = "";
+                    const _today = new Date(); _today.setHours(0,0,0,0);
+                    const _exFtyVal = r["Possible etd"] || r["Possible Vsl date"] || "";
+                    const _psdVal   = r["PO Deadline"] || "";
+                    const _exFtyDate = _exFtyVal ? new Date(_exFtyVal) : null;
+                    const _psdDate   = _psdVal   ? new Date(_psdVal)   : null;
+                    if (_exFtyDate) _exFtyDate.setHours(0,0,0,0);
+                    if (_psdDate)   _psdDate.setHours(0,0,0,0);
+
+                    if (isDelivered) {
+                        deliveryBadge = '<span class="dbs-del-badge dbs-del-delivered">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>' +
+                            ' Delivered</span>';
+                    } else if (_exFtyDate && _exFtyDate < _today) {
+                        deliveryBadge = '<span class="dbs-del-badge dbs-del-shipped">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>' +
+                            ' Shipped</span>';
+                    } else if (_psdDate && _psdDate < _today) {
+                        deliveryBadge = '<span class="dbs-del-badge dbs-del-production">' +
+                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>' +
+                            ' In Production</span>';
                     }
 
                     // ── Color labels from style sheet (real Pantone TCX hex)
@@ -932,7 +986,7 @@ function renderDashboard() {
                         const pantone = esc(s["Pantone"] || "");
                         if (!gmtColor && !pantone) return '';
                         // Unique ID for async color update
-                        const barId = 'cb-' + esc(r.Style || "") + '-' + ci;
+                        const barId = 'cb-' + esc(r["Cust Style Ref"] || "") + '-' + ci;
                         // Resolve color: static DB first (sync), then async fetch if missing
                         const hexSync = resolveColorHex(s["GMT Color"], s["Pantone"]);
                         const needsFetch = hexSync === "#cbd5e1" && s["Pantone"] && s["Pantone"].trim();
@@ -961,74 +1015,72 @@ function renderDashboard() {
                         '</div>'
                         : '';
 
-                    // ── Progress bar: delivered / total colors
-                    const progPct = totalColors > 0 ? Math.round((deliveredOrders / totalColors) * 100) : 0;
-                    const progBar = totalColors > 0
-                        ? '<div class="sc-prog-wrap"><div class="sc-prog-track"><div class="sc-prog-fill" style="width:' + progPct + '%"></div></div><span class="sc-prog-lbl">' + progPct + '% livré</span></div>'
-                        : '';
-
-                    // ── TP (Tech Pack) button
-                    const tpUrl = String(r.TP_URL || r["TP_URL"] || "").trim();
-                    const styleCode = r.Style || "";
-                    const rowIdx = r._rowIndex || 2;
-                    let tpBtn = "";
-                    if (tpUrl) {
-                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn has-tp" onclick="event.stopPropagation();window.open(\'' + esc(tpUrl) + '\',\'_blank\')" title="Ouvrir le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Voir TP</button><button class="dbs-sc-tp-btn update-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'' + esc(tpUrl) + '\')" title="Mettre à jour le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></button></div>';
-                    } else {
-                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn no-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'\')" title="Ajouter un Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Ajouter TP</button></div>';
-                    }
+                    // ── Progress bar supprimée — remplacée par delivery badge
 
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style (normalisé dans fixRows — supporte base64 GAS, Drive /file/d/, open?id=)
+                    // ── Image du style
                     const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
                         const _lbStyle = esc(r.Style || "");
-                        const _lbDesc = esc(r["Description"] || r["StyleDescription"] || "");
-                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
+                        const _lbDesc = esc(r["Theme"] || r["Style Type"] || "");
+                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
                     } else {
-                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
+                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"><svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' width=\'28\' height=\'28\' style=\'opacity:.18\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'/></svg></div>';
                     }
 
+                    // ── Badges statut commande + sample regroupés
+                    const statusLine = (sampleBadge || orderChips)
+                        ? '<div class="dbs-sc-status-row">' + sampleBadge + orderChips + '</div>'
+                        : '';
+
                     return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
-                        ' data-style="' + esc((r.Style || "").toLowerCase()) + '"' +
-                        ' data-desc="' + esc((r["Description"] || r["StyleDescription"] || "").toLowerCase()) + '"' +
-                        ' data-fabric="' + esc((r["Fabric Base"] || "").toLowerCase()) + '"' +
-                        ' data-client="' + esc((r.Client || "").toLowerCase()) + '"' +
-                        ' data-style-raw="' + esc(r.Style || "") + '"' +
-                        ' data-client-raw="' + esc(r.Client || "") + '"' +
-                        ' data-saison="' + esc(r.Saison || "") + '"' +
-                        ' data-dept="' + esc(r.Dept || "") + '"' +
+                        ' data-style="' + esc((r["Cust Style Ref"] || "").toLowerCase()) + '"' +
+                        ' data-desc="' + esc((r["Theme"] || r["Style Type"] || "").toLowerCase()) + '"' +
+                        ' data-fabric="' + esc((r["FABRIC"] || "").toLowerCase()) + '"' +
+                        ' data-client="' + esc((r.Client || r["Coll"] || "").toLowerCase()) + '"' +
+                        ' data-style-raw="' + esc(r["Cust Style Ref"] || "") + '"' +
+                        ' data-client-raw="' + esc(r.Client || r["Coll"] || "") + '"' +
+                        ' data-saison="' + esc(r["Full Season"] || r["SEASON"] || "") + '"' +
+                        ' data-dept="' + esc(r["Age Group"] || "") + '"' +
                         ' data-status="' + esc(r.Status || "") + '"' +
                         ' data-costing="' + esc(r.Costing || "") + '"' +
-                        ' data-order-qty="' + esc(String(r["Order Qty"] || "")) + '"' +
+                        ' data-order-qty="' + esc(String(r["Conf Total"] || "")) + '"' +
                         ' data-plc="' + esc(r["PLC Booking"] || "") + '"' +
                         ' data-crp="' + esc(r["CRP Booking"] || "") + '"' +
-                        ' data-psd="' + esc(r["PSD"] || "") + '"' +
-                        ' data-exfty="' + esc(r["Ex-Fty"] || "") + '"' +
+                        ' data-psd="' + esc(r["PO Deadline"] || "") + '"' +
+                        ' data-exfty="' + esc(r["Possible etd"] || "") + '"' +
                         ' data-comments="' + esc(r.Comments || "") + '"' +
-                        ' data-description-full="' + esc(r["Description"] || r["StyleDescription"] || "") + '"' +
+                        ' data-description-full="' + esc(r["Theme"] || r["Style Type"] || "") + '"' +
                         ' data-image-url="' + (r["_imageUrl"] ? esc(r["_imageUrl"]) : "") + '"' +
                         '>' +
                         imgBlock +
+                        '<div class="dbs-sc-body">' +
+                        // ── Ligne titre : code + badge Ex-Fty
                         '<div class="dbs-sc-head">' +
                         '<div class="dbs-sc-id">' +
-                        '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
+                        '<span class="dbs-sc-code">' + esc(r["Cust Style Ref"] || "—") + '</span>' +
                         (desc ? '<span class="dbs-sc-desc">' + desc + '</span>' : '') +
                         '</div>' +
-                        exFtyBadge(r["Ex-Fty"]) +
+                        exFtyBadge(r["Possible etd"] || r["Possible Vsl date"]) +
                         '</div>' +
+                        // ── Coloris
                         (colorWrap ? colorWrap : '') +
-                        '<hr class="dbs-sc-div">' +
+                        // ── Séparateur
+                        '<div class="dbs-sc-sep"></div>' +
+                        // ── Grille de champs
                         '<div class="dbs-sc-fields">' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v dbs-sf-cost">' + cost + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
+                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
-                        tpBtn +
+                        // ── PPS badge + delivery badge
+                        (ppsBadge ? ppsBadge : '') +
+                        (deliveryBadge ? '<div class="dbs-sc-status-row">' + deliveryBadge + '</div>' : '') +
+                        '</div>' +
                         '</div>';
                 }).join("");
 
@@ -4424,7 +4476,7 @@ function collectAtRiskStyles() {
             else if (psdDiff <= 7) { flags.push({ icon: "📅", label: `PSD dans ${psdDiff}j (${_fmtDate(detail.PSD)})`, urgency: psdDiff <= 3 ? "high" : "mid" }); score += 1; }
         }
 
-        const exftyDiff = safeDiff(detail?.["Ex-Fty"] ?? detail?.ExFty);
+        const exftyDiff = safeDiff(detail?.["Possible etd"] ?? detail?.["Possible Vsl date"]);
         if (exftyDiff !== null) {
             if (exftyDiff < 0) { flags.push({ icon: "🚢", label: `Ex-Fty dépassée de ${Math.abs(exftyDiff)}j (${_fmtDate(detail.ExFty)})`, urgency: "high" }); score += 2; }
             else if (exftyDiff <= 14) { flags.push({ icon: "🚢", label: `Ex-Fty dans ${exftyDiff}j (${_fmtDate(detail.ExFty)})`, urgency: exftyDiff <= 7 ? "high" : "mid" }); score += 1; }
@@ -4538,8 +4590,8 @@ let _dbFilterState = { search: "", client: "", saison: "" };
 
 function populateDashboardFilters() {
     const details = state.data.details || [];
-    const clients = [...new Set(details.map(r => r.Client).filter(Boolean))].sort();
-    const saisons = [...new Set(details.map(r => r.Saison || r["Saison"] || "").filter(Boolean))].sort();
+    const clients = [...new Set(details.map(r => r.Client || r["Coll"] || "").filter(Boolean))].sort();
+    const saisons = [...new Set(details.map(r => r["Full Season"] || r["SEASON"] || "").filter(Boolean))].sort();
 
     const clientSel = document.getElementById("db-client-filter");
     const saisonSel = document.getElementById("db-saison-filter");
@@ -6223,6 +6275,126 @@ Rules:
         }
         .dbs-tp-menu-btn:hover { background: var(--color-background-secondary, #f9fafb); }
         .dbs-tp-menu-btn:not(:last-child) { border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb); }
+
+        /* ── Card redesign ───────────────────────────────────── */
+        .dbs-sc {
+            background: var(--color-background-primary, #fff);
+            border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
+            border-radius: 14px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow .18s, transform .18s;
+            position: relative;
+        }
+        .dbs-sc:hover {
+            box-shadow: 0 4px 18px rgba(0,0,0,0.09);
+            transform: translateY(-1px);
+        }
+        .dbs-sc-img-wrap {
+            width: 100%;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+            background: var(--color-background-secondary, #f3f4f6);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .dbs-sc-img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            cursor: zoom-in;
+            transition: transform .25s ease;
+        }
+        .dbs-sc:hover .dbs-sc-img { transform: scale(1.03); }
+        .dbs-sc-img-placeholder { background: var(--color-background-secondary, #f3f4f6); }
+        .dbs-sc-body {
+            display: flex;
+            flex-direction: column;
+            padding: 11px 12px 0;
+            flex: 1;
+        }
+        .dbs-sc-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .dbs-sc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .dbs-sc-code {
+            font-size: 13px; font-weight: 600;
+            color: var(--color-text-primary, #111827);
+            letter-spacing: .01em;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .dbs-sc-desc {
+            font-size: 11px; color: var(--color-text-secondary, #6b7280);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+        }
+        .dbs-sc-sep {
+            height: 0.5px;
+            background: var(--color-border-tertiary, #e5e7eb);
+            margin: 9px 0 8px;
+        }
+        .dbs-sc-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 7px 10px;
+            margin-bottom: 8px;
+        }
+        .dbs-sf { display: flex; flex-direction: column; gap: 2px; }
+        .dbs-sf-full { grid-column: span 2; }
+        .dbs-sf-l {
+            font-size: 9.5px; font-weight: 500;
+            color: var(--color-text-tertiary, #9ca3af);
+            text-transform: uppercase; letter-spacing: .06em;
+        }
+        .dbs-sf-v {
+            font-size: 12px; font-weight: 500;
+            color: var(--color-text-primary, #111827);
+        }
+        .dbs-sf-cost { color: var(--color-text-success, #166534) !important; }
+        .dbs-fab {
+            font-size: 11px; color: var(--color-text-secondary, #6b7280);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .dbs-sc-status-row {
+            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px;
+        }
+        /* Masquer le bouton PDF flottant injecté par index.html */
+        .dbs-pdf-btn { display: none !important; }
+
+        /* ── PPS badge ───────────────────────────────────────── */
+        .dbs-pps-badge {
+            display: flex; align-items: center; gap: 6px;
+            border-radius: 7px; padding: 5px 9px; margin-bottom: 8px;
+            border: 0.5px solid;
+        }
+        .dbs-pps-ok { background: #EAF3DE; border-color: #C0DD97; }
+        .dbs-pps-ko { background: #FCEBEB; border-color: #F7C1C1; }
+        .dbs-pps-text { display: flex; flex-direction: column; gap: 1px; }
+        .dbs-pps-label { font-size: 10.5px; font-weight: 500; }
+        .dbs-pps-ok .dbs-pps-label { color: #27500A; }
+        .dbs-pps-ko .dbs-pps-label { color: #791F1F; }
+        .dbs-pps-date { font-size: 9.5px; }
+        .dbs-pps-ok .dbs-pps-date { color: #3B6D11; }
+        .dbs-pps-ko .dbs-pps-date { color: #A32D2D; }
+        .dbs-pps-badge svg { color: inherit; }
+        .dbs-pps-ok svg { color: #27500A; }
+        .dbs-pps-ko svg { color: #791F1F; }
+
+        /* ── Delivery badge ──────────────────────────────────── */
+        .dbs-sc-status-row { margin-bottom: 8px; }
+        .dbs-del-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 500;
+            padding: 4px 9px; border-radius: 20px; border: 0.5px solid;
+        }
+        .dbs-del-delivered { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
+        .dbs-del-shipped   { background: #E6F1FB; color: #0C447C; border-color: #B5D4F4; }
+        .dbs-del-production{ background: #FAEEDA; color: #633806; border-color: #FAC775; }
         `;
         document.head.appendChild(s);
     }
@@ -6230,8 +6402,8 @@ Rules:
     // ── Lit les données fraîches depuis state au moment de l'appel ──
     function _getLiveRow(styleCode, clientCode) {
         return (window.state?.data?.details || []).find(r =>
-            r.Style === styleCode &&
-            (!clientCode || r.Client === clientCode)
+            r["Cust Style Ref"] === styleCode &&
+            (!clientCode || (r.Client || r["Coll"] || "") === clientCode)
         ) || null;
     }
 
@@ -6242,9 +6414,9 @@ Rules:
             Client:        card.dataset.clientRaw       || card.dataset.client      || "",
             Saison:        card.dataset.saison          || "",
             Dept:          card.dataset.dept            || "",
-            "Fabric Base": card.dataset.fabric          || "",
+            "FABRIC": card.dataset.fabric              || "",
             Costing:       card.dataset.costing         || "",
-            "Order Qty":   card.dataset.orderQty        || "",
+            "Conf Total":  card.dataset.orderQty        || "",
             PSD:           card.dataset.psd             || "",
             "Ex-Fty":      card.dataset.exfty           || "",
             Comments:      card.dataset.comments        || "",
