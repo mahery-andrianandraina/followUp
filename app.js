@@ -890,69 +890,39 @@ function renderDashboard() {
                     const orderRows = (state.data.ordering || []).filter(o =>
                         o.Style === r.Style && o.Client === r.Client
                     );
-                    const isDelivered = orderRows.some(o =>
-                        String(o["Delivery Status"] || "").trim().toLowerCase() === "delivered"
-                    );
+                    const confirmedOrders = orderRows.filter(o => o.Status === "Confirmed").length;
+                    const pendingOrders = orderRows.filter(o => o.Status === "Pending").length;
+                    const deliveredOrders = orderRows.filter(o => o["Delivery Status"] === "Delivered").length;
+                    const inTransit = orderRows.filter(o => o["Delivery Status"] === "In Transit").length;
+                    const totalColors = orderRows.length;
 
-                    // ── PPS sample : Type contient "PPS", Approval = Approved ou Rejected
-                    const ppsSamples = (state.data.sample || []).filter(s =>
-                        s.Style === r.Style &&
-                        s.Client === r.Client &&
-                        /pps/i.test(s.Type || "")
+                    // ── Cross-data: sample approval for this style
+                    const sampleRows = (state.data.sample || []).filter(s =>
+                        s.Style === r.Style && s.Client === r.Client
                     );
-                    // Prendre le plus récent PPS (dernier dans la liste)
-                    const ppsRow = ppsSamples.length > 0 ? ppsSamples[ppsSamples.length - 1] : null;
-                    const ppsApproval = ppsRow ? String(ppsRow.Approval || "").trim().toLowerCase() : "";
+                    const approved = sampleRows.filter(s => s.Approval === "Approved").length;
+                    const pending = sampleRows.filter(s => s.Approval === "Pending").length;
+                    const rejected = sampleRows.filter(s => s.Approval === "Rejected").length;
+                    const totalSamples = sampleRows.length;
 
-                    // Date PPS : Received Date en priorité, sinon Sending Date, sinon SRS Date
-                    let ppsBadge = "";
-                    if (ppsRow && (ppsApproval === "approved" || ppsApproval === "rejected")) {
-                        const rawPpsDate = ppsRow["Received Date"] || ppsRow["Sending Date"] || ppsRow["SRS Date"] || "";
-                        let ppsDateLabel = "";
-                        if (rawPpsDate) {
-                            try { ppsDateLabel = new Date(rawPpsDate).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch(e) {}
-                        }
-                        if (ppsApproval === "approved") {
-                            ppsBadge = '<div class="dbs-pps-badge dbs-pps-ok">' +
-                                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
-                                '<div class="dbs-pps-text"><span class="dbs-pps-label">PPS approuvé</span>' +
-                                (ppsDateLabel ? '<span class="dbs-pps-date">' + ppsDateLabel + '</span>' : '') +
-                                '</div></div>';
-                        } else {
-                            ppsBadge = '<div class="dbs-pps-badge dbs-pps-ko">' +
-                                '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="13" height="13" style="flex-shrink:0"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>' +
-                                '<div class="dbs-pps-text"><span class="dbs-pps-label">PPS rejeté</span>' +
-                                (ppsDateLabel ? '<span class="dbs-pps-date">' + ppsDateLabel + '</span>' : '') +
-                                '</div></div>';
-                        }
+                    // ── Sample badge
+                    let sampleBadge = "";
+                    if (totalSamples > 0) {
+                        const sampleCls = rejected > 0 ? "sc-badge-danger" : pending > 0 ? "sc-badge-warn" : "sc-badge-ok";
+                        const sampleTxt = rejected > 0 ? rejected + " rejeté" : pending > 0 ? pending + " en attente" : approved + " approuvé";
+                        sampleBadge = '<span class="dbs-sc-badge ' + sampleCls + '"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="9" height="9"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> ' + sampleTxt + '</span>';
                     }
 
-                    // ── Delivery status badge — logique par dates (priorité descendante)
-                    // 1. Delivery Status = Delivered dans ordering → Delivered
-                    // 2. Ex-Fty dépassé → Shipped
-                    // 3. PSD dépassé → In Production
-                    // 4. Sinon → rien
-                    let deliveryBadge = "";
-                    const _today = new Date(); _today.setHours(0,0,0,0);
-                    const _exFtyVal = r["Ex-Fty"] || r["ExFty"] || "";
-                    const _psdVal   = r["PSD"] || "";
-                    const _exFtyDate = _exFtyVal ? new Date(_exFtyVal) : null;
-                    const _psdDate   = _psdVal   ? new Date(_psdVal)   : null;
-                    if (_exFtyDate) _exFtyDate.setHours(0,0,0,0);
-                    if (_psdDate)   _psdDate.setHours(0,0,0,0);
-
-                    if (isDelivered) {
-                        deliveryBadge = '<span class="dbs-del-badge dbs-del-delivered">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>' +
-                            ' Delivered</span>';
-                    } else if (_exFtyDate && _exFtyDate < _today) {
-                        deliveryBadge = '<span class="dbs-del-badge dbs-del-shipped">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>' +
-                            ' Shipped</span>';
-                    } else if (_psdDate && _psdDate < _today) {
-                        deliveryBadge = '<span class="dbs-del-badge dbs-del-production">' +
-                            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>' +
-                            ' In Production</span>';
+                    // ── Order status mini-chips
+                    let orderChips = "";
+                    if (totalColors > 0) {
+                        if (deliveredOrders > 0) orderChips += '<span class="sc-chip sc-chip-delivered">' + deliveredOrders + ' livré' + (deliveredOrders > 1 ? 's' : '') + '</span>';
+                        if (inTransit > 0) orderChips += '<span class="sc-chip sc-chip-transit">' + inTransit + ' en transit</span>';
+                        if (confirmedOrders > 0 && deliveredOrders + inTransit < confirmedOrders) {
+                            const rem = confirmedOrders - deliveredOrders - inTransit;
+                            orderChips += '<span class="sc-chip sc-chip-confirmed">' + rem + ' confirmé' + (rem > 1 ? 's' : '') + '</span>';
+                        }
+                        if (pendingOrders > 0) orderChips += '<span class="sc-chip sc-chip-pending">' + pendingOrders + ' en attente</span>';
                     }
 
                     // ── Color labels from style sheet (real Pantone TCX hex)
@@ -991,26 +961,36 @@ function renderDashboard() {
                         '</div>'
                         : '';
 
-                    // ── Progress bar supprimée — remplacée par delivery badge
+                    // ── Progress bar: delivered / total colors
+                    const progPct = totalColors > 0 ? Math.round((deliveredOrders / totalColors) * 100) : 0;
+                    const progBar = totalColors > 0
+                        ? '<div class="sc-prog-wrap"><div class="sc-prog-track"><div class="sc-prog-fill" style="width:' + progPct + '%"></div></div><span class="sc-prog-lbl">' + progPct + '% livré</span></div>'
+                        : '';
+
+                    // ── TP (Tech Pack) button
+                    const tpUrl = String(r.TP_URL || r["TP_URL"] || "").trim();
+                    const styleCode = r.Style || "";
+                    const rowIdx = r._rowIndex || 2;
+                    let tpBtn = "";
+                    if (tpUrl) {
+                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn has-tp" onclick="event.stopPropagation();window.open(\'' + esc(tpUrl) + '\',\'_blank\')" title="Ouvrir le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Voir TP</button><button class="dbs-sc-tp-btn update-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'' + esc(tpUrl) + '\')" title="Mettre à jour le Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg></button></div>';
+                    } else {
+                        tpBtn = '<div class="dbs-sc-tp-wrap"><button class="dbs-sc-tp-btn no-tp" onclick="event.stopPropagation();tpOpen(\'' + esc(styleCode) + '\',' + rowIdx + ',\'\')" title="Ajouter un Tech Pack"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="11" height="11"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Ajouter TP</button></div>';
+                    }
 
                     // ── Animation delay staggered
                     const delay = (cardIdx * 60) + (di * 30);
 
-                    // ── Image du style
+                    // ── Image du style (normalisé dans fixRows — supporte base64 GAS, Drive /file/d/, open?id=)
                     const imgUrl = r["_imageUrl"] || "";
                     let imgBlock;
                     if (imgUrl) {
                         const _lbStyle = esc(r.Style || "");
                         const _lbDesc = esc(r["Description"] || r["StyleDescription"] || "");
-                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
+                        imgBlock = '<div class="dbs-sc-img-wrap"><img class="dbs-sc-img" src="' + imgUrl + '" alt="' + _lbStyle + '" loading="lazy" style="cursor:zoom-in" onclick="openImageLightbox(this.src, \'' + _lbStyle + '\', \'' + _lbDesc + '\')"/></div>';
                     } else {
-                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"><svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' width=\'28\' height=\'28\' style=\'opacity:.18\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'/></svg></div>';
+                        imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"></div>';
                     }
-
-                    // ── Badges statut commande + sample regroupés
-                    const statusLine = (sampleBadge || orderChips)
-                        ? '<div class="dbs-sc-status-row">' + sampleBadge + orderChips + '</div>'
-                        : '';
 
                     return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
                         ' data-style="' + esc((r.Style || "").toLowerCase()) + '"' +
@@ -1033,8 +1013,6 @@ function renderDashboard() {
                         ' data-image-url="' + (r["_imageUrl"] ? esc(r["_imageUrl"]) : "") + '"' +
                         '>' +
                         imgBlock +
-                        '<div class="dbs-sc-body">' +
-                        // ── Ligne titre : code + badge Ex-Fty
                         '<div class="dbs-sc-head">' +
                         '<div class="dbs-sc-id">' +
                         '<span class="dbs-sc-code">' + esc(r.Style || "—") + '</span>' +
@@ -1042,21 +1020,15 @@ function renderDashboard() {
                         '</div>' +
                         exFtyBadge(r["Ex-Fty"]) +
                         '</div>' +
-                        // ── Coloris
                         (colorWrap ? colorWrap : '') +
-                        // ── Séparateur
-                        '<div class="dbs-sc-sep"></div>' +
-                        // ── Grille de champs
+                        '<hr class="dbs-sc-div">' +
                         '<div class="dbs-sc-fields">' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v dbs-sf-cost">' + cost + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v">' + cost + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
-                        // ── PPS badge + delivery badge
-                        (ppsBadge ? ppsBadge : '') +
-                        (deliveryBadge ? '<div class="dbs-sc-status-row">' + deliveryBadge + '</div>' : '') +
-                        '</div>' +
+                        tpBtn +
                         '</div>';
                 }).join("");
 
@@ -6251,126 +6223,6 @@ Rules:
         }
         .dbs-tp-menu-btn:hover { background: var(--color-background-secondary, #f9fafb); }
         .dbs-tp-menu-btn:not(:last-child) { border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb); }
-
-        /* ── Card redesign ───────────────────────────────────── */
-        .dbs-sc {
-            background: var(--color-background-primary, #fff);
-            border: 0.5px solid var(--color-border-tertiary, #e5e7eb);
-            border-radius: 14px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            transition: box-shadow .18s, transform .18s;
-            position: relative;
-        }
-        .dbs-sc:hover {
-            box-shadow: 0 4px 18px rgba(0,0,0,0.09);
-            transform: translateY(-1px);
-        }
-        .dbs-sc-img-wrap {
-            width: 100%;
-            aspect-ratio: 4/3;
-            overflow: hidden;
-            background: var(--color-background-secondary, #f3f4f6);
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .dbs-sc-img {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            cursor: zoom-in;
-            transition: transform .25s ease;
-        }
-        .dbs-sc:hover .dbs-sc-img { transform: scale(1.03); }
-        .dbs-sc-img-placeholder { background: var(--color-background-secondary, #f3f4f6); }
-        .dbs-sc-body {
-            display: flex;
-            flex-direction: column;
-            padding: 11px 12px 0;
-            flex: 1;
-        }
-        .dbs-sc-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 6px;
-            margin-bottom: 5px;
-        }
-        .dbs-sc-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .dbs-sc-code {
-            font-size: 13px; font-weight: 600;
-            color: var(--color-text-primary, #111827);
-            letter-spacing: .01em;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .dbs-sc-desc {
-            font-size: 11px; color: var(--color-text-secondary, #6b7280);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
-        }
-        .dbs-sc-sep {
-            height: 0.5px;
-            background: var(--color-border-tertiary, #e5e7eb);
-            margin: 9px 0 8px;
-        }
-        .dbs-sc-fields {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 7px 10px;
-            margin-bottom: 8px;
-        }
-        .dbs-sf { display: flex; flex-direction: column; gap: 2px; }
-        .dbs-sf-full { grid-column: span 2; }
-        .dbs-sf-l {
-            font-size: 9.5px; font-weight: 500;
-            color: var(--color-text-tertiary, #9ca3af);
-            text-transform: uppercase; letter-spacing: .06em;
-        }
-        .dbs-sf-v {
-            font-size: 12px; font-weight: 500;
-            color: var(--color-text-primary, #111827);
-        }
-        .dbs-sf-cost { color: var(--color-text-success, #166534) !important; }
-        .dbs-fab {
-            font-size: 11px; color: var(--color-text-secondary, #6b7280);
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .dbs-sc-status-row {
-            display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 7px;
-        }
-        /* Masquer le bouton PDF flottant injecté par index.html */
-        .dbs-pdf-btn { display: none !important; }
-
-        /* ── PPS badge ───────────────────────────────────────── */
-        .dbs-pps-badge {
-            display: flex; align-items: center; gap: 6px;
-            border-radius: 7px; padding: 5px 9px; margin-bottom: 8px;
-            border: 0.5px solid;
-        }
-        .dbs-pps-ok { background: #EAF3DE; border-color: #C0DD97; }
-        .dbs-pps-ko { background: #FCEBEB; border-color: #F7C1C1; }
-        .dbs-pps-text { display: flex; flex-direction: column; gap: 1px; }
-        .dbs-pps-label { font-size: 10.5px; font-weight: 500; }
-        .dbs-pps-ok .dbs-pps-label { color: #27500A; }
-        .dbs-pps-ko .dbs-pps-label { color: #791F1F; }
-        .dbs-pps-date { font-size: 9.5px; }
-        .dbs-pps-ok .dbs-pps-date { color: #3B6D11; }
-        .dbs-pps-ko .dbs-pps-date { color: #A32D2D; }
-        .dbs-pps-badge svg { color: inherit; }
-        .dbs-pps-ok svg { color: #27500A; }
-        .dbs-pps-ko svg { color: #791F1F; }
-
-        /* ── Delivery badge ──────────────────────────────────── */
-        .dbs-sc-status-row { margin-bottom: 8px; }
-        .dbs-del-badge {
-            display: inline-flex; align-items: center; gap: 4px;
-            font-size: 10px; font-weight: 500;
-            padding: 4px 9px; border-radius: 20px; border: 0.5px solid;
-        }
-        .dbs-del-delivered { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
-        .dbs-del-shipped   { background: #E6F1FB; color: #0C447C; border-color: #B5D4F4; }
-        .dbs-del-production{ background: #FAEEDA; color: #633806; border-color: #FAC775; }
         `;
         document.head.appendChild(s);
     }
