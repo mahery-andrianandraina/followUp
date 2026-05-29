@@ -6140,5 +6140,166 @@ Rules:
             isLoading = false; sendBtn.disabled = false;
         }
     }
+// ─── Image Upload Button Injector ─────────────────────────────
+// Injecte le bouton d'upload image sur les cards dashboard ET dans la table details
 
+(function injectImageUploadButtons() {
+
+    // ── Styles du bouton image ─────────────────────────────────
+    const style = document.createElement("style");
+    style.textContent = `
+    .dbs-img-upload-btn {
+        position: absolute;
+        bottom: 8px; right: 8px;
+        width: 28px; height: 28px;
+        border-radius: 7px; border: none;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(15, 23, 42, 0.65);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        transition: background 0.18s, transform 0.15s;
+        z-index: 11;
+        opacity: 0;
+        pointer-events: none;
+    }
+    .dbs-img-upload-btn svg {
+        width: 13px; height: 13px;
+        stroke: #e2e8f0; fill: none; flex-shrink: 0;
+    }
+    .dbs-sc:hover .dbs-img-upload-btn,
+    .dbs-sc .dbs-img-upload-btn:focus {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .dbs-img-upload-btn:hover {
+        background: rgba(16, 185, 129, 0.9) !important;
+        transform: translateY(-2px);
+    }
+    .dbs-img-upload-btn:hover svg { stroke: #ffffff; }
+
+    /* Bouton dans la table details */
+    .btn-img-upload {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px;
+        background: none; border: 1px solid var(--border);
+        border-radius: 6px; cursor: pointer;
+        color: var(--text-muted); transition: all 0.15s;
+    }
+    .btn-img-upload:hover {
+        background: #ecfdf5; border-color: #10b981; color: #10b981;
+    }
+    .btn-img-upload svg { width: 13px; height: 13px; }
+    `;
+    document.head.appendChild(style);
+
+    const IMG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+    </svg>`;
+
+    // ── 1. Dashboard cards ─────────────────────────────────────
+    function injectOnCard(card) {
+        if (card.querySelector(".dbs-img-upload-btn")) return;
+
+        const styleCode  = card.dataset.styleRaw  || card.dataset.style  || "";
+        const clientCode = card.dataset.clientRaw || card.dataset.client || "";
+        const rowIndex   = card.dataset.rowIndex  || card.dataset.rowindex;
+
+        // Retrouver rowIndex depuis state si absent du dataset
+        let rowIdx = rowIndex ? parseInt(rowIndex) : null;
+        if (!rowIdx && styleCode) {
+            const found = (state.data.details || []).find(r =>
+                r.Style === styleCode &&
+                (!clientCode || r.Client === clientCode)
+            );
+            if (found) rowIdx = found._rowIndex;
+        }
+
+        if (!rowIdx) return; // impossible de trouver la ligne, on skip
+
+        const currentUrl = card.dataset.imageUrl || "";
+
+        const btn = document.createElement("button");
+        btn.className = "dbs-img-upload-btn";
+        btn.title = currentUrl ? "Changer l'image" : "Ajouter une image";
+        btn.innerHTML = IMG_SVG;
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            imgOpen(styleCode, rowIdx, currentUrl);
+        };
+
+        card.appendChild(btn);
+    }
+
+    function scanDashboardCards() {
+        document.querySelectorAll(".dbs-sc").forEach(injectOnCard);
+    }
+
+    // ── 2. Table Details — patch renderTable ───────────────────
+    // On surcharge renderTable pour injecter le bouton dans les actions
+    const _origRenderTable = window.renderTable;
+    if (typeof _origRenderTable === "function") {
+        window.renderTable = function () {
+            _origRenderTable.apply(this, arguments);
+
+            // Uniquement pour la feuille "details"
+            if (state.activeSheet !== "details") return;
+
+            const rows = document.querySelectorAll("#table-body tr");
+            rows.forEach(tr => {
+                // Éviter les doublons
+                if (tr.querySelector(".btn-img-upload")) return;
+
+                // Récupérer le rowIndex depuis le bouton edit déjà présent
+                const editBtn = tr.querySelector("button[onclick^='openEditModal']");
+                if (!editBtn) return;
+                const match = editBtn.getAttribute("onclick").match(/openEditModal\((\d+)\)/);
+                if (!match) return;
+                const rowIdx = parseInt(match[1]);
+
+                const row = (state.data.details || []).find(r => r._rowIndex === rowIdx);
+                if (!row) return;
+
+                const styleCode  = row.Style   || "";
+                const currentUrl = row._imageUrl || "";
+
+                // Créer le bouton et l'insérer dans .action-btns
+                const actionDiv = tr.querySelector(".action-btns");
+                if (!actionDiv) return;
+
+                const imgBtn = document.createElement("button");
+                imgBtn.className = "btn btn-icon btn-img-upload";
+                imgBtn.title = currentUrl ? "Changer l'image" : "Ajouter une image";
+                imgBtn.innerHTML = IMG_SVG;
+                imgBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    imgOpen(styleCode, rowIdx, currentUrl);
+                };
+
+                // Insérer après le bouton edit, avant dupliquer
+                const firstBtn = actionDiv.querySelector("button");
+                if (firstBtn) {
+                    actionDiv.insertBefore(imgBtn, firstBtn.nextSibling);
+                } else {
+                    actionDiv.appendChild(imgBtn);
+                }
+            });
+        };
+    }
+
+    // ── 3. Observer pour les cards générées dynamiquement ─────
+    const observer = new MutationObserver(() => scanDashboardCards());
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    // Scan initial
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", scanDashboardCards);
+    } else {
+        scanDashboardCards();
+    }
+
+})();
 })();
