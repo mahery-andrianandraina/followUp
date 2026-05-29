@@ -6144,7 +6144,9 @@ Rules:
 })(); // ── Fin du chatbot IIFE
 
 // ─── Unified Card Action Toolbar ───────────────────────────────
-// Regroupe PDF, Image, TP dans une barre unifiée en bas de chaque card
+// Regroupe PDF, Image, TP dans une barre unifiée en bas de chaque card.
+// Le bouton TP lit toujours state.data.details au moment du CLIC
+// pour refléter un TP uploadé sans rechargement du dashboard.
 (function initCardToolbar() {
 
     const TOOLBAR_STYLE_ID = "dbs-card-toolbar-styles";
@@ -6225,6 +6227,14 @@ Rules:
         document.head.appendChild(s);
     }
 
+    // ── Lit les données fraîches depuis state au moment de l'appel ──
+    function _getLiveRow(styleCode, clientCode) {
+        return (window.state?.data?.details || []).find(r =>
+            r.Style === styleCode &&
+            (!clientCode || r.Client === clientCode)
+        ) || null;
+    }
+
     function _extractCardData(card) {
         return {
             Style:         card.dataset.styleRaw        || card.dataset.style       || "",
@@ -6243,19 +6253,29 @@ Rules:
         };
     }
 
+    // ── Met à jour l'apparence du bouton TP selon l'état actuel ──
+    function _refreshTPButton(btnTP, liveUrl) {
+        if (liveUrl) {
+            btnTP.classList.add("has-tp");
+            btnTP.title = "Tech Pack disponible";
+            btnTP.innerHTML = `<i class="ti ti-clipboard-check" aria-hidden="true"></i><span>TP</span>`;
+        } else {
+            btnTP.classList.remove("has-tp");
+            btnTP.title = "Ajouter un Tech Pack";
+            btnTP.innerHTML = `<i class="ti ti-clipboard-plus" aria-hidden="true"></i><span>TP</span>`;
+        }
+    }
+
     function injectToolbar(card) {
         if (card.querySelector(".dbs-card-toolbar")) return;
 
         const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
         const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
-        const tpUrl      = (card.dataset.tpUrl     || card.dataset.tpurl   || "").trim();
         const imageUrl   = (card.dataset.imageUrl  || card.dataset.imageurl || "").trim();
 
-        const row = (window.state?.data?.details || []).find(r =>
-            r.Style === styleCode &&
-            (!clientCode || r.Client === clientCode)
-        );
-        const rowIdx = row?._rowIndex ?? null;
+        // rowIdx lu une fois (ne change jamais)
+        const initialRow = _getLiveRow(styleCode, clientCode);
+        const rowIdx = initialRow?._rowIndex ?? null;
 
         // ── Bouton PDF ──────────────────────────────────────────
         const btnPDF = document.createElement("button");
@@ -6293,33 +6313,44 @@ Rules:
             if (typeof imgOpen === "function") imgOpen(styleCode, rowIdx, imageUrl);
         };
 
-        // ── Bouton Tech Pack — 2 états ──────────────────────────
+        // ── Bouton Tech Pack ────────────────────────────────────
+        // L'état (has-tp / no-tp) est recalculé à CHAQUE CLIC depuis state.data.details
+        // pour refléter immédiatement un TP uploadé sans rechargement.
         const btnTP = document.createElement("button");
-        btnTP.className = "dbs-tb-btn tb-tp" + (tpUrl ? " has-tp" : "");
-        btnTP.setAttribute("aria-label", tpUrl ? "Tech Pack disponible" : "Ajouter un Tech Pack");
+        btnTP.className = "dbs-tb-btn tb-tp";
+        btnTP.setAttribute("aria-label", "Tech Pack");
 
-        if (tpUrl) {
-            btnTP.title = "Tech Pack disponible";
-            btnTP.innerHTML = `<i class="ti ti-clipboard-check" aria-hidden="true"></i><span>TP</span>`;
-            btnTP.onclick = (e) => {
-                e.stopPropagation();
-                // Fermer tout menu déjà ouvert
-                document.querySelectorAll(".dbs-tp-inline-menu").forEach(m => m.remove());
+        // Initialisation visuelle au moment de l'injection
+        const initialTpUrl = (initialRow?.TP_URL || initialRow?.["TP_URL"] || "").trim();
+        _refreshTPButton(btnTP, initialTpUrl);
 
+        btnTP.onclick = (e) => {
+            e.stopPropagation();
+            document.querySelectorAll(".dbs-tp-inline-menu").forEach(m => m.remove());
+
+            // Lire l'URL TP en temps réel depuis state
+            const liveRow = _getLiveRow(styleCode, clientCode);
+            const liveTpUrl = (liveRow?.TP_URL || liveRow?.["TP_URL"] || "").trim();
+
+            // Rafraîchir l'apparence du bouton selon l'état actuel
+            _refreshTPButton(btnTP, liveTpUrl);
+
+            if (liveTpUrl) {
+                // TP existe → menu Ouvrir / Modifier
                 const menu = document.createElement("div");
                 menu.className = "dbs-tp-inline-menu";
 
                 const optOpen = document.createElement("button");
                 optOpen.className = "dbs-tp-menu-btn";
                 optOpen.innerHTML = `<i class="ti ti-external-link" style="font-size:13px;color:var(--color-text-info,#1d4ed8)" aria-hidden="true"></i> Ouvrir le TP`;
-                optOpen.onclick = (ev) => { ev.stopPropagation(); window.open(tpUrl, "_blank"); menu.remove(); };
+                optOpen.onclick = (ev) => { ev.stopPropagation(); window.open(liveTpUrl, "_blank"); menu.remove(); };
 
                 const optEdit = document.createElement("button");
                 optEdit.className = "dbs-tp-menu-btn";
                 optEdit.innerHTML = `<i class="ti ti-upload" style="font-size:13px;color:var(--color-text-warning,#92400e)" aria-hidden="true"></i> Modifier le TP`;
                 optEdit.onclick = (ev) => {
                     ev.stopPropagation();
-                    if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, tpUrl);
+                    if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, liveTpUrl);
                     menu.remove();
                 };
 
@@ -6334,15 +6365,12 @@ Rules:
                 setTimeout(() => {
                     document.addEventListener("click", () => menu.remove(), { once: true });
                 }, 0);
-            };
-        } else {
-            btnTP.title = "Ajouter un Tech Pack";
-            btnTP.innerHTML = `<i class="ti ti-clipboard-plus" aria-hidden="true"></i><span>TP</span>`;
-            btnTP.onclick = (e) => {
-                e.stopPropagation();
+
+            } else {
+                // Pas de TP → upload direct
                 if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, "");
-            };
-        }
+            }
+        };
 
         // ── Assemblage ──────────────────────────────────────────
         const toolbar = document.createElement("div");
