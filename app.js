@@ -6196,18 +6196,159 @@ Rules:
         document.head.appendChild(s);
     }
 
-    function injectToolbar(card) {
-        if (card.querySelector(".dbs-card-toolbar")) return;
+function injectToolbar(card) {
+    if (card.querySelector(".dbs-card-toolbar")) return;
 
-        const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
-        const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
-        const tpUrl      = card.dataset.tpUrl      || card.dataset.tpurl   || "";
-        const imageUrl   = card.dataset.imageUrl   || card.dataset.imageurl || "";
+    const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
+    const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
+    const tpUrl      = (card.dataset.tpUrl     || card.dataset.tpurl   || "").trim();
+    const imageUrl   = (card.dataset.imageUrl  || card.dataset.imageurl || "").trim();
 
-        const row = (window.state?.data?.details || []).find(r =>
-            r.Style === styleCode &&
-            (!clientCode || r.Client === clientCode)
-        );
+    const row = (window.state?.data?.details || []).find(r =>
+        r.Style === styleCode &&
+        (!clientCode || r.Client === clientCode)
+    );
+    const rowIdx = row?._rowIndex ?? null;
+
+    // ── Bouton PDF
+    const btnPDF = document.createElement("button");
+    btnPDF.className = "dbs-tb-btn tb-pdf";
+    btnPDF.title = "Télécharger la fiche style en PDF";
+    btnPDF.setAttribute("aria-label", "Télécharger fiche style");
+    btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
+    btnPDF.onclick = (e) => {
+        e.stopPropagation();
+        if (!window.AWCheckers?.generateStylePDF) {
+            if (typeof showToast === "function") showToast("Générateur PDF non disponible", "error");
+            return;
+        }
+        btnPDF.disabled = true;
+        btnPDF.innerHTML = `<i class="ti ti-loader-2" aria-hidden="true" style="animation:spin .7s linear infinite"></i><span>PDF...</span>`;
+        const data = _extractCardData(card);
+        window.AWCheckers.generateStylePDF(data).finally(() => {
+            btnPDF.disabled = false;
+            btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
+        });
+    };
+
+    // ── Bouton Image
+    const btnImg = document.createElement("button");
+    btnImg.className = "dbs-tb-btn tb-img" + (imageUrl ? " has-img" : "");
+    btnImg.title = imageUrl ? "Changer l'image du style" : "Ajouter une image";
+    btnImg.setAttribute("aria-label", imageUrl ? "Changer l'image" : "Ajouter une image");
+    btnImg.innerHTML = `<i class="ti ti-photo-up" aria-hidden="true"></i><span>Image</span>`;
+    btnImg.onclick = (e) => {
+        e.stopPropagation();
+        if (!rowIdx) {
+            if (typeof showToast === "function") showToast("Ligne introuvable", "error");
+            return;
+        }
+        if (typeof imgOpen === "function") imgOpen(styleCode, rowIdx, imageUrl);
+    };
+
+    // ── Bouton Tech Pack — 3 états
+    const btnTP = document.createElement("button");
+    btnTP.className = "dbs-tb-btn tb-tp" + (tpUrl ? " has-tp" : "");
+    btnTP.setAttribute("aria-label", tpUrl ? "Tech Pack disponible" : "Ajouter un Tech Pack");
+
+    if (tpUrl) {
+        // TP existe → menu déroulant inline : Ouvrir | Modifier
+        btnTP.title = "Tech Pack disponible";
+        btnTP.innerHTML = `<i class="ti ti-clipboard-check" aria-hidden="true"></i><span>TP</span>`;
+        btnTP.onclick = (e) => {
+            e.stopPropagation();
+            // Supprimer un menu déjà ouvert
+            const existing = document.getElementById("tp-inline-menu");
+            if (existing) { existing.remove(); return; }
+
+            const menu = document.createElement("div");
+            menu.id = "tp-inline-menu";
+            menu.style.cssText = `
+                position: absolute;
+                bottom: calc(100% + 4px);
+                right: 0;
+                background: var(--color-background-primary);
+                border: 0.5px solid var(--color-border-secondary);
+                border-radius: var(--border-radius-md);
+                box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+                z-index: 999;
+                min-width: 160px;
+                overflow: hidden;
+            `;
+
+            const optOpen = document.createElement("button");
+            optOpen.style.cssText = `
+                display: flex; align-items: center; gap: 8px;
+                width: 100%; padding: 9px 12px;
+                background: none; border: none; border-bottom: 0.5px solid var(--color-border-tertiary);
+                cursor: pointer; font-size: 12px; font-family: inherit;
+                color: var(--color-text-primary); text-align: left;
+            `;
+            optOpen.innerHTML = `<i class="ti ti-external-link" style="font-size:13px;color:var(--color-text-info)" aria-hidden="true"></i> Ouvrir le TP`;
+            optOpen.onmouseenter = () => optOpen.style.background = "var(--color-background-secondary)";
+            optOpen.onmouseleave = () => optOpen.style.background = "none";
+            optOpen.onclick = (ev) => {
+                ev.stopPropagation();
+                window.open(tpUrl, "_blank");
+                menu.remove();
+            };
+
+            const optEdit = document.createElement("button");
+            optEdit.style.cssText = `
+                display: flex; align-items: center; gap: 8px;
+                width: 100%; padding: 9px 12px;
+                background: none; border: none;
+                cursor: pointer; font-size: 12px; font-family: inherit;
+                color: var(--color-text-primary); text-align: left;
+            `;
+            optEdit.innerHTML = `<i class="ti ti-upload" style="font-size:13px;color:var(--color-text-warning)" aria-hidden="true"></i> Modifier le TP`;
+            optEdit.onmouseenter = () => optEdit.style.background = "var(--color-background-secondary)";
+            optEdit.onmouseleave = () => optEdit.style.background = "none";
+            optEdit.onclick = (ev) => {
+                ev.stopPropagation();
+                if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, tpUrl);
+                menu.remove();
+            };
+
+            menu.appendChild(optOpen);
+            menu.appendChild(optEdit);
+
+            // Positionner relativement à la toolbar
+            const toolbar = btnTP.closest(".dbs-card-toolbar");
+            if (toolbar) {
+                toolbar.style.position = "relative";
+                toolbar.appendChild(menu);
+            }
+
+            // Fermer au clic extérieur
+            setTimeout(() => {
+                document.addEventListener("click", () => menu.remove(), { once: true });
+            }, 0);
+        };
+
+    } else {
+        // Pas de TP → upload direct
+        btnTP.title = "Ajouter un Tech Pack";
+        btnTP.innerHTML = `<i class="ti ti-clipboard-plus" aria-hidden="true"></i><span>TP</span>`;
+        btnTP.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, "");
+        };
+    }
+
+    // ── Assemblage
+    const toolbar = document.createElement("div");
+    toolbar.className = "dbs-card-toolbar";
+    toolbar.appendChild(btnPDF);
+    toolbar.appendChild(btnImg);
+    toolbar.appendChild(btnTP);
+    card.appendChild(toolbar);
+
+    // Supprimer les anciens boutons flottants isolés
+    card.querySelectorAll(
+        ".dbs-sc-tp-wrap, .dbs-sc-tp-btn, .dbs-pdf-btn, .dbs-img-upload-btn"
+    ).forEach(el => el.remove());
+}
         const rowIdx = row?._rowIndex ?? null;
 
         // ── Bouton PDF
