@@ -6140,165 +6140,166 @@ Rules:
             isLoading = false; sendBtn.disabled = false;
         }
     }
-// ─── Image Upload Button Injector ─────────────────────────────
-// Injecte le bouton d'upload image sur les cards dashboard ET dans la table details
+// ─── Unified Card Action Toolbar ───────────────────────────────
+(function initCardToolbar() {
 
-(function injectImageUploadButtons() {
-
-    // ── Styles du bouton image ─────────────────────────────────
-    const style = document.createElement("style");
-    style.textContent = `
-    .dbs-img-upload-btn {
-        position: absolute;
-        bottom: 8px; right: 8px;
-        width: 28px; height: 28px;
-        border-radius: 7px; border: none;
-        cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(15, 23, 42, 0.65);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-        transition: background 0.18s, transform 0.15s;
-        z-index: 11;
-        opacity: 0;
-        pointer-events: none;
-    }
-    .dbs-img-upload-btn svg {
-        width: 13px; height: 13px;
-        stroke: #e2e8f0; fill: none; flex-shrink: 0;
-    }
-    .dbs-sc:hover .dbs-img-upload-btn,
-    .dbs-sc .dbs-img-upload-btn:focus {
-        opacity: 1;
-        pointer-events: auto;
-    }
-    .dbs-img-upload-btn:hover {
-        background: rgba(16, 185, 129, 0.9) !important;
-        transform: translateY(-2px);
-    }
-    .dbs-img-upload-btn:hover svg { stroke: #ffffff; }
-
-    /* Bouton dans la table details */
-    .btn-img-upload {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 28px; height: 28px;
-        background: none; border: 1px solid var(--border);
-        border-radius: 6px; cursor: pointer;
-        color: var(--text-muted); transition: all 0.15s;
-    }
-    .btn-img-upload:hover {
-        background: #ecfdf5; border-color: #10b981; color: #10b981;
-    }
-    .btn-img-upload svg { width: 13px; height: 13px; }
-    `;
-    document.head.appendChild(style);
-
-    const IMG_SVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2"/>
-        <circle cx="8.5" cy="8.5" r="1.5"/>
-        <polyline points="21 15 16 10 5 21"/>
-    </svg>`;
-
-    // ── 1. Dashboard cards ─────────────────────────────────────
-    function injectOnCard(card) {
-        if (card.querySelector(".dbs-img-upload-btn")) return;
-
-        const styleCode  = card.dataset.styleRaw  || card.dataset.style  || "";
-        const clientCode = card.dataset.clientRaw || card.dataset.client || "";
-        const rowIndex   = card.dataset.rowIndex  || card.dataset.rowindex;
-
-        // Retrouver rowIndex depuis state si absent du dataset
-        let rowIdx = rowIndex ? parseInt(rowIndex) : null;
-        if (!rowIdx && styleCode) {
-            const found = (state.data.details || []).find(r =>
-                r.Style === styleCode &&
-                (!clientCode || r.Client === clientCode)
-            );
-            if (found) rowIdx = found._rowIndex;
+    const TOOLBAR_STYLE_ID = "dbs-card-toolbar-styles";
+    if (!document.getElementById(TOOLBAR_STYLE_ID)) {
+        const s = document.createElement("style");
+        s.id = TOOLBAR_STYLE_ID;
+        s.textContent = `
+        .dbs-card-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            padding: 8px 10px 10px;
+            border-top: 0.5px solid var(--color-border-tertiary);
+            margin-top: 6px;
         }
+        .dbs-tb-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 0;
+            background: var(--color-background-secondary);
+            border: 0.5px solid var(--color-border-tertiary);
+            border-radius: var(--border-radius-md);
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            font-size: 11px;
+            font-family: inherit;
+            transition: background .15s, color .15s, border-color .15s;
+            white-space: nowrap;
+        }
+        .dbs-tb-btn i { font-size: 13px; }
+        .dbs-tb-btn.tb-pdf:hover {
+            background: var(--color-background-info);
+            color: var(--color-text-info);
+            border-color: var(--color-border-info);
+        }
+        .dbs-tb-btn.tb-img:hover {
+            background: var(--color-background-success);
+            color: var(--color-text-success);
+            border-color: var(--color-border-success);
+        }
+        .dbs-tb-btn.tb-tp:hover {
+            background: var(--color-background-warning);
+            color: var(--color-text-warning);
+            border-color: var(--color-border-warning);
+        }
+        .dbs-tb-btn.tb-tp.has-tp { color: var(--color-text-warning); }
+        .dbs-tb-btn.tb-img.has-img { color: var(--color-text-success); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        `;
+        document.head.appendChild(s);
+    }
 
-        if (!rowIdx) return; // impossible de trouver la ligne, on skip
+    function injectToolbar(card) {
+        if (card.querySelector(".dbs-card-toolbar")) return;
 
-        const currentUrl = card.dataset.imageUrl || "";
+        const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
+        const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
+        const tpUrl      = card.dataset.tpUrl      || card.dataset.tpurl   || "";
+        const imageUrl   = card.dataset.imageUrl   || card.dataset.imageurl || "";
 
-        const btn = document.createElement("button");
-        btn.className = "dbs-img-upload-btn";
-        btn.title = currentUrl ? "Changer l'image" : "Ajouter une image";
-        btn.innerHTML = IMG_SVG;
-        btn.onclick = (e) => {
+        const row = (window.state?.data?.details || []).find(r =>
+            r.Style === styleCode &&
+            (!clientCode || r.Client === clientCode)
+        );
+        const rowIdx = row?._rowIndex ?? null;
+
+        // ── Bouton PDF
+        const btnPDF = document.createElement("button");
+        btnPDF.className = "dbs-tb-btn tb-pdf";
+        btnPDF.title = "Télécharger la fiche style en PDF";
+        btnPDF.setAttribute("aria-label", "Télécharger fiche style");
+        btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
+        btnPDF.onclick = (e) => {
             e.stopPropagation();
-            imgOpen(styleCode, rowIdx, currentUrl);
-        };
-
-        card.appendChild(btn);
-    }
-
-    function scanDashboardCards() {
-        document.querySelectorAll(".dbs-sc").forEach(injectOnCard);
-    }
-
-    // ── 2. Table Details — patch renderTable ───────────────────
-    // On surcharge renderTable pour injecter le bouton dans les actions
-    const _origRenderTable = window.renderTable;
-    if (typeof _origRenderTable === "function") {
-        window.renderTable = function () {
-            _origRenderTable.apply(this, arguments);
-
-            // Uniquement pour la feuille "details"
-            if (state.activeSheet !== "details") return;
-
-            const rows = document.querySelectorAll("#table-body tr");
-            rows.forEach(tr => {
-                // Éviter les doublons
-                if (tr.querySelector(".btn-img-upload")) return;
-
-                // Récupérer le rowIndex depuis le bouton edit déjà présent
-                const editBtn = tr.querySelector("button[onclick^='openEditModal']");
-                if (!editBtn) return;
-                const match = editBtn.getAttribute("onclick").match(/openEditModal\((\d+)\)/);
-                if (!match) return;
-                const rowIdx = parseInt(match[1]);
-
-                const row = (state.data.details || []).find(r => r._rowIndex === rowIdx);
-                if (!row) return;
-
-                const styleCode  = row.Style   || "";
-                const currentUrl = row._imageUrl || "";
-
-                // Créer le bouton et l'insérer dans .action-btns
-                const actionDiv = tr.querySelector(".action-btns");
-                if (!actionDiv) return;
-
-                const imgBtn = document.createElement("button");
-                imgBtn.className = "btn btn-icon btn-img-upload";
-                imgBtn.title = currentUrl ? "Changer l'image" : "Ajouter une image";
-                imgBtn.innerHTML = IMG_SVG;
-                imgBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    imgOpen(styleCode, rowIdx, currentUrl);
-                };
-
-                // Insérer après le bouton edit, avant dupliquer
-                const firstBtn = actionDiv.querySelector("button");
-                if (firstBtn) {
-                    actionDiv.insertBefore(imgBtn, firstBtn.nextSibling);
-                } else {
-                    actionDiv.appendChild(imgBtn);
-                }
+            if (!window.AWCheckers?.generateStylePDF) {
+                if (typeof showToast === "function") showToast("Générateur PDF non disponible", "error");
+                return;
+            }
+            btnPDF.disabled = true;
+            btnPDF.innerHTML = `<i class="ti ti-loader-2" aria-hidden="true" style="animation:spin .7s linear infinite"></i><span>PDF...</span>`;
+            const data = _extractCardData(card);
+            window.AWCheckers.generateStylePDF(data).finally(() => {
+                btnPDF.disabled = false;
+                btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
             });
         };
+
+        // ── Bouton Image
+        const btnImg = document.createElement("button");
+        btnImg.className = "dbs-tb-btn tb-img" + (imageUrl ? " has-img" : "");
+        btnImg.title = imageUrl ? "Changer l'image du style" : "Ajouter une image";
+        btnImg.setAttribute("aria-label", imageUrl ? "Changer l'image" : "Ajouter une image");
+        btnImg.innerHTML = `<i class="ti ti-photo-up" aria-hidden="true"></i><span>Image</span>`;
+        btnImg.onclick = (e) => {
+            e.stopPropagation();
+            if (!rowIdx) {
+                if (typeof showToast === "function") showToast("Ligne introuvable", "error");
+                return;
+            }
+            if (typeof imgOpen === "function") imgOpen(styleCode, rowIdx, imageUrl);
+        };
+
+        // ── Bouton Tech Pack
+        const btnTP = document.createElement("button");
+        btnTP.className = "dbs-tb-btn tb-tp" + (tpUrl ? " has-tp" : "");
+        btnTP.title = tpUrl ? "Voir / mettre à jour le Tech Pack" : "Ajouter un Tech Pack";
+        btnTP.setAttribute("aria-label", tpUrl ? "Voir Tech Pack" : "Ajouter Tech Pack");
+        btnTP.innerHTML = `<i class="ti ${tpUrl ? "ti-clipboard-check" : "ti-clipboard-text"}" aria-hidden="true"></i><span>TP</span>`;
+        btnTP.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, tpUrl);
+            else if (tpUrl) window.open(tpUrl, "_blank");
+        };
+
+        // ── Assemblage
+        const toolbar = document.createElement("div");
+        toolbar.className = "dbs-card-toolbar";
+        toolbar.appendChild(btnPDF);
+        toolbar.appendChild(btnImg);
+        toolbar.appendChild(btnTP);
+        card.appendChild(toolbar);
+
+        // Supprimer les anciens boutons flottants isolés
+        card.querySelectorAll(
+            ".dbs-sc-tp-wrap, .dbs-sc-tp-btn, .dbs-pdf-btn, .dbs-img-upload-btn"
+        ).forEach(el => el.remove());
     }
 
-    // ── 3. Observer pour les cards générées dynamiquement ─────
-    const observer = new MutationObserver(() => scanDashboardCards());
-    observer.observe(document.body, { childList: true, subtree: true });
+    function _extractCardData(card) {
+        return {
+            Style:         card.dataset.styleRaw        || card.dataset.style       || "",
+            Description:   card.dataset.descriptionFull || card.dataset.description || "",
+            Client:        card.dataset.clientRaw       || card.dataset.client      || "",
+            Saison:        card.dataset.saison          || "",
+            Dept:          card.dataset.dept            || "",
+            "Fabric Base": card.dataset.fabric          || "",
+            Costing:       card.dataset.costing         || "",
+            "Order Qty":   card.dataset.orderQty        || "",
+            PSD:           card.dataset.psd             || "",
+            "Ex-Fty":      card.dataset.exfty           || "",
+            Comments:      card.dataset.comments        || "",
+            _imageUrl:     card.dataset.imageUrl        || "",
+            photoUrl:      card.dataset.imageUrl        || "",
+        };
+    }
 
-    // Scan initial
+    function scanCards() {
+        document.querySelectorAll(".dbs-sc").forEach(injectToolbar);
+    }
+
+    new MutationObserver(scanCards).observe(document.body, { childList: true, subtree: true });
+
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", scanDashboardCards);
+        document.addEventListener("DOMContentLoaded", scanCards);
     } else {
-        scanDashboardCards();
+        scanCards();
     }
 
 })();
