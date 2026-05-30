@@ -2640,6 +2640,8 @@ function imgOpen(styleCode, rowIndex, currentUrl) {
       const base64 = await _fileToBase64(fileToUpload);
       const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
         method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        redirect: "follow",
         body: JSON.stringify({
           action: "UPLOAD_IMAGE",
           styleCode, fileName,
