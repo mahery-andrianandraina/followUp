@@ -153,6 +153,70 @@ const SHEET_CONFIG = {
 };
 window.SHEET_CONFIG = SHEET_CONFIG;
 
+// Sauvegarder la définition originale (hardcodée dans le code) des colonnes des feuilles de base
+const ORIGINAL_FIXED_COLS = {
+    details: JSON.parse(JSON.stringify(SHEET_CONFIG.details.cols)),
+    sample: JSON.parse(JSON.stringify(SHEET_CONFIG.sample.cols)),
+    ordering: JSON.parse(JSON.stringify(SHEET_CONFIG.ordering.cols))
+};
+
+// Fusionner les colonnes sauvegardées avec les colonnes par défaut pour restaurer les clés correctes (ex: TP_URL, Image)
+function resolveAndMergeFixedCols(sheetKey, savedCols) {
+    const defaultCols = ORIGINAL_FIXED_COLS[sheetKey];
+    if (!defaultCols) return savedCols;
+
+    // Si la sauvegarde est trop ancienne ou complètement différente de la configuration par défaut du code
+    // (moins de 40% des colonnes par défaut correspondent), on réinitialise avec les colonnes par défaut.
+    const savedKeys = new Set((savedCols || []).map(c => (c.key || c.label || "").trim()));
+    let matchCount = 0;
+    defaultCols.forEach(d => {
+        if (savedKeys.has(d.key) || savedKeys.has(d.label)) {
+            matchCount++;
+        }
+    });
+
+    const matchRatio = defaultCols.length > 0 ? matchCount / defaultCols.length : 0;
+    if (matchRatio < 0.4) {
+        console.log(`[AW27] Colonnes de ${sheetKey} réinitialisées aux valeurs par défaut du code (match ratio : ${matchRatio.toFixed(2)})`);
+        return defaultCols;
+    }
+
+    const resultCols = [];
+    const processedDefaultKeys = new Set();
+
+    (savedCols || []).forEach(c => {
+        // Recherche d'une correspondance par label ou clé dans les colonnes par défaut
+        const match = defaultCols.find(d => 
+            d.label === c.label || 
+            d.key === c.key || 
+            d.key === c.label || 
+            d.label === c.key
+        );
+        if (match) {
+            resultCols.push({
+                ...match, // on garde les propriétés par défaut (en particulier la clé correcte)
+                ...(c.required !== undefined ? { required: c.required } : {})
+            });
+            processedDefaultKeys.add(match.key);
+        } else {
+            // Nouvelle colonne ajoutée par l'utilisateur
+            resultCols.push({
+                ...c,
+                key: c.key || c.label
+            });
+        }
+    });
+
+    // Ajouter à la fin les colonnes par défaut qui ne sont pas présentes (ex: TP_URL, Image si absents de la sauvegarde)
+    defaultCols.forEach(d => {
+        if (!processedDefaultKeys.has(d.key)) {
+            resultCols.push(d);
+        }
+    });
+
+    return resultCols;
+}
+
 
 // ─── State ────────────────────────────────────────────────────
 let state = {
@@ -416,12 +480,37 @@ async function fetchAllData() {
             const nav = document.getElementById("custom-nav-items");
             if (nav) nav.innerHTML = "";
             Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => delete SHEET_CONFIG[k]);
-            const migrated = json.menus.map(m => ({
-                ...m,
-                cols: m.cols.map(c => ({ ...c, key: c.label }))
-            }));
-            migrated.forEach(m => registerCustomMenu(m, false));
-            localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+            
+            const migrated = json.menus.map(m => {
+                if (m.custom) {
+                    return {
+                        ...m,
+                        cols: (m.cols || []).map(c => ({ ...c, key: c.label }))
+                    };
+                }
+                return m;
+            });
+            
+            let changed = false;
+            migrated.forEach(m => {
+                if (m.custom) {
+                    registerCustomMenu(m, false);
+                } else if (SHEET_CONFIG[m.key] && (m.key === "details" || m.key === "sample" || m.key === "ordering")) {
+                    // Surcharge et fusion des colonnes pour les menus fixes
+                    const oldColsStr = JSON.stringify(m.cols);
+                    const merged = resolveAndMergeFixedCols(m.key, m.cols);
+                    SHEET_CONFIG[m.key].cols = merged;
+                    m.cols = merged; // Conserver la version fusionnée dans localStorage
+                    if (JSON.stringify(merged) !== oldColsStr) {
+                        changed = true;
+                    }
+                }
+            });
+            if (changed) {
+                persistCustomMenus();
+            } else {
+                localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+            }
         }
 
         Object.keys(SHEET_CONFIG).filter(k => SHEET_CONFIG[k].custom).forEach(k => {
@@ -1882,24 +1971,40 @@ function loadCustomMenus() {
     if (!saved) return;
     try {
         const menus = JSON.parse(saved);
-        // Migration : corriger les anciennes clés "GMT_Color" → "GMT Color"
-        const migrated = menus.map(m => ({
-            ...m,
-            cols: m.cols.map(c => ({
-                ...c,
-                key: c.label  // toujours utiliser le label exact comme clé
-            }))
-        }));
+        // Migration : corriger les anciennes clés pour les menus custom uniquement
+        const migrated = menus.map(m => {
+            if (m.custom) {
+                return {
+                    ...m,
+                    cols: (m.cols || []).map(c => ({
+                        ...c,
+                        key: c.label  // toujours utiliser le label exact comme clé pour les menus custom
+                    }))
+                };
+            }
+            return m; // Ne pas forcer key = label pour les menus fixes !
+        });
+        let changed = false;
         migrated.forEach(m => {
             if (m.custom) {
                 registerCustomMenu(m, false);
             } else if (SHEET_CONFIG[m.key] && (m.key === "details" || m.key === "sample" || m.key === "ordering")) {
-                // Surcharge des colonnes pour les menus fixes
-                SHEET_CONFIG[m.key].cols = m.cols;
+                // Surcharge et fusion des colonnes pour les menus fixes
+                const oldColsStr = JSON.stringify(m.cols);
+                const merged = resolveAndMergeFixedCols(m.key, m.cols);
+                SHEET_CONFIG[m.key].cols = merged;
+                m.cols = merged; // Conserver la version fusionnée dans localStorage
+                if (JSON.stringify(merged) !== oldColsStr) {
+                    changed = true;
+                }
             }
         });
-        // Re-sauvegarder avec les clés corrigées
-        localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+        // Re-sauvegarder avec les clés corrigées et fusionnées, et synchroniser avec GAS si nécessaire
+        if (changed) {
+            persistCustomMenus();
+        } else {
+            localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(migrated));
+        }
     } catch (e) { }
 }
 
@@ -2163,7 +2268,10 @@ async function saveMenuBuilder() {
     }
 
     if (mbEditingKey) {
-        // Pour les menus fixes : garder le label d'origine, mais on sauvegarde quand même leurs colonnes
+        // Pour les menus fixes : garder le label d'origine, mais on sauvegarde quand même leurs colonnes après avoir fusionné et restauré les clés
+        if (isNonCustom) {
+            menuDef.cols = resolveAndMergeFixedCols(key, menuDef.cols);
+        }
         SHEET_CONFIG[key].cols = menuDef.cols;
         persistCustomMenus();
 
