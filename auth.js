@@ -16,6 +16,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+
+// Activer la persistance hors ligne pour Firestore (pour supporter les connexions lentes)
+db.enablePersistence().catch((err) => {
+    if (err.code === 'failed-precondition') {
+        console.warn("[AW27 Auth] Persistance Firestore impossible (plusieurs onglets ouverts)");
+    } else if (err.code === 'unimplemented') {
+        console.warn("[AW27 Auth] Le navigateur ne supporte pas la persistance");
+    }
+});
+
 const provider = new firebase.auth.GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
@@ -124,6 +134,27 @@ if (!isPage("login.html") && !isPage("access-request.html")) {
 
 
 // ══════════════════════════════════════════════════════════════
+// HELPERS / UTILS
+// ══════════════════════════════════════════════════════════════
+function timeoutPromise(promise, ms, errorMsg) {
+    return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+            reject(new Error(errorMsg || "Délai d'attente dépassé"));
+        }, ms);
+        promise.then(
+            (res) => {
+                clearTimeout(timer);
+                resolve(res);
+            },
+            (err) => {
+                clearTimeout(timer);
+                reject(err);
+            }
+        );
+    });
+}
+
+// ══════════════════════════════════════════════════════════════
 // LOGIQUE CENTRALE : handleUser
 // ══════════════════════════════════════════════════════════════
 async function handleUser(firebaseUser) {
@@ -133,7 +164,11 @@ async function handleUser(firebaseUser) {
     try {
         // ── Étape 1 : Vérifier whitelist ──────────────────────
         console.log("[AW27 Auth] handleUser - Étape 1 : Récupération du document whitelist pour", email);
-        const whitelistDoc = await db.collection("whitelist").doc(email).get();
+        const whitelistDoc = await timeoutPromise(
+            db.collection("whitelist").doc(email).get(),
+            10000,
+            "Impossible de contacter la base de données (connexion trop lente)."
+        );
         console.log("[AW27 Auth] handleUser - Whitelist récupéré. Existe :", whitelistDoc.exists);
         const isApproved = whitelistDoc.exists && whitelistDoc.data().status === "approved";
 
@@ -152,7 +187,11 @@ async function handleUser(firebaseUser) {
 
         // ── Étape 2 : Charger URL GAS ─────────────────────────
         console.log("[AW27 Auth] handleUser - Étape 2 : Récupération du profil utilisateur Firestore pour UID :", firebaseUser.uid);
-        const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
+        const userDoc = await timeoutPromise(
+            db.collection("users").doc(firebaseUser.uid).get(),
+            10000,
+            "Impossible de charger le profil utilisateur (connexion trop lente)."
+        );
         console.log("[AW27 Auth] handleUser - Profil utilisateur récupéré. Existe :", userDoc.exists);
         let gasUrl = null;
 
