@@ -5872,6 +5872,10 @@ select.filter-select {
     gap: 1px;
 }
 
+.dbs-sf-full {
+    grid-column: span 2;
+}
+
 .dbs-sf-l {
     font-size: 8.5px;
     font-weight: 700;

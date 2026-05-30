@@ -1001,6 +1001,14 @@ function renderDashboard() {
                     const fab = r["FABRIC"] ? esc(r["FABRIC"]) : '<span class="dbs-dim">—</span>';
                     const desc = esc(r["Theme"] || r["Style Type"] || "");
 
+                    // ── New Card Detail Fields
+                    const clientVal = r["Client"] ? esc(r["Client"]) : '<span class="dbs-dim">—</span>';
+                    const collVal = r["Coll"] ? esc(r["Coll"]) : '<span class="dbs-dim">—</span>';
+                    const ctlStyleRefVal = r["CTLStyleRef"] ? esc(r["CTLStyleRef"]) : '<span class="dbs-dim">—</span>';
+                    const styleTypeVal = r["Style Type"] ? esc(r["Style Type"]) : '<span class="dbs-dim">—</span>';
+                    const ageGroupVal = r["Age Group"] ? esc(r["Age Group"]) : '<span class="dbs-dim">—</span>';
+                    const approvedPriceVal = r["Approved Price $"] ? '$' + esc(r["Approved Price $"]) : '<span class="dbs-dim">—</span>';
+
                     // ── Cross-data: ordering rows for this style
                     const orderRows = (state.data.ordering || []).filter(o =>
                         o.Style === (r["Cust Style Ref"] || r.Style || "") && o.Client === (r.Client || r["Coll"] || "")
@@ -1160,10 +1168,15 @@ function renderDashboard() {
                         '<div class="dbs-sc-sep"></div>' +
                         // ── Grille de champs
                         '<div class="dbs-sc-fields">' +
+                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Client</span><span class="dbs-sf-v">' + clientVal + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Coll</span><span class="dbs-sf-v">' + collVal + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">CTL Style Ref</span><span class="dbs-sf-v">' + ctlStyleRefVal + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Style Type</span><span class="dbs-sf-v">' + styleTypeVal + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Age Group</span><span class="dbs-sf-v">' + ageGroupVal + '</span></div>' +
+                        '<div class="dbs-sf"><span class="dbs-sf-l">Approved Price</span><span class="dbs-sf-v dbs-sf-cost">' + approvedPriceVal + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
-                        '<div class="dbs-sf"><span class="dbs-sf-l">Costing</span><span class="dbs-sf-v dbs-sf-cost">' + cost + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
+                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fabricVal + '</span></div>' +
                         '</div>' +
                         // ── PPS badge + delivery badge
                         (ppsBadge ? ppsBadge : '') +
