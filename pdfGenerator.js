@@ -1,5 +1,5 @@
 // ============================================================
-//  AW27 CHECKERS – PDF Fiche Style Complète
+//  PDF Fiche Style – dynamique par style
 //  Regroupe : Details + Couleurs/Style + Samples + Ordering
 // ============================================================
 
@@ -136,12 +136,14 @@ async function generateStylePDF(cardData) {
     doc.setTextColor(...WHITE);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('AW27 CHECKERS', M, 16);
+    const headerTitle = detailRow['Cust Style Ref'] || code || 'STYLE';
+    doc.text(headerTitle, M, 16);
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(186, 230, 253); // light blue
-    doc.text('FICHE STYLE COMPLETE', M, 24);
+    const subHeaderTitle = detailRow['CTLStyleRef'] || '';
+    doc.text(subHeaderTitle, M, 24);
 
     // Date
     doc.setFontSize(8);
@@ -150,68 +152,7 @@ async function generateStylePDF(cardData) {
 
     Y = 42;
 
-    // ══════════════════════════════════════════════════════════
-    //  KPI STRIP (compact metrics bar)
-    // ══════════════════════════════════════════════════════════
-    // Days to Ex-Fty
-    const exFtyDate = detailRow['Ex-Fty'] ? new Date(detailRow['Ex-Fty']) : null;
-    const psdDate = detailRow['PSD'] ? new Date(detailRow['PSD']) : null;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
-    const daysToExFty = exFtyDate ? Math.round((exFtyDate - today) / 86400000) : null;
-    const daysLabel = daysToExFty !== null ? (daysToExFty < 0 ? Math.abs(daysToExFty) + 'j en retard' : daysToExFty + ' jours') : '---';
-    const daysColor = daysToExFty !== null ? (daysToExFty < 0 ? RED : daysToExFty <= 14 ? AMBER : GREEN) : GRAY1;
-
-    // OK to Production (PPS approved?)
-    const ppsRow = sampleRows.find(r => (r.Type || '').toUpperCase().includes('PPS') || (r.Type || '').toUpperCase().includes('PP SAMPLE'));
-    const ppsApproved = ppsRow && ppsRow.Approval === 'Approved';
-    const okToProdLabel = !ppsRow ? 'No PPS launched yet' : ppsApproved ? 'YES' : 'NO';
-    const okToProdColor = !ppsRow ? GRAY1 : ppsApproved ? GREEN : RED;
-
-    // Delivery progress
-    const ordersDelivered = orderRows.filter(r => r['Delivery Status'] === 'Delivered').length;
-    const delivLabel = orderRows.length === 0 ? 'No order' : ordersDelivered + ' / ' + orderRows.length;
-    const delivColor = orderRows.length === 0 ? GRAY1
-      : ordersDelivered === orderRows.length ? GREEN
-        : ordersDelivered > 0 ? BLUE : AMBER;
-
-    // Lead Time (PSD to Ex-Fty)
-    const leadDays = (psdDate && exFtyDate) ? Math.round((exFtyDate - psdDate) / 86400000) : null;
-    const leadLabel = leadDays !== null ? leadDays + ' jours' : '---';
-    const leadColor = leadDays !== null ? (leadDays < 30 ? RED : leadDays <= 60 ? AMBER : BLUE) : GRAY1;
-
-    const kpis = [
-      { label: 'EX-FTY', value: daysLabel, color: daysColor },
-      { label: 'OK TO PROD', value: okToProdLabel, color: okToProdColor },
-      { label: 'DELIVERY', value: delivLabel, color: delivColor },
-      { label: 'LEAD TIME', value: leadLabel, color: leadColor },
-    ];
-
-    const kpiW = CW / kpis.length;
-    const kpiH = 10;
-    doc.setFillColor(241, 245, 249);
-    doc.roundedRect(M, Y, CW, kpiH, 1.5, 1.5, 'F');
-
-    kpis.forEach((k, i) => {
-      const kx = M + i * kpiW;
-      // Vertical separator
-      if (i > 0) {
-        doc.setDrawColor(...GRAY3);
-        doc.setLineWidth(0.2);
-        doc.line(kx, Y + 1.5, kx, Y + kpiH - 1.5);
-      }
-      // Label
-      doc.setFontSize(5.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRAY1);
-      doc.text(k.label, kx + kpiW / 2, Y + 3.5, { align: 'center' });
-      // Value
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...k.color);
-      doc.text(k.value, kx + kpiW / 2, Y + 8.5, { align: 'center' });
-    });
-
-    Y += kpiH + 4;
+    // (KPI strip removed per user request)
 
     // ══════════════════════════════════════════════════════════
     //  SECTION 1 — INFORMATIONS GÉNÉRALES + PHOTO (Regroupées)
@@ -380,7 +321,7 @@ async function generateStylePDF(cardData) {
     ];
 
     const developmentFields = [
-      ['Longeur Éch. Ready', fmtDate(d['SAMPLE LENGTH \nREADY DATE'])],
+      ['Fabric Ready Date', fmtDate(d['SAMPLE LENGTH \nREADY DATE'])],
       ['Dispatch Éch. Prov.', fmtDate(d['PROV SAMPLE DISPATCH DATE'])],
       ['Dispatch Éch. Réel', fmtDate(d['ACTUAL SAMPLE DISPATCH DATE'])],
       ['Date Réception DT', fmtDate(d['DT RECEIVED'])],
