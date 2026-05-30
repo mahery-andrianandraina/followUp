@@ -71,14 +71,14 @@ async function generateStylePDF(cardData) {
     const st = window.state && window.state.data ? window.state.data : {};
     const codeLow = code.toLowerCase();
 
-    // Ligne Details principale
-    const detailRow = (st.details || []).find(r => (r.Style || '').toLowerCase() === codeLow) || cardData;
+    // Ligne Details principale (flexible)
+    const detailRow = (st.details || []).find(r => (r["Cust Style Ref"] || r.Style || '').toLowerCase().trim() === codeLow.trim()) || cardData;
     // Lignes Style (couleurs / Pantone / articles)
-    const styleRows = (st.style || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+    const styleRows = (st.style || []).filter(r => (r.Style || r["Cust Style Ref"] || '').toLowerCase().trim() === codeLow.trim());
     // Lignes Sample
-    const sampleRows = (st.sample || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+    const sampleRows = (st.sample || []).filter(r => (r.Style || r["Cust Style Ref"] || '').toLowerCase().trim() === codeLow.trim());
     // Lignes Ordering
-    const orderRows = (st.ordering || []).filter(r => (r.Style || '').toLowerCase() === codeLow);
+    const orderRows = (st.ordering || []).filter(r => (r.Style || r["Cust Style Ref"] || '').toLowerCase().trim() === codeLow.trim());
 
     // ─── Image ────────────────────────────────────────────────
     let photoData = cardData.photoBase64 || null;
@@ -214,22 +214,62 @@ async function generateStylePDF(cardData) {
     Y += kpiH + 4;
 
     // ══════════════════════════════════════════════════════════
-    //  SECTION 1 — INFORMATIONS GÉNÉRALES + PHOTO
+    //  SECTION 1 — INFORMATIONS GÉNÉRALES + PHOTO (Regroupées)
     // ══════════════════════════════════════════════════════════
     const d = detailRow;
-    const infoFields = [
-      ['Style', d.Style || code],
-      ['Client', d.Client || '---'],
-      ['Description', d.Description || d.StyleDescription || '---'],
-      ['Saison', d.Saison || '---'],
-      ['Departement', d.Dept || '---'],
-      ['Fabric Base', d['Fabric Base'] || d.Fabric || '---'],
-      ['Costing', d.Costing || '---'],
-      ['Order Qty', d['Order Qty'] || d.Qty || '---'],
-      ['PSD', fmtDate(d.PSD)],
-      ['Ex-Fty', fmtDate(d['Ex-Fty'])],
-    ];
-    const commentsVal = d.Comments || d.Remarks || '';
+
+    // Helper: render a themed field group box
+    function renderFieldGroup(title, fields, colCount = 3) {
+      checkPage(12 + Math.ceil(fields.length / colCount) * 8.5);
+      
+      // Section header inside group
+      doc.setFillColor(248, 250, 252);
+      doc.rect(M, Y, CW, 6, 'F');
+      
+      // Left border accent
+      doc.setFillColor(...BLUE);
+      doc.rect(M, Y, 1, 6, 'F');
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...NAVY);
+      doc.text(title, M + 3, Y + 4.2);
+      
+      doc.setDrawColor(...GRAY3);
+      doc.setLineWidth(0.2);
+      doc.line(M, Y + 6, M + CW, Y + 6);
+      Y += 8;
+
+      const startY = Y;
+      const colW = CW / colCount;
+      fields.forEach((f, i) => {
+        const col = i % colCount;
+        const row = Math.floor(i / colCount);
+        const x = M + col * colW + 3;
+        const fieldY = startY + row * 8.5;
+
+        doc.setFontSize(5.8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAY1);
+        doc.text(f[0].toUpperCase(), x, fieldY);
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'bold');
+        
+        let val = String(f[1] || '—').trim();
+        if (val === '—') {
+          doc.setTextColor(...GRAY2);
+          doc.setFont('helvetica', 'normal');
+        } else {
+          doc.setTextColor(...BLACK);
+          doc.setFont('helvetica', 'bold');
+        }
+        
+        const lines = doc.splitTextToSize(val, colW - 5);
+        doc.text(lines[0], x, fieldY + 3.8);
+      });
+      Y = startY + Math.ceil(fields.length / colCount) * 8.5 + 2;
+    }
 
     // Section title
     function sectionTitle(title, color) {
@@ -246,11 +286,11 @@ async function generateStylePDF(cardData) {
     sectionTitle('INFORMATIONS GENERALES', NAVY);
 
     // Layout: photo left, 2-column info grid right
-    const imgW = 48, imgH = 48;
+    const imgW = 44, imgH = 44;
     const infoStartX = photoData ? M + imgW + 6 : M;
     const infoAreaW = photoData ? CW - imgW - 6 : CW;
 
-    // Photo
+    // Photo style
     if (photoData) {
       try {
         doc.addImage(photoData, 'JPEG', M, Y, imgW, imgH);
@@ -265,54 +305,146 @@ async function generateStylePDF(cardData) {
       }
     }
 
-    // Info fields in 2-column grid
+    // Top fields right next to photo
+    const topFields = [
+      ['Cust Style Ref', d['Cust Style Ref'] || code || '—'],
+      ['Client', d['Client'] || '—'],
+      ['Saison', d['Full Season'] || d['SEASON'] || '—'],
+      ['Matière', d['FABRIC'] || '—'],
+      ['Quantité Conf.', d['Conf Total'] ? Number(d['Conf Total']).toLocaleString('fr-FR') + ' u.' : '—'],
+      ['Prix Approuvé', d['Approved Price $'] ? '$' + d['Approved Price $'] : '—'],
+    ];
+
     const savedY = Y;
+    let fieldY = Y + 2;
     const col1X = infoStartX;
     const col2X = infoStartX + infoAreaW / 2;
     const colW = infoAreaW / 2 - 2;
-    let fieldY = Y;
 
-    infoFields.forEach((f, i) => {
-      const col = i % 2; // 0 = left, 1 = right
+    topFields.forEach((f, i) => {
+      const col = i % 2;
       const x = col === 0 ? col1X : col2X;
 
-      doc.setFontSize(6.5);
+      doc.setFontSize(6);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(...GRAY1);
       doc.text(f[0].toUpperCase(), x, fieldY);
 
-      doc.setFontSize(9);
+      doc.setFontSize(8.5);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BLACK);
-      const val = String(f[1] || '---');
-      const lines = doc.splitTextToSize(val, colW);
-      doc.text(lines[0], x, fieldY + 4);
+      const val = String(f[1] || '—');
+      const lines = doc.splitTextToSize(val, colW - 2);
+      doc.text(lines[0], x, fieldY + 3.8);
 
-      // Move Y down only after right column (or last item)
-      if (col === 1 || i === infoFields.length - 1) {
-        fieldY += 9;
+      if (col === 1 || i === topFields.length - 1) {
+        fieldY += 8.5;
       }
     });
 
-    // Comments on full width below (if any)
-    if (commentsVal) {
-      fieldY += 1;
-      doc.setFontSize(6.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(...GRAY1);
-      doc.text('COMMENTS', infoStartX, fieldY);
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.setTextColor(...BLACK);
-      const cLines = doc.splitTextToSize(commentsVal, infoAreaW - 4);
-      cLines.slice(0, 2).forEach(l => {
-        fieldY += 4;
-        doc.text(l, infoStartX, fieldY);
-      });
-      fieldY += 2;
-    }
+    Y = Math.max(fieldY, savedY + (photoData ? imgH : 0)) + 4;
 
-    Y = Math.max(fieldY, savedY + (photoData ? imgH + 4 : 0)) + 3;
+    // Groups Definition
+    const generalFields = [
+      ['Collection (Coll)', d['Coll'] || '—'],
+      ['P1 / P2', d['P1/ P2'] || '—'],
+      ['CTL Style Ref', d['CTLStyleRef'] || '—'],
+      ['Style Type', d['Style Type'] || '—'],
+      ['Theme', d['Theme'] || '—'],
+      ['Priorité', d['PRIORITY'] || '—'],
+    ];
+
+    const commercialFields = [
+      ['Quantité Cible', d['Target Qty'] ? Number(d['Target Qty']).toLocaleString('fr-FR') + ' u.' : '—'],
+      ['Quantité Confirmée', d['Conf Total'] ? Number(d['Conf Total']).toLocaleString('fr-FR') + ' u.' : '—'],
+      ['Premier Prix', d['1st Price $'] ? '$' + d['1st Price $'] : '—'],
+      ['Prix Cible', d['Target Price $'] ? '$' + d['Target Price $'] : '—'],
+      ['Prix Approuvé', d['Approved Price $'] ? '$' + d['Approved Price $'] : '—'],
+      ['Chiffre d\'Affaires ($)', d['TO ($)'] ? '$' + d['TO ($)'] : '—'],
+    ];
+
+    const logisticsFields = [
+      ['Deadline PO', fmtDate(d['PO Deadline'])],
+      ['Date Réception PO', fmtDate(d['PO Rec Date'])],
+      ['Date Vsl Initiale', fmtDate(d['Initial Vsl Date'])],
+      ['Date Vsl Possible', fmtDate(d['Possible Vsl date'])],
+      ['ETD Possible', fmtDate(d['Possible etd'])],
+    ];
+
+    const technicalFields = [
+      ['Matière Principale', d['FABRIC'] || '—'],
+      ['Matière Bulk (Fabric)', d['BULK FAB'] || '—'],
+      ['Fournitures (Trims)', d['TRIMS DEVELOPMENT'] || '—'],
+      ['Statut CRP', d['CRP Status'] || '—'],
+      ['Statut Commande', d['Order Status'] || '—'],
+    ];
+
+    const developmentFields = [
+      ['Longeur Éch. Ready', fmtDate(d['SAMPLE LENGTH \nREADY DATE'])],
+      ['Dispatch Éch. Prov.', fmtDate(d['PROV SAMPLE DISPATCH DATE'])],
+      ['Dispatch Éch. Réel', fmtDate(d['ACTUAL SAMPLE DISPATCH DATE'])],
+      ['Date Réception DT', fmtDate(d['DT RECEIVED'])],
+      ['Date Réception Spec', fmtDate(d['SPEC RECEIVED'])],
+    ];
+
+    // Rendering all groups
+    renderFieldGroup('IDENTIFICATION & CARACTERISTIQUES', generalFields, 3);
+    renderFieldGroup('TARIFS & QUANTITES', commercialFields, 3);
+    renderFieldGroup('PLANNING & LOGISTIQUE', logisticsFields, 3);
+    renderFieldGroup('MATIERES & TECHNIQUE', technicalFields, 3);
+    renderFieldGroup('DEVELOPPEMENT & ECHANTILLONS (DATES)', developmentFields, 3);
+
+    // Comments & Remarks Box
+    const commentVal = d['COMMENT'] || d['Comments'] || '';
+    const remarkVal = d['remark'] || d['Remarks'] || '';
+    if (commentVal || remarkVal) {
+      checkPage(18);
+      doc.setFillColor(248, 250, 252);
+      doc.rect(M, Y, CW, 6, 'F');
+      doc.setFillColor(...BLUE);
+      doc.rect(M, Y, 1, 6, 'F');
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...NAVY);
+      doc.text('COMMENTAIRES & REMARQUES', M + 3, Y + 4.2);
+      doc.setDrawColor(...GRAY3);
+      doc.setLineWidth(0.2);
+      doc.line(M, Y + 6, M + CW, Y + 6);
+      Y += 8;
+
+      if (commentVal) {
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAY1);
+        doc.text('COMMENTAIRE GENERAL', M + 3, Y);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...BLACK);
+        const lines = doc.splitTextToSize(commentVal, CW - 6);
+        lines.forEach(l => {
+          Y += 3.8;
+          doc.text(l, M + 3, Y);
+        });
+        Y += 6;
+      }
+
+      if (remarkVal) {
+        checkPage(12);
+        doc.setFontSize(6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAY1);
+        doc.text('REMARQUES INTERNES', M + 3, Y);
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...BLACK);
+        const lines = doc.splitTextToSize(remarkVal, CW - 6);
+        lines.forEach(l => {
+          Y += 3.8;
+          doc.text(l, M + 3, Y);
+        });
+        Y += 6;
+      }
+    }
 
     // ══════════════════════════════════════════════════════════
     //  SECTION 2 — COULEURS & ARTICLES (Style sheet)
