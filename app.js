@@ -1122,10 +1122,7 @@ function renderDashboard() {
                         imgBlock = '<div class="dbs-sc-img-wrap dbs-sc-img-placeholder"><svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'currentColor\' width=\'28\' height=\'28\' style=\'opacity:.18\'><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\'/></svg></div>';
                     }
 
-                    // ── Badges statut commande + sample regroupés
-                    const statusLine = (sampleBadge || orderChips)
-                        ? '<div class="dbs-sc-status-row">' + sampleBadge + orderChips + '</div>'
-                        : '';
+                    // ── Badges statut commande + sample (PPS + delivery badges rendus plus bas)
 
                     return '<div class="dbs-sc dbs-sc-v2" style="animation-delay:' + delay + 'ms"' +
                         ' data-style="' + esc((r["Cust Style Ref"] || "").toLowerCase()) + '"' +
