@@ -1176,7 +1176,7 @@ function renderDashboard() {
                         '<div class="dbs-sf"><span class="dbs-sf-l">Approved Price</span><span class="dbs-sf-v dbs-sf-cost">' + approvedPriceVal + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">Qty</span><span class="dbs-sf-v">' + qty + '</span></div>' +
                         '<div class="dbs-sf"><span class="dbs-sf-l">PSD</span><span class="dbs-sf-v">' + psd + '</span></div>' +
-                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fabricVal + '</span></div>' +
+                        '<div class="dbs-sf dbs-sf-full"><span class="dbs-sf-l">Matière</span><span class="dbs-fab">' + fab + '</span></div>' +
                         '</div>' +
                         // ── PPS badge + delivery badge
                         (ppsBadge ? ppsBadge : '') +
