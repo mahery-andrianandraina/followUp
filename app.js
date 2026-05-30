@@ -275,6 +275,7 @@ async function initApp() {
     setupTabListeners();
     setupSearchAndFilter();
     setupDashboardFilters();
+    setupDoubleclickEditing();
     showDashboard();
     await fetchAllData();
     renderDashboard();
@@ -1397,6 +1398,139 @@ function setupSearchAndFilter() {
     if (clientFilter) clientFilter.addEventListener("change", e => { state.filterClient = e.target.value; applyFilters(); });
 }
 
+// ─── Double-click Inline Cell Editing ──────────────────────────
+function setupDoubleclickEditing() {
+    if (!tableBody) return;
+
+    tableBody.addEventListener("dblclick", (e) => {
+        const td = e.target.closest("td.editable-cell");
+        if (!td || td.classList.contains("editing-cell")) return;
+
+        const rowIndex = parseInt(td.dataset.rowIndex, 10);
+        const colKey = td.dataset.key;
+        if (isNaN(rowIndex) || !colKey) return;
+
+        const cfg = SHEET_CONFIG[state.activeSheet];
+        if (!cfg) return;
+
+        const col = cfg.cols.find(c => c.key === colKey);
+        if (!col) return;
+
+        // Double check read-only/formula fields
+        const colLabel = (col.label || "").toLowerCase();
+        const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
+        if (isFormula) return;
+
+        // Get row data
+        const sheetRows = state.data[state.activeSheet] || [];
+        const row = sheetRows.find(r => r._rowIndex === rowIndex);
+        if (!row) return;
+
+        // Current raw value
+        const rawVal = row[colKey] ?? "";
+
+        // Mark td as editing
+        td.classList.add("editing-cell");
+        const originalHTML = td.innerHTML;
+        td.innerHTML = "";
+
+        let input;
+        if (col.type === "select") {
+            input = document.createElement("select");
+            input.className = "inline-edit-select";
+            const opts = (col.options || []).map(o => {
+                const opt = document.createElement("option");
+                opt.value = o;
+                opt.textContent = o || "— Choisir —";
+                if (o === rawVal) opt.selected = true;
+                return opt;
+            });
+            opts.forEach(opt => input.appendChild(opt));
+        } else if (col.type === "textarea") {
+            input = document.createElement("textarea");
+            input.className = "inline-edit-textarea";
+            input.value = rawVal;
+        } else if (col.type === "date") {
+            input = document.createElement("input");
+            input.type = "date";
+            input.className = "inline-edit-input";
+            input.value = toISODateValue(rawVal);
+        } else if (col.type === "number") {
+            input = document.createElement("input");
+            input.type = "number";
+            input.className = "inline-edit-input";
+            input.value = rawVal;
+        } else {
+            input = document.createElement("input");
+            input.type = "text";
+            input.className = "inline-edit-input";
+            input.value = rawVal;
+        }
+
+        td.appendChild(input);
+        input.focus();
+        if (typeof input.select === "function" && col.type !== "select") {
+            input.select();
+        }
+
+        let isFinished = false;
+
+        const finishEdit = async (save) => {
+            if (isFinished) return;
+            isFinished = true;
+
+            const newVal = input.value;
+            td.classList.remove("editing-cell");
+
+            if (save && newVal !== rawVal) {
+                // If saving size or special fields, format like GAS needs
+                let valToSave = newVal;
+                if (col.key === "Size" && valToSave) {
+                    if (!valToSave.startsWith("'")) {
+                        valToSave = "'" + valToSave;
+                    }
+                }
+                
+                // Keep the placeholder / saving state temporarily
+                td.textContent = newVal || "—";
+                
+                try {
+                    await quickUpdate(rowIndex, colKey, valToSave, state.activeSheet);
+                } catch (err) {
+                    td.innerHTML = originalHTML;
+                }
+            } else {
+                td.innerHTML = originalHTML;
+            }
+        };
+
+        // Event listeners for input
+        input.addEventListener("blur", () => {
+            finishEdit(true);
+        });
+
+        input.addEventListener("keydown", (evt) => {
+            if (evt.key === "Enter") {
+                if (col.type === "textarea" && !evt.ctrlKey && !evt.metaKey) {
+                    // In textarea, regular enter inserts a newline. Only Ctrl+Enter or Command+Enter saves.
+                    return;
+                }
+                evt.preventDefault();
+                input.blur(); // Trigger blur to save
+            } else if (evt.key === "Escape") {
+                evt.preventDefault();
+                finishEdit(false); // Cancel
+            }
+        });
+        
+        if (col.type === "select") {
+            input.addEventListener("change", () => {
+                input.blur();
+            });
+        }
+    });
+}
+
 function applyFilters() {
     const rows = state.data[state.activeSheet];
     let filtered = rows.filter(row => {
@@ -1515,157 +1649,172 @@ function renderTable() {
     tableBody.innerHTML = rows.map(row => {
         const rowIdx = row._rowIndex;
         const cells = cfg.cols.map((c, i) => {
-            let val = row[c.key] ?? "";
-            const sticky = i === 0 ? "sticky-col" : i === 1 ? "sticky-col-2" : i === 2 ? "sticky-col-3" : "";
-            let displayVal = val;
-            let cellStyle = "";
+            const getRawCellHtml = () => {
+                let val = row[c.key] ?? "";
+                const sticky = i === 0 ? "sticky-col" : i === 1 ? "sticky-col-2" : i === 2 ? "sticky-col-3" : "";
+                let displayVal = val;
+                let cellStyle = "";
 
-            // ─── Special Formatting by Key ───
-            if (c.key === "Client") return `<td class="${sticky}"><span class="client-badge" onclick="event.stopPropagation();detFilterByClient('${esc(val)}')">${esc(val) || "—"}</span></td>`;
-            if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
-            if (c.key === "Style") return `<td class="${sticky}"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(val)}')">${esc(val)}</a></td>`;
+                // ─── Special Formatting by Key ───
+                if (c.key === "Client") return `<td class="${sticky}"><span class="client-badge" onclick="event.stopPropagation();detFilterByClient('${esc(val)}')">${esc(val) || "—"}</span></td>`;
+                if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
+                if (c.key === "Style") return `<td class="${sticky}"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(val)}')">${esc(val)}</a></td>`;
 
-            // ─── TP_URL : bouton lien vers le Tech Pack ───────────────
-            if (c.key === "TP_URL") {
-                const tpUrl = (val || "").trim();
-                if (tpUrl) {
-                    return `<td style="text-align:center;white-space:nowrap">
-                        <a href="${esc(tpUrl)}" target="_blank" rel="noopener"
-                           style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;
-                                  background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;
-                                  font-size:11px;font-weight:500;text-decoration:none;transition:all .15s"
-                           onmouseover="this.style.background='#DBEAFE'"
-                           onmouseout="this.style.background='#EFF6FF'"
-                           title="${esc(tpUrl)}"
-                           onclick="event.stopPropagation()">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>TP
-                        </a></td>`;
+                // ─── TP_URL : bouton lien vers le Tech Pack ───────────────
+                if (c.key === "TP_URL") {
+                    const tpUrl = (val || "").trim();
+                    if (tpUrl) {
+                        return `<td style="text-align:center;white-space:nowrap">
+                            <a href="${esc(tpUrl)}" target="_blank" rel="noopener"
+                               style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;
+                                      background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;
+                                      font-size:11px;font-weight:500;text-decoration:none;transition:all .15s"
+                               onmouseover="this.style.background='#DBEAFE'"
+                               onmouseout="this.style.background='#EFF6FF'"
+                               title="${esc(tpUrl)}"
+                               onclick="event.stopPropagation()">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                </svg>TP
+                            </a></td>`;
+                    }
+                    return `<td style="text-align:center"><span style="color:var(--color-text-tertiary,#9ca3af);font-size:11px">—</span></td>`;
                 }
-                return `<td style="text-align:center"><span style="color:var(--color-text-tertiary,#9ca3af);font-size:11px">—</span></td>`;
-            }
 
-            // ─── Image Style : miniature cliquable ────────────────────
-            if (c.key === "Image") {
-                const imgUrl = (row["_imageUrl"] || row["Image"] || "").trim();
-                if (imgUrl) {
-                    const _lbStyle = esc(row["Cust Style Ref"] || row["Style"] || "");
-                    const _lbDesc  = esc(row["Theme"] || row["Style Type"] || "");
+                // ─── Image Style : miniature cliquable ────────────────────
+                if (c.key === "Image") {
+                    const imgUrl = (row["_imageUrl"] || row["Image"] || "").trim();
+                    if (imgUrl) {
+                        const _lbStyle = esc(row["Cust Style Ref"] || row["Style"] || "");
+                        const _lbDesc  = esc(row["Theme"] || row["Style Type"] || "");
+                        return `<td style="text-align:center;padding:4px 8px">
+                            <img class="thumb-img" src="${imgUrl}" alt="${_lbStyle}" loading="lazy"
+                                 style="width:36px;height:36px;object-fit:cover;border-radius:5px;
+                                        border:1.5px solid var(--color-border-secondary,#e5e7eb);
+                                        cursor:zoom-in;transition:transform .15s,box-shadow .15s"
+                                 onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.18)'"
+                                 onmouseout="this.style.transform='';this.style.boxShadow=''"
+                                 onclick="event.stopPropagation();openImageLightbox(this.src,'${_lbStyle}','${_lbDesc}')"
+                                 title="${_lbStyle}"/>
+                        </td>`;
+                    }
                     return `<td style="text-align:center;padding:4px 8px">
-                        <img class="thumb-img" src="${imgUrl}" alt="${_lbStyle}" loading="lazy"
-                             style="width:36px;height:36px;object-fit:cover;border-radius:5px;
-                                    border:1.5px solid var(--color-border-secondary,#e5e7eb);
-                                    cursor:zoom-in;transition:transform .15s,box-shadow .15s"
-                             onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.18)'"
-                             onmouseout="this.style.transform='';this.style.boxShadow=''"
-                             onclick="event.stopPropagation();openImageLightbox(this.src,'${_lbStyle}','${_lbDesc}')"
-                             title="${_lbStyle}"/>
+                        <div style="width:36px;height:36px;border-radius:5px;border:1.5px dashed var(--color-border-secondary,#e5e7eb);
+                                    display:inline-flex;align-items:center;justify-content:center;opacity:.4">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                        </div>
                     </td>`;
                 }
-                return `<td style="text-align:center;padding:4px 8px">
-                    <div style="width:36px;height:36px;border-radius:5px;border:1.5px dashed var(--color-border-secondary,#e5e7eb);
-                                display:inline-flex;align-items:center;justify-content:center;opacity:.4">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                </td>`;
-            }
 
-            if (c.key === "Approval") {
-                const cls = (val || "").toLowerCase() || "unknown";
-                const opts = ["", "Approved", "Pending", "Rejected"].map(o =>
-                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
-                ).join("");
-                return `<td><div class="quick-sel-wrap">
-                    <span class="approval-badge ${cls} quick-badge">${esc(val) || "—"}</span>
-                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Approval',this.value,'${state.activeSheet}')">${opts}</select>
-                </div></td>`;
-            }
-            if (c.key === "Status" && (state.activeSheet === "ordering" || cfg.custom)) {
-                const cls = { "Confirmed": "status-confirmed", "Pending": "status-pending", "Cancelled": "status-cancelled" }[val] || "";
-                const opts = ["", "Confirmed", "Pending", "Cancelled"].map(o =>
-                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
-                ).join("");
-                return `<td><div class="quick-sel-wrap">
-                    <span class="status-badge-order ${cls} quick-badge">${esc(val) || "—"}</span>
-                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Status',this.value,'${state.activeSheet}')">${opts}</select>
-                </div></td>`;
-            }
-            if (c.key === "Delivery Status") {
-                const cls = { "Not Shipped": "del-notshipped", "In Transit": "del-transit", "Delivered": "del-delivered" }[val] || "";
-                const opts = ["", "Not Shipped", "In Transit", "Delivered"].map(o =>
-                    `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
-                ).join("");
-                return `<td><div class="quick-sel-wrap">
-                    <span class="delivery-badge ${cls} quick-badge">${esc(val) || "—"}</span>
-                    <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
-                </div></td>`;
-            }
+                if (c.key === "Approval") {
+                    const cls = (val || "").toLowerCase() || "unknown";
+                    const opts = ["", "Approved", "Pending", "Rejected"].map(o =>
+                        `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
+                    ).join("");
+                    return `<td><div class="quick-sel-wrap">
+                        <span class="approval-badge ${cls} quick-badge">${esc(val) || "—"}</span>
+                        <select class="quick-select" onchange="quickUpdate(${rowIdx},'Approval',this.value,'${state.activeSheet}')">${opts}</select>
+                    </div></td>`;
+                }
+                if (c.key === "Status" && (state.activeSheet === "ordering" || cfg.custom)) {
+                    const cls = { "Confirmed": "status-confirmed", "Pending": "status-pending", "Cancelled": "status-cancelled" }[val] || "";
+                    const opts = ["", "Confirmed", "Pending", "Cancelled"].map(o =>
+                        `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
+                    ).join("");
+                    return `<td><div class="quick-sel-wrap">
+                        <span class="status-badge-order ${cls} quick-badge">${esc(val) || "—"}</span>
+                        <select class="quick-select" onchange="quickUpdate(${rowIdx},'Status',this.value,'${state.activeSheet}')">${opts}</select>
+                    </div></td>`;
+                }
+                if (c.key === "Delivery Status") {
+                    const cls = { "Not Shipped": "del-notshipped", "In Transit": "del-transit", "Delivered": "del-delivered" }[val] || "";
+                    const opts = ["", "Not Shipped", "In Transit", "Delivered"].map(o =>
+                        `<option value="${o}" ${o === val ? "selected" : ""}>${o || "— Choisir —"}</option>`
+                    ).join("");
+                    return `<td><div class="quick-sel-wrap">
+                        <span class="delivery-badge ${cls} quick-badge">${esc(val) || "—"}</span>
+                        <select class="quick-select" onchange="quickUpdate(${rowIdx},'Delivery Status',this.value,'ordering')">${opts}</select>
+                    </div></td>`;
+                }
 
-            if (c.type === "date" && val) {
-                try {
-                    const dd = new Date(val);
-                    displayVal = dd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-                    const isSampleSheet = state.activeSheet === "sample";
-                    // Pour Sample : badge jours sur "Sending Date" (jours depuis envoi)
-                    // Pour les autres : badge jours sur "Ex-Fty", "Ready Date", "PSD"
-                    const showDayBadge = isSampleSheet
-                        ? c.key === "Sending Date" && dd.getTime() <= new Date().setHours(0, 0, 0, 0)
-                        : (c.key === "Ex-Fty" || c.key === "Ready Date" || c.key === "PSD") && dd.getTime() < new Date().setHours(0, 0, 0, 0);
-                    if (showDayBadge) {
-                        const diff = Math.round((dd - new Date().setHours(0, 0, 0, 0)) / 86400000);
-                        const absDiff = Math.abs(diff);
-                        const bcls = isSampleSheet
-                            ? (absDiff >= 14 ? "det-daybadge det-daybadge-danger" : absDiff >= 7 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok")
-                            : (diff < 0 ? "det-daybadge det-daybadge-danger" : diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok");
-                        const label = isSampleSheet ? `${absDiff}j` : `${diff}j`;
-                        return `<td class="${sticky}"><span>${displayVal}</span> <span class="${bcls}" style="font-size:10px;padding:1px 4px;margin-left:4px">${label}</span></td>`;
-                    }
-                } catch (e) { }
-            }
-            if (c.key === "Costing" || c.key === "UP") {
-                cellStyle = "color:#166534;font-weight:500";
-                if (!isNaN(val) && val !== "") displayVal = "$" + Number(val).toFixed(2);
-            }
+                if (c.type === "date" && val) {
+                    try {
+                        const dd = new Date(val);
+                        displayVal = dd.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
+                        const isSampleSheet = state.activeSheet === "sample";
+                        // Pour Sample : badge jours sur "Sending Date" (jours depuis envoi)
+                        // Pour les autres : badge jours sur "Ex-Fty", "Ready Date", "PSD"
+                        const showDayBadge = isSampleSheet
+                            ? c.key === "Sending Date" && dd.getTime() <= new Date().setHours(0, 0, 0, 0)
+                            : (c.key === "Ex-Fty" || c.key === "Ready Date" || c.key === "PSD") && dd.getTime() < new Date().setHours(0, 0, 0, 0);
+                        if (showDayBadge) {
+                            const diff = Math.round((dd - new Date().setHours(0, 0, 0, 0)) / 86400000);
+                            const absDiff = Math.abs(diff);
+                            const bcls = isSampleSheet
+                                ? (absDiff >= 14 ? "det-daybadge det-daybadge-danger" : absDiff >= 7 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok")
+                                : (diff < 0 ? "det-daybadge det-daybadge-danger" : diff <= 14 ? "det-daybadge det-daybadge-warn" : "det-daybadge det-daybadge-ok");
+                            const label = isSampleSheet ? `${absDiff}j` : `${diff}j`;
+                            return `<td class="${sticky}"><span>${displayVal}</span> <span class="${bcls}" style="font-size:10px;padding:1px 4px;margin-left:4px">${label}</span></td>`;
+                        }
+                    } catch (e) { }
+                }
+                if (c.key === "Costing" || c.key === "UP") {
+                    cellStyle = "color:#166534;font-weight:500";
+                    if (!isNaN(val) && val !== "") displayVal = "$" + Number(val).toFixed(2);
+                }
 
-            // ─── Custom logic for Quantity Balance (Excess/To deliver) ───
-            const colName = (c.label || c.key || "").trim().toLowerCase();
-            const isBalanceMatch = colName.includes("balance") || colName.includes("diff") || colName.includes("reste") || colName.includes("écart") || colName.includes("ecart") || colName.includes("excess");
+                // ─── Custom logic for Quantity Balance (Excess/To deliver) ───
+                const colName = (c.label || c.key || "").trim().toLowerCase();
+                const isBalanceMatch = colName.includes("balance") || colName.includes("diff") || colName.includes("reste") || colName.includes("écart") || colName.includes("ecart") || colName.includes("excess");
 
 
-            if (isBalanceMatch && val !== "" && val !== null && val !== undefined) {
-                const numericStr = String(val).replace(/[^0-9.-]/g, "");
-                const num = parseFloat(numericStr);
+                if (isBalanceMatch && val !== "" && val !== null && val !== undefined) {
+                    const numericStr = String(val).replace(/[^0-9.-]/g, "");
+                    const num = parseFloat(numericStr);
 
-                if (!isNaN(num)) {
-                    if (num < 0) {
-                        // Excess delivered -> Blue (User requested Blue for Excess)
-                        const html = `<span class="qty-status-badge qty-status-balance"><span class="qty-status-icon"></span>${num} Excess</span>`;
-                        return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
-                    } else if (num > 0) {
-                        // Reste à livrer -> Red (User requested Red for Reste à livrer)
-                        const html = `<span class="qty-status-badge qty-status-excess"><span class="qty-status-icon"></span>${num} Reste</span>`;
-                        return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
+                    if (!isNaN(num)) {
+                        if (num < 0) {
+                            // Excess delivered -> Blue (User requested Blue for Excess)
+                            const html = `<span class="qty-status-badge qty-status-balance"><span class="qty-status-icon"></span>${num} Excess</span>`;
+                            return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
+                        } else if (num > 0) {
+                            // Reste à livrer -> Red (User requested Red for Reste à livrer)
+                            const html = `<span class="qty-status-badge qty-status-excess"><span class="qty-status-icon"></span>${num} Reste</span>`;
+                            return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${html}</td>`;
+                        }
                     }
                 }
+
+                return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${esc(String(displayVal)) || "<span style='color:var(--text-muted)'>—</span>"}</td>`;
+            };
+
+            let cellHtml = getRawCellHtml();
+
+            // Add attributes
+            const colLabel = (c.label || "").toLowerCase();
+            const isFormula = colLabel.includes("balance") || colLabel.includes("reste") || colLabel.includes("diff") || colLabel.includes("écart") || colLabel.includes("ecart") || colLabel.includes("excess");
+            const isActionCol = ["Approval", "Status", "Delivery Status", "TP_URL", "Image"].includes(c.key);
+
+            let attrs = ` data-key="${esc(c.key)}" data-row-index="${rowIdx}"`;
+            if (!isFormula && !isActionCol) {
+                if (cellHtml.includes('class="')) {
+                    cellHtml = cellHtml.replace('class="', 'class="editable-cell ');
+                } else {
+                    cellHtml = cellHtml.replace('<td', '<td class="editable-cell"');
+                }
             }
-
-
-
-            return `<td class="${sticky}" title="${esc(String(val))}" style="${cellStyle}">${esc(String(displayVal)) || "<span style='color:var(--text-muted)'>—</span>"}</td>`;
-
-
-
+            cellHtml = cellHtml.replace('<td', '<td' + attrs);
+            return cellHtml;
         }).join("");
 
         const trackCell = isOrdering ? `<td><div class="track-badge ${computeDeliveryTrack(row).cls}">${computeDeliveryTrack(row).label}</div></td>` : "";
         const dupBtn = `<button class="btn btn-icon" onclick="duplicateRow(${rowIdx})" title="Dupliquer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"/></svg></button>`;
 
-        return `<tr>${cells}${trackCell}
+        return `<tr data-row-index="${rowIdx}">${cells}${trackCell}
         <td><div class="action-btns">
             <button class="btn btn-edit btn-icon" onclick="openEditModal(${rowIdx})" title="Modifier"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
             ${dupBtn}
