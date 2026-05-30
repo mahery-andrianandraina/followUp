@@ -248,10 +248,20 @@ async function handleUser(firebaseUser) {
     } catch (err) {
         console.error("Firestore error in handleUser:", err);
         try {
+            const label = document.querySelector("#app-auth-spinner .aas-label");
+            if (label) {
+                label.innerHTML = `<span style="color:#ef4444; font-weight: 600; display:block; margin-bottom:8px;">Erreur de connexion</span><span style="font-size:11.5px; color:#cbd5e1; display:block; line-height:1.4;">${err.message}</span><br><button onclick="window.location.reload()" style="background:#0284c7; color:white; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:11.5px; font-weight:600; font-family:inherit; transition: background .15s;" onmouseover="this.style.background='#0369a1'" onmouseout="this.style.background='#0284c7'">Actualiser la page</button>`;
+                const dots = document.querySelector("#app-auth-spinner .aas-spinner");
+                if (dots) dots.style.display = "none";
+            } else {
+                if (typeof hideAppSpinner === "function") hideAppSpinner();
+                alert("Erreur de chargement du profil Firebase: " + err.message);
+            }
+        } catch (_) {
             if (typeof hideAppSpinner === "function") hideAppSpinner();
-        } catch (_) {}
-        showAuthError("Erreur de chargement du profil. Réessayez.");
-        alert("Erreur de chargement du profil Firebase: " + err.message + "\nVeuillez actualiser la page ou contacter un administrateur.");
+            alert("Erreur de chargement du profil Firebase: " + err.message);
+        }
+        showAuthError("Erreur de chargement du profil : " + err.message);
     }
 }
 
