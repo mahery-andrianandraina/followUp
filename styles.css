@@ -863,7 +863,7 @@ tbody tr:last-child td {
 /* ─── Sticky / Frozen Columns ──────────────────────────────── */
 th.sticky-freeze,
 td.sticky-freeze {
-    position: sticky;
+    position: sticky !important;
     z-index: 3;
     background: #f8fafc;
     transition: box-shadow 0.2s ease, left 0.1s ease;
@@ -894,6 +894,10 @@ tbody tr:hover td.sticky-freeze {
 th.scroll-hidden,
 td.scroll-hidden {
     display: none !important;
+}
+
+.col-freeze-client {
+    left: 0 !important;
 }
 
 /* ─── Row Urgency ─────────────────────────────────────────── */
