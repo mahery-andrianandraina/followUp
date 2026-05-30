@@ -860,46 +860,40 @@ tbody tr:last-child td {
     border-bottom: none;
 }
 
-/* ─── Sticky Columns ──────────────────────────────────────── */
-th.sticky-col,
-td.sticky-col {
+/* ─── Sticky / Frozen Columns ──────────────────────────────── */
+th.sticky-freeze,
+td.sticky-freeze {
     position: sticky;
+    z-index: 3;
+    background: #f8fafc;
+    transition: box-shadow 0.2s ease, left 0.1s ease;
+}
+
+.col-freeze-client {
     left: 0;
-    z-index: 3;
-    background: #f8fafc;
-    border-right: 1px solid var(--glass-border);
 }
 
-th.sticky-col-2,
-td.sticky-col-2 {
-    position: sticky;
-    left: 90px;
-    z-index: 3;
-    background: #f8fafc;
-    border-right: 1px solid var(--glass-border);
-}
-
-th.sticky-col-3,
-td.sticky-col-3 {
-    position: sticky;
-    left: 180px;
-    z-index: 3;
-    background: #f8fafc;
-    border-right: 1px solid var(--glass-border);
+/* Last frozen column gets a subtle shadow separator */
+th.sticky-freeze-last,
+td.sticky-freeze-last {
+    border-right: 2px solid var(--glass-border, #cbd5e1) !important;
+    box-shadow: 4px 0 8px -3px rgba(0, 0, 0, 0.15);
 }
 
 /* sticky th cells need higher z so they sit above tbody sticky cells */
-thead th.sticky-col,
-thead th.sticky-col-2,
-thead th.sticky-col-3 {
+thead th.sticky-freeze {
     z-index: 11;
     background: #f8fafc;
 }
 
-tbody tr:hover td.sticky-col,
-tbody tr:hover td.sticky-col-2,
-tbody tr:hover td.sticky-col-3 {
+tbody tr:hover td.sticky-freeze {
     background: #162035;
+}
+
+/* Columns that should hide when scrolling right */
+th.scroll-hidden,
+td.scroll-hidden {
+    display: none !important;
 }
 
 /* ─── Row Urgency ─────────────────────────────────────────── */

@@ -1662,7 +1662,12 @@ function renderTable() {
         document.head.appendChild(_ds);
     }
     tableHead.innerHTML = `<tr>
-    ${cfg.cols.map(c => `<th onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`).join("")}
+    ${cfg.cols.map(c => {
+        const cls = getColumnClasses(c.key, state.activeSheet);
+        const classAttr = cls ? `class="${cls}"` : "";
+        const dataAttr = `data-key="${esc(c.key)}"`;
+        return `<th ${classAttr} ${dataAttr} onclick="sortBy('${c.key}')" title="Trier par ${c.label}">${c.label}${state.sortCol === c.key ? (state.sortDir === 1 ? " ↑" : " ↓") : ""}</th>`;
+    }).join("")}
     ${isOrdering ? `<th style="white-space:nowrap;">🚦 Track</th>` : ""}
     <th>Actions</th></tr>`;
 
@@ -1679,7 +1684,7 @@ function renderTable() {
         const cells = cfg.cols.map((c, i) => {
             const getRawCellHtml = () => {
                 let val = row[c.key] ?? "";
-                const sticky = i === 0 ? "sticky-col" : i === 1 ? "sticky-col-2" : i === 2 ? "sticky-col-3" : "";
+                const sticky = getColumnClasses(c.key, state.activeSheet);
                 let displayVal = val;
                 let cellStyle = "";
 
@@ -1849,6 +1854,100 @@ function renderTable() {
             <button class="btn btn-danger btn-icon" onclick="confirmDelete(${rowIdx})" title="Supprimer"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
         </div></td></tr>`;
     }).join("");
+    setupTableScrollFreeze();
+}
+
+function getColumnClasses(key, sheet) {
+    if (sheet === "details") {
+        if (key === "Client") return "col-freeze-client sticky-freeze";
+        if (key === "Cust Style Ref") return "col-freeze-custstyle";
+        if (key === "CTLStyleRef") return "col-freeze-ctlstyle";
+        if (["Full Season", "SEASON", "P1/ P2", "Theme"].includes(key)) return "col-intermediate";
+    } else {
+        if (key === "Client") return "col-freeze-client sticky-freeze";
+    }
+    return "";
+}
+
+function setupTableScrollFreeze() {
+    const tableWrap = document.querySelector('.table-wrap');
+    if (!tableWrap) return;
+
+    if (window._tableScrollCleanup) {
+        window._tableScrollCleanup();
+    }
+
+    const onScroll = () => {
+        const scrollLeft = tableWrap.scrollLeft;
+        const activeSheet = state.activeSheet;
+
+        const intermediates = tableWrap.querySelectorAll('.col-intermediate');
+        const custStyleHeaders = tableWrap.querySelectorAll('.col-freeze-custstyle');
+        const ctlStyleHeaders = tableWrap.querySelectorAll('.col-freeze-ctlstyle');
+        const clientHeaders = tableWrap.querySelectorAll('.col-freeze-client');
+
+        if (activeSheet === "details") {
+            if (scrollLeft > 0) {
+                // 1. Hide intermediate columns
+                intermediates.forEach(el => el.classList.add('scroll-hidden'));
+
+                // 2. Freeze Cust Style Ref and CTL Style Ref
+                custStyleHeaders.forEach(el => {
+                    el.classList.add('sticky-freeze');
+                    const clientWidth = clientHeaders[0] ? clientHeaders[0].getBoundingClientRect().width : 120;
+                    el.style.left = clientWidth + 'px';
+                    el.classList.remove('sticky-freeze-last');
+                });
+
+                ctlStyleHeaders.forEach(el => {
+                    el.classList.add('sticky-freeze');
+                    const clientWidth = clientHeaders[0] ? clientHeaders[0].getBoundingClientRect().width : 120;
+                    const custStyleWidth = custStyleHeaders[0] ? custStyleHeaders[0].getBoundingClientRect().width : 130;
+                    el.style.left = (clientWidth + custStyleWidth) + 'px';
+                    el.classList.add('sticky-freeze-last');
+                });
+
+                // Client is not the last sticky column when scrolled
+                clientHeaders.forEach(el => {
+                    el.classList.remove('sticky-freeze-last');
+                });
+            } else {
+                // At scrollLeft = 0
+                intermediates.forEach(el => el.classList.remove('scroll-hidden'));
+
+                custStyleHeaders.forEach(el => {
+                    el.classList.remove('sticky-freeze');
+                    el.style.left = '';
+                    el.classList.remove('sticky-freeze-last');
+                });
+
+                ctlStyleHeaders.forEach(el => {
+                    el.classList.remove('sticky-freeze');
+                    el.style.left = '';
+                    el.classList.remove('sticky-freeze-last');
+                });
+
+                // Client is the last sticky column when not scrolled
+                clientHeaders.forEach(el => {
+                    el.classList.add('sticky-freeze-last');
+                });
+            }
+        } else {
+            // For other sheets, only Client is sticky and it is always the last sticky column
+            clientHeaders.forEach(el => {
+                el.classList.add('sticky-freeze-last');
+            });
+        }
+    };
+
+    tableWrap.addEventListener('scroll', onScroll);
+    
+    window._tableScrollCleanup = () => {
+        tableWrap.removeEventListener('scroll', onScroll);
+    };
+
+    // Run once initially to apply the state
+    onScroll();
 }
 
 // ─── Sort / Modal / Form / Delete / API / Toast / Helpers ─────
