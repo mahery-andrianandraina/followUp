@@ -1555,7 +1555,7 @@ function setupDoubleclickEditing() {
 }
 
 function applyFilters() {
-    const rows = state.data[state.activeSheet];
+    const rows = state.data[state.activeSheet] || [];
     let filtered = rows.filter(row => {
         if (state.filterClient && row.Client !== state.filterClient) return false;
         if (state.filterDept && row.Dept !== state.filterDept) return false;
@@ -1576,7 +1576,8 @@ function applyFilters() {
 }
 
 function populateDeptFilter() {
-    const depts = [...new Set(state.data[state.activeSheet].map(r => r.Dept).filter(Boolean))].sort();
+    const rows = state.data[state.activeSheet] || [];
+    const depts = [...new Set(rows.map(r => r.Dept).filter(Boolean))].sort();
     deptFilter.innerHTML = `<option value="">Tous les depts</option>` + depts.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("");
     deptFilter.value = state.filterDept;
 }
@@ -1584,7 +1585,8 @@ function populateDeptFilter() {
 function populateClientFilter() {
     const cf = document.getElementById("client-filter");
     if (!cf) return;
-    const clients = [...new Set(state.data[state.activeSheet].map(r => r.Client).filter(Boolean))].sort();
+    const rows = state.data[state.activeSheet] || [];
+    const clients = [...new Set(rows.map(r => r.Client).filter(Boolean))].sort();
     cf.innerHTML = `<option value="">Tous les clients</option>` + clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
     cf.value = state.filterClient;
 }
@@ -1604,8 +1606,11 @@ function showTableSpinner() {
 }
 
 function renderTable() {
-    const cfg = SHEET_CONFIG[state.activeSheet];
-    const rows = state.filteredData;
+    console.log("[AW27 Debug] renderTable appelé. activeSheet:", state.activeSheet);
+    console.log("[AW27 Debug] keys in SHEET_CONFIG:", Object.keys(SHEET_CONFIG || {}));
+    
+    const cfg = (SHEET_CONFIG && SHEET_CONFIG[state.activeSheet]) || { label: state.activeSheet, cols: [] };
+    const rows = state.filteredData || [];
     const isOrdering = state.activeSheet === "ordering";
 
     const isDetails = state.activeSheet === "details";

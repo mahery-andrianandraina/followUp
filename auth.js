@@ -76,31 +76,38 @@ if (!isPage("login.html") && !isPage("access-request.html")) {
             if (typeof onAuthReady === "function") onAuthReady();
         }, 100);
     } else {
+        console.log("[AW27 Auth] Configuration de l'écouteur onAuthStateChanged...");
         auth.onAuthStateChanged(async (firebaseUser) => {
+            console.log("[AW27 Auth] onAuthStateChanged déclenché. Utilisateur :", firebaseUser ? firebaseUser.email : "non connecté");
             if (!firebaseUser) {
                 if (_whitelistUnsubscribe) { _whitelistUnsubscribe(); _whitelistUnsubscribe = null; }
+                console.log("[AW27 Auth] Aucun utilisateur connecté. Redirection vers login.html.");
                 window.location.href = "login.html";
                 return;
             }
 
+            console.log("[AW27 Auth] Utilisateur connecté trouvé. Lancement de handleUser...");
             await handleUser(firebaseUser);
 
-        // ── Listener temps réel whitelist ─────────────────────
-        // Déconnecte l'user immédiatement si l'admin révoque son accès
-        if (_whitelistUnsubscribe) _whitelistUnsubscribe();
-        _whitelistUnsubscribe = db.collection("whitelist")
-            .doc(firebaseUser.email)
-            .onSnapshot((doc) => {
-                const isApproved = doc.exists && doc.data().status === "approved";
-                if (!isApproved) {
-                    auth.signOut().then(() => {
-                        window.location.href = "login.html";
-                    });
-                }
-            }, (err) => {
-                console.error("Whitelist listener error:", err);
-                auth.signOut().then(() => { window.location.href = "login.html"; });
-            });
+            // ── Listener temps réel whitelist ─────────────────────
+            // Déconnecte l'user immédiatement si l'admin révoque son accès
+            if (_whitelistUnsubscribe) _whitelistUnsubscribe();
+            console.log("[AW27 Auth] Configuration du listener de whitelist temps réel...");
+            _whitelistUnsubscribe = db.collection("whitelist")
+                .doc(firebaseUser.email)
+                .onSnapshot((doc) => {
+                    const isApproved = doc.exists && doc.data().status === "approved";
+                    console.log("[AW27 Auth Whitelist] Listener déclenché. Approuvé :", isApproved);
+                    if (!isApproved) {
+                        console.warn("[AW27 Auth Whitelist] Accès révoqué par l'administrateur ! Déconnexion...");
+                        auth.signOut().then(() => {
+                            window.location.href = "login.html";
+                        });
+                    }
+                }, (err) => {
+                    console.error("[AW27 Auth Whitelist] Erreur listener whitelist:", err);
+                    auth.signOut().then(() => { window.location.href = "login.html"; });
+                });
         });
     }
 }
@@ -111,13 +118,17 @@ if (!isPage("login.html") && !isPage("access-request.html")) {
 // ══════════════════════════════════════════════════════════════
 async function handleUser(firebaseUser) {
     const email = firebaseUser.email;
+    console.log("[AW27 Auth] handleUser démarré pour l'email :", email);
 
     try {
         // ── Étape 1 : Vérifier whitelist ──────────────────────
+        console.log("[AW27 Auth] handleUser - Étape 1 : Récupération du document whitelist pour", email);
         const whitelistDoc = await db.collection("whitelist").doc(email).get();
+        console.log("[AW27 Auth] handleUser - Whitelist récupéré. Existe :", whitelistDoc.exists);
         const isApproved = whitelistDoc.exists && whitelistDoc.data().status === "approved";
 
         if (!isApproved) {
+            console.warn("[AW27 Auth] handleUser - L'utilisateur n'est pas approuvé dans la whitelist. Redirection...");
             // Non autorisé → déconnecter puis rediriger
             const url = "access-request.html"
                 + "?email=" + encodeURIComponent(email)
@@ -130,15 +141,19 @@ async function handleUser(firebaseUser) {
         }
 
         // ── Étape 2 : Charger URL GAS ─────────────────────────
+        console.log("[AW27 Auth] handleUser - Étape 2 : Récupération du profil utilisateur Firestore pour UID :", firebaseUser.uid);
         const userDoc = await db.collection("users").doc(firebaseUser.uid).get();
+        console.log("[AW27 Auth] handleUser - Profil utilisateur récupéré. Existe :", userDoc.exists);
         let gasUrl = null;
 
         if (userDoc.exists && userDoc.data().gasUrl) {
             // Priorité au choix de l'utilisateur (mis à jour via les paramètres)
             gasUrl = userDoc.data().gasUrl;
+            console.log("[AW27 Auth] handleUser - URL GAS récupérée depuis le profil utilisateur :", gasUrl);
         } else if (whitelistDoc.data().gasUrl) {
             // Fallback : URL par défaut injectée par l'admin dans la whitelist
             gasUrl = whitelistDoc.data().gasUrl;
+            console.log("[AW27 Auth] handleUser - URL GAS récupérée depuis le document whitelist :", gasUrl);
         }
 
         if (gasUrl) {
@@ -152,6 +167,7 @@ async function handleUser(firebaseUser) {
 
             // Sauvegarde dans le profil utilisateur pour consistance
             if (!userDoc.exists || userDoc.data().gasUrl !== gasUrl) {
+                console.log("[AW27 Auth] handleUser - Synchronisation du profil utilisateur Firestore...");
                 await db.collection("users").doc(firebaseUser.uid).set({
                     email: firebaseUser.email,
                     displayName: firebaseUser.displayName,
@@ -163,12 +179,15 @@ async function handleUser(firebaseUser) {
             }
 
             if (isPage("login.html")) {
+                console.log("[AW27 Auth] handleUser - Redirection vers index.html.");
                 window.location.href = "index.html";
             } else {
+                console.log("[AW27 Auth] handleUser - Session prête ! Lancement du callback onAuthReady().");
                 onAuthReady();
             }
 
         } else {
+            console.warn("[AW27 Auth] handleUser - Aucune URL GAS configurée pour cet utilisateur.");
             // Pas de gasUrl -> Etape de configuration
             if (isPage("login.html")) {
                 showGasSetupStep(firebaseUser);
