@@ -55,42 +55,42 @@ const SHEET_CONFIG = {
     details: {
         label: "Details",
         cols: [
-            { key: "Client",                         label: "Client",                 type: "text", required: true },
-            { key: "Full Season",                    label: "Full Season",            type: "text" },
-            { key: "SEASON",                         label: "Season",                 type: "text" },
-            { key: "P1/ P2",                         label: "P1/P2",                  type: "text" },
-            { key: "Theme",                          label: "Theme",                  type: "text" },
-            { key: "Cust Style Ref",                 label: "Cust Style Ref",         type: "text", required: true },
-            { key: "CTLStyleRef",                    label: "CTL Style Ref",          type: "text" },
-            { key: "Coll",                           label: "Coll",                   type: "text" },
-            { key: "Age Group",                      label: "Age Group",              type: "text" },
-            { key: "Order Status",                   label: "Order Status",           type: "select", options: ["", "TBC", "To book", "PO RECEIVED", "Cancelled"] },
-            { key: "remark",                         label: "Remark",                 type: "text" },
-            { key: "CRP Status",                     label: "CRP Status",             type: "text" },
-            { key: "Style Type",                     label: "Style Type",             type: "text" },
-            { key: "FABRIC",                         label: "Fabric",                 type: "text" },
-            { key: "Initial Vsl Date",               label: "Initial Vsl Date",       type: "date" },
-            { key: "Possible Vsl date",              label: "Possible Vsl Date",      type: "date" },
-            { key: "PO Deadline",                    label: "PO Deadline",            type: "date" },
-            { key: "PO Rec Date",                    label: "PO Rec Date",            type: "date" },
-            { key: "Target Qty",                     label: "Target Qty",             type: "number" },
-            { key: "Conf Total",                     label: "Conf Total",             type: "number" },
-            { key: "1st Price $",                    label: "1st Price $",            type: "text" },
-            { key: "Target Price $",                 label: "Target Price $",         type: "text" },
-            { key: "Approved Price $",               label: "Approved Price $",       type: "text" },
-            { key: "TO ($)",                         label: "TO ($)",                 type: "text" },
-            { key: "SAMPLE LENGTH \nREADY DATE",    label: "Sample Ready Date",      type: "date" },
-            { key: "PROV SAMPLE DISPATCH DATE",      label: "Prov Sample Dispatch",   type: "date" },
-            { key: "ACTUAL SAMPLE DISPATCH DATE",    label: "Actual Sample Dispatch", type: "date" },
-            { key: "PRIORITY",                       label: "Priority",               type: "text" },
-            { key: "TRIMS DEVELOPMENT",              label: "Trims Development",      type: "text" },
-            { key: "COMMENT",                        label: "Comment",                type: "textarea", full: true },
-            { key: "DT RECEIVED",                    label: "DT Received",            type: "date" },
-            { key: "SPEC RECEIVED",                  label: "Spec Received",          type: "date" },
-            { key: "BULK FAB",                       label: "Bulk Fab",               type: "text" },
-            { key: "Possible etd",                   label: "Possible ETD",           type: "date" },
-            { key: "TP_URL",                             label: "TP URL",                 type: "text" },
-            { key: "Image",                              label: "Image",                  type: "text" }
+            { key: "Client",                      label: "Client",               type: "text",     required: true },
+            { key: "Full Season",                 label: "Full Season",          type: "text" },
+            { key: "SEASON",                      label: "Season",               type: "text" },
+            { key: "P1/ P2",                      label: "P1/P2",                type: "text" },
+            { key: "Theme",                       label: "Theme",                type: "text" },
+            { key: "Cust Style Ref",              label: "Cust Style Ref",       type: "text",     required: true },
+            { key: "CTLStyleRef",                 label: "CTL Style Ref",        type: "text" },
+            { key: "Coll",                        label: "Coll",                 type: "text" },
+            { key: "Age Group",                   label: "Age Group",            type: "text" },
+            { key: "Order Status",                label: "Order Status",         type: "select",   options: ["", "TBC", "To book", "PO RECEIVED", "Cancelled"] },
+            { key: "remark",                      label: "Remark",               type: "text" },
+            { key: "CRP Status",                  label: "CRP Status",           type: "text" },
+            { key: "Style Type",                  label: "Style Type",           type: "text" },
+            { key: "FABRIC",                      label: "Fabric",               type: "text" },
+            { key: "Initial Vsl Date",            label: "Initial Vsl Date",     type: "date" },
+            { key: "Possible Vsl date",           label: "Possible Vsl Date",    type: "date" },
+            { key: "PO Deadline",                 label: "PO Deadline",          type: "date" },
+            { key: "PO Rec Date",                 label: "PO Rec Date",          type: "date" },
+            { key: "Target Qty",                  label: "Target Qty",           type: "number" },
+            { key: "Conf Total",                  label: "Conf Total",           type: "number" },
+            { key: "1st Price $",                 label: "1st Price $",          type: "text" },
+            { key: "Target Price $",              label: "Target Price $",       type: "text" },
+            { key: "Approved Price $",            label: "Approved Price $",     type: "text" },
+            { key: "TO ($)",                      label: "TO ($)",               type: "text" },
+            { key: "SAMPLE LENGTH \nREADY DATE", label: "Sample Ready Date",    type: "date" },
+            { key: "PROV SAMPLE DISPATCH DATE",   label: "Prov Sample Dispatch", type: "date" },
+            { key: "ACTUAL SAMPLE DISPATCH DATE", label: "Actual Sample Dispatch",type: "date" },
+            { key: "PRIORITY",                    label: "Priority",             type: "text" },
+            { key: "TRIMS DEVELOPMENT",           label: "Trims Development",    type: "text" },
+            { key: "COMMENT",                     label: "Comment",              type: "textarea", full: true },
+            { key: "DT RECEIVED",                 label: "DT Received",          type: "date" },
+            { key: "SPEC RECEIVED",               label: "Spec Received",        type: "date" },
+            { key: "BULK FAB",                    label: "Bulk Fab",             type: "text" },
+            { key: "Possible etd",                label: "Possible ETD",         type: "date" },
+            { key: "TP_URL",                      label: "TP",                   type: "text" },
+            { key: "Image",                       label: "Image Style",          type: "text" }
         ],
         kpis: [
             { label: "Total Styles", colorClass: "teal", icon: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`, compute: rows => rows.length },
@@ -1396,6 +1396,7 @@ function renderTable() {
         .det-dpill:hover { border-color:var(--color-border-primary); }
         .det-dpill-active { background:var(--color-text-primary) !important; color:var(--color-background-primary) !important; border-color:var(--color-text-primary) !important; }
         .det-dpill-n { font-size:9.5px; margin-left:3px; opacity:.7; }
+        .thumb-img { width:32px; height:32px; object-fit:cover; border-radius:4px; border:1px solid var(--color-border-secondary); display:block; }
         `;
         document.head.appendChild(_ds);
     }
@@ -1424,6 +1425,56 @@ function renderTable() {
             if (c.key === "Client") return `<td class="${sticky}"><span class="client-badge" onclick="event.stopPropagation();detFilterByClient('${esc(val)}')">${esc(val) || "—"}</span></td>`;
             if (c.key === "Dept") return `<td class="${sticky}"><span class="dept-badge">${esc(val)}</span></td>`;
             if (c.key === "Style") return `<td class="${sticky}"><a class="style-link" onclick="event.stopPropagation();openStyleModal('${esc(val)}')">${esc(val)}</a></td>`;
+
+            // ─── TP_URL : bouton lien vers le Tech Pack ───────────────
+            if (c.key === "TP_URL") {
+                const tpUrl = (val || "").trim();
+                if (tpUrl) {
+                    return `<td style="text-align:center;white-space:nowrap">
+                        <a href="${esc(tpUrl)}" target="_blank" rel="noopener"
+                           style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:6px;
+                                  background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE;
+                                  font-size:11px;font-weight:500;text-decoration:none;transition:all .15s"
+                           onmouseover="this.style.background='#DBEAFE'"
+                           onmouseout="this.style.background='#EFF6FF'"
+                           title="${esc(tpUrl)}"
+                           onclick="event.stopPropagation()">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>TP
+                        </a></td>`;
+                }
+                return `<td style="text-align:center"><span style="color:var(--color-text-tertiary,#9ca3af);font-size:11px">—</span></td>`;
+            }
+
+            // ─── Image Style : miniature cliquable ────────────────────
+            if (c.key === "Image") {
+                const imgUrl = (row["_imageUrl"] || row["Image"] || "").trim();
+                if (imgUrl) {
+                    const _lbStyle = esc(row["Cust Style Ref"] || row["Style"] || "");
+                    const _lbDesc  = esc(row["Theme"] || row["Style Type"] || "");
+                    return `<td style="text-align:center;padding:4px 8px">
+                        <img class="thumb-img" src="${imgUrl}" alt="${_lbStyle}" loading="lazy"
+                             style="width:36px;height:36px;object-fit:cover;border-radius:5px;
+                                    border:1.5px solid var(--color-border-secondary,#e5e7eb);
+                                    cursor:zoom-in;transition:transform .15s,box-shadow .15s"
+                             onmouseover="this.style.transform='scale(1.12)';this.style.boxShadow='0 4px 12px rgba(0,0,0,.18)'"
+                             onmouseout="this.style.transform='';this.style.boxShadow=''"
+                             onclick="event.stopPropagation();openImageLightbox(this.src,'${_lbStyle}','${_lbDesc}')"
+                             title="${_lbStyle}"/>
+                    </td>`;
+                }
+                return `<td style="text-align:center;padding:4px 8px">
+                    <div style="width:36px;height:36px;border-radius:5px;border:1.5px dashed var(--color-border-secondary,#e5e7eb);
+                                display:inline-flex;align-items:center;justify-content:center;opacity:.4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                    </div>
+                </td>`;
+            }
 
             if (c.key === "Approval") {
                 const cls = (val || "").toLowerCase() || "unknown";
