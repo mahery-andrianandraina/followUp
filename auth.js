@@ -63,18 +63,28 @@ async function signOut() {
 let _whitelistUnsubscribe = null;
 
 if (!isPage("login.html") && !isPage("access-request.html")) {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        window.currentUser = {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:' || !window.location.hostname) {
+        const mockUser = {
             uid: "mock-uid",
             email: "mcformation1@gmail.com",
             displayName: "Utilisateur Test",
             photoURL: "",
             gasUrl: "https://script.google.com/macros/s/mock-gas-url/exec"
         };
-        window.GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
-        setTimeout(() => {
+        db.collection("users").doc("mock-uid").get().then((doc) => {
+            if (doc.exists && doc.data().gasUrl) {
+                mockUser.gasUrl = doc.data().gasUrl;
+                console.log("[AW27 Auth] URL GAS récupérée depuis Firestore pour mock-uid :", mockUser.gasUrl);
+            }
+            window.currentUser = mockUser;
+            window.GOOGLE_APPS_SCRIPT_URL = mockUser.gasUrl;
             if (typeof onAuthReady === "function") onAuthReady();
-        }, 100);
+        }).catch((err) => {
+            console.warn("[AW27 Auth] Erreur lors de la récupération de mock-uid Firestore, utilisation des valeurs par défaut:", err);
+            window.currentUser = mockUser;
+            window.GOOGLE_APPS_SCRIPT_URL = mockUser.gasUrl;
+            if (typeof onAuthReady === "function") onAuthReady();
+        });
     } else {
         console.log("[AW27 Auth] Configuration de l'écouteur onAuthStateChanged...");
         auth.onAuthStateChanged(async (firebaseUser) => {
