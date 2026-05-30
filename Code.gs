@@ -138,8 +138,10 @@ function doPost(e) {
             detailsSheet.getRange(1, tpColIdx + 1).setValue("TP_URL");
           }
           
-          // Trouver la colonne Style
-          var styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase() === "style"; });
+          // Trouver la colonne Style (recherche flexible)
+          var styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase() === "style" || h.toLowerCase() === "cust style ref"; });
+          if (styleIdx === -1) styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase().includes("style"); });
+          
           if (styleIdx !== -1) {
             for (var i = 1; i < dData.length; i++) {
               if (String(dData[i][styleIdx]).trim() === styleCode) {
@@ -157,6 +159,86 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "ok",
         url: fileUrl,
+        fileId: newFile.getId(),
+        fileName: fileName
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── UPLOAD IMAGE STYLE (Image/Photo → Google Drive) ──
+    if (action === "UPLOAD_IMAGE") {
+      var styleCode = (payload.styleCode || "").trim();
+      var fileName  = payload.fileName || (styleCode + ".jpg");
+      var base64Data = payload.base64Data || "";
+      var mimeType   = payload.mimeType || "image/jpeg";
+
+      if (!styleCode) throw new Error("styleCode manquant.");
+      if (!base64Data) throw new Error("Aucune donnée image reçue.");
+
+      // 1. Trouver ou créer le dossier "Images" dans le même dossier que le spreadsheet
+      var ssFile = DriveApp.getFileById(SPREADSHEET_ID);
+      var parents = ssFile.getParents();
+      var parentFolder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+      
+      var imgFolder;
+      var imgFolders = parentFolder.getFoldersByName("Images");
+      if (imgFolders.hasNext()) {
+        imgFolder = imgFolders.next();
+      } else {
+        imgFolder = parentFolder.createFolder("Images");
+      }
+
+      // 2. Supprimer l'ancien fichier s'il existe (même nom)
+      var existingFiles = imgFolder.getFilesByName(fileName);
+      while (existingFiles.hasNext()) {
+        var old = existingFiles.next();
+        old.setTrashed(true);
+      }
+
+      // 3. Créer le blob et uploader
+      var blob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
+      var newFile = imgFolder.createFile(blob);
+      
+      // 4. Rendre accessible via lien (anyone with link can view)
+      newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      var fileUrl = "https://drive.google.com/file/d/" + newFile.getId() + "/view";
+      var thumbUrl = "https://lh3.googleusercontent.com/d/" + newFile.getId();
+
+      // 5. Écrire l'URL dans la colonne Image de la feuille Details
+      try {
+        var ss2 = SpreadsheetApp.openById(SPREADSHEET_ID);
+        var detailsSheet = ss2.getSheetByName("Details");
+        if (detailsSheet) {
+          var dData = detailsSheet.getDataRange().getValues();
+          var dHeaders = dData[0].map(function(x) { return String(x).trim(); });
+          
+          // Trouver ou créer la colonne Image (flexible)
+          var imgColIdx = dHeaders.findIndex(function(h) { return /image|photo|picture|img|pic/i.test(h); });
+          if (imgColIdx === -1) {
+            imgColIdx = dHeaders.length;
+            detailsSheet.getRange(1, imgColIdx + 1).setValue("Image");
+          }
+          
+          // Trouver la colonne Style (flexible)
+          var styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase() === "style" || h.toLowerCase() === "cust style ref"; });
+          if (styleIdx === -1) styleIdx = dHeaders.findIndex(function(h) { return h.toLowerCase().includes("style"); });
+          
+          if (styleIdx !== -1) {
+            for (var i = 1; i < dData.length; i++) {
+              if (String(dData[i][styleIdx]).trim() === styleCode) {
+                detailsSheet.getRange(i + 1, imgColIdx + 1).setValue(fileUrl);
+                break;
+              }
+            }
+          }
+        }
+      } catch(writeErr) {
+        Logger.log("Image URL write error: " + writeErr.message);
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "ok",
+        url: fileUrl,
+        thumbUrl: thumbUrl,
         fileId: newFile.getId(),
         fileName: fileName
       })).setMimeType(ContentService.MimeType.JSON);
@@ -325,7 +407,9 @@ function readSheetWithImages(ss, name) {
   const h = d[0].map(x => String(x).trim());
 
   // Trouver la colonne Style (flexible)
-  const styleIdx = h.findIndex(x => /^style$/i.test(x));
+  let styleIdx = h.findIndex(x => /^style$/i.test(x));
+  if (styleIdx === -1) styleIdx = h.findIndex(x => /cust style ref/i.test(x));
+  if (styleIdx === -1) styleIdx = h.findIndex(x => /style/i.test(x));
   
   // Trouver la colonne Image/Photo (très flexible)
   const imgIdx = h.findIndex(x => /image|photo|picture|img|pic/i.test(x));

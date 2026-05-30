@@ -467,14 +467,14 @@
             // Mettre à jour state.data.style
             const styleData = (window.state && window.state.data && window.state.data.style) || [];
             const row = styleData.find(function (r) {
-                return String(r.Style || r['Style Code'] || '').trim() === String(styleCode).trim();
+                return String(r["Cust Style Ref"] || r.Style || r['Style Code'] || '').trim().toLowerCase() === String(styleCode).trim().toLowerCase();
             });
             if (row) row.TP_URL = url;
 
             // Mettre à jour state.data.details (pour que le bouton TP dans Details passe au vert)
             const detailsData = (window.state && window.state.data && window.state.data.details) || [];
             detailsData.forEach(function (r) {
-                if (String(r.Style || r['Style Code'] || '').trim() === String(styleCode).trim()) {
+                if (String(r["Cust Style Ref"] || r.Style || r['Style Code'] || '').trim().toLowerCase() === String(styleCode).trim().toLowerCase()) {
                     r.TP_URL = url;
                 }
             });
@@ -559,11 +559,17 @@
             // Récupérer le styleCode depuis la ligne du tableau ou les données filtrées
             let styleCode = '';
             if (activeData && activeData[i]) {
-                styleCode = String(activeData[i].Style || activeData[i]['Style Code'] || '').trim();
-            } else if (styleColIndex >= 0) {
-                const cells = tr.querySelectorAll('td');
-                if (cells[styleColIndex]) {
-                    styleCode = (cells[styleColIndex].textContent || '').trim();
+                styleCode = String(activeData[i]["Cust Style Ref"] || activeData[i].Style || activeData[i]['Style Code'] || '').trim();
+            } else {
+                // Recherche flexible dans les colonnes par nom
+                const styleHeaderIdx = headers.findIndex(function(h) { 
+                    return h === 'style' || h === 'cust style ref' || h.includes('style') || h.includes('ref'); 
+                });
+                if (styleHeaderIdx >= 0) {
+                    const cells = tr.querySelectorAll('td');
+                    if (cells[styleHeaderIdx]) {
+                        styleCode = (cells[styleHeaderIdx].textContent || '').trim();
+                    }
                 }
             }
             if (!styleCode) return;
@@ -583,7 +589,7 @@
                 const detailsRows = window.state && window.state.data && window.state.data.details;
                 if (detailsRows && detailsRows.length) {
                     const matchedDetail = detailsRows.find(function(d) {
-                        return String(d.Style || d['Style Code'] || '').trim() === styleCode;
+                        return String(d["Cust Style Ref"] || d.Style || d['Style Code'] || '').trim().toLowerCase() === styleCode.toLowerCase();
                     });
                     if (matchedDetail) {
                         existingUrl = String(matchedDetail.TP_URL || '').trim();
@@ -595,7 +601,7 @@
             // 3. Fallback: chercher dans state.data.style
             if (!existingUrl && styleRows && styleRows.length) {
                 const matchedStyle = styleRows.find(function(s) {
-                    return String(s.Style || s['Style Code'] || '').trim() === styleCode;
+                    return String(s["Cust Style Ref"] || s.Style || s['Style Code'] || '').trim().toLowerCase() === styleCode.toLowerCase();
                 });
                 if (matchedStyle) {
                     existingUrl = String(matchedStyle.TP_URL || '').trim();
