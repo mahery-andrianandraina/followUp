@@ -178,8 +178,12 @@ async function handleUser(firebaseUser) {
         }
 
     } catch (err) {
-        console.error("Firestore error:", err);
+        console.error("Firestore error in handleUser:", err);
+        try {
+            if (typeof hideAppSpinner === "function") hideAppSpinner();
+        } catch (_) {}
         showAuthError("Erreur de chargement du profil. Réessayez.");
+        alert("Erreur de chargement du profil Firebase: " + err.message + "\nVeuillez actualiser la page ou contacter un administrateur.");
     }
 }
 

@@ -254,33 +254,56 @@ const toastContainer = $("toast-container");
 // ─── Init ─────────────────────────────────────────────────────
 // Appelée par auth.js → onAuthReady() une fois Firebase prêt
 async function initApp() {
-    // Récupérer le GAS URL depuis le profil Firebase
-    if (window.currentUser && window.currentUser.gasUrl) {
-        GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
-        window.GOOGLE_APPS_SCRIPT_URL = GOOGLE_APPS_SCRIPT_URL;
-        console.log("[AW27] URL GAS configurée :", window.GOOGLE_APPS_SCRIPT_URL);
+    try {
+        console.log("[AW27] Démarrage de initApp...");
+        
+        // Récupérer le GAS URL depuis le profil Firebase
+        if (window.currentUser && window.currentUser.gasUrl) {
+            GOOGLE_APPS_SCRIPT_URL = window.currentUser.gasUrl;
+            window.GOOGLE_APPS_SCRIPT_URL = GOOGLE_APPS_SCRIPT_URL;
+            console.log("[AW27] URL GAS configurée :", window.GOOGLE_APPS_SCRIPT_URL);
+        }
+
+        // Mettre à jour l'UI utilisateur dans le header
+        renderUserBadge();
+
+        // ── Nouveau utilisateur sans GAS URL configuré ─────────────
+        // Ouvrir la modale de configuration et bloquer tant que non renseigné
+        if (!window.currentUser || !window.currentUser.gasUrl) {
+            _openFirstSetupModal();
+            return; // ne pas continuer tant que l'URL n'est pas enregistrée
+        }
+
+        console.log("[AW27] Chargement des menus et écouteurs...");
+        loadCustomMenus();
+        setupTabListeners();
+        setupSearchAndFilter();
+        setupDashboardFilters();
+        setupDoubleclickEditing();
+        
+        console.log("[AW27] Affichage du dashboard...");
+        showDashboard();
+        
+        console.log("[AW27] Récupération des données...");
+        await fetchAllData();
+        
+        console.log("[AW27] Rendu du dashboard...");
+        renderDashboard();
+        updateGlobalNotifBadge();
+        console.log("[AW27] App Initialized successfully!");
+    } catch (err) {
+        console.error("[AW27] CRITICAL ERROR during initApp:", err);
+        // Tenter de cacher le spinner pour ne pas bloquer l'utilisateur
+        try {
+            if (typeof hideAppSpinner === "function") hideAppSpinner();
+        } catch (_) {}
+        // Afficher l'erreur à l'utilisateur
+        if (typeof showToast === "function") {
+            showToast("Erreur d'initialisation : " + err.message, "error", 10000);
+        } else {
+            alert("Erreur d'initialisation : " + err.message);
+        }
     }
-
-    // Mettre à jour l'UI utilisateur dans le header
-    renderUserBadge();
-
-    // ── Nouveau utilisateur sans GAS URL configuré ─────────────
-    // Ouvrir la modale de configuration et bloquer tant que non renseigné
-    if (!window.currentUser || !window.currentUser.gasUrl) {
-        _openFirstSetupModal();
-        return; // ne pas continuer tant que l'URL n'est pas enregistrée
-    }
-
-    loadCustomMenus();
-    setupTabListeners();
-    setupSearchAndFilter();
-    setupDashboardFilters();
-    setupDoubleclickEditing();
-    showDashboard();
-    await fetchAllData();
-    renderDashboard();
-    updateGlobalNotifBadge();
-    console.log("App Initialized. Fabric Analysis keywords updated.");
 }
 
 // ─── Modale premier démarrage (GAS URL manquant) ─────────────
