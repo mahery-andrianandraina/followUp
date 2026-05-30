@@ -860,44 +860,53 @@ tbody tr:last-child td {
     border-bottom: none;
 }
 
-/* ─── Sticky / Frozen Columns ──────────────────────────────── */
-th.sticky-freeze,
-td.sticky-freeze {
+/* ─── Sticky / Frozen Columns (Performance Optimized) ─── */
+.col-freeze-client {
     position: sticky !important;
+    left: 0 !important;
     z-index: 3;
     background: #f8fafc;
-    transition: box-shadow 0.2s ease, left 0.1s ease;
 }
 
-.col-freeze-client {
-    left: 0;
+/* When the details table is scrolled */
+.table-wrap.is-scrolled-details .col-intermediate {
+    display: none !important;
+}
+
+.table-wrap.is-scrolled-details .col-freeze-custstyle {
+    position: sticky !important;
+    left: var(--freeze-cust-left) !important;
+    z-index: 3;
+    background: #f8fafc;
+}
+
+.table-wrap.is-scrolled-details .col-freeze-ctlstyle {
+    position: sticky !important;
+    left: var(--freeze-ctl-left) !important;
+    z-index: 3;
+    background: #f8fafc;
 }
 
 /* Last frozen column gets a subtle shadow separator */
-th.sticky-freeze-last,
-td.sticky-freeze-last {
+.table-wrap.is-scrolled-details .col-freeze-ctlstyle,
+.table-wrap:not(.is-scrolled-details) .col-freeze-client,
+.table-wrap.is-scrolled-other .col-freeze-client {
     border-right: 2px solid var(--glass-border, #cbd5e1) !important;
     box-shadow: 4px 0 8px -3px rgba(0, 0, 0, 0.15);
 }
 
 /* sticky th cells need higher z so they sit above tbody sticky cells */
-thead th.sticky-freeze {
-    z-index: 11;
+thead th.col-freeze-client,
+.table-wrap.is-scrolled-details thead th.col-freeze-custstyle,
+.table-wrap.is-scrolled-details thead th.col-freeze-ctlstyle {
+    z-index: 11 !important;
     background: #f8fafc;
 }
 
-tbody tr:hover td.sticky-freeze {
+tbody tr:hover td.col-freeze-client,
+.table-wrap.is-scrolled-details tbody tr:hover td.col-freeze-custstyle,
+.table-wrap.is-scrolled-details tbody tr:hover td.col-freeze-ctlstyle {
     background: #162035;
-}
-
-/* Columns that should hide when scrolling right */
-th.scroll-hidden,
-td.scroll-hidden {
-    display: none !important;
-}
-
-.col-freeze-client {
-    left: 0 !important;
 }
 
 /* ─── Row Urgency ─────────────────────────────────────────── */

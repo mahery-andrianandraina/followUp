@@ -1877,63 +1877,36 @@ function setupTableScrollFreeze() {
         window._tableScrollCleanup();
     }
 
-    // Cache the DOM queries so we don't query the DOM 60 times a second on scroll
     const activeSheet = state.activeSheet;
-    const intermediates = tableWrap.querySelectorAll('.col-intermediate');
-    const custStyleHeaders = tableWrap.querySelectorAll('.col-freeze-custstyle');
-    const ctlStyleHeaders = tableWrap.querySelectorAll('.col-freeze-ctlstyle');
-    const clientHeaders = tableWrap.querySelectorAll('.col-freeze-client');
     
     // We only want to apply DOM changes when the state transitions between scrolled/unscrolled
     let isScrolled = false;
 
+    // Cache header elements just to read their widths once
+    const clientHeaders = tableWrap.querySelectorAll('.col-freeze-client');
+    const custStyleHeaders = tableWrap.querySelectorAll('.col-freeze-custstyle');
+
     const applyScrolledState = (scrolled) => {
         if (activeSheet === "details") {
             if (scrolled) {
-                // 1. Hide intermediate columns
-                intermediates.forEach(el => el.classList.add('scroll-hidden'));
-
-                // Calculate widths once before applying
                 const clientWidth = clientHeaders[0] ? clientHeaders[0].getBoundingClientRect().width : 120;
                 const custStyleWidth = custStyleHeaders[0] ? custStyleHeaders[0].getBoundingClientRect().width : 130;
 
-                // 2. Freeze Cust Style Ref and CTL Style Ref
-                custStyleHeaders.forEach(el => {
-                    el.classList.add('sticky-freeze');
-                    el.style.left = clientWidth + 'px';
-                    el.classList.remove('sticky-freeze-last');
-                });
-
-                ctlStyleHeaders.forEach(el => {
-                    el.classList.add('sticky-freeze');
-                    el.style.left = (clientWidth + custStyleWidth) + 'px';
-                    el.classList.add('sticky-freeze-last');
-                });
-
-                // Client is not the last sticky column when scrolled
-                clientHeaders.forEach(el => el.classList.remove('sticky-freeze-last'));
+                tableWrap.style.setProperty('--freeze-cust-left', clientWidth + 'px');
+                tableWrap.style.setProperty('--freeze-ctl-left', (clientWidth + custStyleWidth) + 'px');
+                tableWrap.classList.add('is-scrolled-details');
+                tableWrap.classList.remove('is-scrolled-other');
             } else {
-                // At scrollLeft = 0
-                intermediates.forEach(el => el.classList.remove('scroll-hidden'));
-
-                custStyleHeaders.forEach(el => {
-                    el.classList.remove('sticky-freeze');
-                    el.style.left = '';
-                    el.classList.remove('sticky-freeze-last');
-                });
-
-                ctlStyleHeaders.forEach(el => {
-                    el.classList.remove('sticky-freeze');
-                    el.style.left = '';
-                    el.classList.remove('sticky-freeze-last');
-                });
-
-                // Client is the last sticky column when not scrolled
-                clientHeaders.forEach(el => el.classList.add('sticky-freeze-last'));
+                tableWrap.classList.remove('is-scrolled-details');
+                tableWrap.classList.remove('is-scrolled-other');
             }
         } else {
-            // For other sheets, only Client is sticky and it is always the last sticky column
-            clientHeaders.forEach(el => el.classList.add('sticky-freeze-last'));
+            tableWrap.classList.remove('is-scrolled-details');
+            if (scrolled) {
+                tableWrap.classList.add('is-scrolled-other');
+            } else {
+                tableWrap.classList.remove('is-scrolled-other');
+            }
         }
     };
 
