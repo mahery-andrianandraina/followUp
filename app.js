@@ -2906,12 +2906,13 @@ function imgOpen(styleCode, rowIndex, currentUrl) {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         redirect: "follow",
-        body: JSON.stringify({
-          action: "UPLOAD_IMAGE",
-          styleCode, fileName,
-          base64Data: base64.split(",")[1],
-          mimeType: fileToUpload.type || "image/jpeg"
-        })
+body: JSON.stringify({
+  action: "UPLOAD_IMAGE",
+  sheet: "details",
+  styleCode, fileName,
+  base64Data: base64.split(",")[1],
+  mimeType: fileToUpload.type || "image/jpeg"
+})
       });
       const json = await res.json();
       if (json.status !== "ok") throw new Error(json.message);
