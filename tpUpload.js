@@ -232,7 +232,7 @@
     // ═══════════════════════════════════════════════════════
     //  ÉTAT
     // ═══════════════════════════════════════════════════════
-    let _currentStyle  = null;  // { styleCode, rowIndex, existingUrl }
+    let _currentStyle  = null;
     let _selectedFile  = null;
     let _isBusy        = false;
 
@@ -244,19 +244,40 @@
         _selectedFile = null;
         _isBusy = false;
 
+        // ── CORRECTION : reset complet de l'input file à chaque ouverture ──
+        // Supprimer et recréer l'input pour éviter que le navigateur
+        // ne déclenche pas onChange si le même fichier est resélectionné
+        const oldInput = document.getElementById('tp-file-input');
+        if (oldInput) {
+            const newInput = document.createElement('input');
+            newInput.type = 'file';
+            newInput.id = 'tp-file-input';
+            newInput.accept = '.pdf,application/pdf';
+            newInput.style.display = 'none';
+            oldInput.parentNode.replaceChild(newInput, oldInput);
+            // Réattacher le listener sur le nouvel input
+            newInput.addEventListener('change', function (e) {
+                if (e.target.files[0]) selectFile(e.target.files[0]);
+                // Reset valeur pour permettre re-sélection du même fichier
+                newInput.value = '';
+            });
+        }
+
         // Reset UI
         document.getElementById('tp-header-sub').textContent = styleCode || '—';
         document.getElementById('tp-drop-title').textContent = 'Glissez le PDF ici';
         document.getElementById('tp-drop-sub').textContent   = 'ou cliquez pour choisir — PDF uniquement';
+        document.getElementById('tp-drop-icon').textContent  = '📂';
         document.getElementById('tp-drop').classList.remove('has-file', 'drag-over');
         document.getElementById('tp-progress').classList.remove('visible');
         document.getElementById('tp-progress-fill').style.width = '0%';
         document.getElementById('tp-upload-btn').disabled = true;
+        document.getElementById('tp-upload-btn').onclick  = tpExecuteUpload;
         document.getElementById('tp-upload-btn').innerHTML = `
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             ${existingUrl ? 'Mettre à jour le TP' : 'Uploader le TP'}`;
+        document.getElementById('tp-cancel-btn').disabled = false;
         document.getElementById('tp-footer-info').textContent = 'Sélectionnez un fichier PDF';
-        document.getElementById('tp-file-input').value = '';
 
         // TP existant
         const existingEl = document.getElementById('tp-existing');
@@ -293,8 +314,13 @@
     // ═══════════════════════════════════════════════════════
     //  DRAG & DROP / FILE SELECT
     // ═══════════════════════════════════════════════════════
-    const drop      = document.getElementById('tp-drop');
-    const fileInput = document.getElementById('tp-file-input');
+    const drop = document.getElementById('tp-drop');
+
+    // Listener initial sur l'input (sera remplacé à chaque tpOpen)
+    document.getElementById('tp-file-input').addEventListener('change', function (e) {
+        if (e.target.files[0]) selectFile(e.target.files[0]);
+        e.target.value = '';
+    });
 
     drop.addEventListener('dragover', function (e) {
         e.preventDefault();
@@ -310,11 +336,9 @@
         if (file) selectFile(file);
     });
     drop.addEventListener('click', function () {
-        if (!drop.classList.contains('has-file')) fileInput.click();
-    });
-    fileInput.addEventListener('change', function (e) {
-        if (e.target.files[0]) selectFile(e.target.files[0]);
-        fileInput.value = '';
+        // Toujours déclencher le clic sur l'input courant (peut avoir été recréé)
+        const currentInput = document.getElementById('tp-file-input');
+        if (currentInput) currentInput.click();
     });
 
     function selectFile(file) {
@@ -331,19 +355,11 @@
 
         _selectedFile = file;
         drop.classList.add('has-file');
-        document.getElementById('tp-drop-icon').textContent = '📄';
+        document.getElementById('tp-drop-icon').textContent  = '📄';
         document.getElementById('tp-drop-title').textContent = file.name;
         document.getElementById('tp-drop-sub').textContent   = (file.size / 1024).toFixed(0) + ' Ko — cliquez pour changer';
         document.getElementById('tp-upload-btn').disabled    = false;
         document.getElementById('tp-footer-info').textContent = 'Prêt à uploader';
-
-        // Clic sur drop avec fichier → changer
-        drop.classList.remove('has-file');
-        drop.addEventListener('click', function handler() {
-            fileInput.click();
-            drop.removeEventListener('click', handler);
-        }, { once: true });
-        drop.classList.add('has-file');
     }
 
     // ═══════════════════════════════════════════════════════
@@ -369,23 +385,22 @@
         const reader = new FileReader();
         reader.onload = async function (e) {
             try {
-                // base64 sans le préfixe "data:...;base64,"
-                const base64 = e.target.result.split(',')[1];
+                const base64   = e.target.result.split(',')[1];
                 const fileName = _currentStyle.styleCode + '.pdf';
 
                 document.getElementById('tp-progress-fill').style.width = '30%';
                 document.getElementById('tp-progress-label').textContent = 'Upload vers Google Drive…';
 
-                const res  = await fetch(gasUrl, {
+                const res = await fetch(gasUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     redirect: 'follow',
                     body: JSON.stringify({
-                        action:    'UPLOAD_TP',
-                        styleCode: _currentStyle.styleCode,
-                        fileName:  fileName,
+                        action:     'UPLOAD_TP',
+                        styleCode:  _currentStyle.styleCode,
+                        fileName:   fileName,
                         base64Data: base64,
-                        mimeType:  'application/pdf',
+                        mimeType:   'application/pdf',
                     })
                 });
 
@@ -464,14 +479,12 @@
 
     function _updateStateData(styleCode, url) {
         try {
-            // Mettre à jour state.data.style
             const styleData = (window.state && window.state.data && window.state.data.style) || [];
             const row = styleData.find(function (r) {
                 return String(r["Cust Style Ref"] || r.Style || r['Style Code'] || '').trim().toLowerCase() === String(styleCode).trim().toLowerCase();
             });
             if (row) row.TP_URL = url;
 
-            // Mettre à jour state.data.details (pour que le bouton TP dans Details passe au vert)
             const detailsData = (window.state && window.state.data && window.state.data.details) || [];
             detailsData.forEach(function (r) {
                 if (String(r["Cust Style Ref"] || r.Style || r['Style Code'] || '').trim().toLowerCase() === String(styleCode).trim().toLowerCase()) {
@@ -482,7 +495,6 @@
     }
 
     function _updateDashboardTpButton(styleCode, url) {
-        // Trouver la carte du dashboard pour ce style et mettre à jour le bouton TP
         var cards = document.querySelectorAll('.dbs-sc[data-style-raw="' + styleCode + '"]');
         cards.forEach(function (card) {
             var wrap = card.querySelector('.dbs-sc-tp-wrap');
@@ -497,16 +509,13 @@
     // ═══════════════════════════════════════════════════════
 
     function patchRenderTable() {
-        // Observer les mutations du tbody — s'active à chaque changement de feuille
         const tbody = document.getElementById('table-body');
         if (!tbody) { setTimeout(patchRenderTable, 500); return; }
 
         new MutationObserver(function () {
-            // Délai pour laisser le tableau se remplir complètement
             setTimeout(injectTpButtons, 200);
         }).observe(tbody, { childList: true });
 
-        // Écouter les clics sur les nav-items
         document.addEventListener('click', function (e) {
             const navItem = e.target.closest('.nav-item');
             if (navItem) setTimeout(injectTpButtons, 400);
@@ -522,10 +531,8 @@
         const tableRows = tbody.querySelectorAll('tr');
         if (!tableRows.length) return;
 
-        // Données Style (pour lookup TP_URL)
         const styleRows = window.state && window.state.data && window.state.data.style;
 
-        // Détecter si on est sur la feuille Details
         const thead = document.getElementById('table-head');
         const firstHeaderRow = thead && thead.querySelector('tr');
         if (!firstHeaderRow) return;
@@ -534,36 +541,26 @@
             return (h.textContent || '').trim().toLowerCase();
         });
 
-        // Colonnes caractéristiques de Details (qui contient la colonne Style)
         const detailsSignatures = ['style', 'saison', 'fabric base', 'costing', 'psd', 'ex-fty'];
         const matchCount = detailsSignatures.filter(function(sig) {
             return headers.some(function(h) { return h.includes(sig); });
         }).length;
 
-        // Si moins de 3 colonnes Details trouvées → pas sur Details
         if (matchCount < 3) return;
 
-        // Trouver l'index de la colonne Style dans le header
-        const styleColIndex = headers.findIndex(function(h) { return h === 'style'; });
-
-        // Données de la feuille active (details)
         const activeData = window.state && window.state.filteredData;
 
-        // Déjà injecté ?
         if (tbody.querySelector('.btn-tp')) return;
 
-        // Injecter les boutons TP
         tableRows.forEach(function (tr, i) {
             if (tr.querySelector('.btn-tp')) return;
 
-            // Récupérer le styleCode depuis la ligne du tableau ou les données filtrées
             let styleCode = '';
             if (activeData && activeData[i]) {
                 styleCode = String(activeData[i]["Cust Style Ref"] || activeData[i].Style || activeData[i]['Style Code'] || '').trim();
             } else {
-                // Recherche flexible dans les colonnes par nom
-                const styleHeaderIdx = headers.findIndex(function(h) { 
-                    return h === 'style' || h === 'cust style ref' || h.includes('style') || h.includes('ref'); 
+                const styleHeaderIdx = headers.findIndex(function(h) {
+                    return h === 'style' || h === 'cust style ref' || h.includes('style') || h.includes('ref');
                 });
                 if (styleHeaderIdx >= 0) {
                     const cells = tr.querySelectorAll('td');
@@ -574,17 +571,14 @@
             }
             if (!styleCode) return;
 
-            // Chercher TP_URL dans state.data.details (priorité), puis state.data.style, puis filteredData
             let existingUrl = '';
             let rowIndex = i + 2;
 
-            // 1. Chercher dans activeData (filteredData — données affichées)
             if (activeData && activeData[i]) {
                 existingUrl = String(activeData[i].TP_URL || activeData[i]['TP_URL'] || '').trim();
                 rowIndex = activeData[i]._rowIndex || rowIndex;
             }
 
-            // 2. Chercher dans state.data.details
             if (!existingUrl) {
                 const detailsRows = window.state && window.state.data && window.state.data.details;
                 if (detailsRows && detailsRows.length) {
@@ -598,7 +592,6 @@
                 }
             }
 
-            // 3. Fallback: chercher dans state.data.style
             if (!existingUrl && styleRows && styleRows.length) {
                 const matchedStyle = styleRows.find(function(s) {
                     return String(s["Cust Style Ref"] || s.Style || s['Style Code'] || '').trim().toLowerCase() === styleCode.toLowerCase();
@@ -628,7 +621,6 @@
             tr.appendChild(td);
         });
 
-        // Ajouter l'en-tête TP si absent
         if (firstHeaderRow && !firstHeaderRow.querySelector('.th-tp')) {
             const th = document.createElement('th');
             th.className     = 'th-tp';
