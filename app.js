@@ -2887,7 +2887,7 @@ async function sendRequest(action, payload, sheetOverride = null) {
 
 
 // ─── Image Upload ────────────────────────────────────────────
-function imgOpen(styleCode, rowIndex, currentUrl) {
+async function imgOpen(styleCode, rowIndex, currentUrl) {
   const input = document.createElement("input");
   input.type = "file";
   input.accept = "image/*";
@@ -2902,25 +2902,63 @@ function imgOpen(styleCode, rowIndex, currentUrl) {
     showToast("Upload de l'image en cours…", "info", 8000);
     try {
       const base64 = await _fileToBase64(fileToUpload);
+      const payload = {
+        action: "UPLOAD_IMAGE",
+        sheet: "details",
+        styleCode,
+        fileName,
+        base64Data: base64.split(",")[1],
+        mimeType: fileToUpload.type || "image/jpeg"
+      };
+
       const res = await fetch(GOOGLE_APPS_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         redirect: "follow",
-body: JSON.stringify({
-  action: "UPLOAD_IMAGE",
-  sheet: "details",
-  styleCode, fileName,
-  base64Data: base64.split(",")[1],
-  mimeType: fileToUpload.type || "image/jpeg"
-})
+        body: JSON.stringify(payload)
       });
+
       const json = await res.json();
-      if (json.status !== "ok") throw new Error(json.message);
+      if (json.status !== "ok") throw new Error(json.message || "Erreur GAS");
+
+      // Construire thumbUrl depuis fileId (plus fiable)
+      const fileId = json.fileId || "";
+      const thumbUrl = fileId
+        ? "https://lh3.googleusercontent.com/d/" + fileId
+        : (json.thumbUrl || json.url || "");
+
+      if (!thumbUrl) throw new Error("Aucune URL image retournée par le serveur.");
+
+      // Mettre à jour le state
       const row = (state.data.details || []).find(r => r._rowIndex === rowIndex);
-      if (row) { row["_imageUrl"] = json.thumbUrl; row["Image"] = json.url; }
+      if (row) {
+        row["_imageUrl"] = thumbUrl;
+        row["Image"]     = json.url || thumbUrl;
+      }
+
+      // Mettre à jour les cards du dashboard sans tout re-rendre
+      document.querySelectorAll(`.dbs-sc[data-style-raw="${CSS.escape(styleCode)}"]`).forEach(card => {
+        card.dataset.imageUrl = thumbUrl;
+        const imgWrap = card.querySelector(".dbs-sc-img-wrap");
+        if (imgWrap) {
+          const lbDesc = (card.dataset.descriptionFull || "").replace(/'/g, "\\'");
+          imgWrap.className = "dbs-sc-img-wrap";
+          imgWrap.innerHTML = `<img class="dbs-sc-img" src="${thumbUrl}" alt="${styleCode}" loading="lazy"
+            onclick="openImageLightbox(this.src, '${styleCode}', '${lbDesc}')"/>`;
+        }
+      });
+
+      // Rafraîchir le tableau si on est sur la vue sheet Details
+      if (state.activeView === "sheet" && state.activeSheet === "details") {
+        applyFilters();
+      }
+
       showToast("Image uploadée ✓", "success");
-      renderDashboard();
-    } catch (err) { showToast("Erreur upload image : " + err.message, "error"); }
+
+    } catch (err) {
+      console.error("[imgOpen] Erreur :", err);
+      showToast("Erreur upload image : " + err.message, "error");
+    }
   };
   input.click();
 }
