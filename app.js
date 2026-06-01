@@ -6914,125 +6914,136 @@ Rules:
         }
     }
 
-    function injectToolbar(card) {
-        if (card.querySelector(".dbs-card-toolbar")) return;
+function injectToolbar(card) {
+    if (card.querySelector(".dbs-card-toolbar")) return;
 
-        const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
-        const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
-        const imageUrl   = (card.dataset.imageUrl  || card.dataset.imageurl || "").trim();
+    const styleCode  = card.dataset.styleRaw   || card.dataset.style   || "";
+    const clientCode = card.dataset.clientRaw  || card.dataset.client  || "";
+    const imageUrl   = (card.dataset.imageUrl  || card.dataset.imageurl || "").trim();
 
-        // rowIdx lu une fois (ne change jamais)
-        const initialRow = _getLiveRow(styleCode, clientCode);
-        const rowIdx = initialRow?._rowIndex ?? null;
+    const initialRow = _getLiveRow(styleCode, clientCode);
+    const rowIdx = initialRow?._rowIndex ?? null;
 
-        // ── Bouton PDF ──────────────────────────────────────────
-        const btnPDF = document.createElement("button");
-        btnPDF.className = "dbs-tb-btn tb-pdf";
-        btnPDF.title = "Télécharger la fiche style en PDF";
-        btnPDF.setAttribute("aria-label", "Télécharger fiche style");
-        btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
-        btnPDF.onclick = (e) => {
-            e.stopPropagation();
-            if (!window.AWCheckers?.generateStylePDF) {
-                if (typeof showToast === "function") showToast("Générateur PDF non disponible", "error");
-                return;
+    // ── Badge CRP en overlay haut droite sur l'image ──────────
+    const crpRaw = (initialRow?.["CRP Status"] || initialRow?.["CRP_Status"] || "").trim();
+    if (crpRaw) {
+        const crpNorm = crpRaw.toLowerCase();
+        const crpCls  = crpNorm.includes("confirm") ? "crp-badge-confirmed"
+                      : crpNorm.includes("project")  ? "crp-badge-projection"
+                      : crpNorm.includes("book")      ? "crp-badge-booking"
+                      : "";
+        if (crpCls) {
+            const imgWrap = card.querySelector(".dbs-sc-img-wrap");
+            if (imgWrap && !imgWrap.querySelector(".crp-status-badge")) {
+                const badge = document.createElement("span");
+                badge.className = `crp-status-badge ${crpCls}`;
+                badge.innerHTML = `<span class="crp-dot"></span>${esc(crpRaw)}`;
+                imgWrap.appendChild(badge);
             }
-            btnPDF.disabled = true;
-            btnPDF.innerHTML = `<i class="ti ti-loader-2" aria-hidden="true"></i><span>PDF...</span>`;
-            const data = _extractCardData(card);
-            window.AWCheckers.generateStylePDF(data).finally(() => {
-                btnPDF.disabled = false;
-                btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
-            });
-        };
-
-        // ── Bouton Image ────────────────────────────────────────
-        const btnImg = document.createElement("button");
-        btnImg.className = "dbs-tb-btn tb-img" + (imageUrl ? " has-img" : "");
-        btnImg.title = imageUrl ? "Changer l'image du style" : "Ajouter une image";
-        btnImg.setAttribute("aria-label", imageUrl ? "Changer l'image" : "Ajouter une image");
-        btnImg.innerHTML = `<i class="ti ti-photo-up" aria-hidden="true"></i><span>Image</span>`;
-        btnImg.onclick = (e) => {
-            e.stopPropagation();
-            if (!rowIdx) {
-                if (typeof showToast === "function") showToast("Ligne introuvable", "error");
-                return;
-            }
-            if (typeof imgOpen === "function") imgOpen(styleCode, rowIdx, imageUrl);
-        };
-
-        // ── Bouton Tech Pack ────────────────────────────────────
-        // L'état (has-tp / no-tp) est recalculé à CHAQUE CLIC depuis state.data.details
-        // pour refléter immédiatement un TP uploadé sans rechargement.
-        const btnTP = document.createElement("button");
-        btnTP.className = "dbs-tb-btn tb-tp";
-        btnTP.setAttribute("aria-label", "Tech Pack");
-
-        // Initialisation visuelle au moment de l'injection
-        const initialTpUrl = (initialRow?.TP_URL || initialRow?.["TP_URL"] || "").trim();
-        _refreshTPButton(btnTP, initialTpUrl);
-
-        btnTP.onclick = (e) => {
-            e.stopPropagation();
-            document.querySelectorAll(".dbs-tp-inline-menu").forEach(m => m.remove());
-
-            // Lire l'URL TP en temps réel depuis state
-            const liveRow = _getLiveRow(styleCode, clientCode);
-            const liveTpUrl = (liveRow?.TP_URL || liveRow?.["TP_URL"] || "").trim();
-
-            // Rafraîchir l'apparence du bouton selon l'état actuel
-            _refreshTPButton(btnTP, liveTpUrl);
-
-            if (liveTpUrl) {
-                // TP existe → menu Ouvrir / Modifier
-                const menu = document.createElement("div");
-                menu.className = "dbs-tp-inline-menu";
-
-                const optOpen = document.createElement("button");
-                optOpen.className = "dbs-tp-menu-btn";
-                optOpen.innerHTML = `<i class="ti ti-external-link" style="font-size:13px;color:var(--color-text-info,#1d4ed8)" aria-hidden="true"></i> Ouvrir le TP`;
-                optOpen.onclick = (ev) => { ev.stopPropagation(); window.open(liveTpUrl, "_blank"); menu.remove(); };
-
-                const optEdit = document.createElement("button");
-                optEdit.className = "dbs-tp-menu-btn";
-                optEdit.innerHTML = `<i class="ti ti-upload" style="font-size:13px;color:var(--color-text-warning,#92400e)" aria-hidden="true"></i> Modifier le TP`;
-                optEdit.onclick = (ev) => {
-                    ev.stopPropagation();
-                    if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, liveTpUrl);
-                    menu.remove();
-                };
-
-                menu.appendChild(optOpen);
-                menu.appendChild(optEdit);
-
-                const toolbar = btnTP.closest(".dbs-card-toolbar");
-                if (toolbar) {
-                    toolbar.style.position = "relative";
-                    toolbar.appendChild(menu);
-                }
-                setTimeout(() => {
-                    document.addEventListener("click", () => menu.remove(), { once: true });
-                }, 0);
-
-            } else {
-                // Pas de TP → upload direct
-                if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, "");
-            }
-        };
-
-        // ── Assemblage ──────────────────────────────────────────
-        const toolbar = document.createElement("div");
-        toolbar.className = "dbs-card-toolbar";
-        toolbar.appendChild(btnPDF);
-        toolbar.appendChild(btnImg);
-        toolbar.appendChild(btnTP);
-        card.appendChild(toolbar);
-
-        // Supprimer les anciens boutons flottants isolés
-        card.querySelectorAll(
-            ".dbs-sc-tp-wrap, .dbs-sc-tp-btn, .dbs-pdf-btn, .dbs-img-upload-btn"
-        ).forEach(el => el.remove());
+        }
     }
+
+    // ── Bouton PDF ──────────────────────────────────────────
+    const btnPDF = document.createElement("button");
+    btnPDF.className = "dbs-tb-btn tb-pdf";
+    btnPDF.title = "Télécharger la fiche style en PDF";
+    btnPDF.setAttribute("aria-label", "Télécharger fiche style");
+    btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
+    btnPDF.onclick = (e) => {
+        e.stopPropagation();
+        if (!window.AWCheckers?.generateStylePDF) {
+            if (typeof showToast === "function") showToast("Générateur PDF non disponible", "error");
+            return;
+        }
+        btnPDF.disabled = true;
+        btnPDF.innerHTML = `<i class="ti ti-loader-2" aria-hidden="true"></i><span>PDF...</span>`;
+        const data = _extractCardData(card);
+        window.AWCheckers.generateStylePDF(data).finally(() => {
+            btnPDF.disabled = false;
+            btnPDF.innerHTML = `<i class="ti ti-file-download" aria-hidden="true"></i><span>Fiche</span>`;
+        });
+    };
+
+    // ── Bouton Image ────────────────────────────────────────
+    const btnImg = document.createElement("button");
+    btnImg.className = "dbs-tb-btn tb-img" + (imageUrl ? " has-img" : "");
+    btnImg.title = imageUrl ? "Changer l'image du style" : "Ajouter une image";
+    btnImg.setAttribute("aria-label", imageUrl ? "Changer l'image" : "Ajouter une image");
+    btnImg.innerHTML = `<i class="ti ti-photo-up" aria-hidden="true"></i><span>Image</span>`;
+    btnImg.onclick = (e) => {
+        e.stopPropagation();
+        if (!rowIdx) {
+            if (typeof showToast === "function") showToast("Ligne introuvable", "error");
+            return;
+        }
+        if (typeof imgOpen === "function") imgOpen(styleCode, rowIdx, imageUrl);
+    };
+
+    // ── Bouton Tech Pack ────────────────────────────────────
+    const btnTP = document.createElement("button");
+    btnTP.className = "dbs-tb-btn tb-tp";
+    btnTP.setAttribute("aria-label", "Tech Pack");
+
+    const initialTpUrl = (initialRow?.TP_URL || initialRow?.["TP_URL"] || "").trim();
+    _refreshTPButton(btnTP, initialTpUrl);
+
+    btnTP.onclick = (e) => {
+        e.stopPropagation();
+        document.querySelectorAll(".dbs-tp-inline-menu").forEach(m => m.remove());
+
+        const liveRow   = _getLiveRow(styleCode, clientCode);
+        const liveTpUrl = (liveRow?.TP_URL || liveRow?.["TP_URL"] || "").trim();
+
+        _refreshTPButton(btnTP, liveTpUrl);
+
+        if (liveTpUrl) {
+            const menu = document.createElement("div");
+            menu.className = "dbs-tp-inline-menu";
+
+            const optOpen = document.createElement("button");
+            optOpen.className = "dbs-tp-menu-btn";
+            optOpen.innerHTML = `<i class="ti ti-external-link" style="font-size:13px;color:var(--color-text-info,#1d4ed8)" aria-hidden="true"></i> Ouvrir le TP`;
+            optOpen.onclick = (ev) => { ev.stopPropagation(); window.open(liveTpUrl, "_blank"); menu.remove(); };
+
+            const optEdit = document.createElement("button");
+            optEdit.className = "dbs-tp-menu-btn";
+            optEdit.innerHTML = `<i class="ti ti-upload" style="font-size:13px;color:var(--color-text-warning,#92400e)" aria-hidden="true"></i> Modifier le TP`;
+            optEdit.onclick = (ev) => {
+                ev.stopPropagation();
+                if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, liveTpUrl);
+                menu.remove();
+            };
+
+            menu.appendChild(optOpen);
+            menu.appendChild(optEdit);
+
+            const toolbar = btnTP.closest(".dbs-card-toolbar");
+            if (toolbar) {
+                toolbar.style.position = "relative";
+                toolbar.appendChild(menu);
+            }
+            setTimeout(() => {
+                document.addEventListener("click", () => menu.remove(), { once: true });
+            }, 0);
+
+        } else {
+            if (typeof tpOpen === "function") tpOpen(styleCode, rowIdx ?? 2, "");
+        }
+    };
+
+    // ── Assemblage toolbar ──────────────────────────────────
+    const toolbar = document.createElement("div");
+    toolbar.className = "dbs-card-toolbar";
+    toolbar.appendChild(btnPDF);
+    toolbar.appendChild(btnImg);
+    toolbar.appendChild(btnTP);
+    card.appendChild(toolbar);
+
+    // Supprimer anciens boutons flottants isolés
+    card.querySelectorAll(
+        ".dbs-sc-tp-wrap, .dbs-sc-tp-btn, .dbs-pdf-btn, .dbs-img-upload-btn"
+    ).forEach(el => el.remove());
+}
 
     function scanCards() {
         document.querySelectorAll(".dbs-sc").forEach(injectToolbar);
