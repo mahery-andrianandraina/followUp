@@ -6616,5 +6616,59 @@ td.editing-cell {
     min-height: 56px;
     resize: vertical;
 }
+/* ─── CRP Status Badge (overlay haut droite sur image card) ── */
+.crp-status-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 0.5px solid;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: .01em;
+    line-height: 1;
+    pointer-events: none;
+    z-index: 2;
+}
 
+.crp-status-badge .crp-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.crp-badge-booking {
+    background: rgba(250, 238, 218, 0.92);
+    color: #633806;
+    border-color: #FAC775;
+}
+
+.crp-badge-booking .crp-dot {
+    background: #BA7517;
+}
+
+.crp-badge-projection {
+    background: rgba(230, 241, 251, 0.92);
+    color: #0C447C;
+    border-color: #85B7EB;
+}
+
+.crp-badge-projection .crp-dot {
+    background: #378ADD;
+}
+
+.crp-badge-confirmed {
+    background: rgba(234, 243, 222, 0.92);
+    color: #27500A;
+    border-color: #97C459;
+}
+
+.crp-badge-confirmed .crp-dot {
+    background: #639922;
+}
 
