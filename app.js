@@ -2315,10 +2315,12 @@ function registerCustomMenu(menuDef, save = true) {
         btn.role = "tab";
         btn.setAttribute("aria-selected", "false");
         btn.id = "tab-custom-" + key;
-        const iconClass = menuDef.icon || "ti-folder";
+        const iconId = menuDef.icon || "ti-folder";
+        const iconDef = (typeof MB_ICONS !== 'undefined' && MB_ICONS.find(i => i.id === iconId)) || null;
+        const iconSvgInner = iconDef ? iconDef.svg : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>';
         btn.innerHTML =
             '<span class="nav-icon">' +
-            '<i class="ti ' + iconClass + '" style="font-size:20px;"></i>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">' + iconSvgInner + '</svg>' +
             '</span>' +
             '<span class="nav-label">' + esc(menuDef.label) + '</span>' +
             '<button class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit(\'' + key + '\')" title="Modifier">' +
@@ -2362,33 +2364,78 @@ function persistCustomMenus() {
         .catch(() => { }); // silencieux si GAS non connecté
 }
 
+// ── Icon definitions (SVG, same style as sidebar nav icons) ────
+const MB_ICONS = [
+    { id: "ti-folder",       svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 7a2 2 0 012-2h4l2 2h7a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>' },
+    { id: "ti-file-text",    svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>' },
+    { id: "ti-box",          svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2l9 4.5V18L12 22 3 17.5V6.5L12 2z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22V12M12 12L3 6.5M12 12l9-5.5"/>' },
+    { id: "ti-users",        svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4" stroke-width="1.8" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>' },
+    { id: "ti-chart-bar",    svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 20V10M12 20V4M6 20v-6"/>' },
+    { id: "ti-truck",        svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M1 3h15v13H1zM16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5" stroke-width="1.8"/><circle cx="18.5" cy="18.5" r="2.5" stroke-width="1.8"/>' },
+    { id: "ti-calendar",     svg: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke-width="1.8" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 2v4M8 2v4M3 10h18"/>' },
+    { id: "ti-cart",         svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 10a4 4 0 01-8 0"/>' },
+    { id: "ti-clipboard",    svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 14l2 2 4-4"/>' },
+    { id: "ti-camera",       svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4" stroke-width="1.8"/>' },
+    { id: "ti-shirt",        svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.57a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.57a2 2 0 00-1.34-2.23z"/>' },
+    { id: "ti-scissors",     svg: '<circle cx="6" cy="6" r="3" stroke-width="1.8"/><circle cx="6" cy="18" r="3" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/>' },
+    { id: "ti-ruler",        svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21.3 8.7l-1 1-2-2 1-1a1 1 0 011.4 0l.6.6a1 1 0 010 1.4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14.5 15.5l5-5-6-6-5 5M3.5 20.5l3-3M8 12l-4.5 4.5a1 1 0 000 1.4l2.6 2.6a1 1 0 001.4 0L12 16"/>' },
+    { id: "ti-palette",      svg: '<circle cx="13.5" cy="6.5" r=".5" stroke-width="2"/><circle cx="17.5" cy="10.5" r=".5" stroke-width="2"/><circle cx="8.5" cy="7.5" r=".5" stroke-width="2"/><circle cx="6.5" cy="12.5" r=".5" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>' },
+    { id: "ti-tag",          svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7" stroke-width="2.5" stroke-linecap="round"/>' },
+    { id: "ti-thread",       svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 4l16 16M4 8l12 12M8 4l12 12M4 12l8 8M12 4l8 8"/>' },
+    { id: "ti-layers",       svg: '<polygon points="12 2 2 7 12 12 22 7 12 2" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="2 17 12 22 22 17" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><polyline points="2 12 12 17 22 12" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: "ti-grid",         svg: '<rect x="3" y="3" width="7" height="7" stroke-width="1.8" stroke-linecap="round"/><rect x="14" y="3" width="7" height="7" stroke-width="1.8" stroke-linecap="round"/><rect x="14" y="14" width="7" height="7" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="14" width="7" height="7" stroke-width="1.8" stroke-linecap="round"/>' },
+    { id: "ti-package",      svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 2l10 5.5V17L12 22 2 16.5V7.5L12 2z"/><polyline stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" points="2 7 12 12 22 7"/><line x1="12" y1="22" x2="12" y2="12" stroke-width="1.8" stroke-linecap="round"/><line x1="7" y1="4.5" x2="17" y2="9.5" stroke-width="1.8" stroke-linecap="round"/>' },
+    { id: "ti-settings",     svg: '<circle cx="12" cy="12" r="3" stroke-width="1.8"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>' },
+    { id: "ti-flask",        svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 3h6M9 3v8L4 20h16L15 11V3M9 3h6"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M6.5 16h11"/>' },
+    { id: "ti-barcode",      svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 5v4M7 5v4M11 5v4M15 5v4M19 5v4M3 15v4M7 15v4M11 15v4M15 15v4M19 15v4"/><rect x="2" y="10" width="20" height="4" stroke-width="1.8" stroke-linecap="round"/>' },
+    { id: "ti-home",         svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 21V12h6v9"/>' },
+    { id: "ti-bell",         svg: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>' },
+];
+
 // ── Icon Selector Renderer ──────────────────────────────────────
 function renderIconSelector(selectedIcon) {
     const container = document.getElementById("mb-icon-selector");
     if (!container) return;
-    const icons = ["ti-folder", "ti-file-text", "ti-box", "ti-users", "ti-chart-bar", "ti-truck", "ti-calendar-event", "ti-shopping-cart", "ti-clipboard-list", "ti-camera", "ti-shirt", "ti-scissors", "ti-ruler", "ti-color-swatch", "ti-tag", "ti-needle-thread", "ti-hanger", "ti-trolley"];
-    let html = '';
-    icons.forEach(ic => {
-        const isSel = ic === selectedIcon;
-        html += `<div class="mb-icon-opt ${isSel ? 'selected' : ''}" style="padding:6px; cursor:pointer; border-radius:6px; border:2px solid ${isSel ? 'var(--primary)' : 'transparent'}; background:${isSel ? 'rgba(99,102,241,0.1)' : 'transparent'};" onclick="mbSelectIcon('${ic}')">
-            <i class="ti ${ic}" style="font-size:24px; color:${isSel ? 'var(--primary)' : '#64748b'};"></i>
+    container.innerHTML = MB_ICONS.map(ic => {
+        const isSel = ic.id === selectedIcon;
+        return `<div title="${ic.id}" onclick="mbSelectIcon('${ic.id}')" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:2px solid ${isSel ? 'var(--primary)' : 'transparent'};background:${isSel ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.03)'};cursor:pointer;transition:all .15s;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="${isSel ? 'var(--primary)' : '#94a3b8'}" width="20" height="20">${ic.svg}</svg>
         </div>`;
-    });
-    container.innerHTML = html;
+    }).join('');
     document.getElementById("mb-menu-icon").value = selectedIcon || "ti-folder";
+    // Update preview
+    const prev = document.getElementById("mb-icon-preview");
+    if (prev) {
+        const found = MB_ICONS.find(i => i.id === selectedIcon) || MB_ICONS[0];
+        prev.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="var(--primary)" width="22" height="22">${found.svg}</svg>`;
+    }
 }
 
 window.mbSelectIcon = function(ic) {
     renderIconSelector(ic);
+    // Close panel after selection
+    const panel = document.getElementById("mb-icon-panel");
+    if (panel) panel.style.display = "none";
 }
 
-// ── Open builder (new) ────────────────────────────────────────
+window.mbToggleIconPicker = function() {
+    const panel = document.getElementById("mb-icon-panel");
+    if (!panel) return;
+    const isOpen = panel.style.display !== "none";
+    panel.style.display = isOpen ? "none" : "block";
+    const btn = document.getElementById("mb-icon-toggle-btn");
+    if (btn) btn.textContent = isOpen ? "▸ Choisir une icône" : "▴ Fermer";
+}
+
+// ── Open builder (new) ────────────────────────────────────────────────────────────────────────────────
 function openMenuBuilder() {
     mbEditingKey = null;
     mbColumns = [
         { label: "", type: "text", required: false }
     ];
     document.getElementById("mb-menu-name").value = "";
+    const panel = document.getElementById("mb-icon-panel");
+    if (panel) panel.style.display = "none";
     renderIconSelector("ti-folder");
     document.getElementById("menu-builder-title").textContent = "Créer un menu";
     document.getElementById("mb-save-btn").textContent = "Créer le menu";
@@ -2582,7 +2629,9 @@ async function saveMenuBuilder() {
             const navBtn = document.getElementById("tab-custom-" + key);
             if (navBtn) {
                 navBtn.querySelector(".nav-label").textContent = menuDef.label;
-                navBtn.querySelector(".nav-icon").innerHTML = '<i class="ti ' + menuDef.icon + '" style="font-size:20px;"></i>';
+                const iconDef2 = MB_ICONS && MB_ICONS.find(i => i.id === menuDef.icon);
+                const svgInner2 = iconDef2 ? iconDef2.svg : MB_ICONS[0].svg;
+                navBtn.querySelector(".nav-icon").innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18">' + svgInner2 + '</svg>';
             }
         }
 
