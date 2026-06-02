@@ -245,41 +245,46 @@
             <button id="sp-gas-save" onclick="spSaveGas()">Enregistrer et recharger</button>
           </div>
 
-          <!-- Sync offline — Download -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncDownload==='function')openSyncDownload();},150)">
-            <div class="sp-item-icon sp-ic-green">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Télécharger GS → Excel</div>
-              <div class="sp-item-sub">Export offline du matin</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
+          <!-- Groupement Excel -->
+          <div style="margin: 8px 12px; border: 1px solid var(--color-border-tertiary, #e5e7eb); border-radius: 12px; background: var(--color-background-secondary, #f9fafb); overflow: hidden;">
+            <div style="padding: 10px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary, #6b7280); letter-spacing: .05em;">Cycle de travail Excel</div>
+            
+            <!-- Sync offline — Download -->
+            <button class="sp-item" style="border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);" onclick="spClose();setTimeout(function(){if(typeof openSyncDownload==='function')openSyncDownload();},150)">
+              <div class="sp-item-icon sp-ic-green">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              </div>
+              <div class="sp-item-body">
+                <div class="sp-item-title">Télécharger GS → Excel</div>
+                <div class="sp-item-sub">Export offline du matin</div>
+              </div>
+              <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </button>
 
-          <!-- Sync offline — Upload -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openSyncUpload==='function')openSyncUpload();},150)">
-            <div class="sp-item-icon sp-ic-blue">
-              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Uploader Excel → GS</div>
-              <div class="sp-item-sub">Synchroniser les modifications du soir</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
+            <!-- Sync offline — Upload -->
+            <button class="sp-item" style="border-bottom: 0.5px solid var(--color-border-tertiary, #e5e7eb);" onclick="spClose();setTimeout(function(){if(typeof openSyncUpload==='function')openSyncUpload();},150)">
+              <div class="sp-item-icon sp-ic-blue">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="sp-item-body">
+                <div class="sp-item-title">Uploader Excel → GS</div>
+                <div class="sp-item-sub">Synchroniser les modifications du soir</div>
+              </div>
+              <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </button>
 
-          <!-- Import Excel -->
-          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openXlImport==='function')openXlImport();},150)">
-            <div class="sp-item-icon sp-ic-indigo">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-            </div>
-            <div class="sp-item-body">
-              <div class="sp-item-title">Import Excel</div>
-              <div class="sp-item-sub">Importer un fichier vers Google Sheets</div>
-            </div>
-            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
-          </button>
+            <!-- Import Excel -->
+            <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openXlImport==='function')openXlImport();},150)">
+              <div class="sp-item-icon sp-ic-indigo">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <div class="sp-item-body">
+                <div class="sp-item-title">Import Excel</div>
+                <div class="sp-item-sub">Importer un fichier vers Google Sheets</div>
+              </div>
+              <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </button>
+          </div>
 
           <div class="sp-sep"></div>
 
@@ -307,6 +312,18 @@
             <div class="sp-item-body">
               <div class="sp-item-title">Créer un menu</div>
               <div class="sp-item-sub" id="sp-menus-sub">Ajouter une feuille personnalisée</div>
+            </div>
+            <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+          </button>
+
+          <!-- Journal d'activité -->
+          <button class="sp-item" onclick="spClose();setTimeout(function(){if(typeof openActivityLog==='function')openActivityLog();},150)">
+            <div class="sp-item-icon sp-ic-slate" style="background:#ede9fe; color:#7c3aed;">
+              <svg viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="sp-item-body">
+              <div class="sp-item-title">Journal d'activité</div>
+              <div class="sp-item-sub">Historique des modifications</div>
             </div>
             <div class="sp-item-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
           </button>

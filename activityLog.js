@@ -590,7 +590,7 @@
         hookSendRequest();
         hookImgOpen();
         hookTpUpload();
-        injectSidebarButton();
+        // injectSidebarButton(); // Déplacé dans les paramètres
 
         if (!window._sendRequestHooked || !window._imgOpenHooked) {
             setTimeout(tryHook, 1000);
