@@ -308,10 +308,32 @@ function doPost(e) {
       if (dataLog.length < 2) {
         return ContentService.createTextOutput(JSON.stringify({ status: "ok", logs: [] })).setMimeType(ContentService.MimeType.JSON);
       }
-      var headersLog = dataLog[0].map(function(h) { return String(h).trim(); });
+      var headersLogRaw = dataLog[0].map(function(h) { return String(h).trim().toLowerCase(); });
+      var keyMapping = [];
+      for (var i = 0; i < headersLogRaw.length; i++) {
+        var h = headersLogRaw[i];
+        if (h.indexOf('time') !== -1 || h.indexOf('date') !== -1) keyMapping[i] = 'timestamp';
+        else if (h.indexOf('user') !== -1 || h.indexOf('util') !== -1) keyMapping[i] = 'user';
+        else if (h.indexOf('action') !== -1) keyMapping[i] = 'action';
+        else if (h.indexOf('sheet') !== -1 || h.indexOf('feuille') !== -1) keyMapping[i] = 'sheet';
+        else if (h.indexOf('style') !== -1) keyMapping[i] = 'style';
+        else if (h.indexOf('row') !== -1 || h.indexOf('ligne') !== -1) keyMapping[i] = 'rowIndex';
+        else if (h.indexOf('field') !== -1 || h.indexOf('champ') !== -1) keyMapping[i] = 'field';
+        else if (h.indexOf('old') !== -1 || h.indexOf('ancien') !== -1) keyMapping[i] = 'oldValue';
+        else if (h.indexOf('new') !== -1 || h.indexOf('nouveau') !== -1) keyMapping[i] = 'newValue';
+        else if (h.indexOf('detail') !== -1 || h.indexOf('détail') !== -1 || h.indexOf('desc') !== -1) keyMapping[i] = 'detail';
+        else keyMapping[i] = h; // fallback
+      }
+
       var logs = dataLog.slice(1).map(function(row) {
         var obj = {};
-        headersLog.forEach(function(h, j) { obj[h] = row[j]; });
+        keyMapping.forEach(function(key, j) { 
+          var val = row[j];
+          if (key === 'timestamp' && val instanceof Date) {
+            val = val.toISOString();
+          }
+          obj[key] = val; 
+        });
         return obj;
       }).reverse(); // Du plus récent au plus ancien
       return ContentService.createTextOutput(JSON.stringify({ status: "ok", logs: logs })).setMimeType(ContentService.MimeType.JSON);
