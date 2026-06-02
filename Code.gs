@@ -271,6 +271,52 @@ function doPost(e) {
       }
     }
 
+    // ── JOURNAL D'ACTIVITE (LOGS) ──
+    if (action === "LOG_ACTIVITY") {
+      var sheetNameLog = payload.sheet || "_activity_log";
+      var ss2 = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var logSheet = ss2.getSheetByName(sheetNameLog);
+      if (!logSheet) {
+        logSheet = ss2.insertSheet(sheetNameLog);
+        logSheet.hideSheet();
+        logSheet.appendRow(["timestamp", "user", "action", "sheet", "style", "rowIndex", "field", "oldValue", "newValue", "detail"]);
+      }
+      var entry = payload.entry || {};
+      logSheet.appendRow([
+        entry.timestamp || new Date().toISOString(),
+        entry.user || "",
+        entry.action || "",
+        entry.sheet || "",
+        entry.style || "",
+        entry.rowIndex || "",
+        entry.field || "",
+        entry.oldValue || "",
+        entry.newValue || "",
+        entry.detail || ""
+      ]);
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (action === "GET_LOGS") {
+      var sheetNameLogGet = payload.sheet || "_activity_log";
+      var ss2Get = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var logSheetGet = ss2Get.getSheetByName(sheetNameLogGet);
+      if (!logSheetGet) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok", logs: [] })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var dataLog = logSheetGet.getDataRange().getValues();
+      if (dataLog.length < 2) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok", logs: [] })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var headersLog = dataLog[0].map(function(h) { return String(h).trim(); });
+      var logs = dataLog.slice(1).map(function(row) {
+        var obj = {};
+        headersLog.forEach(function(h, j) { obj[h] = row[j]; });
+        return obj;
+      }).reverse(); // Du plus récent au plus ancien
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok", logs: logs })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ── GESTION DONNÉES (CREATE/UPDATE/DELETE) ──
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     let sheetKey = payload.sheet;

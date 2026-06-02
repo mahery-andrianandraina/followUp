@@ -365,16 +365,39 @@
                 const styleVal = data ? (data['Cust Style Ref'] || data['Style'] || data['style'] || '') : '';
 
                 let detail = '';
+                let oldValForLog = '';
+                let newValForLog = '';
+
                 if (action === 'CREATE') {
                     detail = 'Nouvelle ligne ajoutée';
                     if (styleVal) detail += ' · Style ' + styleVal;
                 } else if (action === 'UPDATE') {
                     detail = 'Ligne ' + (rowIdx || '?') + ' modifiée';
                     if (styleVal) detail += ' · Style ' + styleVal;
-                    // Tenter de détecter le champ modifié
-                    if (data && Object.keys(data).length <= 3) {
-                        const fields = Object.keys(data).filter(function (k) { return k !== '_rowIndex'; });
-                        if (fields.length) detail += ' · ' + fields.join(', ');
+                    
+                    let oldValText = '';
+                    const fields = data ? Object.keys(data).filter(function(k) { return k !== '_rowIndex'; }) : [];
+                    
+                    if (window.state && window.state.data && window.state.data[sheet] && data) {
+                        const oldRow = window.state.data[sheet].find(function(r) { return String(r._rowIndex) === String(rowIdx); });
+                        if (oldRow && fields.length > 0) {
+                            oldValText = fields.map(function(f) { 
+                                const o = oldRow[f] || 'Vide';
+                                const n = data[f] || 'Vide';
+                                return o + ' devient ' + n; // Simplified "IN TRANSIT devient Delivered"
+                            }).join(', ');
+                            
+                            if (fields.length === 1) {
+                                oldValForLog = oldRow[fields[0]] || 'Vide';
+                                newValForLog = data[fields[0]] || 'Vide';
+                            }
+                        }
+                    }
+                    
+                    if (oldValText) {
+                        detail += ' · ' + oldValText;
+                    } else if (fields.length > 0 && fields.length <= 3) {
+                        detail += ' · ' + fields.join(', ');
                     }
                 } else if (action === 'DELETE') {
                     detail = 'Ligne ' + (rowIdx || '?') + ' supprimée';
@@ -383,7 +406,9 @@
                 window.logActivity(action, sheet, detail, {
                     style: styleVal,
                     rowIndex: rowIdx || '',
-                    field: data ? Object.keys(data).filter(function (k) { return k !== '_rowIndex'; }).join(', ') : ''
+                    field: data ? Object.keys(data).filter(function (k) { return k !== '_rowIndex'; }).join(', ') : '',
+                    oldValue: String(oldValForLog),
+                    newValue: String(newValForLog)
                 });
             }
 
