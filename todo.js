@@ -1643,7 +1643,7 @@
 
     // ─── Init ─────────────────────────────────────────────────
     function _init() {
-        _injectNavItem();
+        // _injectNavItem();
         _injectPanel();
         _injectTodoFab();
 
