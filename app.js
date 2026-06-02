@@ -2396,52 +2396,82 @@ const MB_ICONS = [
 function renderIconSelector(selectedIcon) {
     const container = document.getElementById("mb-icon-selector");
     if (!container) return;
+
     container.innerHTML = MB_ICONS.map(ic => {
         const isSel = ic.id === selectedIcon;
-        return `<div title="${ic.id}" onclick="mbSelectIcon('${ic.id}')" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:2px solid ${isSel ? 'var(--primary)' : 'transparent'};background:${isSel ? 'rgba(99,102,241,0.12)' : 'rgba(255,255,255,0.03)'};cursor:pointer;transition:all .15s;">
+        return `<div class="mb-icon-item${isSel ? ' active' : ''}" title="${ic.id}" onclick="mbSelectIcon('${ic.id}')">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="${isSel ? 'var(--primary)' : '#94a3b8'}" width="20" height="20">${ic.svg}</svg>
         </div>`;
     }).join('');
+
     document.getElementById("mb-menu-icon").value = selectedIcon || "ti-folder";
-    // Update preview
+    _updateIconPreview(selectedIcon);
+}
+
+function _updateIconPreview(iconId) {
+    const found = MB_ICONS.find(i => i.id === iconId) || MB_ICONS[0];
+
+    // Update preview box
     const prev = document.getElementById("mb-icon-preview");
-    if (prev) {
-        const found = MB_ICONS.find(i => i.id === selectedIcon) || MB_ICONS[0];
-        prev.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="var(--primary)" width="22" height="22">${found.svg}</svg>`;
-    }
+    if (prev) prev.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="var(--primary)" width="20" height="20">${found.svg}</svg>`;
+
+    // Update label text
+    const lbl = document.getElementById("mb-icon-field-label");
+    if (lbl) lbl.textContent = found.id.replace("ti-", "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
 window.mbSelectIcon = function(ic) {
     renderIconSelector(ic);
-    // Close panel after selection
-    const panel = document.getElementById("mb-icon-panel");
-    if (panel) panel.style.display = "none";
-}
+    mbCloseIconPicker();
+};
 
 window.mbToggleIconPicker = function() {
-    const panel = document.getElementById("mb-icon-panel");
-    if (!panel) return;
-    const isOpen = panel.style.display !== "none";
-    panel.style.display = isOpen ? "none" : "block";
-    const btn = document.getElementById("mb-icon-toggle-btn");
-    if (btn) btn.textContent = isOpen ? "▸ Choisir une icône" : "▴ Fermer";
-}
+    const popup   = document.getElementById("mb-icon-popup");
+    const backdrop = document.getElementById("mb-icon-popup-backdrop");
+    if (!popup) return;
+    const isOpen = popup.style.display !== "none";
+    if (isOpen) {
+        mbCloseIconPicker();
+    } else {
+        // Render fresh with current selection
+        renderIconSelector(document.getElementById("mb-menu-icon").value || "ti-folder");
+        popup.style.display    = "block";
+        if (backdrop) backdrop.style.display = "block";
+        // Animate in
+        popup.style.opacity    = "0";
+        popup.style.transform  = "translate(-50%,-50%) scale(0.95)";
+        popup.style.transition = "opacity 0.18s, transform 0.18s";
+        requestAnimationFrame(() => {
+            popup.style.opacity   = "1";
+            popup.style.transform = "translate(-50%,-50%) scale(1)";
+        });
+    }
+};
 
-// ── Open builder (new) ────────────────────────────────────────────────────────────────────────────────
+window.mbCloseIconPicker = function() {
+    const popup    = document.getElementById("mb-icon-popup");
+    const backdrop = document.getElementById("mb-icon-popup-backdrop");
+    if (popup) {
+        popup.style.opacity   = "0";
+        popup.style.transform = "translate(-50%,-50%) scale(0.95)";
+        setTimeout(() => { popup.style.display = "none"; }, 160);
+    }
+    if (backdrop) backdrop.style.display = "none";
+};
+
+// ── Open builder (new) ────────────────────────────────────────
 function openMenuBuilder() {
     mbEditingKey = null;
-    mbColumns = [
-        { label: "", type: "text", required: false }
-    ];
+    mbColumns = [{ label: "", type: "text", required: false }];
     document.getElementById("mb-menu-name").value = "";
-    const panel = document.getElementById("mb-icon-panel");
-    if (panel) panel.style.display = "none";
+    mbCloseIconPicker();
     renderIconSelector("ti-folder");
     document.getElementById("menu-builder-title").textContent = "Créer un menu";
     document.getElementById("mb-save-btn").textContent = "Créer le menu";
     renderMbColumns();
     document.getElementById("menu-builder-overlay").classList.add("open");
 }
+
 
 // ── Open builder (edit existing) ─────────────────────────────
 function openMenuEdit(key) {
@@ -2460,6 +2490,7 @@ function openMenuEdit(key) {
         nameInput.style.opacity = cfg.custom ? "" : "0.5";
         nameInput.title = cfg.custom ? "" : "Le nom de ce menu ne peut pas être modifié";
     }
+    mbCloseIconPicker();
     renderIconSelector(cfg.icon || "ti-folder");
     document.getElementById("menu-builder-title").textContent = "Colonnes : " + cfg.label;
     document.getElementById("mb-save-btn").textContent = "Enregistrer";
@@ -2468,6 +2499,7 @@ function openMenuEdit(key) {
 }
 
 function closeMenuBuilder() {
+    mbCloseIconPicker();
     document.getElementById("menu-builder-overlay").classList.remove("open");
     mbColumns = []; mbEditingKey = null;
 }
