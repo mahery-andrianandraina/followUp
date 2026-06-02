@@ -2291,6 +2291,7 @@ function registerCustomMenu(menuDef, save = true) {
         label: menuDef.label,
         sheetName: menuDef.label,  // vrai nom de la feuille Google Sheet
         custom: true,
+        icon: menuDef.icon || "ti-folder",
         cols: menuDef.cols,
         kpis: [
             {
@@ -2314,10 +2315,10 @@ function registerCustomMenu(menuDef, save = true) {
         btn.role = "tab";
         btn.setAttribute("aria-selected", "false");
         btn.id = "tab-custom-" + key;
+        const iconClass = menuDef.icon || "ti-folder";
         btn.innerHTML =
             '<span class="nav-icon">' +
-            '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
-            '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>' +
+            '<i class="ti ' + iconClass + '" style="font-size:20px;"></i>' +
             '</span>' +
             '<span class="nav-label">' + esc(menuDef.label) + '</span>' +
             '<button class="mb-nav-edit-btn" onclick="event.stopPropagation();openMenuEdit(\'' + key + '\')" title="Modifier">' +
@@ -2353,12 +2354,32 @@ function registerCustomMenu(menuDef, save = true) {
 function persistCustomMenus() {
     const menus = Object.entries(SHEET_CONFIG)
         .filter(([key, v]) => v.custom || key === "details" || key === "sample" || key === "ordering")
-        .map(([key, v]) => ({ key, label: v.label, cols: v.cols, custom: v.custom }));
+        .map(([key, v]) => ({ key, label: v.label, cols: v.cols, custom: v.custom, icon: v.icon }));
     // Toujours sauvegarder en localStorage comme cache rapide
     localStorage.setItem(CUSTOM_MENUS_KEY, JSON.stringify(menus));
     // Sauvegarder en GAS pour persistance cross-navigateur / GitHub Pages
     sendRequest("SAVE_MENUS", { menus })
         .catch(() => { }); // silencieux si GAS non connecté
+}
+
+// ── Icon Selector Renderer ──────────────────────────────────────
+function renderIconSelector(selectedIcon) {
+    const container = document.getElementById("mb-icon-selector");
+    if (!container) return;
+    const icons = ["ti-folder", "ti-file-text", "ti-box", "ti-users", "ti-chart-bar", "ti-truck", "ti-calendar-event", "ti-shopping-cart", "ti-clipboard-list", "ti-camera", "ti-shirt", "ti-scissors", "ti-ruler", "ti-color-swatch", "ti-tag", "ti-needle-thread", "ti-hanger", "ti-trolley"];
+    let html = '';
+    icons.forEach(ic => {
+        const isSel = ic === selectedIcon;
+        html += `<div class="mb-icon-opt ${isSel ? 'selected' : ''}" style="padding:6px; cursor:pointer; border-radius:6px; border:2px solid ${isSel ? 'var(--primary)' : 'transparent'}; background:${isSel ? 'rgba(99,102,241,0.1)' : 'transparent'};" onclick="mbSelectIcon('${ic}')">
+            <i class="ti ${ic}" style="font-size:24px; color:${isSel ? 'var(--primary)' : '#64748b'};"></i>
+        </div>`;
+    });
+    container.innerHTML = html;
+    document.getElementById("mb-menu-icon").value = selectedIcon || "ti-folder";
+}
+
+window.mbSelectIcon = function(ic) {
+    renderIconSelector(ic);
 }
 
 // ── Open builder (new) ────────────────────────────────────────
@@ -2368,6 +2389,7 @@ function openMenuBuilder() {
         { label: "", type: "text", required: false }
     ];
     document.getElementById("mb-menu-name").value = "";
+    renderIconSelector("ti-folder");
     document.getElementById("menu-builder-title").textContent = "Créer un menu";
     document.getElementById("mb-save-btn").textContent = "Créer le menu";
     renderMbColumns();
@@ -2391,6 +2413,7 @@ function openMenuEdit(key) {
         nameInput.style.opacity = cfg.custom ? "" : "0.5";
         nameInput.title = cfg.custom ? "" : "Le nom de ce menu ne peut pas être modifié";
     }
+    renderIconSelector(cfg.icon || "ti-folder");
     document.getElementById("menu-builder-title").textContent = "Colonnes : " + cfg.label;
     document.getElementById("mb-save-btn").textContent = "Enregistrer";
     renderMbColumns();
@@ -2496,9 +2519,12 @@ async function saveMenuBuilder() {
     // Build key from name
     const key = mbEditingKey || "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20) + "_" + Date.now().toString(36);
 
+    const iconVal = document.getElementById("mb-menu-icon").value || "ti-folder";
+
     const menuDef = {
         key,
         label: nameRaw,
+        icon: iconVal,
         cols: validCols.map(c => ({
             key: c.label,
             label: c.label,
@@ -2552,8 +2578,12 @@ async function saveMenuBuilder() {
         if (!isNonCustom) {
             SHEET_CONFIG[key].label = menuDef.label;
             SHEET_CONFIG[key].sheetName = menuDef.label;
+            SHEET_CONFIG[key].icon = menuDef.icon;
             const navBtn = document.getElementById("tab-custom-" + key);
-            if (navBtn) navBtn.querySelector(".nav-label").textContent = menuDef.label;
+            if (navBtn) {
+                navBtn.querySelector(".nav-label").textContent = menuDef.label;
+                navBtn.querySelector(".nav-icon").innerHTML = '<i class="ti ' + menuDef.icon + '" style="font-size:20px;"></i>';
+            }
         }
 
         // Si on est sur ce menu, rafraîchir l'affichage (KPIs + tableau)
