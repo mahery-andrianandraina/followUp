@@ -2693,70 +2693,98 @@ async function saveMenuBuilder() {
 async function handleExcelUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+    event.target.value = ""; // reset input
 
-    event.target.value = ""; // reset
-    const nameRaw = prompt("Nom du nouveau menu (basé sur le fichier) ?", file.name.replace(/\.[^/.]+$/, ""));
-    if (!nameRaw) return;
+    // Check XLSX library is loaded
+    if (typeof XLSX === "undefined") {
+        showToast("Bibliothèque Excel non chargée, réessayez dans quelques secondes.", "error", 4000);
+        return;
+    }
 
-    // Build key from name
+    // Use the menu name field if filled, otherwise derive from filename
+    const nameFieldVal = (document.getElementById("mb-menu-name") || {}).value || "";
+    let nameRaw = nameFieldVal.trim() || file.name.replace(/\.[^/.]+$/, "").trim();
+
+    // If the name field is empty, ask via a cleaner in-page flow
+    if (!nameRaw) {
+        showToast("Renseignez d'abord le nom du menu avant d'importer.", "warning", 3500);
+        const nameInput = document.getElementById("mb-menu-name");
+        if (nameInput) nameInput.focus();
+        return;
+    }
+
     const key = "custom_" + nameRaw.toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 20) + "_" + Date.now().toString(36);
+    const iconVal = (document.getElementById("mb-menu-icon") || {}).value || "ti-folder";
 
-    const btn = document.getElementById("mb-save-btn");
-    btn.disabled = true; btn.textContent = "Importation…";
-    showToast("Lecture de l'Excel...", "info");
+    const saveBtn = document.getElementById("mb-save-btn");
+    const origText = saveBtn ? saveBtn.textContent : "";
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Importation…"; }
+
+    showToast("📂 Lecture du fichier Excel…", "info", 2500);
 
     const reader = new FileReader();
     reader.onload = async function (e) {
         try {
             const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
+            const workbook = XLSX.read(data, { type: "array", cellDates: true });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
 
-            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            if (json.length === 0) throw new Error("Fichier vide");
+            const json = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+            if (!json.length) throw new Error("Fichier vide ou illisible.");
 
-            const headers = json[0].map(h => String(h).trim()).filter(Boolean);
-            if (headers.length === 0) throw new Error("Aucun en-tête trouvé");
+            // First non-empty row = headers
+            let headerRow = null;
+            let headerIdx = 0;
+            for (let r = 0; r < Math.min(5, json.length); r++) {
+                const row = json[r];
+                const nonEmpty = row.filter(c => c !== null && c !== undefined && String(c).trim() !== "");
+                if (nonEmpty.length >= 2) { headerRow = row; headerIdx = r; break; }
+            }
+            if (!headerRow) throw new Error("Aucun en-tête trouvé dans les 5 premières lignes.");
 
+            const headers = headerRow.map(h => String(h ?? "").trim()).filter(Boolean);
+            if (!headers.length) throw new Error("Colonnes vides.");
+
+            // Build data rows
             const rowsData = [];
-            for (let i = 1; i < json.length; i++) {
+            for (let i = headerIdx + 1; i < json.length; i++) {
                 const rowArray = json[i];
-                if (!rowArray || rowArray.length === 0) continue;
-                // Ignorer les lignes totalement vides
-                if (rowArray.every(c => c === undefined || c === null || c === "")) continue;
-
+                if (!rowArray || rowArray.every(c => c === "" || c === null || c === undefined)) continue;
                 const rowObj = {};
                 headers.forEach((h, j) => {
-                    rowObj[h] = rowArray[j] !== undefined ? rowArray[j] : "";
+                    let val = rowArray[j] ?? "";
+                    // Format dates nicely
+                    if (val instanceof Date) val = val.toISOString().slice(0, 10);
+                    rowObj[h] = val;
                 });
                 rowsData.push(rowObj);
             }
 
-            const validCols = headers.map(h => ({ label: h, type: "text" }));
+            showToast(`📊 ${headers.length} colonnes · ${rowsData.length} lignes détectées. Envoi vers Google Sheets…`, "info", 3000);
 
-            const menuDef = {
-                key,
-                label: nameRaw,
-                cols: validCols.map(c => ({
-                    key: c.label,
-                    label: c.label,
-                    type: c.type,
-                    required: false,
-                    ...(c.label.length > 15 ? { full: true } : {})
-                }))
-            };
-
-            showToast(`Envoi des données (${rowsData.length} lignes)...`, "info");
-
+            // Send to GAS
             await sendRequest("IMPORT_EXCEL", {
                 sheetName: nameRaw,
                 columns: headers,
                 rows: rowsData
             }, "menu_builder");
 
-            showToast("Importation réussie ✓", "success", 4000);
+            // Build menu definition
+            const menuDef = {
+                key,
+                label: nameRaw,
+                icon: iconVal,
+                cols: headers.map(h => ({
+                    key: h,
+                    label: h,
+                    type: "text",
+                    required: false,
+                    ...(h.length > 15 ? { full: true } : {})
+                }))
+            };
 
+            showToast(`✅ Import réussi — ${rowsData.length} lignes importées`, "success", 4000);
             closeMenuBuilder();
             registerCustomMenu(menuDef, true);
 
@@ -2766,15 +2794,22 @@ async function handleExcelUpload(event) {
             await fetchAllData();
 
         } catch (err) {
-            console.error(err);
-            showToast("Erreur Excel: " + err.message, "error", 5000);
+            console.error("[ImportExcel]", err);
+            showToast("Erreur import : " + err.message, "error", 6000);
         } finally {
-            btn.disabled = false;
-            btn.textContent = "Créer le menu";
+            if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origText; }
         }
     };
+
+    reader.onerror = function() {
+        showToast("Impossible de lire le fichier.", "error", 4000);
+        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = origText; }
+    };
+
     reader.readAsArrayBuffer(file);
 }
+
+
 
 
 // ═══════════════════════════════════════════════════════════════

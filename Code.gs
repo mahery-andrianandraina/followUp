@@ -257,7 +257,78 @@ function doPost(e) {
       return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // ── CRÉATION D'UNE NOUVELLE FEUILLE ──
+    if (action === "CREATE_SHEET") {
+      var newSheetName = (payload.sheetName || "").trim();
+      if (!newSheetName) throw new Error("Nom de feuille manquant.");
+      var ssNew = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var existingNew = ssNew.getSheetByName(newSheetName);
+      if (existingNew) {
+        return ContentService.createTextOutput(JSON.stringify({ status: "ok", message: "Feuille deja existante." })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var createdSheet = ssNew.insertSheet(newSheetName);
+      var columns = payload.columns || [];
+      if (columns.length > 0) {
+        createdSheet.getRange(1, 1, 1, columns.length).setValues([columns]);
+        createdSheet.getRange(1, 1, 1, columns.length).setFontWeight("bold").setBackground("#f3f4f6");
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── MISE À JOUR DES EN-TÊTES D'UNE FEUILLE EXISTANTE ──
+    if (action === "UPDATE_SHEET_HEADERS") {
+      var targetName = (payload.sheetName || "").trim();
+      if (!targetName) throw new Error("Nom de feuille manquant.");
+      var ssUpd = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var updSheet = ssUpd.getSheetByName(targetName);
+      if (!updSheet) updSheet = ssUpd.insertSheet(targetName);
+      var newCols = payload.columns || [];
+      if (newCols.length > 0) {
+        var existing = updSheet.getLastColumn() || 0;
+        if (existing < newCols.length) {
+          updSheet.insertColumnsAfter(Math.max(existing, 1), newCols.length - existing);
+        }
+        updSheet.getRange(1, 1, 1, newCols.length).setValues([newCols]).setFontWeight("bold").setBackground("#f3f4f6");
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok" })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ── IMPORT EXCEL (création feuille + remplissage données) ──
+    if (action === "IMPORT_EXCEL") {
+      var importSheetName = (payload.sheetName || "").trim();
+      if (!importSheetName) throw new Error("Nom de feuille manquant.");
+      var ssImport = SpreadsheetApp.openById(SPREADSHEET_ID);
+      var importSheet = ssImport.getSheetByName(importSheetName);
+      if (!importSheet) {
+        importSheet = ssImport.insertSheet(importSheetName);
+      } else {
+        importSheet.clearContents();
+      }
+      var importCols = payload.columns || [];
+      var importRows = payload.rows || [];
+      if (importCols.length > 0) {
+        if (importSheet.getMaxColumns() < importCols.length) {
+          importSheet.insertColumnsAfter(importSheet.getMaxColumns(), importCols.length - importSheet.getMaxColumns());
+        }
+        importSheet.getRange(1, 1, 1, importCols.length).setValues([importCols]).setFontWeight("bold").setBackground("#f3f4f6");
+      }
+      if (importRows.length > 0 && importCols.length > 0) {
+        var rowMatrix = importRows.map(function(rowObj) {
+          return importCols.map(function(col) {
+            var val = rowObj[col];
+            return (val === undefined || val === null) ? "" : val;
+          });
+        });
+        if (importSheet.getMaxColumns() < importCols.length) {
+          importSheet.insertColumnsAfter(importSheet.getMaxColumns(), importCols.length - importSheet.getMaxColumns());
+        }
+        importSheet.getRange(2, 1, rowMatrix.length, importCols.length).setValues(rowMatrix);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "ok", rows: importRows.length })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // ── SUPPRESSION D'UNE FEUILLE ENTIÈRE ──
+
     if (action === "DELETE_SHEET") {
       var sheetNameToDelete = (payload.sheetName || "").trim();
       if (!sheetNameToDelete) throw new Error("Nom de feuille manquant.");
