@@ -6741,3 +6741,80 @@ td.editing-cell {
     background: #639922;
 }
 
+/* ─── Dispatch Samples Badge Integration ─── */
+.dispatch-cell-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+    margin-top: 5px;
+}
+
+.dispatch-cell-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.dispatch-cell-no-comment {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-muted);
+    border-color: var(--glass-border);
+}
+
+.dispatch-cell-no-comment .dispatch-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.dispatch-cell-has-comment {
+    background: rgba(0, 212, 170, 0.08);
+    color: var(--accent);
+    border-color: rgba(0, 212, 170, 0.25);
+}
+
+.dispatch-cell-pdf-link {
+    color: var(--accent);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+}
+
+.dispatch-cell-pdf-link:hover {
+    text-decoration: underline;
+    opacity: 0.9;
+}
+
+.dispatch-cell-pdf-link svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    flex-shrink: 0;
+}
+
+.dispatch-cell-comment-text {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* ── Style Modal Dispatch Section ── */
+.dispatch-section {
+    margin-top: 1.5rem;
+}
+
+
