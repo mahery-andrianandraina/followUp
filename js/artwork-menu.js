@@ -449,11 +449,31 @@
                 });
 
                 const colKey = type === "signed" ? "Artwork Signed URL" : "Artwork Original URL";
-                const url = await window.uploadCommentPDF(
-                    rowIndex, colKey,
-                    file.name, base64.split(",")[1],
-                    file.type || "application/pdf", null
-                );
+
+                // Upload direct vers Google Apps Script (action UPLOAD_ORDERING_FILE)
+                const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+                if (!gasUrl) throw new Error("GOOGLE_APPS_SCRIPT_URL introuvable");
+
+                const _resp = await fetch(gasUrl, {
+                    method:  "POST",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body:    JSON.stringify({
+                        action:     "UPLOAD_ORDERING_FILE",
+                        fileName:   file.name,
+                        base64Data: base64.split(",")[1],
+                        mimeType:   file.type || "application/pdf",
+                        sheet:      "ordering",
+                        colKey:     colKey,
+                        rowIndex:   rowIndex
+                    })
+                });
+                const _text = await _resp.text();
+                let _result;
+                try { _result = JSON.parse(_text); }
+                catch(_e) { throw new Error("Réponse serveur invalide : " + _text.substring(0, 120)); }
+                if (_result.status === "error") throw new Error(_result.message || "Erreur serveur");
+                const url = _result.url || _result.fileUrl || _result.driveUrl || "";
+                if (!url) throw new Error("Aucune URL retournée par le serveur");
 
                 const row = (window.state?.data?.ordering || []).find(r => r._rowIndex === rowIndex);
                 const today = new Date().toISOString().slice(0, 10);
