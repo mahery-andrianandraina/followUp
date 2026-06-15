@@ -729,11 +729,7 @@
     //  API PUBLIQUE
     // ══════════════════════════════════════════════════════════
     window.openSAPanel = function() {
-        ensurePanel();
-        renderPanel(_cachedAlerts);
-        requestAnimationFrame(() => {
-            document.getElementById("sa-panel-overlay").classList.add("open");
-        });
+        window.openSATableModal();
     };
 
     window.closeSAPanel = function() {
