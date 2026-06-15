@@ -175,20 +175,17 @@
     }
 
     // ── Upload direct vers Google Apps Script ────────────────────
-    // Envoie le fichier (base64) au GAS et récupère l'URL Drive.
+    // Utilise l'action UPLOAD_FILE du GAS (dossier ORDERING sur Drive).
     async function _uploadToGAS(filename, base64Data, mimeType) {
         const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
         if (!gasUrl) throw new Error("GOOGLE_APPS_SCRIPT_URL introuvable");
 
-        // GAS accepte le mieux un POST text/plain (évite le préflight CORS)
         const payload = {
-            action:    "uploadFile",
-            filename:  filename,
-            fileName:  filename,        // alias selon implémentation GAS
-            mimeType:  mimeType,
-            data:      base64Data,
-            base64:    base64Data,      // alias
-            file:      base64Data       // alias
+            action:     "UPLOAD_FILE",
+            fileName:   filename,
+            base64Data: base64Data,
+            mimeType:   mimeType,
+            folder:     "ORDERING"
         };
 
         const resp = await fetch(gasUrl, {
@@ -199,18 +196,17 @@
 
         const text = await resp.text();
 
-        // Tenter de parser la réponse JSON
         let result;
         try { result = JSON.parse(text); }
         catch(e) {
-            // Réponse non-JSON : peut-être directement l'URL
-            if (text.includes("http")) return text.trim();
-            throw new Error("Réponse serveur invalide : " + text.substring(0, 100));
+            throw new Error("Réponse serveur invalide : " + text.substring(0, 120));
         }
 
-        // Chercher l'URL dans les champs possibles
-        return result.url || result.fileUrl || result.driveUrl ||
-               result.link || result.webViewLink || result.data?.url || "";
+        if (result.status === "error") {
+            throw new Error(result.message || "Erreur serveur");
+        }
+
+        return result.url || result.fileUrl || result.driveUrl || "";
     }
 
     async function _saveFile(rowIndex, colDef, url, name) {
