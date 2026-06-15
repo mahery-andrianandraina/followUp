@@ -32,6 +32,7 @@
         const details  = st.details  || [];
         const ordering = st.ordering || [];
         const alerts   = [];
+        console.log("[orderingAlerts] Collecteur appelé —", details.length, "styles,", ordering.length, "commandes");
 
         const norm = v => String(v || "").replace(/[\s\-_]/g, "").toLowerCase();
 
@@ -158,9 +159,10 @@
             }
         });
 
+        console.log("[orderingAlerts] Alertes générées :", alerts.length, alerts.map(a => a.type));
         return alerts;
     });
 
-    console.log("[AW27] Extension Alertes Ordering Chargée ✓");
+    console.log("[AW27] Extension Alertes Ordering Chargée ✓ — Collecteurs enregistrés :", window.smartAlertsCollectors.length);
 
 })();
