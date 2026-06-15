@@ -157,10 +157,14 @@
                 const url = await _uploadToGAS(
                     file.name,
                     b64.split(",")[1],
-                    file.type || "application/octet-stream"
+                    file.type || "application/octet-stream",
+                    rowIndex,
+                    colDef.urlKey
                 );
                 if (!url) throw new Error("Aucune URL retournée par le serveur");
                 _names[url] = file.name;
+                // Le GAS a déjà écrit l'URL dans la cellule ; on enregistre
+                // le nom de fichier et on met le state à jour localement.
                 await _saveFile(rowIndex, colDef, url, file.name);
                 typeof showToast === "function" && showToast(`${colDef.label} uploadé — ${file.name}`, "success");
                 wrapEl.innerHTML = "";
@@ -175,17 +179,20 @@
     }
 
     // ── Upload direct vers Google Apps Script ────────────────────
-    // Utilise l'action UPLOAD_FILE du GAS (dossier ORDERING sur Drive).
-    async function _uploadToGAS(filename, base64Data, mimeType) {
+    // Action UPLOAD_ORDERING_FILE : upload dans dossier ORDERING +
+    // écrit l'URL dans la cellule (sheet/colKey/rowIndex).
+    async function _uploadToGAS(filename, base64Data, mimeType, rowIndex, colKey) {
         const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
         if (!gasUrl) throw new Error("GOOGLE_APPS_SCRIPT_URL introuvable");
 
         const payload = {
-            action:     "UPLOAD_FILE",
+            action:     "UPLOAD_ORDERING_FILE",
             fileName:   filename,
             base64Data: base64Data,
             mimeType:   mimeType,
-            folder:     "ORDERING"
+            sheet:      "ordering",
+            colKey:     colKey,
+            rowIndex:   rowIndex
         };
 
         const resp = await fetch(gasUrl, {
