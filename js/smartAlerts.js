@@ -305,7 +305,7 @@
                     severity: "danger",
                     style:    styleCode,
                     client,
-                    title:    "Sample non approuvée — PO confirmé",
+                    title:    `Style ${styleCode} — Sample non approuvée (PO confirmé)`,
                     details:  [
                         `${styleSamples.filter(s => s.Approval !== "Approved" && s["Sending Date"]).length} sample(s) envoyée(s) sans approval`,
                         `${styleOrders.filter(o => o.Status === "Confirmed").length} commande(s) confirmée(s)`
@@ -323,7 +323,7 @@
                     severity: "warn",
                     style:    styleCode,
                     client,
-                    title:    "Aucune sample — PO confirmé",
+                    title:    `Style ${styleCode} — Aucune sample (PO confirmé)`,
                     details:  [
                         "Aucune sample enregistrée pour ce style",
                         `${styleOrders.filter(o => o.Status === "Confirmed").length} commande(s) confirmée(s)`
@@ -342,7 +342,7 @@
                         severity: "danger",
                         style:    styleCode,
                         client,
-                        title:    `Ex-Fty dépassée de ${Math.abs(exFtyDiff)}j`,
+                        title:    `Style ${styleCode} — Ex-Fty dépassée de ${Math.abs(exFtyDiff)}j`,
                         details:  [
                             `Ex-Fty prévue le ${fmtDate(exFtyRaw)}`,
                             "Statut livraison : non expédié"
@@ -358,7 +358,7 @@
                         severity: sev,
                         style:    styleCode,
                         client,
-                        title:    `Ex-Fty dans ${exFtyDiff}j`,
+                        title:    `Style ${styleCode} — Ex-Fty dans ${exFtyDiff}j`,
                         details:  [
                             `Ex-Fty prévue le ${fmtDate(exFtyRaw)}`,
                             exFtyDiff <= CONFIG.exFtyDangerDays ? "⚠️ Urgent — moins d'une semaine" : "Surveiller l'avancement"
@@ -379,7 +379,7 @@
                     severity: "warn",
                     style:    styleCode,
                     client,
-                    title:    `PO Deadline dépassée de ${Math.abs(psdDiff)}j`,
+                    title:    `Style ${styleCode} — PO Deadline dépassée de ${Math.abs(psdDiff)}j`,
                     details:  [
                         `Deadline : ${fmtDate(psdRaw)}`,
                         `Statut : ${row["Order Status"] || "Non défini"}`

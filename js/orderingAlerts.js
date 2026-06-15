@@ -76,8 +76,8 @@
                             severity:   "danger",
                             style:      styleCode,
                             client,
-                            title:      "Ready Date > Ex-Fty",
-                            shortTitle: "Ready Date > Ex-Fty",
+                            title:      `Style ${styleCode} — Conflit Planning (Ready > Ex-Fty)`,
+                            shortTitle: `Ex-Fty < Ready [${styleCode}]`,
                             details: [
                                 `Ready Date : ${fmtDate(o["Ready Date"])}`,
                                 `Ex-Fty prévue : ${fmtDate(exFtyRaw)}`,
@@ -108,8 +108,8 @@
                         severity:   "warn",
                         style:      styleCode,
                         client,
-                        title:      "PI Manquante pour PO Confirmé",
-                        shortTitle: "PI Manquante",
+                        title:      `Style ${styleCode} — PI Manquante pour PO Confirmé`,
+                        shortTitle: `PI Manquante [${styleCode}]`,
                         details: [
                             `Confirmé le : ${fmtDate(o["PO Date"])} (${Math.abs(poDays)}j sans PI)`,
                             `Supplier : ${o.Supplier || "Non défini"}`
@@ -140,8 +140,8 @@
                     severity:   artworkApproval === "Rejected" ? "danger" : "warn",
                     style:      styleCode,
                     client,
-                    title:      `Artwork ${artworkApproval} — Prêt dans ${readyDiff}j`,
-                    shortTitle: "Artwork bloquant",
+                    title:      `Style ${styleCode} — Artwork ${artworkApproval} (Prêt dans ${readyDiff}j)`,
+                    shortTitle: `Artwork [${styleCode}]`,
                     details: [
                         `Ready Date : ${fmtDate(o["Ready Date"])}`,
                         `Statut Artwork : ${artworkApproval}`
@@ -176,8 +176,8 @@
                         severity:   "warn",
                         style:      styleCode,
                         client,
-                        title:      "Incohérence de quantité commandée",
-                        shortTitle: "Écart de Qty",
+                        title:      `Style ${styleCode} — Écart Qty (Attendu: ${expectedQty.toLocaleString("fr-FR")} / Cmd: ${confirmedQty.toLocaleString("fr-FR")})`,
+                        shortTitle: `Écart Qty [${styleCode}]`,
                         details: [
                             `Attendu (Details) : ${expectedQty.toLocaleString("fr-FR")} unités`,
                             `Alloué (Ordering) : ${confirmedQty.toLocaleString("fr-FR")} unités`,
