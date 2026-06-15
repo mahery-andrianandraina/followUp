@@ -225,6 +225,33 @@
             outline: 2px solid #fcd34d;
             outline-offset: -2px;
         }
+
+        /* ── Table Modal ── */
+        .sat-row:nth-child(even) { background-color: #f9fafb; }
+        .sat-row:hover { background-color: #f3f4f6; }
+        .sat-cell {
+            padding: 10px 16px; border-bottom: 1px solid #e5e7eb;
+            color: #374151; font-size: 12.5px; vertical-align: middle;
+            line-height: 1.4;
+        }
+        .sat-badge-danger {
+            background-color: #fee2e2; color: #dc2626; padding: 2px 8px;
+            border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
+        }
+        .sat-badge-warn {
+            background-color: #fef3c7; color: #b45309; padding: 2px 8px;
+            border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
+        }
+        .sat-style-link {
+            font-weight: 600; color: #1d4ed8; text-decoration: none; cursor: pointer;
+        }
+        .sat-style-link:hover { text-decoration: underline; }
+        .sat-goto-btn {
+            background: #eff6ff; color: #1d4ed8; border: none; padding: 4px 10px;
+            border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;
+            transition: background 0.15s; display: inline-flex; align-items: center; gap: 4px;
+        }
+        .sat-goto-btn:hover { background: #dbeafe; }
         `;
         document.head.appendChild(s);
     }
@@ -587,7 +614,12 @@
                     <div id="sa-panel-title">🚨 Alertes Intelligentes</div>
                     <div id="sa-panel-sub">Analyse en temps réel</div>
                 </div>
-                <button id="sa-panel-close" onclick="closeSAPanel()">✕</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button id="sa-panel-table-btn" onclick="openSATableModal()" title="Vue Tableau & Export Excel" style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; color: #1d4ed8; font-family: inherit; transition: background .12s;" onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">
+                        📊 Tableau
+                    </button>
+                    <button id="sa-panel-close" onclick="closeSAPanel()">✕</button>
+                </div>
             </div>
             <div id="sa-panel-tabs">
                 <div class="sa-tab active" onclick="setSATab('all')">Toutes</div>
@@ -719,6 +751,264 @@
         if (typeof navigateToRow === "function") {
             navigateToRow(sheetKey, rowIndex);
         }
+    };
+
+    const TYPE_LABELS = {
+        planning_conflict: "Conflit Planning",
+        missing_pi: "PI Manquante",
+        artwork_block: "Artwork Bloquant",
+        qty_mismatch: "Incohérence Quantité",
+        sample_block: "Sample non approuvée",
+        no_sample: "Aucune sample",
+        exfty_late: "Ex-Fty dépassée",
+        exfty_soon: "Ex-Fty proche",
+        psd_overdue: "PO Deadline dépassée"
+    };
+
+    window.openSATableModal = function() {
+        // Fermer le panneau latéral pour éviter la superposition
+        closeSAPanel();
+        
+        let overlay = document.getElementById("sa-table-modal-overlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "sa-table-modal-overlay";
+            overlay.className = "modal-overlay";
+            overlay.style.cssText = "z-index: 11000; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity 0.2s;";
+            
+            overlay.innerHTML = `
+            <div class="modal" id="sa-table-modal" style="background: #ffffff; color: #1f2937; border-radius: 12px; width: 1150px; max-width: 98vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #e5e7eb; overflow: hidden; transform: scale(0.95); transition: transform 0.2s; font-family: inherit;">
+                <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px;">
+                            📊 Tableau des Alertes Intelligentes
+                        </h3>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">Liste complète, filtrable et exportable vers Excel</p>
+                    </div>
+                    <button onclick="closeSATableModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; transition: background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕</button>
+                </div>
+                
+                <!-- Barre de filtres et d'action -->
+                <div style="display: flex; gap: 16px; align-items: center; padding: 12px 24px; border-bottom: 1px solid #e5e7eb; background: #fff; flex-wrap: wrap;">
+                    <div style="position: relative; flex: 1; min-width: 200px;">
+                        <input type="text" id="sat-search" placeholder="Rechercher (style, client, alerte...)" oninput="satFilterChange()" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;" />
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-size: 12px; font-weight: 600; color: #374151;">Sévérité :</label>
+                        <select id="sat-severity" onchange="satFilterChange()" style="padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; background: #fff; cursor: pointer;">
+                            <option value="all">Toutes</option>
+                            <option value="danger">🔴 Critiques (Danger)</option>
+                            <option value="warn">🟡 Attention (Warning)</option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <label style="font-size: 12px; font-weight: 600; color: #374151;">Type :</label>
+                        <select id="sat-type" onchange="satFilterChange()" style="padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; background: #fff; cursor: pointer; min-width: 160px;">
+                            <option value="all">Tous les types</option>
+                        </select>
+                    </div>
+
+                    <button onclick="satExportExcel()" style="margin-left: auto; display: flex; align-items: center; gap: 6px; background: #10b981; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                        📥 Exporter Excel
+                    </button>
+                </div>
+
+                <!-- Zone Tableau -->
+                <div style="flex: 1; overflow: auto; padding: 0; background: #f9fafb;">
+                    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; background: #fff;">
+                        <thead>
+                            <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10;">
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 90px;">Sévérité</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 110px;">Style</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 130px;">Client</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 160px;">Type d'Alerte</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151;">Détails / Informations</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 230px;">Action Recommandée</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 80px; text-align: center;">Lien</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sat-tbody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-footer" style="padding: 12px 24px; border-top: 1px solid #e5e7eb; background: #f9fafb; display: flex; align-items: center; justify-content: space-between;">
+                    <div id="sat-status" style="font-size: 12.5px; color: #4b5563; font-weight: 500;"></div>
+                    <button class="btn btn-ghost" onclick="closeSATableModal()" style="border: 1px solid #d1d5db; padding: 8px 16px; border-radius: 6px; cursor: pointer; background: #fff; font-size: 13px; font-weight: 500; font-family: inherit;">Fermer</button>
+                </div>
+            </div>
+            `;
+            overlay.addEventListener("click", e => { if (e.target === overlay) closeSATableModal(); });
+            document.body.appendChild(overlay);
+        }
+        
+        const types = [...new Set(_cachedAlerts.map(a => a.type))];
+        const typeSelect = document.getElementById("sat-type");
+        if (typeSelect) {
+            typeSelect.innerHTML = '<option value="all">Tous les types</option>' + 
+                types.map(t => `<option value="${t}">${TYPE_LABELS[t] || t}</option>`).join("");
+        }
+
+        const searchInput = document.getElementById("sat-search");
+        if (searchInput) searchInput.value = "";
+        const sevSelect = document.getElementById("sat-severity");
+        if (sevSelect) sevSelect.value = "all";
+        if (typeSelect) typeSelect.value = "all";
+
+        satRenderTable();
+
+        overlay.classList.add("open");
+        requestAnimationFrame(() => {
+            overlay.style.opacity = "1";
+            overlay.style.pointerEvents = "all";
+            document.getElementById("sa-table-modal").style.transform = "scale(1)";
+        });
+    };
+
+    window.closeSATableModal = function() {
+        const overlay = document.getElementById("sa-table-modal-overlay");
+        if (overlay) {
+            overlay.style.opacity = "0";
+            overlay.style.pointerEvents = "none";
+            document.getElementById("sa-table-modal").style.transform = "scale(0.95)";
+            setTimeout(() => {
+                overlay.classList.remove("open");
+            }, 200);
+        }
+    };
+
+    window.satGetFilteredAlerts = function() {
+        const search = (document.getElementById("sat-search")?.value || "").toLowerCase().trim();
+        const severity = document.getElementById("sat-severity")?.value || "all";
+        const type = document.getElementById("sat-type")?.value || "all";
+
+        return _cachedAlerts.filter(a => {
+            if (severity !== "all" && a.severity !== severity) return false;
+            if (type !== "all" && a.type !== type) return false;
+            if (search) {
+                const styleText = (a.style || "").toLowerCase();
+                const clientText = (a.client || "").toLowerCase();
+                const titleText = (a.title || "").toLowerCase();
+                const actionText = (a.action || "").toLowerCase();
+                const detailsText = a.details.join(" ").toLowerCase();
+                
+                if (!styleText.includes(search) && 
+                    !clientText.includes(search) && 
+                    !titleText.includes(search) && 
+                    !actionText.includes(search) && 
+                    !detailsText.includes(search)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    };
+
+    window.satRenderTable = function() {
+        const tbody = document.getElementById("sat-tbody");
+        const statusEl = document.getElementById("sat-status");
+        if (!tbody) return;
+
+        const filtered = satGetFilteredAlerts();
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 13px;">
+                    🔍 Aucune alerte correspondante aux filtres.
+                </td>
+            </tr>`;
+            if (statusEl) statusEl.textContent = `0 alerte affichée / ${_cachedAlerts.length} au total`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(a => {
+            const badgeCls = a.severity === "danger" ? "sat-badge-danger" : "sat-badge-warn";
+            const badgeText = a.severity === "danger" ? "Critique" : "Attention";
+            const styleCode = a.style || "—";
+            const typeLabel = TYPE_LABELS[a.type] || a.type;
+            const detailsHtml = a.details.map(d => `
+                <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 2px;">
+                    <span style="color: #9ca3af; font-size: 10px; margin-top: 2px;">➔</span>
+                    <span>${esc(d)}</span>
+                </div>
+            `).join("");
+
+            return `
+            <tr class="sat-row">
+                <td class="sat-cell"><span class="${badgeCls}">${badgeText}</span></td>
+                <td class="sat-cell"><span class="sat-style-link" onclick="satNavigateTo('${a.sheet || 'details'}', ${a.rowIndex || 0})">${esc(styleCode)}</span></td>
+                <td class="sat-cell">${a.client ? esc(a.client) : "—"}</td>
+                <td class="sat-cell" style="font-weight: 500;">${esc(typeLabel)}</td>
+                <td class="sat-cell" style="font-size: 12px; color: #4b5563;">
+                    <div style="font-weight: 600; color: #1f2937; margin-bottom: 4px;">${esc(a.title)}</div>
+                    ${detailsHtml}
+                </td>
+                <td class="sat-cell" style="font-style: italic; color: #4b5563;">💡 ${esc(a.action)}</td>
+                <td class="sat-cell" style="text-align: center;">
+                    ${a.rowIndex ? `
+                        <button class="sat-goto-btn" onclick="satNavigateTo('${a.sheet || 'details'}', ${a.rowIndex})">
+                            Voir ➔
+                        </button>
+                    ` : "—"}
+                </td>
+            </tr>
+            `;
+        }).join("");
+
+        if (statusEl) {
+            statusEl.innerHTML = `Affichage de <strong>${filtered.length}</strong> alerte${filtered.length > 1 ? "s" : ""} filtrée${filtered.length > 1 ? "s" : ""} (sur un total de <strong>${_cachedAlerts.length}</strong> alertes)`;
+        }
+    };
+
+    window.satFilterChange = function() {
+        satRenderTable();
+    };
+
+    window.satNavigateTo = function(sheetKey, rowIndex) {
+        closeSATableModal();
+        if (typeof navigateToRow === "function") {
+            navigateToRow(sheetKey, rowIndex);
+        }
+    };
+
+    window.satExportExcel = function() {
+        const _waitForXLSX = window._waitForXLSX || function(cb) { cb(window.XLSX); };
+        _waitForXLSX(function (XL) {
+            if (!XL) {
+                if (typeof showToast === "function") showToast("Bibliothèque Excel non chargée", "error");
+                else alert("Bibliothèque Excel non chargée");
+                return;
+            }
+            
+            const filtered = satGetFilteredAlerts();
+            if (!filtered.length) {
+                if (typeof showToast === "function") showToast("Aucune alerte à exporter", "info");
+                return;
+            }
+            
+            const rows = filtered.map(a => ({
+                "Sévérité": a.severity === "danger" ? "Critique" : "Attention",
+                "Style": a.style || "—",
+                "Client": a.client || "—",
+                "Type d'Alerte": TYPE_LABELS[a.type] || a.type,
+                "Alerte / Titre": a.title,
+                "Détails": a.details.join(" | "),
+                "Action Recommandée": a.action,
+                "Feuille Source": a.sheet || "details"
+            }));
+            
+            const wb = XL.utils.book_new();
+            const ws = XL.utils.json_to_sheet(rows);
+            XL.utils.book_append_sheet(wb, ws, "Alertes Intelligentes");
+            XL.writeFile(wb, `Alertes_Intelligentes_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            
+            if (typeof showToast === "function") {
+                showToast(`Export de ${filtered.length} alertes réussi`, "success");
+            }
+        });
     };
 
     // ══════════════════════════════════════════════════════════
