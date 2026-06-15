@@ -391,6 +391,20 @@
             }
         });
 
+        // ── 5. Collecteurs personnalisés enregistrés à l'extérieur ──
+        if (Array.isArray(window.smartAlertsCollectors)) {
+            window.smartAlertsCollectors.forEach(collector => {
+                try {
+                    const customAlerts = collector(st);
+                    if (Array.isArray(customAlerts)) {
+                        alerts.push(...customAlerts);
+                    }
+                } catch (e) {
+                    console.error("[smartAlerts] Erreur dans un collecteur personnalisé :", e);
+                }
+            });
+        }
+
         // Trier : danger d'abord, puis warn
         return alerts.sort((a, b) => {
             const order = { danger: 0, warn: 1, info: 2 };
@@ -528,7 +542,7 @@
                           : "sa-badge-info";
                 const badge = document.createElement("span");
                 badge.className = `sa-badge ${cls}`;
-                badge.innerHTML = ICONS[a.icon] + _shortTitle(a.type);
+                badge.innerHTML = ICONS[a.icon] + (a.shortTitle || _shortTitle(a.type));
                 badgeWrap.appendChild(badge);
             });
 
@@ -630,7 +644,7 @@
                 </div>
                 <div class="sa-alert-action">
                     💡 ${esc(a.action)}
-                    ${a.rowIndex ? `<button class="sa-goto-btn" onclick="saNavigateTo('details',${a.rowIndex})">
+                    ${a.rowIndex ? `<button class="sa-goto-btn" onclick="saNavigateTo('${a.sheet || 'details'}',${a.rowIndex})">
                         Voir ${ICONS.arrow}
                     </button>` : ""}
                 </div>
