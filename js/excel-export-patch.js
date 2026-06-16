@@ -66,7 +66,10 @@
         const dataRows = rows.map((row, ri) => {
             const isAlt = ri % 2 !== 0;
             const cells = headers.map(h => {
-                const raw = row[h.key] ?? "";
+                let raw = row[h.key] ?? "";
+                // Fallback : la colonne "UP" peut être stockée sous "Unit Price"
+                if ((raw === "" || raw == null) && h.key === "UP") raw = row["Unit Price"] ?? "";
+                if ((raw === "" || raw == null) && h.key === "Unit Price") raw = row["UP"] ?? "";
                 const isDateCol = h.isDate || h.type === "date";
                 const val = isDateCol ? fmtDate(raw) : String(raw);
                 const empty = !val || val === "" || val === "undefined" || val === "null";
