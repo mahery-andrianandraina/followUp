@@ -69,8 +69,10 @@
                 // Colonne lien dédiée (PO File / PI File) → seul le lien est bleu
                 if (h.isLinkCol) {
                     const u = (row[h.urlKey] || "").trim();
-                    if (/^https?:\/\//i.test(u)) {
-                        return `<td style="${tdStyle(isAlt)}"><a href="${u.replace(/"/g, "%22")}">&#128279; Ouvrir</a></td>`;
+                    // N'afficher le lien que si la colonne numéro (PI/PO) est remplie
+                    const hasNum = (h.numKeys || []).some(k => (row[k] || "").toString().trim() !== "");
+                    if (hasNum && /^https?:\/\//i.test(u)) {
+                        return `<td style="${tdStyle(isAlt)}"><a href="${u.replace(/"/g, "%22")}" style="font-family:Arial,sans-serif;font-size:11px;">&#128279; Ouvrir</a></td>`;
                     }
                     return `<td style="${tdStyle(isAlt, "color:#9AA0A6;")}">—</td>`;
                 }
@@ -205,10 +207,10 @@ ${titleRow}${subtitleRow}${spacerRow}${headerRow}${dataRows}
         headers.forEach(h => {
             withLinks.push(h);
             if (h.key === "PO #" || h.key === "PO") {
-                withLinks.push({ key: "__PO_LINK__", label: "PO File", isLinkCol: true, urlKey: "PO URL", accent: "#1A73E8" });
+                withLinks.push({ key: "__PO_LINK__", label: "PO File", isLinkCol: true, urlKey: "PO URL", numKeys: ["PO #", "PO"], accent: "#1A73E8" });
             }
             if (h.key === "PI") {
-                withLinks.push({ key: "__PI_LINK__", label: "PI File", isLinkCol: true, urlKey: "PI URL", accent: "#1A73E8" });
+                withLinks.push({ key: "__PI_LINK__", label: "PI File", isLinkCol: true, urlKey: "PI URL", numKeys: ["PI"], accent: "#1A73E8" });
             }
         });
 
