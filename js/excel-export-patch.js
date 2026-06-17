@@ -66,6 +66,15 @@
         const dataRows = rows.map((row, ri) => {
             const isAlt = ri % 2 !== 0;
             const cells = headers.map(h => {
+                // Colonne lien dédiée (PO File / PI File) → seul le lien est bleu
+                if (h.isLinkCol) {
+                    const u = (row[h.urlKey] || "").trim();
+                    if (/^https?:\/\//i.test(u)) {
+                        return `<td style="${tdStyle(isAlt)}"><a href="${u.replace(/"/g, "%22")}">&#128279; Ouvrir</a></td>`;
+                    }
+                    return `<td style="${tdStyle(isAlt, "color:#9AA0A6;")}">—</td>`;
+                }
+
                 let raw = row[h.key] ?? "";
                 // Fallback : la colonne "UP" peut être stockée sous "Unit Price"
                 if ((raw === "" || raw == null) && h.key === "UP") raw = row["Unit Price"] ?? "";
@@ -115,24 +124,9 @@
                     return `<td style="${tdStyle(isAlt, "color:#1557B0;")}"> ${esc(val)}</td>`;
                 }
 
-                // Monospace (PO#, ref) — texte normal + petit lien à côté si fichier lié
+                // Monospace (PO#, ref) — texte noir pur (le lien est dans la colonne dédiée)
                 if (h.isMono || h.key === "PO #" || h.key === "PO") {
-                    const fileUrl = (row["PO URL"] || "").trim();
-                    const numPart = `<font color="#202124">${esc(val)}</font>`;
-                    const linkPart = /^https?:\/\//i.test(fileUrl)
-                        ? ` <a href="${fileUrl.replace(/"/g, "%22")}">&#128279;</a>`
-                        : "";
-                    return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${numPart}${linkPart}</td>`;
-                }
-
-                // PI (numéro) — texte normal + petit lien à côté si fichier lié
-                if (h.key === "PI") {
-                    const fileUrl = (row["PI URL"] || "").trim();
-                    const numPart = `<font color="#202124">${esc(val)}</font>`;
-                    const linkPart = /^https?:\/\//i.test(fileUrl)
-                        ? ` <a href="${fileUrl.replace(/"/g, "%22")}">&#128279;</a>`
-                        : "";
-                    return `<td style="${tdStyle(isAlt)}">${numPart}${linkPart}</td>`;
+                    return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${esc(val)}</td>`;
                 }
 
                 return `<td style="${tdStyle(isAlt)}">${esc(val)}</td>`;
@@ -190,7 +184,7 @@ ${titleRow}${subtitleRow}${spacerRow}${headerRow}${dataRows}
 
         const headers = cfg.cols
             .filter(c => !["TP_URL", "Image", "_imageUrl", "Comment PDF",
-                           "PI Filename", "PO Filename",
+                           "PI Filename", "PO Filename", "PI URL", "PO URL",
                            "Artwork Original URL", "Artwork Signed URL"].includes(c.key))
             .map(c => ({
                 key:     c.key,
@@ -206,13 +200,25 @@ ${titleRow}${subtitleRow}${spacerRow}${headerRow}${dataRows}
                        : "#CCCCCC"
             }));
 
+        // Insérer une colonne "lien" juste après PO et après PI
+        const withLinks = [];
+        headers.forEach(h => {
+            withLinks.push(h);
+            if (h.key === "PO #" || h.key === "PO") {
+                withLinks.push({ key: "__PO_LINK__", label: "PO File", isLinkCol: true, urlKey: "PO URL", accent: "#1A73E8" });
+            }
+            if (h.key === "PI") {
+                withLinks.push({ key: "__PI_LINK__", label: "PI File", isLinkCol: true, urlKey: "PI URL", accent: "#1A73E8" });
+            }
+        });
+
         const today = new Date().toISOString().slice(0, 10);
         const fileName = `AW27_${cfg.label}_${today}.xls`;
 
         const html = buildExcelHTML({
             title:     cfg.label,
             subtitle:  `${rows.length} ligne${rows.length > 1 ? "s" : ""} · AW27 Checkers`,
-            headers,
+            headers:   withLinks,
             rows,
             sheetName: cfg.label
         });
