@@ -70,6 +70,9 @@
                 // Fallback : la colonne "UP" peut être stockée sous "Unit Price"
                 if ((raw === "" || raw == null) && h.key === "UP") raw = row["Unit Price"] ?? "";
                 if ((raw === "" || raw == null) && h.key === "Unit Price") raw = row["UP"] ?? "";
+                // Fallback : la colonne "PO" peut être stockée sous "PO #"
+                if ((raw === "" || raw == null) && h.key === "PO") raw = row["PO #"] ?? "";
+                if ((raw === "" || raw == null) && h.key === "PO #") raw = row["PO"] ?? "";
                 const isDateCol = h.isDate || h.type === "date";
                 const val = isDateCol ? fmtDate(raw) : String(raw);
                 const empty = !val || val === "" || val === "undefined" || val === "null";
