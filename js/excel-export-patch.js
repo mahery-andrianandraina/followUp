@@ -96,7 +96,7 @@
                     const safeUrl   = linkUrl.replace(/"/g, "%22");
                     const safeLabel = esc(label).replace(/"/g, "&quot;");
                     return `<td style="${tdStyle(isAlt)}">` +
-                           `<a href="${safeUrl}" style="color:inherit;text-decoration:none;font:inherit;">${safeLabel}</a></td>`;
+                           `<a href="${safeUrl}" style="text-decoration:none;"><font color="#202124" style="text-decoration:none;">${safeLabel}</font></a></td>`;
                 }
 
                 // Badge approval/status/delivery
@@ -121,7 +121,7 @@
                     if (/^https?:\/\//i.test(fileUrl)) {
                         const safeUrl = fileUrl.replace(/"/g, "%22");
                         return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}">` +
-                               `<a href="${safeUrl}" style="color:inherit;text-decoration:none;font:inherit;"> ${esc(val)}</a></td>`;
+                               `<a href="${safeUrl}" style="text-decoration:none;"><font color="#202124" style="text-decoration:none;font-family:'Courier New',monospace;font-weight:bold;"> ${esc(val)}</font></a></td>`;
                     }
                     return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${esc(val)}</td>`;
                 }
@@ -132,7 +132,7 @@
                     if (/^https?:\/\//i.test(fileUrl)) {
                         const safeUrl = fileUrl.replace(/"/g, "%22");
                         return `<td style="${tdStyle(isAlt)}">` +
-                               `<a href="${safeUrl}" style="color:inherit;text-decoration:none;font:inherit;">${esc(val)}</a></td>`;
+                               `<a href="${safeUrl}" style="text-decoration:none;"><font color="#202124" style="text-decoration:none;">${esc(val)}</font></a></td>`;
                     }
                     return `<td style="${tdStyle(isAlt)}">${esc(val)}</td>`;
                 }
