@@ -259,18 +259,8 @@
     // ── Init ──────────────────────────────────────────────────────
     function init() {
         injectStyles();
-        // patchConfig après que les configs custom soient chargées
-        let tries = 0;
-        const t = setInterval(() => {
-            tries++;
-            patchConfig();
-            if (window.SHEET_CONFIG?.[SHEET_KEY] || tries > 40) {
-                patchConfig();
-                if (tries > 40) clearInterval(t);
-            }
-        }, 300);
 
-        // Hook renderTable
+        // Hook renderTable — réappliquer la config AVANT chaque rendu
         const _wait = setInterval(() => {
             if (typeof window.renderTable !== "function") return;
             clearInterval(_wait);
@@ -278,10 +268,24 @@
             window._tpRenderPatched = true;
             const _orig = window.renderTable;
             window.renderTable = function() {
+                // S'assurer que la colonne existe juste avant le rendu
+                if (window.state?.activeSheet === SHEET_KEY) patchConfig();
                 _orig.apply(this, arguments);
                 if (window.state?.activeSheet === SHEET_KEY) setTimeout(injectCells, 120);
             };
         }, 100);
+
+        // Patch initial + ré-essais (le menu custom peut charger tard)
+        let tries = 0;
+        const t = setInterval(() => {
+            tries++;
+            patchConfig();
+            // Forcer un re-render si on est déjà sur le menu et que la colonne vient d'être ajoutée
+            if (window.state?.activeSheet === SHEET_KEY && typeof window.renderTable === "function") {
+                window.renderTable(document.getElementById("aw-search-input")?.value || "");
+            }
+            if (tries > 25) clearInterval(t);
+        }, 400);
 
         // Observer tbody
         const watch = setInterval(() => {
