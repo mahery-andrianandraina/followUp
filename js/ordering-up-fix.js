@@ -17,6 +17,13 @@
                 row["UP"] = row["Unit Price"];
                 mapped++;
             }
+            // Si PO est vide mais "PO #" existe → copier
+            const po = (row["PO"] ?? "").toString().trim();
+            const poHash = (row["PO #"] ?? "").toString().trim();
+            if (!po && poHash) {
+                row["PO"] = row["PO #"];
+                mapped++;
+            }
         });
         if (mapped) console.log(`[AW27] Unit Price → UP : ${mapped} lignes mappées`);
         return true;
