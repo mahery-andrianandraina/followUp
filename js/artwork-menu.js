@@ -4,7 +4,7 @@
 
 (function initArtworkMenu() {
 
-    const ARTWORK_TRIMS_KEYWORDS = ["size & care", "size & care label", "care"];
+    const ARTWORK_TRIMS_KEYWORDS = ["size & care", "size & care label", "care", "size sticker"];
 
     function _isArtworkPO(row) {
         const trims = String(row.Trims || row.trims || "").toLowerCase().trim();
@@ -257,9 +257,9 @@
         const bar = document.getElementById("aw-kpi-bar");
         if (!bar) return;
         const total    = rows.length;
-        const approved = rows.filter(r => (r["Artwork Approval"] || "").toLowerCase() === "approved").length;
-        const pending  = rows.filter(r => { const a = (r["Artwork Approval"] || "").toLowerCase(); return !a || a === "pending"; }).length;
-        const rejected = rows.filter(r => (r["Artwork Approval"] || "").toLowerCase() === "rejected").length;
+        const approved = rows.filter(r => (r["Artwork Approval."] || "").toLowerCase() === "approved").length;
+        const pending  = rows.filter(r => { const a = (r["Artwork Approval."] || "").toLowerCase(); return !a || a === "pending"; }).length;
+        const rejected = rows.filter(r => (r["Artwork Approval."] || "").toLowerCase() === "rejected").length;
         bar.innerHTML = [
             { cls: "aw-kpi-blue",   icon: `<i class="ti ti-clipboard-list" aria-hidden="true"></i>`, val: total,    lbl: "Total POs" },
             { cls: "aw-kpi-green",  icon: `<i class="ti ti-circle-check"   aria-hidden="true"></i>`, val: approved, lbl: "Approuvés" },
@@ -284,7 +284,7 @@
         const poDate       = fmtD(r["PO Date"]               || r.PODate);
         const receivedDate = fmtD(r["Artwork Received"]       || "");
         const approvalDate = fmtD(r["Artwork Approval Date"]  || "");
-        const apvlRaw      = (r["Artwork Approval"] || "").trim();
+        const apvlRaw      = (r["Artwork Approval."] || "").trim();
         const apvlCls      = apvlRaw.toLowerCase() === "approved" ? "approved"
                            : apvlRaw.toLowerCase() === "rejected"  ? "rejected" : "pending";
         const originalUrl  = (r["Artwork Original URL"] || "").trim();
@@ -374,7 +374,7 @@
         const query = (q || "").trim();
         const rows  = query ? all.filter(r => {
             const hay = [r.Description, r.Style, r["PO #"], r.PO,
-                r.Trims, r.Client, r["Artwork Approval"],
+                r.Trims, r.Client, r["Artwork Approval."],
                 r["Artwork Comments"]].join(" ").toLowerCase();
             return hay.includes(query.toLowerCase());
         }) : all;
@@ -489,9 +489,9 @@
 
                     } else if (type === "signed") {
                         // Upload Signed → Approval = Approved + Approval Date = aujourd'hui
-                        row["Artwork Approval"]      = "Approved";
+                        row["Artwork Approval."]      = "Approved";
                         row["Artwork Approval Date"] = today;
-                        await window.quickUpdate(rowIndex, "Artwork Approval",      "Approved", "ordering");
+                        await window.quickUpdate(rowIndex, "Artwork Approval.",      "Approved", "ordering");
                         await window.quickUpdate(rowIndex, "Artwork Approval Date", today,      "ordering");
                         if (typeof showToast === "function") showToast("Artwork signé — Approved automatiquement", "success");
                     }
@@ -524,10 +524,10 @@
         const val = selectEl.value;
         selectEl.className = "aw-apvl-select " + val.toLowerCase();
         try {
-            await window.quickUpdate(rowIndex, "Artwork Approval", val, "ordering");
+            await window.quickUpdate(rowIndex, "Artwork Approval.", val, "ordering");
             const row = (window.state?.data?.ordering || []).find(r => r._rowIndex === rowIndex);
             if (row) {
-                row["Artwork Approval"] = val;
+                row["Artwork Approval."] = val;
                 if (val === "Approved" || val === "Rejected") {
                     // Remplir la date d'approval automatiquement
                     const today = new Date().toISOString().slice(0, 10);
@@ -684,7 +684,7 @@
         [
             { key: "Artwork Original URL",  label: "Artwork Original URL",  type: "text" },
             { key: "Artwork Signed URL",    label: "Artwork Signed URL",    type: "text" },
-            { key: "Artwork Approval",      label: "Artwork Approval",      type: "select", options: ["","Pending","Approved","Rejected"] },
+            { key: "Artwork Approval.",     label: "Artwork Approval",      type: "select", options: ["","Pending","Approved","Rejected"] },
             { key: "Artwork Received",      label: "Artwork Received",      type: "date" },
             { key: "Artwork Approval Date", label: "Artwork Approval Date", type: "date" },
             { key: "Artwork Comments",      label: "Artwork Comments",      type: "textarea" },
