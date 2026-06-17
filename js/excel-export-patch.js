@@ -116,9 +116,26 @@
                     return `<td style="${tdStyle(isAlt, "color:#1557B0;")}"> ${esc(val)}</td>`;
                 }
 
-                // Monospace (PO#, ref)
+                // Monospace (PO#, ref) — cliquable si un fichier est lié
                 if (h.isMono || h.key === "PO #" || h.key === "PO") {
+                    const fileUrl = (row["PO URL"] || "").trim();
+                    if (/^https?:\/\//i.test(fileUrl)) {
+                        const safeUrl = fileUrl.replace(/"/g, "%22");
+                        return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;color:#202124;")}">` +
+                               `<a href="${safeUrl}" style="color:#202124;text-decoration:none;">${esc(val)}</a></td>`;
+                    }
                     return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${esc(val)}</td>`;
+                }
+
+                // PI (numéro) — cliquable si fichier lié
+                if (h.key === "PI") {
+                    const fileUrl = (row["PI URL"] || "").trim();
+                    if (/^https?:\/\//i.test(fileUrl)) {
+                        const safeUrl = fileUrl.replace(/"/g, "%22");
+                        return `<td style="${tdStyle(isAlt, "color:#202124;")}">` +
+                               `<a href="${safeUrl}" style="color:#202124;text-decoration:none;">${esc(val)}</a></td>`;
+                    }
+                    return `<td style="${tdStyle(isAlt)}">${esc(val)}</td>`;
                 }
 
                 return `<td style="${tdStyle(isAlt)}">${esc(val)}</td>`;
