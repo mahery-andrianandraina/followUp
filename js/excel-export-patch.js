@@ -78,6 +78,25 @@
                     return `<td style="${tdStyle(isAlt, "color:#9AA0A6;")}">—</td>`;
                 }
 
+                // Lien cliquable (colonnes URL) — texte normal, pas bleu souligné
+                if (/^https?:\/\//i.test(val.trim())) {
+                    const linkUrl = val.trim();
+                    // Libellé : nom de fichier associé, sinon "Ouvrir"
+                    let label = "Ouvrir";
+                    if (h.key === "PI URL")  label = row["PI Filename"] || "PI";
+                    else if (h.key === "PO URL") label = row["PO Filename"] || "PO";
+                    else if (/filename/i.test(h.key)) label = val;
+                    else {
+                        const fn = linkUrl.match(/\/([^\/?]+\.(pdf|xlsx|xls|jpg|jpeg|png))/i);
+                        label = fn ? fn[1] : "Ouvrir";
+                    }
+                    const safeUrl   = linkUrl.replace(/"/g, "%22");
+                    const safeLabel = esc(label).replace(/"/g, "&quot;");
+                    // x:str force Excel à traiter la formule ; style texte noir non souligné
+                    return `<td style="${tdStyle(isAlt, "color:#202124;text-decoration:none;")}">` +
+                           `<a href="${safeUrl}" style="color:#202124;text-decoration:none;">${safeLabel}</a></td>`;
+                }
+
                 // Badge approval/status/delivery
                 if (h.isBadge || ["Approval","Status","Delivery Status"].includes(h.key)) {
                     const { bg, co } = approvalBg(val);
@@ -153,7 +172,9 @@ ${titleRow}${subtitleRow}${spacerRow}${headerRow}${dataRows}
         const MONO_KEYS  = ["PO #", "PO", "CTLStyleRef", "Cust Style Ref", "AWB"];
 
         const headers = cfg.cols
-            .filter(c => !["TP_URL", "Image", "_imageUrl", "Comment PDF"].includes(c.key))
+            .filter(c => !["TP_URL", "Image", "_imageUrl", "Comment PDF",
+                           "PI Filename", "PO Filename",
+                           "Artwork Original URL", "Artwork Signed URL"].includes(c.key))
             .map(c => ({
                 key:     c.key,
                 label:   c.label,
