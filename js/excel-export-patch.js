@@ -118,19 +118,21 @@
                 // Monospace (PO#, ref) — texte normal + petit lien à côté si fichier lié
                 if (h.isMono || h.key === "PO #" || h.key === "PO") {
                     const fileUrl = (row["PO URL"] || "").trim();
+                    const numPart = `<font color="#202124">${esc(val)}</font>`;
                     const linkPart = /^https?:\/\//i.test(fileUrl)
                         ? ` <a href="${fileUrl.replace(/"/g, "%22")}">&#128279;</a>`
                         : "";
-                    return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${esc(val)}${linkPart}</td>`;
+                    return `<td style="${tdStyle(isAlt, "font-family:'Courier New',monospace;font-weight:bold;")}"> ${numPart}${linkPart}</td>`;
                 }
 
                 // PI (numéro) — texte normal + petit lien à côté si fichier lié
                 if (h.key === "PI") {
                     const fileUrl = (row["PI URL"] || "").trim();
+                    const numPart = `<font color="#202124">${esc(val)}</font>`;
                     const linkPart = /^https?:\/\//i.test(fileUrl)
                         ? ` <a href="${fileUrl.replace(/"/g, "%22")}">&#128279;</a>`
                         : "";
-                    return `<td style="${tdStyle(isAlt)}">${esc(val)}${linkPart}</td>`;
+                    return `<td style="${tdStyle(isAlt)}">${numPart}${linkPart}</td>`;
                 }
 
                 return `<td style="${tdStyle(isAlt)}">${esc(val)}</td>`;
