@@ -3135,7 +3135,34 @@ function _compressImage(file, quality = 0.75) {
     img.src = url;
   });
 }
+window.uploadCommentPDF = async function (rowIndex, colKey, fileName, base64Data, mimeType, _unused) {
+  const sheetKey = window.state?.activeSheet || "ordering";
+  const cfg = window.SHEET_CONFIG?.[sheetKey];
+  const sheetName = (cfg && cfg.sheetName) ? cfg.sheetName : sheetKey;
 
+  const payload = {
+    action: "UPLOAD_ORDERING_FILE",
+    sheet: sheetName,
+    colKey,
+    rowIndex,
+    fileName,
+    base64Data,
+    mimeType
+  };
+
+  const res = await fetch(window.GOOGLE_APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    redirect: "follow",
+    body: JSON.stringify(payload)
+  });
+
+  const json = await res.json();
+  if (json.status !== "ok") throw new Error(json.message || "Erreur GAS lors de l'upload");
+  if (!json.url) throw new Error("Aucune URL retournée par le serveur.");
+
+  return json.url;
+};
 function showToast(msg, type = "info", duration = 3500) {
     const toast = document.createElement("div"); toast.className = `toast ${type}`; toast.innerHTML = `<span class="toast-msg">${msg}</span>`;
     toastContainer.appendChild(toast);
