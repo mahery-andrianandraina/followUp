@@ -4,7 +4,7 @@
 
 (function initArtworkMenu() {
 
-    const ARTWORK_TRIMS_KEYWORDS = ["size & care", "size & care label", "care", "size sticker", "collection hangtag", "hangtag"];
+    const ARTWORK_TRIMS_KEYWORDS = ["size & care", "size & care label", "care", "size sticker", "collection hangtag"];
 
     function _isArtworkPO(row) {
         const trims = String(row.Trims || row.trims || "").toLowerCase().trim();
