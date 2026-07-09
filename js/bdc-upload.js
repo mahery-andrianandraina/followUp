@@ -146,7 +146,10 @@
                 const row = (window.state?.data?.details || [])
                     .find(r => r._rowIndex === rowIdx);
                 if (row) row[BDC_COL] = url;
-
+// Vérifier si les 3 conditions sont réunies après upload BDC
+if (typeof window.checkAndNotifyOrderConfirm === "function") {
+    setTimeout(() => window.checkAndNotifyOrderConfirm(rowIdx), 300);
+}
                 refreshBDCButton(btn, url);
                 typeof showToast === "function" &&
                     showToast(`BDC uploadé ✓ — ${file.name}`, "success");
