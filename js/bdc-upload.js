@@ -9,7 +9,7 @@
     // ── Constante clé colonne ─────────────────────────────────
     const BDC_COL = "BDC_URL";
 
-    // ── Styles ───────────────────────────────────────────────
+    // ── Styles  ───────────────────────────────────────────────
     function injectStyles() {
         if (document.getElementById("bdc-upload-styles")) return;
         const s = document.createElement("style");
