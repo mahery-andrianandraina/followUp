@@ -13,7 +13,7 @@
         { key: "CTL Style Ref",  label: "CTL Style Ref",  type: "text"                   },
         { key: "Composant",      label: "Composant",      type: "text",   required: true },
         { key: "Status",         label: "Status",         type: "select",
-          options: ["", "Approved", "Rejected", "Pending","In House"]                               },
+          options: ["", "Approved", "On Going", "Rejected"]                               },
         { key: "Details",        label: "Details",        type: "textarea", full: true   }
 
     ];
@@ -25,16 +25,15 @@
         s.id = "sc-styles";
         s.textContent = `
         #btn-components-pdf {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 6px 12px; border-radius: 8px;
-            background: var(--surface-2, #f3f4f6);
+            display: flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; border-radius: 50%; padding: 0;
+            background: var(--surface-1, #f3f4f6);
             border: 1px solid var(--border, #e5e7eb);
-            color: var(--text-2, #6b7280); cursor: pointer;
-            font-size: 12px; font-weight: 500; font-family: inherit;
-            transition: background .15s, color .15s, border-color .15s;
+            color: var(--text-secondary, #6b7280); cursor: pointer;
+            transition: background .15s, color .15s;
         }
         #btn-components-pdf:hover {
-            background: #fdf4ff; color: #7e22ce; border-color: #d8b4fe;
+            background: var(--surface-0, #ede9fe); color: #7e22ce;
         }
         #btn-components-pdf:disabled { opacity: .5; cursor: not-allowed; }
         @keyframes sc-spin { to { transform: rotate(360deg); } }
@@ -719,15 +718,7 @@ ${sectionsHTML}
         const btn = document.createElement("button");
         btn.id    = "btn-components-pdf";
         btn.title = "Télécharger le PDF des composants styles";
-        btn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0
-                    012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0
-                    01.293.707V19a2 2 0 01-2 2z"/>
-            </svg>
-            Components PDF`;
+        btn.innerHTML = `<i class="ti ti-checklist" aria-hidden="true" style="font-size:17px;"></i>`;
         btn.onclick = openPDFModal;
 
         const targets = [
