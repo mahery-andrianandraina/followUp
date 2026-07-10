@@ -501,100 +501,135 @@
 
         const statusCfg = s => {
             const v = String(s || "").trim().toLowerCase();
-            if (v === "approved") return { bg:"#f0fdf4",color:"#166534",border:"#86efac" };
-            if (v === "rejected") return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5" };
-            if (v === "on going") return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd" };
-            return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb" };
+            if (v === "approved") return { bg:"#f0fdf4",color:"#166534",border:"#86efac",dot:"#16a34a" };
+            if (v === "rejected") return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5",dot:"#dc2626" };
+            if (v === "on going") return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd",dot:"#2563eb" };
+            return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb",dot:"#9ca3af" };
+        };
+
+        // Lookup image depuis state.data.details par Cust Style Ref
+        const getStyleImage = (custRef) => {
+            const detailRow = (window.state?.data?.details || []).find(r =>
+                String(r["Cust Style Ref"] || "").trim() === custRef
+            );
+            return detailRow?._imageUrl || "";
         };
 
         const sectionsHTML = order.map(key => {
-            const group = groups[key];
-            const approved = group.rows.filter(r =>
-                String(r.Status||"").toLowerCase() === "approved").length;
-            const rejected = group.rows.filter(r =>
-                String(r.Status||"").toLowerCase() === "rejected").length;
-            const ongoing  = group.rows.filter(r =>
-                String(r.Status||"").toLowerCase() === "on going").length;
+            const group    = groups[key];
+            const imgUrl   = getStyleImage(group.custRef);
+            const approved = group.rows.filter(r => String(r.Status||"").toLowerCase() === "approved").length;
+            const rejected = group.rows.filter(r => String(r.Status||"").toLowerCase() === "rejected").length;
+            const ongoing  = group.rows.filter(r => String(r.Status||"").toLowerCase() === "on going").length;
+            const total    = group.rows.length;
 
-            const rowsHTML = group.rows.map(r => {
+            const rowsHTML = group.rows.map((r, i) => {
                 const sc  = statusCfg(r.Status);
                 const det = String(r.Details || "").trim().split(String.fromCharCode(10)).join("<br>");
+                const bg  = i % 2 === 0 ? "#ffffff" : "#fafafa";
                 return `
-                <tr>
-                    <td style="padding:8px 12px;font-size:12px;font-weight:500;
-                        color:#111827;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+                <tr style="background:${bg};">
+                    <td style="padding:9px 14px;font-size:12.5px;font-weight:500;
+                        color:#111827;border-bottom:1px solid #f0f0f0;vertical-align:top;
+                        width:26%;">
                         ${r.Composant || "—"}
                     </td>
-                    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;
-                        vertical-align:top;">
-                        ${r.Status ? `<span style="display:inline-block;padding:2px 9px;
-                            border-radius:20px;font-size:11px;font-weight:600;
-                            background:${sc.bg};color:${sc.color};
-                            border:0.5px solid ${sc.border};">${r.Status}</span>` : "—"}
+                    <td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;
+                        vertical-align:top;width:16%;">
+                        ${r.Status
+                            ? `<span style="display:inline-flex;align-items:center;gap:5px;
+                                padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
+                                background:${sc.bg};color:${sc.color};border:0.5px solid ${sc.border};">
+                                <span style="width:5px;height:5px;border-radius:50%;
+                                    background:${sc.dot};flex-shrink:0;display:inline-block;"></span>
+                                ${r.Status}</span>`
+                            : '<span style="color:#d1d5db;font-size:12px;">—</span>'}
                     </td>
-                    <td style="padding:8px 12px;font-size:12px;color:#374151;
-                        border-bottom:1px solid #f3f4f6;vertical-align:top;
-                        line-height:1.5;">${det || "—"}</td>
+                    <td style="padding:9px 14px;font-size:12px;color:#374151;
+                        border-bottom:1px solid #f0f0f0;vertical-align:top;
+                        line-height:1.6;width:58%;">${det || '<span style="color:#d1d5db;">—</span>'}</td>
                 </tr>`;
             }).join("");
 
             return `
-            <div style="margin-bottom:28px;page-break-inside:avoid;">
-                <div style="background:linear-gradient(135deg,#1565c0,#1e88e5);
-                    border-radius:10px 10px 0 0;padding:14px 18px;
-                    display:flex;align-items:center;justify-content:space-between;
-                    flex-wrap:wrap;gap:8px;">
-                    <div>
-                        <div style="font-size:16px;font-weight:700;color:#fff;
-                            letter-spacing:.02em;">${group.custRef || "—"}</div>
-                        ${group.ctlRef ? `<div style="font-size:11px;
-                            color:rgba(255,255,255,.7);margin-top:3px;">
-                            CTL Ref : ${group.ctlRef}</div>` : ""}
-                    </div>
-                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                        ${approved > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                            background:#f0fdf4;color:#166534;font-size:11px;font-weight:600;">
-                            ✓ ${approved} Approved</span>` : ""}
-                        ${ongoing  > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                            background:#eff6ff;color:#1e40af;font-size:11px;font-weight:600;">
-                            ⏳ ${ongoing} On Going</span>` : ""}
-                        ${rejected > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                            background:#fef2f2;color:#991b1b;font-size:11px;font-weight:600;">
-                            ✗ ${rejected} Rejected</span>` : ""}
+            <div style="margin-bottom:36px;page-break-inside:avoid;
+                border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+
+                <!-- En-tête style : image gauche + infos droite -->
+                <div style="display:flex;align-items:stretch;border-bottom:1px solid #e5e7eb;">
+
+                    <!-- Image du style -->
+                    ${imgUrl ? `
+                    <div style="width:110px;flex-shrink:0;background:#f9fafb;
+                        border-right:1px solid #e5e7eb;display:flex;
+                        align-items:center;justify-content:center;padding:10px;">
+                        <img src="${imgUrl}" alt="${group.custRef}"
+                            style="width:90px;height:90px;object-fit:cover;
+                                border-radius:6px;"/>
+                    </div>` : `
+                    <div style="width:110px;flex-shrink:0;background:#f9fafb;
+                        border-right:1px solid #e5e7eb;display:flex;
+                        align-items:center;justify-content:center;">
+                        <span style="font-size:28px;color:#d1d5db;">&#128247;</span>
+                    </div>`}
+
+                    <!-- Infos style -->
+                    <div style="flex:1;padding:14px 18px;background:#fff;">
+                        <div style="font-size:17px;font-weight:700;color:#111827;
+                            letter-spacing:.01em;margin-bottom:3px;">
+                            ${group.custRef || "—"}
+                        </div>
+                        ${group.ctlRef ? `
+                        <div style="font-size:11.5px;color:#6b7280;margin-bottom:10px;">
+                            CTL Ref : <strong style="color:#374151;">${group.ctlRef}</strong>
+                        </div>` : '<div style="margin-bottom:10px;"></div>'}
+
+                        <!-- Badges statuts -->
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                            <span style="padding:2px 9px;border-radius:20px;
+                                background:#f9fafb;border:0.5px solid #e5e7eb;
+                                font-size:10.5px;color:#6b7280;">
+                                ${total} composant${total > 1 ? "s" : ""}
+                            </span>
+                            ${approved > 0 ? `<span style="padding:2px 9px;border-radius:20px;
+                                background:#f0fdf4;border:0.5px solid #86efac;
+                                font-size:10.5px;font-weight:600;color:#166534;">
+                                ✓ ${approved} Approved</span>` : ""}
+                            ${ongoing  > 0 ? `<span style="padding:2px 9px;border-radius:20px;
+                                background:#eff6ff;border:0.5px solid #93c5fd;
+                                font-size:10.5px;font-weight:600;color:#1e40af;">
+                                ${ongoing} On Going</span>` : ""}
+                            ${rejected > 0 ? `<span style="padding:2px 9px;border-radius:20px;
+                                background:#fef2f2;border:0.5px solid #fca5a5;
+                                font-size:10.5px;font-weight:600;color:#991b1b;">
+                                ✗ ${rejected} Rejected</span>` : ""}
+                        </div>
                     </div>
                 </div>
+
+                <!-- Tableau composants -->
                 <table width="100%" cellpadding="0" cellspacing="0"
-                    style="border-collapse:collapse;
-                           border:1px solid #e5e7eb;border-top:none;overflow:hidden;">
+                    style="border-collapse:collapse;">
                     <thead>
-                        <tr style="background:#f9fafb;border-bottom:1.5px solid #e5e7eb;">
-                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                color:#6b7280;text-transform:uppercase;
-                                letter-spacing:.07em;font-weight:600;width:25%;">
-                                Composant</th>
-                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                color:#6b7280;text-transform:uppercase;
-                                letter-spacing:.07em;font-weight:600;width:18%;">
-                                Status</th>
-                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                color:#6b7280;text-transform:uppercase;
-                                letter-spacing:.07em;font-weight:600;width:57%;">
-                                Details</th>
+                        <tr style="background:#f8fafc;">
+                            <th style="padding:8px 14px;text-align:left;font-size:10px;
+                                color:#9ca3af;text-transform:uppercase;
+                                letter-spacing:.08em;font-weight:600;
+                                border-bottom:1px solid #e5e7eb;">Composant</th>
+                            <th style="padding:8px 14px;text-align:left;font-size:10px;
+                                color:#9ca3af;text-transform:uppercase;
+                                letter-spacing:.08em;font-weight:600;
+                                border-bottom:1px solid #e5e7eb;">Status</th>
+                            <th style="padding:8px 14px;text-align:left;font-size:10px;
+                                color:#9ca3af;text-transform:uppercase;
+                                letter-spacing:.08em;font-weight:600;
+                                border-bottom:1px solid #e5e7eb;">Details</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHTML}</tbody>
                 </table>
             </div>`;
         }).join("");
-
-        const totalStyles     = order.length;
-        const totalComposants = rows.length;
-        const totalApproved   = rows.filter(r =>
-            String(r.Status||"").toLowerCase() === "approved").length;
-        const totalRejected   = rows.filter(r =>
-            String(r.Status||"").toLowerCase() === "rejected").length;
-        const totalOngoing    = rows.filter(r =>
-            String(r.Status||"").toLowerCase() === "on going").length;
 
         return `<!DOCTYPE html>
 <html lang="fr">
@@ -603,66 +638,45 @@
 <title>AW27 — Style Components</title>
 <style>
   * { box-sizing:border-box; }
-  body { margin:0;padding:32px 40px;
+  body {
+    margin:0; padding:28px 36px;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
-    background:#fff;color:#111827; }
+    background:#fff; color:#111827;
+    font-size:13px; line-height:1.5;
+  }
   @media print {
-    body { padding:20px 24px; }
-    @page { margin:15mm 12mm;size:A4; }
+    body { padding:16px 20px; }
+    @page { margin:12mm 10mm; size:A4; }
   }
 </style>
 </head>
 <body>
 
+<!-- HEADER minimal -->
 <div style="display:flex;align-items:center;justify-content:space-between;
-    margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #e5e7eb;
-    flex-wrap:wrap;gap:12px;">
-    <div style="display:flex;align-items:center;gap:16px;">
-        <div style="background:linear-gradient(135deg,#1565c0,#1e88e5);
-            border-radius:10px;padding:10px 16px;">
-            <span style="color:#fff;font-size:20px;font-weight:700;
+    margin-bottom:24px;padding-bottom:14px;
+    border-bottom:2px solid #1565c0;">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <div style="background:#1565c0;border-radius:8px;padding:6px 12px;">
+            <span style="color:#fff;font-size:16px;font-weight:700;
                 letter-spacing:.06em;">AW27</span>
         </div>
         <div>
-            <div style="font-size:18px;font-weight:700;color:#111827;">
+            <div style="font-size:15px;font-weight:700;color:#111827;">
                 Style Components</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:2px;">
-                Rapport généré le ${todayFR}</div>
+            <div style="font-size:11px;color:#9ca3af;margin-top:1px;">
+                ${todayFR}</div>
         </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <div style="text-align:center;padding:8px 14px;border-radius:8px;
-            background:#f9fafb;border:0.5px solid #e5e7eb;">
-            <div style="font-size:20px;font-weight:700;color:#111827;">${totalStyles}</div>
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;">Styles</div>
-        </div>
-        <div style="text-align:center;padding:8px 14px;border-radius:8px;
-            background:#f9fafb;border:0.5px solid #e5e7eb;">
-            <div style="font-size:20px;font-weight:700;color:#111827;">${totalComposants}</div>
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;">Composants</div>
-        </div>
-        <div style="text-align:center;padding:8px 14px;border-radius:8px;
-            background:#f0fdf4;border:0.5px solid #86efac;">
-            <div style="font-size:20px;font-weight:700;color:#166534;">${totalApproved}</div>
-            <div style="font-size:10px;color:#166534;text-transform:uppercase;">Approved</div>
-        </div>
-        <div style="text-align:center;padding:8px 14px;border-radius:8px;
-            background:#eff6ff;border:0.5px solid #93c5fd;">
-            <div style="font-size:20px;font-weight:700;color:#1e40af;">${totalOngoing}</div>
-            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;">On Going</div>
-        </div>
-        <div style="text-align:center;padding:8px 14px;border-radius:8px;
-            background:#fef2f2;border:0.5px solid #fca5a5;">
-            <div style="font-size:20px;font-weight:700;color:#991b1b;">${totalRejected}</div>
-            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;">Rejected</div>
-        </div>
+    <div style="font-size:11px;color:#9ca3af;text-align:right;">
+        ${order.length} style${order.length > 1 ? "s" : ""} · ${rows.length} composant${rows.length > 1 ? "s" : ""}
     </div>
 </div>
 
 ${sectionsHTML}
 
-<div style="margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;
-    text-align:center;font-size:10.5px;color:#9ca3af;">
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;
+    text-align:center;font-size:10px;color:#9ca3af;">
     AW27 Checkers — Style Components — ${todayFR}
 </div>
 </body>
