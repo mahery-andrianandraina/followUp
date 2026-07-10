@@ -13,7 +13,7 @@
         { key: "CTL Style Ref",  label: "CTL Style Ref",  type: "text"                   },
         { key: "Composant",      label: "Composant",      type: "text",   required: true },
         { key: "Status",         label: "Status",         type: "select",
-          options: ["", "Approved", "In House", "On Going", "Rejected"]                   },
+          options: ["", "Pending", "In House", "PO Sent", "Waiting Approval"]                   },
         { key: "Details",        label: "Details",        type: "textarea", full: true   }
 
     ];
