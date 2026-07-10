@@ -205,6 +205,16 @@
         }
     }
 
+    // ── Déclencher saRefresh avec retry jusqu'à ce qu'il soit dispo ──
+    function _triggerSARefresh() {
+        if (typeof window.saRefresh === "function") {
+            setTimeout(window.saRefresh, 100);
+        } else {
+            // saRefresh pas encore prêt (data load avant smartAlerts) → retry
+            setTimeout(_triggerSARefresh, 500);
+        }
+    }
+
     // ── Enregistrer un collecteur dans window.smartAlertsCollectors ──
     // Le système smartAlerts.js lit ce tableau dans son collectAlerts()
     function registerSmartAlertsCollector() {
@@ -285,10 +295,6 @@
             return alerts;
         });
 
-        // Déclencher un refresh immédiat de smartAlerts
-        if (typeof window.saRefresh === "function") {
-            window.saRefresh();
-        }
         console.log("[StyleComponents] Collecteur smartAlerts enregistré ✓");
     }
 
@@ -401,6 +407,9 @@
                         if (typeof applyFilters === "function") applyFilters();
                         if (typeof renderKPIs   === "function") renderKPIs();
                     }
+                    // Ré-enregistrer et rafraîchir smartAlerts
+                    registerSmartAlertsCollector();
+                    _triggerSARefresh();
                 });
             }
 
@@ -1025,27 +1034,16 @@ ${sectionsHTML}
         };
         tryPatchAlerts();
 
-        // Enregistrer dans smartAlerts.js via window.smartAlertsCollectors
-        const tryRegisterSA = () => {
-            if (Array.isArray(window.smartAlertsCollectors) ||
-                typeof window.saRefresh === "function") {
-                registerSmartAlertsCollector();
-            } else {
-                setTimeout(tryRegisterSA, 400);
-            }
-        };
-        setTimeout(tryRegisterSA, 1000);
-
         // Charger les données initiales
+        // On enregistre le collecteur smartAlerts APRES que les données soient chargées
         loadComponentsData().then(() => {
             if (window.state?.activeSheet === SHEET_KEY) {
                 if (typeof applyFilters === "function") applyFilters();
                 if (typeof renderKPIs   === "function") renderKPIs();
             }
-            // Refresh smartAlerts avec les nouvelles données
-            if (typeof window.saRefresh === "function") {
-                setTimeout(window.saRefresh, 200);
-            }
+            // Enregistrer le collecteur puis déclencher le refresh
+            registerSmartAlertsCollector();
+            _triggerSARefresh();
         });
 
         // Bouton PDF dans le header
