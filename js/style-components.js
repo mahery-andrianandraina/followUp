@@ -221,8 +221,9 @@
 
             const result = orig.apply(this, args);
 
-            // Re-ajouter le nav item s'il a été effacé
+            // Re-ajouter le nav item ET le bouton header s'ils ont été effacés
             addNavItem();
+            injectHeaderButton();
 
             // Si les données ont été perdues → recharger
             if (!(window.state?.data?.[SHEET_KEY]?.length)) {
