@@ -2,7 +2,7 @@
 //  AW27 — Mail Alert Reporter
 //  Envoie un rapport d'alertes par email avec Excel joint.
 //  Charger après app.js dans index.html.
-// === =============================================================
+// ================================================================
 
 (function initMailAlerts() {
 
@@ -575,16 +575,15 @@
         s.textContent = `
         @keyframes ma-spin { to { transform: rotate(360deg); } }
         #btn-mail-alerts {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 6px 12px; border-radius: 8px;
-            background: var(--surface-2, #f3f4f6);
+            display: flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; border-radius: 50%; padding: 0;
+            background: var(--surface-1, #f3f4f6);
             border: 1px solid var(--border, #e5e7eb);
-            color: var(--text-2, #6b7280); cursor: pointer;
-            font-size: 12px; font-weight: 500; font-family: inherit;
-            transition: background .15s, color .15s, border-color .15s;
+            cursor: pointer;
+            transition: background .15s;
         }
         #btn-mail-alerts:hover {
-            background: #e8f0fe; color: #1a73e8; border-color: #c5d9f9;
+            background: var(--surface-0, #e8f0fe);
         }
         `;
         document.head.appendChild(s);
@@ -596,13 +595,7 @@
         const btn = document.createElement("button");
         btn.id = "btn-mail-alerts";
         btn.title = "Envoyer le rapport d'alertes par email";
-        btn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" width="13" height="13">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-            </svg>
-            Rapport email`;
+        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="1" y="3" width="10" height="12" rx="1.5" fill="#0078D4"/><circle cx="7" cy="9" r="2.5" fill="white"/><rect x="10" y="5.5" width="7" height="7" rx="1" fill="#28A8E8"/><path d="M10 6.5L13.5 9L17 6.5" stroke="white" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
         btn.onclick = openMailModal;
 
         const target = document.getElementById("btn-notif-global")
