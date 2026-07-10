@@ -205,6 +205,93 @@
         }
     }
 
+    // ── Enregistrer un collecteur dans window.smartAlertsCollectors ──
+    // Le système smartAlerts.js lit ce tableau dans son collectAlerts()
+    function registerSmartAlertsCollector() {
+        if (window._scSACollectorRegistered) return;
+        window._scSACollectorRegistered = true;
+
+        if (!Array.isArray(window.smartAlertsCollectors)) {
+            window.smartAlertsCollectors = [];
+        }
+
+        const OK = ["approved", "in house"];
+
+        window.smartAlertsCollectors.push(function(stateData) {
+            const rows = stateData["style_components"]
+                      || window.state?.data?.["style_components"]
+                      || [];
+            const alerts = [];
+
+            rows.forEach(row => {
+                const statusRaw = String(row.Status || "").trim();
+                const status    = statusRaw.toLowerCase();
+                if (OK.includes(status)) return;
+
+                const custRef   = String(row["Cust Style Ref"] || "").trim() || "—";
+                const ctlRef    = String(row["CTL Style Ref"]  || "").trim();
+                const composant = String(row.Composant         || "").trim() || "—";
+                const detail    = String(row.Details           || "").trim();
+
+                let type, severity, title, details, action, icon;
+
+                if (status === "rejected") {
+                    type     = "Composant Rejeté";
+                    severity = "danger";
+                    title    = `${custRef} — Composant rejeté : ${composant}`;
+                    details  = [
+                        `Composant : ${composant}`,
+                        ...(detail  ? [`Détail : ${detail}`]    : []),
+                        ...(ctlRef  ? [`CTL Ref : ${ctlRef}`]   : [])
+                    ];
+                    action   = `Relancer le fournisseur pour ce composant`
+                             + (detail ? ` : ${detail}` : "");
+                    icon     = "alert";
+                } else if (status === "on going") {
+                    type     = "Composant On Going";
+                    severity = "warn";
+                    title    = `${custRef} — En attente : ${composant}`;
+                    details  = [
+                        `Composant : ${composant}`,
+                        ...(detail  ? [`Détail : ${detail}`]  : []),
+                        ...(ctlRef  ? [`CTL Ref : ${ctlRef}`] : [])
+                    ];
+                    action   = `Suivre l'avancement`
+                             + (detail ? ` : ${detail}` : "");
+                    icon     = "clock";
+                } else {
+                    type     = "Composant Sans Statut";
+                    severity = "warn";
+                    title    = `${custRef} — Statut manquant : ${composant}`;
+                    details  = [
+                        `Composant : ${composant}`,
+                        "Statut non renseigné",
+                        ...(ctlRef ? [`CTL Ref : ${ctlRef}`] : [])
+                    ];
+                    action   = "Renseigner le statut de ce composant";
+                    icon     = "sample";
+                }
+
+                alerts.push({
+                    type, severity,
+                    style:    custRef,
+                    client:   ctlRef || "",
+                    title,    details, action, icon,
+                    rowIndex: row._rowIndex,
+                    sheet:    "style_components"
+                });
+            });
+
+            return alerts;
+        });
+
+        // Déclencher un refresh immédiat de smartAlerts
+        if (typeof window.saRefresh === "function") {
+            window.saRefresh();
+        }
+        console.log("[StyleComponents] Collecteur smartAlerts enregistré ✓");
+    }
+
     // ── Patcher collectAllAlerts pour injecter les alertes SC ──
     function patchCollectAllAlerts() {
         if (window._scAlertsPatched) return;
@@ -938,11 +1025,26 @@ ${sectionsHTML}
         };
         tryPatchAlerts();
 
+        // Enregistrer dans smartAlerts.js via window.smartAlertsCollectors
+        const tryRegisterSA = () => {
+            if (Array.isArray(window.smartAlertsCollectors) ||
+                typeof window.saRefresh === "function") {
+                registerSmartAlertsCollector();
+            } else {
+                setTimeout(tryRegisterSA, 400);
+            }
+        };
+        setTimeout(tryRegisterSA, 1000);
+
         // Charger les données initiales
         loadComponentsData().then(() => {
             if (window.state?.activeSheet === SHEET_KEY) {
                 if (typeof applyFilters === "function") applyFilters();
                 if (typeof renderKPIs   === "function") renderKPIs();
+            }
+            // Refresh smartAlerts avec les nouvelles données
+            if (typeof window.saRefresh === "function") {
+                setTimeout(window.saRefresh, 200);
             }
         });
 
