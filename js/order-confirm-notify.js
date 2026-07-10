@@ -438,6 +438,12 @@
         requestAnimationFrame(() => modal.classList.add("open"));
     }
 
+    // ── Exposer buildEmailHTML pour order-confirm-scan.js ─────
+    // Fonction directe expo pour order-confirm-scan.js
+    window._directSendOrderConfirm = async function(row, recipient) {
+        await sendConfirmEmail(row, recipient);
+    };
+
     // ── Handler envoi exposé globalement ──────────────────────
     window._sendOrderConfirm = async function() {
         const modal = document.getElementById("order-confirm-modal");
