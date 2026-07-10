@@ -472,8 +472,7 @@
 
             const rowsHTML = group.rows.map(r => {
                 const sc  = statusCfg(r.Status);
-                const det = String(r.Details || "").trim().replace(/
-/g, "<br>");
+                const det = String(r.Details || "").trim().split(String.fromCharCode(10)).join("<br>");
                 return `
                 <tr>
                     <td style="padding:8px 12px;font-size:12px;font-weight:500;
