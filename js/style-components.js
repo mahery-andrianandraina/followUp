@@ -547,6 +547,34 @@
                 </span>
             </label>`).join("");
 
+        // Statuts uniques présents dans les données + options COLS
+        const STATUS_OPTS = ["Pending", "In House", "PO Sent", "Waiting Approval"];
+        const STATUS_COLORS = {
+            "Pending":          { bg:"#fef9c3",color:"#854d0e",border:"#fde68a" },
+            "In House":         { bg:"#f0fdf4",color:"#166534",border:"#86efac" },
+            "PO Sent":          { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd" },
+            "Waiting Approval": { bg:"#fff7ed",color:"#9a3412",border:"#fed7aa" },
+            "":                 { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb" }
+        };
+
+        const statusChecks = [
+            { key: "__empty__", label: "(Sans statut)" },
+            ...STATUS_OPTS.map(s => ({ key: s, label: s }))
+        ].map(({ key, label }) => {
+            const c = STATUS_COLORS[key === "__empty__" ? "" : key] || STATUS_COLORS[""];
+            return `<label style="display:inline-flex;align-items:center;gap:6px;
+                padding:4px 10px;border-radius:20px;cursor:pointer;
+                font-size:11px;font-weight:500;
+                background:${c.bg};color:${c.color};
+                border:0.5px solid ${c.border};
+                transition:opacity .15s;">
+                <input type="checkbox" class="sc-status-check"
+                    data-status="${key}" checked
+                    style="width:12px;height:12px;accent-color:${c.color};cursor:pointer;"/>
+                ${label}
+            </label>`;
+        }).join("");
+
         const modal = document.createElement("div");
         modal.id = "sc-pdf-modal";
         modal.className = "modal-overlay";
@@ -607,6 +635,34 @@
                         border:0.5px solid var(--border,#e5e7eb);border-radius:8px;
                         padding:4px 6px;background:var(--surface-2,#fff);">
                         ${styleChecks}
+                    </div>
+                </div>
+
+                <!-- Filtre statuts -->
+                <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                        margin-bottom:8px;">
+                        <label class="form-label" style="margin:0;">Statuts à inclure</label>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button"
+                                style="font-size:11px;background:none;border:none;
+                                    color:var(--text-accent,#1565c0);cursor:pointer;padding:0;"
+                                onclick="document.querySelectorAll('.sc-status-check').forEach(c=>{c.checked=true;});window._scUpdatePDFSubtitle();">
+                                Tous
+                            </button>
+                            <span style="color:var(--border-strong,#d1d5db);">|</span>
+                            <button type="button"
+                                style="font-size:11px;background:none;border:none;
+                                    color:var(--text-secondary,#6b7280);cursor:pointer;padding:0;"
+                                onclick="document.querySelectorAll('.sc-status-check').forEach(c=>{c.checked=false;});window._scUpdatePDFSubtitle();">
+                                Aucun
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;
+                        border:0.5px solid var(--border,#e5e7eb);border-radius:8px;
+                        background:var(--surface-2,#fff);">
+                        ${statusChecks}
                     </div>
                 </div>
 
@@ -680,9 +736,14 @@
 
         const statusCfg = s => {
             const v = String(s || "").trim().toLowerCase();
-            if (v === "approved") return { bg:"#f0fdf4",color:"#166534",border:"#86efac",dot:"#16a34a" };
-            if (v === "rejected") return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5",dot:"#dc2626" };
-            if (v === "on going") return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd",dot:"#2563eb" };
+            if (v === "in house")         return { bg:"#f0fdf4",color:"#166534",border:"#86efac",dot:"#16a34a" };
+            if (v === "po sent")          return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd",dot:"#2563eb" };
+            if (v === "pending")          return { bg:"#fef9c3",color:"#854d0e",border:"#fde68a",dot:"#d97706" };
+            if (v === "waiting approval") return { bg:"#fff7ed",color:"#9a3412",border:"#fed7aa",dot:"#ea580c" };
+            // anciens statuts conservés pour compatibilité
+            if (v === "approved")  return { bg:"#f0fdf4",color:"#166534",border:"#86efac",dot:"#16a34a" };
+            if (v === "rejected")  return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5",dot:"#dc2626" };
+            if (v === "on going")  return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd",dot:"#2563eb" };
             return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb",dot:"#9ca3af" };
         };
 
@@ -864,20 +925,32 @@ ${sectionsHTML}
 
     // ── Mettre à jour le subtitle selon la sélection ────────────
     window._scUpdatePDFSubtitle = function() {
-        const checked = document.querySelectorAll(".sc-style-check:checked");
+        const styleChecked  = document.querySelectorAll(".sc-style-check:checked");
+        const statusChecked = document.querySelectorAll(".sc-status-check:checked");
         const sub = document.getElementById("sc-pdf-subtitle");
         if (!sub) return;
+
         const rows = window.state?.data?.[SHEET_KEY] || [];
-        const selectedStyles = new Set([...checked].map(c => c.dataset.style));
-        const filteredRows = rows.filter(r =>
-            selectedStyles.has(String(r["Cust Style Ref"] || "").trim())
-        );
-        sub.textContent = `${selectedStyles.size} style${selectedStyles.size > 1 ? "s" : ""} · ${filteredRows.length} composant${filteredRows.length > 1 ? "s" : ""}`;
+        const selectedStyles   = new Set([...styleChecked].map(c => c.dataset.style));
+        const selectedStatuses = new Set([...statusChecked].map(c => c.dataset.status));
+
+        const filteredRows = rows.filter(r => {
+            const styleRaw  = String(r["Cust Style Ref"] || "").trim();
+            const statusRaw = String(r.Status || "").trim();
+            const statusKey = statusRaw === "" ? "__empty__" : statusRaw;
+            return selectedStyles.has(styleRaw) && selectedStatuses.has(statusKey);
+        });
+
+        const styleCount = new Set(filteredRows.map(r =>
+            String(r["Cust Style Ref"] || "").trim())).size;
+
+        sub.textContent = `${styleCount} style${styleCount > 1 ? "s" : ""} · ${filteredRows.length} composant${filteredRows.length > 1 ? "s" : ""}`;
     };
 
-    // Écouter les changements de checkboxes (délégation sur le document)
+    // Écouter les changements de checkboxes styles ET statuts
     document.addEventListener("change", e => {
-        if (e.target.classList.contains("sc-style-check")) {
+        if (e.target.classList.contains("sc-style-check") ||
+            e.target.classList.contains("sc-status-check")) {
             window._scUpdatePDFSubtitle();
         }
     });
@@ -903,20 +976,27 @@ ${sectionsHTML}
         try {
             const allRows = window.state?.data?.[SHEET_KEY] || [];
 
-            // Récupérer les styles sélectionnés dans la modale
-            const checkedBoxes = document.querySelectorAll(".sc-style-check:checked");
-            const selectedStyles = checkedBoxes.length > 0
-                ? new Set([...checkedBoxes].map(c => c.dataset.style))
-                : null; // null = tous
+            // Filtre styles cochés
+            const styleBoxes     = document.querySelectorAll(".sc-style-check:checked");
+            const selectedStyles = new Set([...styleBoxes].map(c => c.dataset.style));
 
-            const rows = selectedStyles
-                ? allRows.filter(r =>
-                    selectedStyles.has(String(r["Cust Style Ref"] || "").trim()))
-                : allRows;
+            // Filtre statuts cochés
+            const statusBoxes     = document.querySelectorAll(".sc-status-check:checked");
+            const selectedStatuses = new Set([...statusBoxes].map(c => c.dataset.status));
+
+            // Appliquer les deux filtres (style ET statut)
+            const rows = allRows.filter(r => {
+                const styleRaw  = String(r["Cust Style Ref"] || "").trim();
+                const statusRaw = String(r.Status || "").trim();
+                const statusKey = statusRaw === "" ? "__empty__" : statusRaw;
+                const styleOk  = styleBoxes.length === 0  || selectedStyles.has(styleRaw);
+                const statusOk = statusBoxes.length === 0 || selectedStatuses.has(statusKey);
+                return styleOk && statusOk;
+            });
 
             if (!rows.length) {
                 typeof showToast === "function" &&
-                    showToast("Aucun style sélectionné.", "error");
+                    showToast("Aucun composant ne correspond aux filtres.", "error");
                 if (dlBtn) dlBtn.disabled = false;
                 if (sendBtn) { sendBtn.disabled = false;
                     sendBtn.innerHTML = `Envoyer + Télécharger`; }
