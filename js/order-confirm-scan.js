@@ -14,16 +14,16 @@
         s.id = "ocn-scan-styles";
         s.textContent = `
         #btn-order-scan {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 6px 12px; border-radius: 8px;
-            background: var(--surface-2, #f3f4f6);
+            display: flex; align-items: center; justify-content: center;
+            width: 34px; height: 34px; border-radius: 50%; padding: 0;
+            background: var(--surface-1, #f3f4f6);
             border: 1px solid var(--border, #e5e7eb);
-            color: var(--text-2, #6b7280); cursor: pointer;
-            font-size: 12px; font-weight: 500; font-family: inherit;
-            transition: background .15s, color .15s, border-color .15s;
+            color: var(--text-secondary, #6b7280); cursor: pointer;
+            transition: background .15s, color .15s;
+            position: relative;
         }
         #btn-order-scan:hover {
-            background: #f0fdf4; color: #166534; border-color: #86efac;
+            background: var(--surface-0, #f0fdf4); color: #166534;
         }
         #btn-order-scan .ocn-scan-badge {
             display: inline-flex; align-items: center; justify-content: center;
@@ -391,16 +391,13 @@
         btn.id    = "btn-order-scan";
         btn.title = "Scanner les commandes prêtes à notifier";
         btn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor" width="13" height="13">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2
-                       M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2
-                       m-6 9l2 2 4-4"/>
-            </svg>
-            Commandes
+            <i class="ti ti-alert-triangle" aria-hidden="true" style="font-size:17px;"></i>
             <span class="ocn-scan-badge" id="btn-order-scan-badge"
-                style="display:none;">0</span>`;
+                style="display:none;position:absolute;top:-2px;right:-2px;
+                       width:13px;height:13px;border-radius:50%;
+                       background:#ef4444;border:2px solid var(--surface-2,#fff);
+                       font-size:8px;color:#fff;font-weight:700;
+                       align-items:center;justify-content:center;">0</span>`;
         btn.onclick = openScanModal;
 
         // Insérer avant le bouton "Rapport email"
