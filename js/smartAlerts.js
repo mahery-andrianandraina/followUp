@@ -1038,6 +1038,7 @@
             if (window.state?.data?.details?.length) {
                 clearInterval(waitForData);
                 refresh();
+                window.saRefresh = refresh; // exposé pour les modules externes
 
                 // Recalcul périodique
                 setInterval(refresh, CONFIG.refreshInterval);
