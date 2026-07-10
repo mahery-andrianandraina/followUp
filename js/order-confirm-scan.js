@@ -155,45 +155,14 @@
     }
 
     // ── Envoyer un email de confirmation pour une ligne ───────
+    // Délègue à window._directSendOrderConfirm exposé par order-confirm-notify.js
     async function _sendOneConfirmEmail(row, recipient) {
-        if (typeof window.checkAndNotifyOrderConfirm !== "function") {
-            throw new Error("order-confirm-notify.js non chargé.");
+        if (typeof window._directSendOrderConfirm !== "function") {
+            throw new Error(
+                "order-confirm-notify.js doit être chargé avant order-confirm-scan.js."
+            );
         }
-        // Réutiliser buildEmailHTML et sendConfirmEmail
-        // via le mécanisme existant dans order-confirm-notify.js
-        // On appelle directement le GAS
-        const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
-        if (!gasUrl || gasUrl === "YOUR_WEB_APP_URL_HERE") {
-            throw new Error("URL GAS non configurée.");
-        }
-
-        // Récupérer buildEmailHTML depuis order-confirm-notify (exposé via window)
-        if (typeof window._buildOrderConfirmEmailHTML !== "function") {
-            throw new Error("Fonction email non disponible.");
-        }
-
-        const style   = row["Cust Style Ref"] || row["Style"] || "—";
-        const client  = row["Client"] || row["Coll"] || "—";
-        const today   = new Date().toISOString().slice(0, 10);
-        const subject = `AW27 — Confirmation commande ${style} · ${client} · ${today}`;
-        const htmlBody= window._buildOrderConfirmEmailHTML(row);
-
-        const res = await fetch(gasUrl, {
-            method:   "POST",
-            headers:  { "Content-Type": "text/plain;charset=utf-8" },
-            redirect: "follow",
-            body: JSON.stringify({
-                action:     "SEND_ALERT_EMAIL",
-                recipient,
-                subject,
-                htmlBody,
-                xlsxBase64: "",
-                fileName:   ""
-            })
-        });
-
-        const json = await res.json();
-        if (json.status !== "ok") throw new Error(json.message || "Erreur GAS");
+        await window._directSendOrderConfirm(row, recipient);
     }
 
     // ── Construire la modale ──────────────────────────────────
