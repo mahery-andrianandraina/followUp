@@ -745,22 +745,6 @@ ${sectionsHTML}
         }
     }
 
-    // ── Observer le header pour réinjecter si bouton retiré ──
-    // Plus fiable que patchRenderAll : surveille en continu
-    function observeHeaderButton() {
-        const tryObserve = () => {
-            const headerRight = document.querySelector(".header-right");
-            if (!headerRight) { setTimeout(tryObserve, 300); return; }
-
-            new MutationObserver(() => {
-                if (!document.getElementById("btn-components-pdf")) {
-                    injectHeaderButton();
-                }
-            }).observe(headerRight, { childList: true, subtree: false });
-        };
-        tryObserve();
-    }
-
     // ── Init ──────────────────────────────────────────────────
     function init() {
         injectStyles();
@@ -777,16 +761,26 @@ ${sectionsHTML}
             }
         });
 
-        // Bouton PDF dans le header + observer permanent
+        // Bouton PDF dans le header
         const tryInject = () => {
             if (document.querySelector(".header-right")) {
                 injectHeaderButton();
-                observeHeaderButton();
             } else {
                 setTimeout(tryInject, 300);
             }
         };
         tryInject();
+
+        // Garde-fou : vérifier toutes les 600ms pendant 30s
+        // Couvre toutes les courses de timing (auth, fetchAllData, autres boutons)
+        let _scGuardCount = 0;
+        const _scGuard = setInterval(() => {
+            if (++_scGuardCount > 50) { clearInterval(_scGuard); return; }
+            if (document.querySelector(".header-right") &&
+                !document.getElementById("btn-components-pdf")) {
+                injectHeaderButton();
+            }
+        }, 600);
 
         // Sauvegarder dans GAS pour survivre aux rechargements
         saveMenuToGAS();
