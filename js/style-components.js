@@ -13,7 +13,7 @@
         { key: "CTL Style Ref",  label: "CTL Style Ref",  type: "text"                   },
         { key: "Composant",      label: "Composant",      type: "text",   required: true },
         { key: "Status",         label: "Status",         type: "select",
-          options: ["", "Approved", "On Going", "Rejected"]                               },
+          options: ["", "Approved", "In House", "On Going", "Rejected"]                   },
         { key: "Details",        label: "Details",        type: "textarea", full: true   }
 
     ];
@@ -203,6 +203,89 @@
         } catch(e) {
             console.warn("[StyleComponents] Erreur chargement :", e.message);
         }
+    }
+
+    // ── Patcher collectAllAlerts pour injecter les alertes SC ──
+    function patchCollectAllAlerts() {
+        if (window._scAlertsPatched) return;
+        const orig = window.collectAllAlerts;
+        if (typeof orig !== "function") return;
+        window._scAlertsPatched = true;
+
+        window.collectAllAlerts = function() {
+            const result = orig.apply(this, arguments);
+            const rows = window.state?.data?.[SHEET_KEY] || [];
+            if (!rows.length) return result;
+
+            // Statuts qui ne génèrent PAS d'alerte
+            const OK = ["approved", "in house"];
+            const items = [];
+
+            rows.forEach(row => {
+                const statusRaw = String(row.Status || "").trim();
+                const status    = statusRaw.toLowerCase();
+                if (OK.includes(status)) return;
+
+                const custRef   = String(row["Cust Style Ref"] || "").trim() || "—";
+                const ctlRef    = String(row["CTL Style Ref"]  || "").trim();
+                const composant = String(row.Composant         || "").trim() || "—";
+                const details   = String(row.Details           || "").trim();
+
+                let urgency, dotCls, tagCls, tagLabel, title, action;
+
+                if (status === "rejected") {
+                    urgency  = "high";
+                    dotCls   = "dot-late";
+                    tagCls   = "tag-late";
+                    tagLabel = `✗ Rejeté — ${composant}`;
+                    title    = `${custRef} — ${composant} rejeté`;
+                    action   = `Relancer le fournisseur pour ce composant` +
+                               (details ? ` : ${details}` : "");
+                } else if (status === "on going") {
+                    urgency  = "mid";
+                    dotCls   = "dot-approve";
+                    tagCls   = "tag-approve";
+                    tagLabel = `⏳ On Going — ${composant}`;
+                    title    = `${custRef} — ${composant} en attente d'approbation`;
+                    action   = `Suivre l'avancement` +
+                               (details ? ` : ${details}` : "");
+                } else {
+                    // statut vide ou inconnu
+                    urgency  = "low";
+                    dotCls   = "dot-nopo";
+                    tagCls   = "tag-nopo";
+                    tagLabel = `📋 Statut manquant — ${composant}`;
+                    title    = `${custRef} — ${composant} sans statut renseigné`;
+                    action   = `Renseigner le statut de ce composant`;
+                }
+
+                items.push({
+                    dotCls, tagCls, tagLabel,
+                    title,  action,
+                    style:    custRef,
+                    client:   ctlRef || "",
+                    urgency,
+                    sheet:    SHEET_KEY,
+                    rowIndex: row._rowIndex,
+                    meta:     `Composant : ${composant}` +
+                              (statusRaw ? ` · Statut : ${statusRaw}` : "") +
+                              (details   ? ` · ${details}`             : "") +
+                              (ctlRef    ? ` · CTL : ${ctlRef}`        : "")
+                });
+            });
+
+            if (items.length) {
+                result[SHEET_KEY] = { label: "Style Components", items };
+            }
+
+            return result;
+        };
+
+        // Rafraîchir le badge cloche immédiatement
+        if (typeof updateGlobalNotifBadge === "function") {
+            updateGlobalNotifBadge();
+        }
+        console.log("[StyleComponents] Alertes patchées ✓");
     }
 
     // ── Patcher renderAll ─────────────────────────────────────
@@ -844,6 +927,16 @@ ${sectionsHTML}
         addNavItem();
         patchRenderAll();
         observeModal();
+
+        // Patcher collectAllAlerts après que app.js l'ait définie
+        const tryPatchAlerts = () => {
+            if (typeof window.collectAllAlerts === "function") {
+                patchCollectAllAlerts();
+            } else {
+                setTimeout(tryPatchAlerts, 300);
+            }
+        };
+        tryPatchAlerts();
 
         // Charger les données initiales
         loadComponentsData().then(() => {
