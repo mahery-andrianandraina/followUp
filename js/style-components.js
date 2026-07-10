@@ -14,8 +14,8 @@
         { key: "Composant",      label: "Composant",      type: "text",   required: true },
         { key: "Status",         label: "Status",         type: "select",
           options: ["", "Approved", "On Going", "Rejected"]                               },
-        { key: "Details",        label: "Details",        type: "textarea", full: true   },
-        { key: "Date",           label: "Date",           type: "date"                   }
+        { key: "Details",        label: "Details",        type: "textarea", full: true   }
+
     ];
 
     // ── Styles CSS ────────────────────────────────────────────
@@ -259,17 +259,27 @@
     // ═══════════════════════════════════════════════════════════
 
     function addCustStyleRefAutocomplete() {
-        // Vérifier qu'on est bien sur le bon sheet
         if (window.state?.activeSheet !== SHEET_KEY) return;
 
         const field = document.getElementById("field-Cust_Style_Ref");
         if (!field) return;
-
-        // Déjà initialisé
         if (field.dataset.scAutocomplete) return;
         field.dataset.scAutocomplete = "1";
 
-        // Construire la datalist depuis state.data.details
+        // ── Rendre CTL Style Ref readonly immédiatement ────────
+        const ctlField = document.getElementById("field-CTL_Style_Ref");
+        if (ctlField) {
+            ctlField.setAttribute("readonly", "true");
+            ctlField.style.cssText += `
+                background: var(--surface-1, #f9fafb) !important;
+                color: var(--text-secondary, #6b7280) !important;
+                cursor: not-allowed !important;
+                border-color: var(--border, #e5e7eb) !important;
+            `;
+            ctlField.title = "Rempli automatiquement depuis Cust Style Ref";
+        }
+
+        // ── Datalist autocomplete ──────────────────────────────
         const refs = [...new Set(
             (window.state?.data?.details || [])
                 .map(r => String(r["Cust Style Ref"] || "").trim())
@@ -290,25 +300,20 @@
             field.setAttribute("list", dlId);
         }
 
-        // Auto-remplir CTL Style Ref quand Cust Style Ref est choisi
+        // ── Remplir CTL Style Ref à chaque changement ─────────
         const fillCTL = () => {
             const custRef = field.value.trim();
-            if (!custRef) return;
+            const ctl = document.getElementById("field-CTL_Style_Ref");
+            if (!ctl) return;
+            if (!custRef) { ctl.value = ""; return; }
             const detRow = (window.state?.data?.details || []).find(r =>
                 String(r["Cust Style Ref"] || "").trim() === custRef
             );
-            if (!detRow) return;
-            const ctlField = document.getElementById("field-CTL_Style_Ref");
-            if (ctlField && !ctlField.value.trim()) {
-                ctlField.value = detRow["CTLStyleRef"] || "";
-            }
+            ctl.value = detRow ? (detRow["CTLStyleRef"] || "") : "";
         };
 
         field.addEventListener("change", fillCTL);
-        field.addEventListener("input",  () => {
-            // Délai pour laisser le temps à l'utilisateur de sélectionner
-            setTimeout(fillCTL, 150);
-        });
+        field.addEventListener("input",  () => setTimeout(fillCTL, 150));
     }
 
     // Observer la modale pour injecter l'autocomplete quand elle s'ouvre
@@ -397,9 +402,7 @@
                         <td style="padding:8px 12px;font-size:12px;color:#374151;
                             border-bottom:1px solid #f3f4f6;vertical-align:top;
                             line-height:1.5;">${det || "—"}</td>
-                        <td style="padding:8px 12px;font-size:12px;color:#6b7280;
-                            border-bottom:1px solid #f3f4f6;vertical-align:top;
-                            white-space:nowrap;">${fmtDate(r.Date)}</td>
+
                     </tr>`;
                 }).join("");
 
@@ -435,16 +438,14 @@
                             <tr style="background:#f9fafb;border-bottom:1.5px solid #e5e7eb;">
                                 <th style="padding:8px 12px;text-align:left;font-size:10.5px;
                                     color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:22%;">Composant</th>
+                                    letter-spacing:.07em;font-weight:600;width:25%;">Composant</th>
                                 <th style="padding:8px 12px;text-align:left;font-size:10.5px;
                                     color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:14%;">Status</th>
+                                    letter-spacing:.07em;font-weight:600;width:18%;">Status</th>
                                 <th style="padding:8px 12px;text-align:left;font-size:10.5px;
                                     color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:48%;">Details</th>
-                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                    color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:16%;">Date</th>
+                                    letter-spacing:.07em;font-weight:600;width:57%;">Details</th>
+
                             </tr>
                         </thead>
                         <tbody>${rowsHTML}</tbody>
