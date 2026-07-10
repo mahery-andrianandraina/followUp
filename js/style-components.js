@@ -745,6 +745,22 @@ ${sectionsHTML}
         }
     }
 
+    // ── Observer le header pour réinjecter si bouton retiré ──
+    // Plus fiable que patchRenderAll : surveille en continu
+    function observeHeaderButton() {
+        const tryObserve = () => {
+            const headerRight = document.querySelector(".header-right");
+            if (!headerRight) { setTimeout(tryObserve, 300); return; }
+
+            new MutationObserver(() => {
+                if (!document.getElementById("btn-components-pdf")) {
+                    injectHeaderButton();
+                }
+            }).observe(headerRight, { childList: true, subtree: false });
+        };
+        tryObserve();
+    }
+
     // ── Init ──────────────────────────────────────────────────
     function init() {
         injectStyles();
@@ -761,10 +777,11 @@ ${sectionsHTML}
             }
         });
 
-        // Bouton PDF dans le header
+        // Bouton PDF dans le header + observer permanent
         const tryInject = () => {
             if (document.querySelector(".header-right")) {
                 injectHeaderButton();
+                observeHeaderButton();
             } else {
                 setTimeout(tryInject, 300);
             }
