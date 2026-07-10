@@ -61,9 +61,9 @@
     }
 
     // ── Enregistrer le menu dans SHEET_CONFIG ─────────────────
+    // On ne retourne JAMAIS tôt : on force toujours nos COLS
+    // pour écraser toute ancienne version sauvegardée (ex: avec Date).
     function registerMenu() {
-        if (window.SHEET_CONFIG?.[SHEET_KEY]) return;
-
         window.SHEET_CONFIG[SHEET_KEY] = {
             label:     SHEET_NAME,
             sheetName: SHEET_NAME,
@@ -333,143 +333,230 @@
     //  GÉNÉRATION PDF
     // ═══════════════════════════════════════════════════════════
 
-    async function generateComponentsPDF() {
-        const btn = document.getElementById("btn-components-pdf");
-        if (btn) {
-            btn.disabled = true;
-            btn.innerHTML = `<span class="sc-spin">⏳</span> Génération…`;
+    // ── Ouvrir la modale avant génération ────────────────────
+    function openPDFModal() {
+        const rows = window.state?.data?.[SHEET_KEY] || [];
+        if (!rows.length) {
+            typeof showToast === "function" &&
+                showToast("Aucun composant enregistré.", "info");
+            return;
         }
-        typeof showToast === "function" &&
-            showToast("Génération du PDF en cours…", "info", 12000);
 
-        try {
-            const rows = window.state?.data?.[SHEET_KEY] || [];
-            if (!rows.length) {
-                typeof showToast === "function" &&
-                    showToast("Aucun composant enregistré.", "info");
-                return;
-            }
+        document.getElementById("sc-pdf-modal")?.remove();
 
-            // Grouper par Cust Style Ref
-            const groups = {};
-            const order  = [];
-            rows.forEach(row => {
-                const custRef = String(row["Cust Style Ref"] || "").trim();
-                const ctlRef  = String(row["CTL Style Ref"]  || "").trim();
-                const key     = custRef || "(sans référence)";
-                if (!groups[key]) { groups[key] = { custRef, ctlRef, rows: [] }; order.push(key); }
-                groups[key].rows.push(row);
-            });
+        const lastEmail = localStorage.getItem("aw27_sc_pdf_email") || "";
+        const totalStyles = [...new Set(rows.map(r =>
+            String(r["Cust Style Ref"] || "").trim()).filter(Boolean))].length;
 
-            const todayFR = new Date().toLocaleDateString("fr-FR", {
-                day: "2-digit", month: "long", year: "numeric"
-            });
-
-            const statusCfg = s => {
-                const v = String(s || "").trim().toLowerCase();
-                if (v === "approved") return { bg:"#f0fdf4",color:"#166534",border:"#86efac" };
-                if (v === "rejected") return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5" };
-                if (v === "on going") return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd" };
-                return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb" };
-            };
-
-            const sectionsHTML = order.map(key => {
-                const group = groups[key];
-                const approved = group.rows.filter(r =>
-                    String(r.Status||"").toLowerCase() === "approved").length;
-                const rejected = group.rows.filter(r =>
-                    String(r.Status||"").toLowerCase() === "rejected").length;
-                const ongoing  = group.rows.filter(r =>
-                    String(r.Status||"").toLowerCase() === "on going").length;
-
-                const rowsHTML = group.rows.map(r => {
-                    const sc  = statusCfg(r.Status);
-                    const det = String(r.Details || "").trim().replace(/\n/g, "<br>");
-                    return `
-                    <tr>
-                        <td style="padding:8px 12px;font-size:12px;font-weight:500;
-                            color:#111827;border-bottom:1px solid #f3f4f6;
-                            vertical-align:top;">
-                            ${r.Composant || "—"}
-                        </td>
-                        <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;
-                            vertical-align:top;">
-                            ${r.Status ? `<span style="display:inline-block;padding:2px 9px;
-                                border-radius:20px;font-size:11px;font-weight:600;
-                                background:${sc.bg};color:${sc.color};
-                                border:0.5px solid ${sc.border};">${r.Status}</span>` : "—"}
-                        </td>
-                        <td style="padding:8px 12px;font-size:12px;color:#374151;
-                            border-bottom:1px solid #f3f4f6;vertical-align:top;
-                            line-height:1.5;">${det || "—"}</td>
-
-                    </tr>`;
-                }).join("");
-
-                return `
-                <div style="margin-bottom:28px;page-break-inside:avoid;">
-                    <div style="background:linear-gradient(135deg,#1565c0,#1e88e5);
-                        border-radius:10px 10px 0 0;padding:14px 18px;
-                        display:flex;align-items:center;justify-content:space-between;
-                        flex-wrap:wrap;gap:8px;">
-                        <div>
-                            <div style="font-size:16px;font-weight:700;color:#fff;
-                                letter-spacing:.02em;">${group.custRef || "—"}</div>
-                            ${group.ctlRef ? `<div style="font-size:11px;
-                                color:rgba(255,255,255,.7);margin-top:3px;">
-                                CTL Ref : ${group.ctlRef}</div>` : ""}
-                        </div>
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                            ${approved > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                                background:#f0fdf4;color:#166534;font-size:11px;font-weight:600;">
-                                ✓ ${approved} Approved</span>` : ""}
-                            ${ongoing  > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                                background:#eff6ff;color:#1e40af;font-size:11px;font-weight:600;">
-                                ⏳ ${ongoing} On Going</span>` : ""}
-                            ${rejected > 0 ? `<span style="padding:3px 10px;border-radius:20px;
-                                background:#fef2f2;color:#991b1b;font-size:11px;font-weight:600;">
-                                ✗ ${rejected} Rejected</span>` : ""}
-                        </div>
+        const modal = document.createElement("div");
+        modal.id = "sc-pdf-modal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `
+        <div class="modal" style="max-width:440px;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor"
+                            width="17" height="17"
+                            style="vertical-align:middle;margin-right:6px;">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7
+                                a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                                01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Components PDF
                     </div>
-                    <table width="100%" cellpadding="0" cellspacing="0"
-                        style="border-collapse:collapse;
-                               border:1px solid #e5e7eb;border-top:none;overflow:hidden;">
-                        <thead>
-                            <tr style="background:#f9fafb;border-bottom:1.5px solid #e5e7eb;">
-                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                    color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:25%;">Composant</th>
-                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                    color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:18%;">Status</th>
-                                <th style="padding:8px 12px;text-align:left;font-size:10.5px;
-                                    color:#6b7280;text-transform:uppercase;
-                                    letter-spacing:.07em;font-weight:600;width:57%;">Details</th>
+                    <div class="modal-subtitle">
+                        ${rows.length} composant${rows.length > 1 ? "s" : ""}
+                        · ${totalStyles} style${totalStyles > 1 ? "s" : ""}
+                    </div>
+                </div>
+                <button class="btn-close"
+                    onclick="document.getElementById('sc-pdf-modal').remove()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body"
+                style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:14px;">
 
-                            </tr>
-                        </thead>
-                        <tbody>${rowsHTML}</tbody>
-                    </table>
-                </div>`;
-            }).join("");
+                <!-- Email -->
+                <div>
+                    <label class="form-label" style="margin-bottom:5px;">
+                        Envoyer par email à
+                        <span style="font-size:11px;color:var(--text-muted,#9ca3af);
+                            font-weight:400;">(optionnel)</span>
+                    </label>
+                    <input id="sc-pdf-email" class="form-input" type="email"
+                        placeholder="email@example.com"
+                        value="${lastEmail}"
+                        style="width:100%;box-sizing:border-box;"/>
+                </div>
 
-            // Stats globales
-            const totalStyles     = order.length;
-            const totalComposants = rows.length;
-            const totalApproved   = rows.filter(r =>
+                <!-- Actions -->
+                <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+                    <button class="btn btn-ghost"
+                        onclick="document.getElementById('sc-pdf-modal').remove()">
+                        Annuler
+                    </button>
+                    <button class="btn" id="sc-pdf-download-btn"
+                        style="background:var(--surface-2,#f3f4f6);
+                               border:1px solid var(--border,#e5e7eb);
+                               color:var(--text-primary,#374151);"
+                        onclick="window._scGeneratePDF(false)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7
+                                a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+                                01.707.293l5.414 5.414a1 1 0
+                                01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Télécharger PDF
+                    </button>
+                    <button class="btn btn-primary" id="sc-pdf-send-btn"
+                        onclick="window._scGeneratePDF(true)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8
+                                M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        Envoyer + Télécharger
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => modal.classList.add("open"));
+    }
+
+    // ── Construire le HTML du rapport ─────────────────────────
+    function buildPDFHTML(rows) {
+        const groups = {};
+        const order  = [];
+        rows.forEach(row => {
+            const custRef = String(row["Cust Style Ref"] || "").trim();
+            const ctlRef  = String(row["CTL Style Ref"]  || "").trim();
+            const key     = custRef || "(sans référence)";
+            if (!groups[key]) { groups[key] = { custRef, ctlRef, rows: [] }; order.push(key); }
+            groups[key].rows.push(row);
+        });
+
+        const todayFR = new Date().toLocaleDateString("fr-FR", {
+            day: "2-digit", month: "long", year: "numeric"
+        });
+
+        const statusCfg = s => {
+            const v = String(s || "").trim().toLowerCase();
+            if (v === "approved") return { bg:"#f0fdf4",color:"#166534",border:"#86efac" };
+            if (v === "rejected") return { bg:"#fef2f2",color:"#991b1b",border:"#fca5a5" };
+            if (v === "on going") return { bg:"#eff6ff",color:"#1e40af",border:"#93c5fd" };
+            return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb" };
+        };
+
+        const sectionsHTML = order.map(key => {
+            const group = groups[key];
+            const approved = group.rows.filter(r =>
                 String(r.Status||"").toLowerCase() === "approved").length;
-            const totalRejected   = rows.filter(r =>
+            const rejected = group.rows.filter(r =>
                 String(r.Status||"").toLowerCase() === "rejected").length;
-            const totalOngoing    = rows.filter(r =>
+            const ongoing  = group.rows.filter(r =>
                 String(r.Status||"").toLowerCase() === "on going").length;
 
-            const htmlContent = `<!DOCTYPE html>
+            const rowsHTML = group.rows.map(r => {
+                const sc  = statusCfg(r.Status);
+                const det = String(r.Details || "").trim().replace(/
+/g, "<br>");
+                return `
+                <tr>
+                    <td style="padding:8px 12px;font-size:12px;font-weight:500;
+                        color:#111827;border-bottom:1px solid #f3f4f6;vertical-align:top;">
+                        ${r.Composant || "—"}
+                    </td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;
+                        vertical-align:top;">
+                        ${r.Status ? `<span style="display:inline-block;padding:2px 9px;
+                            border-radius:20px;font-size:11px;font-weight:600;
+                            background:${sc.bg};color:${sc.color};
+                            border:0.5px solid ${sc.border};">${r.Status}</span>` : "—"}
+                    </td>
+                    <td style="padding:8px 12px;font-size:12px;color:#374151;
+                        border-bottom:1px solid #f3f4f6;vertical-align:top;
+                        line-height:1.5;">${det || "—"}</td>
+                </tr>`;
+            }).join("");
+
+            return `
+            <div style="margin-bottom:28px;page-break-inside:avoid;">
+                <div style="background:linear-gradient(135deg,#1565c0,#1e88e5);
+                    border-radius:10px 10px 0 0;padding:14px 18px;
+                    display:flex;align-items:center;justify-content:space-between;
+                    flex-wrap:wrap;gap:8px;">
+                    <div>
+                        <div style="font-size:16px;font-weight:700;color:#fff;
+                            letter-spacing:.02em;">${group.custRef || "—"}</div>
+                        ${group.ctlRef ? `<div style="font-size:11px;
+                            color:rgba(255,255,255,.7);margin-top:3px;">
+                            CTL Ref : ${group.ctlRef}</div>` : ""}
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        ${approved > 0 ? `<span style="padding:3px 10px;border-radius:20px;
+                            background:#f0fdf4;color:#166534;font-size:11px;font-weight:600;">
+                            ✓ ${approved} Approved</span>` : ""}
+                        ${ongoing  > 0 ? `<span style="padding:3px 10px;border-radius:20px;
+                            background:#eff6ff;color:#1e40af;font-size:11px;font-weight:600;">
+                            ⏳ ${ongoing} On Going</span>` : ""}
+                        ${rejected > 0 ? `<span style="padding:3px 10px;border-radius:20px;
+                            background:#fef2f2;color:#991b1b;font-size:11px;font-weight:600;">
+                            ✗ ${rejected} Rejected</span>` : ""}
+                    </div>
+                </div>
+                <table width="100%" cellpadding="0" cellspacing="0"
+                    style="border-collapse:collapse;
+                           border:1px solid #e5e7eb;border-top:none;overflow:hidden;">
+                    <thead>
+                        <tr style="background:#f9fafb;border-bottom:1.5px solid #e5e7eb;">
+                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
+                                color:#6b7280;text-transform:uppercase;
+                                letter-spacing:.07em;font-weight:600;width:25%;">
+                                Composant</th>
+                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
+                                color:#6b7280;text-transform:uppercase;
+                                letter-spacing:.07em;font-weight:600;width:18%;">
+                                Status</th>
+                            <th style="padding:8px 12px;text-align:left;font-size:10.5px;
+                                color:#6b7280;text-transform:uppercase;
+                                letter-spacing:.07em;font-weight:600;width:57%;">
+                                Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowsHTML}</tbody>
+                </table>
+            </div>`;
+        }).join("");
+
+        const totalStyles     = order.length;
+        const totalComposants = rows.length;
+        const totalApproved   = rows.filter(r =>
+            String(r.Status||"").toLowerCase() === "approved").length;
+        const totalRejected   = rows.filter(r =>
+            String(r.Status||"").toLowerCase() === "rejected").length;
+        const totalOngoing    = rows.filter(r =>
+            String(r.Status||"").toLowerCase() === "on going").length;
+
+        return `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
 <title>AW27 — Style Components</title>
 <style>
-  * { box-sizing: border-box; }
+  * { box-sizing:border-box; }
   body { margin:0;padding:32px 40px;
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
     background:#fff;color:#111827; }
@@ -481,7 +568,6 @@
 </head>
 <body>
 
-<!-- HEADER -->
 <div style="display:flex;align-items:center;justify-content:space-between;
     margin-bottom:28px;padding-bottom:18px;border-bottom:2px solid #e5e7eb;
     flex-wrap:wrap;gap:12px;">
@@ -502,47 +588,98 @@
         <div style="text-align:center;padding:8px 14px;border-radius:8px;
             background:#f9fafb;border:0.5px solid #e5e7eb;">
             <div style="font-size:20px;font-weight:700;color:#111827;">${totalStyles}</div>
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;
-                letter-spacing:.05em;">Styles</div>
+            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;">Styles</div>
         </div>
         <div style="text-align:center;padding:8px 14px;border-radius:8px;
             background:#f9fafb;border:0.5px solid #e5e7eb;">
             <div style="font-size:20px;font-weight:700;color:#111827;">${totalComposants}</div>
-            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;
-                letter-spacing:.05em;">Composants</div>
+            <div style="font-size:10px;color:#6b7280;text-transform:uppercase;">Composants</div>
         </div>
         <div style="text-align:center;padding:8px 14px;border-radius:8px;
             background:#f0fdf4;border:0.5px solid #86efac;">
             <div style="font-size:20px;font-weight:700;color:#166534;">${totalApproved}</div>
-            <div style="font-size:10px;color:#166534;text-transform:uppercase;
-                letter-spacing:.05em;">Approved</div>
+            <div style="font-size:10px;color:#166534;text-transform:uppercase;">Approved</div>
         </div>
         <div style="text-align:center;padding:8px 14px;border-radius:8px;
             background:#eff6ff;border:0.5px solid #93c5fd;">
             <div style="font-size:20px;font-weight:700;color:#1e40af;">${totalOngoing}</div>
-            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;
-                letter-spacing:.05em;">On Going</div>
+            <div style="font-size:10px;color:#1e40af;text-transform:uppercase;">On Going</div>
         </div>
         <div style="text-align:center;padding:8px 14px;border-radius:8px;
             background:#fef2f2;border:0.5px solid #fca5a5;">
             <div style="font-size:20px;font-weight:700;color:#991b1b;">${totalRejected}</div>
-            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;
-                letter-spacing:.05em;">Rejected</div>
+            <div style="font-size:10px;color:#991b1b;text-transform:uppercase;">Rejected</div>
         </div>
     </div>
 </div>
 
-<!-- SECTIONS PAR STYLE -->
 ${sectionsHTML}
 
-<!-- FOOTER -->
 <div style="margin-top:32px;padding-top:14px;border-top:1px solid #e5e7eb;
     text-align:center;font-size:10.5px;color:#9ca3af;">
     AW27 Checkers — Style Components — ${todayFR}
 </div>
-
 </body>
 </html>`;
+    }
+
+    // ── Handler principal (exposé globalement) ────────────────
+    window._scGeneratePDF = async function(sendEmail) {
+        const recipient = (document.getElementById("sc-pdf-email")?.value || "").trim();
+
+        if (sendEmail && !recipient) {
+            typeof showToast === "function" &&
+                showToast("Entrez un email destinataire.", "error");
+            document.getElementById("sc-pdf-email")?.focus();
+            return;
+        }
+
+        // Boutons en état loading
+        const dlBtn   = document.getElementById("sc-pdf-download-btn");
+        const sendBtn = document.getElementById("sc-pdf-send-btn");
+        if (dlBtn)   { dlBtn.disabled   = true; }
+        if (sendBtn) { sendBtn.disabled = true;
+            sendBtn.innerHTML = `<span class="sc-spin">⏳</span> Envoi…`; }
+
+        try {
+            const rows    = window.state?.data?.[SHEET_KEY] || [];
+            const htmlDoc = buildPDFHTML(rows);
+
+            // ── Envoi email ────────────────────────────────────
+            if (sendEmail && recipient) {
+                const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+                if (!gasUrl || gasUrl === "YOUR_WEB_APP_URL_HERE") {
+                    throw new Error("URL GAS non configurée.");
+                }
+
+                localStorage.setItem("aw27_sc_pdf_email", recipient);
+
+                const today   = new Date().toISOString().slice(0, 10);
+                const subject = `AW27 — Style Components — ${today}`;
+
+                const res = await fetch(gasUrl, {
+                    method:   "POST",
+                    headers:  { "Content-Type": "text/plain;charset=utf-8" },
+                    redirect: "follow",
+                    body: JSON.stringify({
+                        action:     "SEND_ALERT_EMAIL",
+                        recipient,
+                        subject,
+                        htmlBody:   htmlDoc,
+                        xlsxBase64: "",
+                        fileName:   ""
+                    })
+                });
+
+                const json = await res.json();
+                if (json.status !== "ok") throw new Error(json.message || "Erreur GAS");
+
+                typeof showToast === "function" &&
+                    showToast(`✅ Rapport envoyé à ${recipient}`, "success", 5000);
+            }
+
+            // ── Toujours ouvrir le PDF pour impression ─────────
+            document.getElementById("sc-pdf-modal")?.remove();
 
             const win = window.open("", "_blank");
             if (!win) {
@@ -550,31 +687,30 @@ ${sectionsHTML}
                     showToast("Autorise les popups pour télécharger le PDF.", "error", 5000);
                 return;
             }
-            win.document.write(htmlContent);
+            win.document.write(htmlDoc);
             win.document.close();
             win.onload = () => setTimeout(() => { win.focus(); win.print(); }, 400);
 
-            typeof showToast === "function" &&
-                showToast("PDF ouvert — Ctrl+P pour sauvegarder en PDF.", "success", 5000);
+            if (!sendEmail) {
+                typeof showToast === "function" &&
+                    showToast("PDF ouvert — Ctrl+P pour sauvegarder.", "success", 4000);
+            }
 
         } catch(err) {
             typeof showToast === "function" &&
-                showToast("Erreur PDF : " + err.message, "error");
-        } finally {
-            if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                        viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0
-                            012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0
-                            01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                    Components PDF`;
+                showToast("Erreur : " + err.message, "error");
+            if (dlBtn)   dlBtn.disabled   = false;
+            if (sendBtn) {
+                sendBtn.disabled  = false;
+                sendBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7
+                        a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    Envoyer + Télécharger`;
             }
         }
-    }
+    };
 
     // ── Injecter le bouton PDF dans le header ─────────────────
     function injectHeaderButton() {
@@ -592,7 +728,7 @@ ${sectionsHTML}
                     01.293.707V19a2 2 0 01-2 2z"/>
             </svg>
             Components PDF`;
-        btn.onclick = generateComponentsPDF;
+        btn.onclick = openPDFModal;
 
         const targets = [
             document.getElementById("btn-order-scan"),
