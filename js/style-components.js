@@ -345,14 +345,34 @@
         document.getElementById("sc-pdf-modal")?.remove();
 
         const lastEmail = localStorage.getItem("aw27_sc_pdf_email") || "";
-        const totalStyles = [...new Set(rows.map(r =>
-            String(r["Cust Style Ref"] || "").trim()).filter(Boolean))].length;
+
+        // Styles uniques triés
+        const allStyles = [...new Set(
+            rows.map(r => String(r["Cust Style Ref"] || "").trim()).filter(Boolean)
+        )].sort();
+
+        // Checkboxes HTML pour chaque style
+        const styleChecks = allStyles.map(s => `
+            <label style="display:flex;align-items:center;gap:8px;
+                padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12px;
+                color:var(--text-primary,#111827);transition:background .1s;"
+                onmouseover="this.style.background='var(--surface-1,#f9fafb)'"
+                onmouseout="this.style.background=''">
+                <input type="checkbox" class="sc-style-check"
+                    data-style="${s}" checked
+                    style="width:14px;height:14px;accent-color:#1565c0;cursor:pointer;"/>
+                <span>${s}</span>
+                <span style="margin-left:auto;font-size:10px;
+                    color:var(--text-muted,#9ca3af);">
+                    ${rows.filter(r => String(r["Cust Style Ref"]||"").trim() === s).length} composant${rows.filter(r => String(r["Cust Style Ref"]||"").trim() === s).length > 1 ? "s" : ""}
+                </span>
+            </label>`).join("");
 
         const modal = document.createElement("div");
         modal.id = "sc-pdf-modal";
         modal.className = "modal-overlay";
         modal.innerHTML = `
-        <div class="modal" style="max-width:440px;">
+        <div class="modal" style="max-width:460px;">
             <div class="modal-header">
                 <div>
                     <div class="modal-title">
@@ -367,9 +387,8 @@
                         </svg>
                         Components PDF
                     </div>
-                    <div class="modal-subtitle">
-                        ${rows.length} composant${rows.length > 1 ? "s" : ""}
-                        · ${totalStyles} style${totalStyles > 1 ? "s" : ""}
+                    <div class="modal-subtitle" id="sc-pdf-subtitle">
+                        ${allStyles.length} style${allStyles.length > 1 ? "s" : ""} · ${rows.length} composant${rows.length > 1 ? "s" : ""}
                     </div>
                 </div>
                 <button class="btn-close"
@@ -383,6 +402,34 @@
             </div>
             <div class="modal-body"
                 style="padding:1.25rem 1.5rem;display:flex;flex-direction:column;gap:14px;">
+
+                <!-- Sélecteur de styles -->
+                <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                        margin-bottom:8px;">
+                        <label class="form-label" style="margin:0;">Styles à exporter</label>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button"
+                                style="font-size:11px;background:none;border:none;
+                                    color:var(--text-accent,#1565c0);cursor:pointer;padding:0;"
+                                onclick="document.querySelectorAll('.sc-style-check').forEach(c=>{c.checked=true;});window._scUpdatePDFSubtitle();">
+                                Tout sélectionner
+                            </button>
+                            <span style="color:var(--border-strong,#d1d5db);">|</span>
+                            <button type="button"
+                                style="font-size:11px;background:none;border:none;
+                                    color:var(--text-secondary,#6b7280);cursor:pointer;padding:0;"
+                                onclick="document.querySelectorAll('.sc-style-check').forEach(c=>{c.checked=false;});window._scUpdatePDFSubtitle();">
+                                Tout désélectionner
+                            </button>
+                        </div>
+                    </div>
+                    <div style="max-height:200px;overflow-y:auto;
+                        border:0.5px solid var(--border,#e5e7eb);border-radius:8px;
+                        padding:4px 6px;background:var(--surface-2,#fff);">
+                        ${styleChecks}
+                    </div>
+                </div>
 
                 <!-- Email -->
                 <div>
@@ -622,6 +669,26 @@ ${sectionsHTML}
 </html>`;
     }
 
+    // ── Mettre à jour le subtitle selon la sélection ────────────
+    window._scUpdatePDFSubtitle = function() {
+        const checked = document.querySelectorAll(".sc-style-check:checked");
+        const sub = document.getElementById("sc-pdf-subtitle");
+        if (!sub) return;
+        const rows = window.state?.data?.[SHEET_KEY] || [];
+        const selectedStyles = new Set([...checked].map(c => c.dataset.style));
+        const filteredRows = rows.filter(r =>
+            selectedStyles.has(String(r["Cust Style Ref"] || "").trim())
+        );
+        sub.textContent = `${selectedStyles.size} style${selectedStyles.size > 1 ? "s" : ""} · ${filteredRows.length} composant${filteredRows.length > 1 ? "s" : ""}`;
+    };
+
+    // Écouter les changements de checkboxes (délégation sur le document)
+    document.addEventListener("change", e => {
+        if (e.target.classList.contains("sc-style-check")) {
+            window._scUpdatePDFSubtitle();
+        }
+    });
+
     // ── Handler principal (exposé globalement) ────────────────
     window._scGeneratePDF = async function(sendEmail) {
         const recipient = (document.getElementById("sc-pdf-email")?.value || "").trim();
@@ -641,7 +708,28 @@ ${sectionsHTML}
             sendBtn.innerHTML = `<span class="sc-spin">⏳</span> Envoi…`; }
 
         try {
-            const rows    = window.state?.data?.[SHEET_KEY] || [];
+            const allRows = window.state?.data?.[SHEET_KEY] || [];
+
+            // Récupérer les styles sélectionnés dans la modale
+            const checkedBoxes = document.querySelectorAll(".sc-style-check:checked");
+            const selectedStyles = checkedBoxes.length > 0
+                ? new Set([...checkedBoxes].map(c => c.dataset.style))
+                : null; // null = tous
+
+            const rows = selectedStyles
+                ? allRows.filter(r =>
+                    selectedStyles.has(String(r["Cust Style Ref"] || "").trim()))
+                : allRows;
+
+            if (!rows.length) {
+                typeof showToast === "function" &&
+                    showToast("Aucun style sélectionné.", "error");
+                if (dlBtn) dlBtn.disabled = false;
+                if (sendBtn) { sendBtn.disabled = false;
+                    sendBtn.innerHTML = `Envoyer + Télécharger`; }
+                return;
+            }
+
             const htmlDoc = buildPDFHTML(rows);
 
             // ── Envoi email ────────────────────────────────────
