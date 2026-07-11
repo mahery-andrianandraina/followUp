@@ -747,17 +747,30 @@
             return { bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb",dot:"#9ca3af" };
         };
 
-        // Lookup image depuis state.data.details par Cust Style Ref
-        const getStyleImage = (custRef) => {
-            const detailRow = (window.state?.data?.details || []).find(r =>
+        // Lookup image + infos depuis state.data.details par Cust Style Ref
+        const getDetailRow = (custRef) =>
+            (window.state?.data?.details || []).find(r =>
                 String(r["Cust Style Ref"] || "").trim() === custRef
-            );
-            return detailRow?._imageUrl || "";
+            ) || null;
+
+        const getStyleImage = (custRef) => getDetailRow(custRef)?._imageUrl || "";
+
+        const fmtD = val => {
+            if (!val) return "";
+            try {
+                return new Date(val).toLocaleDateString("fr-FR", {
+                    day: "2-digit", month: "short", year: "numeric"
+                });
+            } catch(e) { return String(val); }
         };
 
         const sectionsHTML = order.map(key => {
-            const group    = groups[key];
-            const imgUrl   = getStyleImage(group.custRef);
+            const group     = groups[key];
+            const imgUrl    = getStyleImage(group.custRef);
+            const detRow    = getDetailRow(group.custRef);
+            const appPrice  = detRow?.["Approved Price $"] ? `$${detRow["Approved Price $"]}` : "";
+            const confTotal = detRow?.["Conf Total"] ? String(detRow["Conf Total"]) : "";
+            const vslDate   = fmtD(detRow?.["Initial Vsl Date"]);
             const approved = group.rows.filter(r => String(r.Status||"").toLowerCase() === "approved").length;
             const rejected = group.rows.filter(r => String(r.Status||"").toLowerCase() === "rejected").length;
             const ongoing  = group.rows.filter(r => String(r.Status||"").toLowerCase() === "on going").length;
@@ -820,9 +833,38 @@
                             ${group.custRef || "—"}
                         </div>
                         ${group.ctlRef ? `
-                        <div style="font-size:11.5px;color:#6b7280;margin-bottom:10px;">
+                        <div style="font-size:11.5px;color:#6b7280;margin-bottom:8px;">
                             CTL Ref : <strong style="color:#374151;">${group.ctlRef}</strong>
-                        </div>` : '<div style="margin-bottom:10px;"></div>'}
+                        </div>` : '<div style="margin-bottom:8px;"></div>'}
+
+                        <!-- Infos clés du style -->
+                        ${(appPrice || confTotal || vslDate) ? `
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;
+                            margin-bottom:10px;padding:7px 10px;
+                            background:#f8fafc;border-radius:6px;
+                            border:0.5px solid #e5e7eb;">
+                            ${appPrice ? `
+                            <div style="display:flex;flex-direction:column;gap:1px;">
+                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
+                                    letter-spacing:.06em;">Prix approuvé</span>
+                                <span style="font-size:12px;font-weight:600;color:#166534;">
+                                    ${appPrice}</span>
+                            </div>` : ""}
+                            ${confTotal ? `
+                            <div style="display:flex;flex-direction:column;gap:1px;">
+                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
+                                    letter-spacing:.06em;">Conf Total</span>
+                                <span style="font-size:12px;font-weight:600;color:#111827;">
+                                    ${confTotal} u.</span>
+                            </div>` : ""}
+                            ${vslDate ? `
+                            <div style="display:flex;flex-direction:column;gap:1px;">
+                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
+                                    letter-spacing:.06em;">Initial VSL Date</span>
+                                <span style="font-size:12px;font-weight:600;color:#1e40af;">
+                                    ${vslDate}</span>
+                            </div>` : ""}
+                        </div>` : ""}
 
                         <!-- Badges statuts -->
                         <div style="display:flex;gap:6px;flex-wrap:wrap;">
