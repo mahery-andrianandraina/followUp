@@ -620,23 +620,40 @@ ${pdfText.slice(0, 18000)}`;
         titleEl.insertAdjacentElement("afterend", btn);
     }
 
-    // ── Patcher renderAll pour injecter le bouton ─────────────
-    function patchRenderAllForButton() {
-        if (window._tpaRenderAllPatched) return;
-        const orig = window.renderAll;
-        if (typeof orig !== "function") return;
-        window._tpaRenderAllPatched = true;
+    // ── Observer le titre du header pour détecter la navigation ──
+    // renderAll n'est pas appelé lors de la navigation vers un menu custom
+    // → on observe header-sheet-title pour détecter le changement de sheet
+    function observeSheetNavigation() {
+        const tryObserve = () => {
+            const titleEl = document.getElementById("header-sheet-title");
+            if (!titleEl) { setTimeout(tryObserve, 300); return; }
 
-        window.renderAll = function(...args) {
-            const result = orig.apply(this, args);
-            // Nettoyer l'ancien bouton si on a changé de sheet
-            if (window.state?.activeSheet !== SHEET_KEY) {
-                document.getElementById("btn-analyze-tp")?.remove();
-            } else {
-                setTimeout(injectAnalyzeButton, 100);
+            new MutationObserver(() => {
+                if (window.state?.activeSheet === SHEET_KEY) {
+                    setTimeout(injectAnalyzeButton, 150);
+                } else {
+                    document.getElementById("btn-analyze-tp")?.remove();
+                }
+            }).observe(titleEl, { childList: true, characterData: true, subtree: true });
+
+            // Check immédiat si déjà sur le bon sheet
+            if (window.state?.activeSheet === SHEET_KEY) {
+                setTimeout(injectAnalyzeButton, 150);
             }
-            return result;
         };
+        tryObserve();
+    }
+
+    // Garde-fou : vérifier périodiquement pendant 2 minutes
+    function startButtonGuard() {
+        let count = 0;
+        const guard = setInterval(() => {
+            if (++count > 120) { clearInterval(guard); return; }
+            if (window.state?.activeSheet === SHEET_KEY &&
+                !document.getElementById("btn-analyze-tp")) {
+                injectAnalyzeButton();
+            }
+        }, 1000);
     }
 
     // ── Helper esc ────────────────────────────────────────────
@@ -649,7 +666,8 @@ ${pdfText.slice(0, 18000)}`;
     // ── Init ──────────────────────────────────────────────────
     function init() {
         injectStyles();
-        patchRenderAllForButton();
+        observeSheetNavigation();
+        startButtonGuard();
         console.log("[AW27] TP Analyzer ✓");
     }
 
