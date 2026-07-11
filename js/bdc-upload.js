@@ -9,7 +9,7 @@
     // ── Constante clé colonne ─────────────────────────────────
     const BDC_COL = "BDC_URL";
 
-    // ── Styles  ───────────────────────────────────────────────
+    // ── Styles ───────────────────────────────────────────────
     function injectStyles() {
         if (document.getElementById("bdc-upload-styles")) return;
         const s = document.createElement("style");
@@ -98,6 +98,280 @@
     }
 
     // ── Ouvrir le sélecteur de fichier et lancer l'upload ────
+    // ── Extraire les données du BDC Excel pour un style ─────
+    async function extractBDCData(base64, styleCode) {
+        return new Promise((resolve, reject) => {
+            _waitForXLSX(function(XL) {
+                if (!XL) { reject(new Error("SheetJS non disponible")); return; }
+                try {
+                    const wb = XL.read(base64, { type: "base64" });
+
+                    // Chercher la feuille RESUME (insensible à la casse)
+                    const resumeSheetName = wb.SheetNames.find(n =>
+                        n.trim().toUpperCase() === "RESUME"
+                    );
+                    if (!resumeSheetName) {
+                        reject(new Error("Feuille RESUME introuvable dans le BDC."));
+                        return;
+                    }
+
+                    const ws   = wb.Sheets[resumeSheetName];
+                    const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "" });
+
+                    // Trouver la ligne d'en-têtes
+                    let headerRow = -1;
+                    for (let i = 0; i < data.length; i++) {
+                        if (data[i].some(c => String(c).trim().toUpperCase() === "PRODUCT NAME")) {
+                            headerRow = i; break;
+                        }
+                    }
+                    if (headerRow === -1) {
+                        reject(new Error("En-têtes introuvables dans RESUME.")); return;
+                    }
+
+                    const headers = data[headerRow].map(h => String(h).trim().toUpperCase());
+                    const iProduct    = headers.indexOf("PRODUCT NAME");
+                    const iStyleCode  = headers.indexOf("STYLE CODE");
+                    const iQty        = headers.indexOf("QTY PER SKU");
+                    const iPrice      = headers.indexOf("PURCHASE PRICE");
+                    const iDate       = headers.indexOf("FIRST ETD SHIPMENT DATE");
+                    const iPacking    = headers.indexOf("PO PACKING TYPE");
+
+                    if (iProduct === -1) {
+                        reject(new Error("Colonne PRODUCT NAME introuvable.")); return;
+                    }
+
+                    // Collecter les lignes pour ce style
+                    let totalQty  = null;
+                    let price     = null;
+                    let vslDate   = null;
+
+                    for (let i = headerRow + 1; i < data.length; i++) {
+                        const row       = data[i];
+                        const product   = String(row[iProduct]   || "").trim();
+                        const stylecode = String(iStyleCode !== -1 ? (row[iStyleCode] || "") : "").trim();
+
+                        // Mot après le premier "-" dans STYLE CODE = coloris (ex: "VEM" dans "HLAODI-VEM")
+                        const dashIdx = stylecode.indexOf("-");
+                        const coloris = dashIdx !== -1 ? stylecode.slice(dashIdx + 1) : "";
+
+                        // Nom complet du style = PRODUCT NAME + "-" + coloris
+                        const fullStyleName = coloris ? `${product}-${coloris}` : product;
+
+                        // Matcher avec le Cust Style Ref de la card
+                        // On essaie d'abord le nom complet, puis PRODUCT NAME seul en fallback
+                        const isMatch = fullStyleName.toUpperCase() === styleCode.toUpperCase()
+                                     || product.toUpperCase() === styleCode.toUpperCase();
+
+                        if (!isMatch) continue;
+
+                        const packing = String(row[iPacking] || "").trim().toUpperCase();
+
+                        // Ignorer les lignes TOTAL (elles n'ont pas de STYLE CODE
+                        // donc ne matchent pas un style avec coloris, et agrègent
+                        // toutes les couleurs → on somme les lignes de données)
+                        if (packing === "TOTAL") continue;
+
+                        // Sommer la qty de chaque ligne de données
+                        if (iQty !== -1) {
+                            const q = parseFloat(String(row[iQty] || "0").replace(/\s/g,"").replace(/,/g,"."));
+                            if (!isNaN(q) && q > 0) totalQty = (totalQty || 0) + q;
+                        }
+
+                        // Prix et date : prendre la première valeur trouvée
+                        if (price === null && iPrice !== -1) {
+                            const p = parseFloat(String(row[iPrice] || "").replace(/,/g,".").replace(/\s/g,""));
+                            if (!isNaN(p) && p > 0) price = p;
+                        }
+                        if (vslDate === null && iDate !== -1) {
+                            const d = String(row[iDate] || "").trim();
+                            if (d) vslDate = d;
+                        }
+                    }
+
+                    if (totalQty === null && price === null && vslDate === null) {
+                        reject(new Error(`Style "${styleCode}" introuvable dans le BDC (PRODUCT NAME).`));
+                        return;
+                    }
+
+                    resolve({ qty: totalQty, price, vslDate });
+                } catch(e) {
+                    reject(e);
+                }
+            });
+        });
+    }
+
+    // ── Modale de validation BDC ──────────────────────────────
+    function openBDCValidationModal(styleCode, rowIdx, extracted, btn, base64, fileName, mimeType) {
+        document.getElementById("bdc-val-modal")?.remove();
+
+        const detRow = (window.state?.data?.details || []).find(r => r._rowIndex === rowIdx);
+        const existConf  = detRow?.["Conf Total"]      || "";
+        const existPrice = detRow?.["Approved Price $"] || "";
+        const existVsl   = detRow?.["Initial Vsl Date"] || "";
+
+        const fmtQty   = extracted.qty   !== null ? String(extracted.qty)  : "—";
+        const fmtPrice = extracted.price !== null ? `$${extracted.price}` : "—";
+        const fmtDate  = extracted.vslDate || "—";
+
+        function fieldRow(label, key, newVal, existVal) {
+            const hasExist = String(existVal || "").trim() !== "";
+            return `
+            <tr style="border-bottom:0.5px solid var(--border,#e5e7eb);">
+                <td style="padding:10px 12px;font-size:12px;font-weight:500;
+                    color:var(--text-primary,#111827);width:35%;">${label}</td>
+                <td style="padding:10px 12px;font-size:12px;
+                    color:${newVal === "—" ? "var(--text-muted,#9ca3af)" : "#166534"};
+                    font-weight:600;">${newVal}</td>
+                <td style="padding:10px 12px;font-size:12px;
+                    color:var(--text-secondary,#6b7280);">
+                    ${hasExist ? `<span style="color:#92400e;">${existVal}</span>` : '<span style="color:#d1d5db;">—</span>'}
+                </td>
+                <td style="padding:10px 12px;">
+                    ${newVal !== "—" ? `
+                    <label style="display:flex;align-items:center;gap:6px;
+                        cursor:pointer;font-size:11px;color:var(--text-secondary,#6b7280);">
+                        <input type="checkbox" id="bdc-chk-${key}"
+                            ${!hasExist ? "checked" : ""}
+                            style="accent-color:#1565c0;"/>
+                        ${hasExist ? "Écraser" : "Importer"}
+                    </label>` : '<span style="color:#d1d5db;font-size:11px;">non disponible</span>'}
+                </td>
+            </tr>`;
+        }
+
+        const modal = document.createElement("div");
+        modal.id = "bdc-val-modal";
+        modal.className = "modal-overlay";
+        modal.innerHTML = `
+        <div class="modal" style="max-width:560px;">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title">📊 Données extraites du BDC</div>
+                    <div class="modal-subtitle">${styleCode} — Valide avant d'importer</div>
+                </div>
+                <button class="btn-close" onclick="document.getElementById('bdc-val-modal').remove()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" style="padding:1rem 1.5rem 1.5rem;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:var(--surface-2,#f9fafb);">
+                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                                color:var(--text-muted,#9ca3af);text-transform:uppercase;
+                                letter-spacing:.07em;">Champ</th>
+                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                                color:var(--text-muted,#9ca3af);text-transform:uppercase;
+                                letter-spacing:.07em;">Valeur BDC</th>
+                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                                color:var(--text-muted,#9ca3af);text-transform:uppercase;
+                                letter-spacing:.07em;">Valeur actuelle</th>
+                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                                color:var(--text-muted,#9ca3af);text-transform:uppercase;
+                                letter-spacing:.07em;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fieldRow("Conf Total (qty)", "qty",   fmtQty,   existConf)}
+                        ${fieldRow("Approved Price $", "price", fmtPrice, existPrice)}
+                        ${fieldRow("Initial VSL Date", "vsl",   fmtDate,  existVsl)}
+                    </tbody>
+                </table>
+
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+                    <button class="btn btn-ghost"
+                        onclick="document.getElementById('bdc-val-modal').remove()">
+                        Ignorer
+                    </button>
+                    <button class="btn btn-primary" id="bdc-val-confirm"
+                        onclick="window._bdcValConfirm()">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Importer les données
+                    </button>
+                </div>
+            </div>
+        </div>`;
+
+        modal._data = { styleCode, rowIdx, extracted, btn, base64, fileName, mimeType };
+        document.body.appendChild(modal);
+        requestAnimationFrame(() => modal.classList.add("open"));
+    }
+
+    // ── Confirmer l'import BDC ────────────────────────────────
+    window._bdcValConfirm = async function() {
+        const modal = document.getElementById("bdc-val-modal");
+        if (!modal) return;
+        const { styleCode, rowIdx, extracted, btn, base64, fileName, mimeType } = modal._data;
+
+        const importQty   = document.getElementById("bdc-chk-qty")?.checked;
+        const importPrice = document.getElementById("bdc-chk-price")?.checked;
+        const importVsl   = document.getElementById("bdc-chk-vsl")?.checked;
+
+        const confirmBtn = document.getElementById("bdc-val-confirm");
+        if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = "Import en cours…"; }
+
+        try {
+            // Mettre à jour les champs dans Details
+            const updates = [];
+            if (importQty   && extracted.qty   !== null) updates.push(["Conf Total",      String(extracted.qty)]);
+            if (importPrice && extracted.price !== null) updates.push(["Approved Price $", String(extracted.price)]);
+            if (importVsl   && extracted.vslDate)        updates.push(["Initial Vsl Date", extracted.vslDate]);
+
+            for (const [field, value] of updates) {
+                if (typeof window.quickUpdate === "function") {
+                    await window.quickUpdate(rowIdx, field, value, "details");
+                }
+                // Mise à jour en mémoire
+                const row = (window.state?.data?.details || []).find(r => r._rowIndex === rowIdx);
+                if (row) row[field] = value;
+            }
+
+            modal.remove();
+
+            // Continuer avec l'upload Drive du BDC
+            await _doBDCUpload(styleCode, rowIdx, btn, base64, fileName, mimeType);
+
+        } catch(err) {
+            if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = "Importer les données"; }
+            typeof showToast === "function" && showToast("Erreur : " + err.message, "error");
+        }
+    };
+
+    // ── Upload Drive effectif (séparé pour réutilisation) ─────
+    async function _doBDCUpload(styleCode, rowIdx, btn, base64, fileName, mimeType) {
+        try {
+            const url = await uploadBDCFile(rowIdx, fileName, base64, mimeType);
+
+            const row = (window.state?.data?.details || []).find(r => r._rowIndex === rowIdx);
+            if (row) row[BDC_COL] = url;
+
+            refreshBDCButton(btn, url);
+
+            if (typeof window.checkAndNotifyOrderConfirm === "function") {
+                setTimeout(() => window.checkAndNotifyOrderConfirm(rowIdx), 300);
+            }
+
+            typeof showToast === "function" &&
+                showToast(`BDC uploadé ✓ — ${fileName}`, "success");
+        } catch(err) {
+            btn.innerHTML = `<i class="ti ti-file-plus" aria-hidden="true"></i><span>BDC</span>`;
+            typeof showToast === "function" &&
+                showToast("Erreur upload BDC : " + err.message, "error");
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
     function triggerBDCUpload(styleCode, rowIdx, btn) {
         const input  = document.createElement("input");
         input.type   = "file";
@@ -134,32 +408,35 @@
                     rd.readAsDataURL(file);
                 });
 
-                // Upload vers Drive via GAS
-                const url = await uploadBDCFile(
-                    rowIdx,
-                    file.name,
-                    base64,
-                    file.type || "application/octet-stream"
-                );
+                const mimeType = file.type || "application/octet-stream";
+                const isExcel  = file.name.match(/\.xlsx?$/i);
 
-                // Mise à jour en mémoire (sans rechargement)
-                const row = (window.state?.data?.details || [])
-                    .find(r => r._rowIndex === rowIdx);
-                if (row) row[BDC_COL] = url;
-// Vérifier si les 3 conditions sont réunies après upload BDC
-if (typeof window.checkAndNotifyOrderConfirm === "function") {
-    setTimeout(() => window.checkAndNotifyOrderConfirm(rowIdx), 300);
-}
-                refreshBDCButton(btn, url);
-                typeof showToast === "function" &&
-                    showToast(`BDC uploadé ✓ — ${file.name}`, "success");
+                // Si c'est un Excel → tenter l'extraction BDC
+                if (isExcel) {
+                    typeof showToast === "function" &&
+                        showToast("Lecture du BDC…", "info", 5000);
+                    try {
+                        const extracted = await extractBDCData(base64, styleCode);
+                        btn.disabled = false;
+                        btn.innerHTML = origHTML;
+                        // Ouvrir la modale de validation avant upload
+                        openBDCValidationModal(styleCode, rowIdx, extracted, btn, base64, file.name, mimeType);
+                        return; // L'upload se fait depuis la modale
+                    } catch(extractErr) {
+                        // Style pas trouvé dans le BDC → upload direct sans extraction
+                        console.warn("[BDC] Extraction échouée :", extractErr.message);
+                        typeof showToast === "function" &&
+                            showToast("⚠️ Données non extraites : " + extractErr.message + " — Upload direct.", "info", 5000);
+                    }
+                }
+
+                // Upload direct (PDF ou Excel sans données pour ce style)
+                await _doBDCUpload(styleCode, rowIdx, btn, base64, file.name, mimeType);
 
             } catch (err) {
-                // Rollback visuel
                 btn.innerHTML = origHTML;
                 typeof showToast === "function" &&
                     showToast("Erreur upload BDC : " + err.message, "error");
-            } finally {
                 btn.disabled = false;
             }
         };
