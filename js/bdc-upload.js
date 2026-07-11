@@ -185,7 +185,7 @@
                         }
                         if (vslDate === null && iDate !== -1) {
                             const d = String(row[iDate] || "").trim();
-                            if (d) vslDate = d;
+                            if (d) vslDate = convertBDCDate(d);
                         }
                     }
 
@@ -200,6 +200,20 @@
                 }
             });
         });
+    }
+
+    // ── Convertir DD/MM/YYYY → YYYY-MM-DD (format attendu par l'app) ──
+    function convertBDCDate(dateStr) {
+        if (!dateStr) return "";
+        const s = String(dateStr).trim();
+        // DD/MM/YYYY
+        const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+        // DD-MM-YYYY
+        const m2 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if (m2) return `${m2[3]}-${m2[2].padStart(2,"0")}-${m2[1].padStart(2,"0")}`;
+        // Déjà en YYYY-MM-DD ou autre → retourner tel quel
+        return s;
     }
 
     // ── Modale de validation BDC ──────────────────────────────
