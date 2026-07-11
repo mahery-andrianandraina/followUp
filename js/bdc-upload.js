@@ -219,16 +219,16 @@
             const hasExist = String(existVal || "").trim() !== "";
             return `
             <tr style="border-bottom:0.5px solid var(--border,#e5e7eb);">
-                <td style="padding:10px 12px;font-size:12px;font-weight:500;
-                    color:var(--text-primary,#111827);width:35%;">${label}</td>
-                <td style="padding:10px 12px;font-size:12px;
+                <td style="padding:12px 14px;font-size:13px;font-weight:500;
+                    color:var(--text-primary,#111827);">${label}</td>
+                <td style="padding:12px 14px;font-size:13px;
                     color:${newVal === "—" ? "var(--text-muted,#9ca3af)" : "#166534"};
                     font-weight:600;">${newVal}</td>
-                <td style="padding:10px 12px;font-size:12px;
+                <td style="padding:12px 14px;font-size:13px;
                     color:var(--text-secondary,#6b7280);">
                     ${hasExist ? `<span style="color:#92400e;">${existVal}</span>` : '<span style="color:#d1d5db;">—</span>'}
                 </td>
-                <td style="padding:10px 12px;">
+                <td style="padding:12px 14px;">
                     ${newVal !== "—" ? `
                     <label style="display:flex;align-items:center;gap:6px;
                         cursor:pointer;font-size:11px;color:var(--text-secondary,#6b7280);">
@@ -245,7 +245,7 @@
         modal.id = "bdc-val-modal";
         modal.className = "modal-overlay";
         modal.innerHTML = `
-        <div class="modal" style="max-width:560px;">
+        <div class="modal" style="max-width:700px;width:95vw;">
             <div class="modal-header">
                 <div>
                     <div class="modal-title">📊 Données extraites du BDC</div>
@@ -260,19 +260,25 @@
                 </button>
             </div>
             <div class="modal-body" style="padding:1rem 1.5rem 1.5rem;">
-                <table style="width:100%;border-collapse:collapse;">
+                <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+                    <colgroup>
+                        <col style="width:22%;"/>
+                        <col style="width:24%;"/>
+                        <col style="width:24%;"/>
+                        <col style="width:30%;"/>
+                    </colgroup>
                     <thead>
                         <tr style="background:var(--surface-2,#f9fafb);">
-                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                            <th style="padding:9px 14px;text-align:left;font-size:10px;
                                 color:var(--text-muted,#9ca3af);text-transform:uppercase;
                                 letter-spacing:.07em;">Champ</th>
-                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                            <th style="padding:9px 14px;text-align:left;font-size:10px;
                                 color:var(--text-muted,#9ca3af);text-transform:uppercase;
                                 letter-spacing:.07em;">Valeur BDC</th>
-                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                            <th style="padding:9px 14px;text-align:left;font-size:10px;
                                 color:var(--text-muted,#9ca3af);text-transform:uppercase;
                                 letter-spacing:.07em;">Valeur actuelle</th>
-                            <th style="padding:8px 12px;text-align:left;font-size:10px;
+                            <th style="padding:9px 14px;text-align:left;font-size:10px;
                                 color:var(--text-muted,#9ca3af);text-transform:uppercase;
                                 letter-spacing:.07em;">Action</th>
                         </tr>
@@ -411,26 +417,32 @@
                 const mimeType = file.type || "application/octet-stream";
                 const isExcel  = file.name.match(/\.xlsx?$/i);
 
-                // Si c'est un Excel → tenter l'extraction BDC
+                // Si c'est un Excel → extraction obligatoire
+                // Si le style n'est pas trouvé → upload BLOQUÉ (mauvais BDC)
                 if (isExcel) {
                     typeof showToast === "function" &&
                         showToast("Lecture du BDC…", "info", 5000);
                     try {
                         const extracted = await extractBDCData(base64, styleCode);
-                        btn.disabled = false;
+                        btn.disabled  = false;
                         btn.innerHTML = origHTML;
                         // Ouvrir la modale de validation avant upload
                         openBDCValidationModal(styleCode, rowIdx, extracted, btn, base64, file.name, mimeType);
                         return; // L'upload se fait depuis la modale
                     } catch(extractErr) {
-                        // Style pas trouvé dans le BDC → upload direct sans extraction
-                        console.warn("[BDC] Extraction échouée :", extractErr.message);
+                        // Style introuvable → ce n'est pas le bon BDC → bloquer
+                        btn.disabled  = false;
+                        btn.innerHTML = origHTML;
                         typeof showToast === "function" &&
-                            showToast("⚠️ Données non extraites : " + extractErr.message + " — Upload direct.", "info", 5000);
+                            showToast(
+                                `❌ Style "${styleCode}" introuvable dans ce BDC — upload annulé. Vérifiez que vous avez sélectionné le bon fichier.`,
+                                "error", 7000
+                            );
+                        return; // NE PAS uploader
                     }
                 }
 
-                // Upload direct (PDF ou Excel sans données pour ce style)
+                // PDF → upload direct (pas d'extraction possible)
                 await _doBDCUpload(styleCode, rowIdx, btn, base64, file.name, mimeType);
 
             } catch (err) {
