@@ -66,6 +66,16 @@
         document.head.appendChild(s);
     }
 
+    // ── Normaliser une référence style pour le matching ──────
+    // Gère : "LARIDEL BG VEM" / "LARIDEL-BG-VEM" / "laridel_bg_vem"
+    function normalizeRef(s) {
+        return String(s || "").trim()
+            .toLowerCase()
+            .replace(/[\s_\.]+/g, "-")   // espaces, underscores, points → tiret
+            .replace(/-+/g, "-")          // tirets multiples → un seul
+            .replace(/^-|-$/g, "");       // supprimer tirets en début/fin
+    }
+
     // ── Parser de date robuste ────────────────────────────────
     function parseFlexDate(val) {
         if (!val) return "";
@@ -170,12 +180,16 @@
                             const psdParsed = isAllOK ? "ALL OK" : parseFlexDate(psdRaw);
                             if (!psdParsed) continue;
 
-                            // Stocker avec clé lowercase pour matching insensible casse
-                            if (!lookup[ref.toLowerCase()]) {
-                                lookup[ref.toLowerCase()] = { psdRaw: psdParsed, isAllOK, originalRef: ref };
+                            // Stocker avec clé normalisée (insensible casse + séparateurs)
+                            const normKey = normalizeRef(ref);
+                            if (!lookup[normKey]) {
+                                lookup[normKey] = { psdRaw: psdParsed, isAllOK, originalRef: ref };
                             }
                         }
 
+                        // Log pour debug
+                        console.log("[PSD] Lookup Excel (" + Object.keys(lookup).length + " entrées) :",
+                            Object.keys(lookup).slice(0, 5).join(", ") + "...");
                         resolve(lookup);
                     } catch(err) {
                         reject(err);
@@ -225,7 +239,9 @@
             <td style="padding:9px 12px;">
                 ${e.found
                     ? `<span class="${e.isAllOK ? "psd-badge-allok" : "psd-badge-new"}">${e.newPSD}</span>`
-                    : `<span style="color:var(--text-muted,#9ca3af);font-size:11px;font-style:italic;">Absent du fichier</span>`
+                    : `<span style="color:var(--text-muted,#9ca3af);font-size:11px;font-style:italic;"
+                        title="Clé normalisée : ${normalizeRef(e.ref)}">
+                        Absent du fichier</span>`
                 }
             </td>
             <td style="padding:9px 12px;text-align:center;">
@@ -402,7 +418,7 @@
                     .filter(r => String(r["Cust Style Ref"] || "").trim())
                     .map(r => {
                         const ref     = String(r["Cust Style Ref"] || "").trim();
-                        const match   = lookup[ref.toLowerCase()];
+                        const match   = lookup[normalizeRef(ref)];
                         return {
                             ref,
                             psdRaw:   match?.psdRaw   || null,
