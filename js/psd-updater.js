@@ -101,7 +101,8 @@
         return `${dd}/${mm}/${d.getFullYear()}`;
     }
 
-    // ── Analyser le fichier Excel PSD ─────────────────────────
+    // ── Analyser le fichier Excel PSD → retourne un lookup map ──
+    // { "LARIDEL-BG-VEM": { psdRaw, isAllOK }, ... }
     function analyzePSDFile(file) {
         return new Promise((resolve, reject) => {
             if (typeof _waitForXLSX !== "function") {
@@ -117,50 +118,48 @@
                         const base64 = e.target.result.split(",")[1];
                         const wb     = XL.read(base64, { type: "base64", cellDates: true });
 
-                        // Chercher la première feuille (ou celle qui a "Possible PSD")
+                        // Chercher la feuille avec "Possible PSD"
                         let ws = null;
                         for (const name of wb.SheetNames) {
                             const sheet = wb.Sheets[name];
                             const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-                            const headers = (data[0] || []).map(h => String(h).trim().toLowerCase());
-                            if (headers.some(h => h.includes("possible psd") || h.includes("psd"))) {
+                            const flat  = data.slice(0, 15).flat().map(h =>
+                                String(h).trim().toLowerCase());
+                            if (flat.some(h => h.includes("possible psd"))) {
                                 ws = sheet; break;
                             }
                         }
-                        if (!ws) {
-                            // Utiliser la première feuille par défaut
-                            ws = wb.Sheets[wb.SheetNames[0]];
-                        }
+                        if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
 
                         const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "" });
 
                         // Trouver la ligne d'en-têtes
-                        let headerRow = -1;
-                        let iRef = -1, iPSD = -1;
+                        let headerRow = -1, iRef = -1, iPSD = -1;
                         for (let i = 0; i < Math.min(data.length, 20); i++) {
                             const row = data[i].map(h => String(h).trim().toLowerCase());
                             const rRef = row.findIndex(h =>
-                                h.includes("buyer style") || h.includes("buyer ref") ||
-                                h.includes("style+color") || h.includes("style + color") ||
-                                h.includes("buyer style+color") || h.includes("style color")
+                                h.includes("buyer style") || h.includes("style+color") ||
+                                h.includes("style + color") || h.includes("buyer ref")
                             );
                             const rPSD = row.findIndex(h =>
-                                h.includes("possible psd") || (h.includes("psd") && !h.includes("psd date"))
+                                h.includes("possible psd") ||
+                                (h === "psd") ||
+                                (h.includes("psd") && h.length < 15)
                             );
-                            if (rRef !== -1 || rPSD !== -1) {
+                            if (rRef !== -1 && rPSD !== -1) {
                                 headerRow = i; iRef = rRef; iPSD = rPSD; break;
                             }
                         }
 
                         if (headerRow === -1 || iRef === -1 || iPSD === -1) {
                             reject(new Error(
-                                `Colonnes introuvables. Cherché : "Buyer Style+Color" et "Possible PSD".\n` +
-                                `En-têtes trouvés : ${(data[0]||[]).join(", ")}`
+                                `Colonnes "Buyer Style+Color" et "Possible PSD" introuvables.\n` +
+                                `En-têtes ligne 1 : ${(data[0]||[]).slice(0,10).join(" | ")}`
                             )); return;
                         }
 
-                        // Collecter les données par style
-                        const results = {};
+                        // Construire le lookup map (insensible à la casse)
+                        const lookup = {};
                         for (let i = headerRow + 1; i < data.length; i++) {
                             const row    = data[i];
                             const ref    = String(row[iRef] || "").trim();
@@ -171,11 +170,13 @@
                             const psdParsed = isAllOK ? "ALL OK" : parseFlexDate(psdRaw);
                             if (!psdParsed) continue;
 
-                            // Dédupliquer : garder la première occurrence par style
-                            if (!results[ref]) results[ref] = { ref, psdRaw: psdParsed, isAllOK };
+                            // Stocker avec clé lowercase pour matching insensible casse
+                            if (!lookup[ref.toLowerCase()]) {
+                                lookup[ref.toLowerCase()] = { psdRaw: psdParsed, isAllOK, originalRef: ref };
+                            }
                         }
 
-                        resolve(Object.values(results));
+                        resolve(lookup);
                     } catch(err) {
                         reject(err);
                     }
@@ -200,18 +201,12 @@
     function openPSDValidationModal(items) {
         document.getElementById("psd-val-modal")?.remove();
 
-        const detailRows = window.state?.data?.details || [];
-
-        // Enrichir chaque item avec les données Details
+        // Les items viennent déjà enrichis depuis triggerPSDUpload
         const enriched = items.map(item => {
-            const detRow = detailRows.find(r =>
-                String(r["Cust Style Ref"] || "").trim().toLowerCase() ===
-                item.ref.toLowerCase()
-            );
-            const oldPSD  = String(detRow?.PSD || "").trim();
-            const newPSD  = buildNewPSD(item, detRow);
-            const rowIdx  = detRow?._rowIndex ?? null;
-            return { ...item, detRow, oldPSD, newPSD, rowIdx, found: !!detRow };
+            const detRow = item.detRow;
+            const oldPSD = String(detRow?.PSD || "").trim();
+            const newPSD = item.inExcel ? buildNewPSD(item, detRow) : null;
+            return { ...item, detRow, oldPSD, newPSD, found: item.inExcel };
         });
 
         const found    = enriched.filter(e => e.found);
@@ -230,7 +225,7 @@
             <td style="padding:9px 12px;">
                 ${e.found
                     ? `<span class="${e.isAllOK ? "psd-badge-allok" : "psd-badge-new"}">${e.newPSD}</span>`
-                    : `<span class="psd-badge-notfound">Style introuvable</span>`
+                    : `<span style="color:var(--text-muted,#9ca3af);font-size:11px;font-style:italic;">Absent du fichier</span>`
                 }
             </td>
             <td style="padding:9px 12px;text-align:center;">
@@ -253,9 +248,9 @@
                         📅 Mise à jour PSD — Résultats de l'analyse
                     </div>
                     <div class="modal-subtitle">
-                        ${found.length} style${found.length > 1 ? "s" : ""} trouvé${found.length > 1 ? "s" : ""}
-                        ${notFound.length > 0 ? ` · ${notFound.length} introuvable${notFound.length > 1 ? "s" : ""}` : ""}
-                        · Coche les lignes à mettre à jour
+                        ${enriched.length} style${enriched.length > 1 ? "s" : ""} dans Details
+                        · ${found.length} trouvé${found.length > 1 ? "s" : ""} dans le fichier
+                        ${notFound.length > 0 ? ` · ${notFound.length} absent${notFound.length > 1 ? "s" : ""}` : ""}
                     </div>
                 </div>
                 <button class="btn-close"
@@ -394,12 +389,36 @@
                 showToast("Analyse du fichier PSD…", "info", 10000);
 
             try {
-                const items = await analyzePSDFile(file);
-                if (!items.length) {
+                const lookup = await analyzePSDFile(file);
+                if (!Object.keys(lookup).length) {
                     typeof showToast === "function" &&
                         showToast("Aucune donnée PSD trouvée dans le fichier.", "error");
                     return;
                 }
+
+                // Parcourir TOUS les styles de Details et chercher dans le lookup
+                const detailRows = window.state?.data?.details || [];
+                const items = detailRows
+                    .filter(r => String(r["Cust Style Ref"] || "").trim())
+                    .map(r => {
+                        const ref     = String(r["Cust Style Ref"] || "").trim();
+                        const match   = lookup[ref.toLowerCase()];
+                        return {
+                            ref,
+                            psdRaw:   match?.psdRaw   || null,
+                            isAllOK:  match?.isAllOK  || false,
+                            inExcel:  !!match,
+                            detRow:   r,
+                            rowIdx:   r._rowIndex
+                        };
+                    });
+
+                if (!items.length) {
+                    typeof showToast === "function" &&
+                        showToast("Aucun style trouvé dans Details.", "error");
+                    return;
+                }
+
                 openPSDValidationModal(items);
             } catch(err) {
                 typeof showToast === "function" &&
