@@ -41,12 +41,12 @@
         return isNaN(d) ? null : d;
     }
 
-    // ── Formater en DD/MM/YYYY ────────────────────────────────
+    // ── Formater comme l'app : "30 oct.", "11 juin" ──────────
     function formatDateFR(d) {
-        const dd = String(d.getDate()).padStart(2, "0");
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        const yy = d.getFullYear();
-        return `${dd}/${mm}/${yy}`;
+        return d.toLocaleDateString("fr-FR", {
+            day:   "numeric",
+            month: "short"
+        });
     }
 
     // ── Corriger une cellule "Invalid Date" ───────────────────
