@@ -238,9 +238,12 @@
         // HTML des lignes
         const rowsHTML = enriched.map((e, i) => `
         <tr data-idx="${i}">
-            <td style="padding:9px 12px;font-size:12px;font-weight:500;
-                color:var(--text-primary,#111827);">
-                ${e.ref}
+            <td style="padding:9px 12px;">
+                <div style="font-size:12px;font-weight:500;
+                    color:var(--text-primary,#111827);">${e.ref}</div>
+                <div style="font-size:10px;color:var(--text-muted,#9ca3af);margin-top:1px;">
+                    CTL: ${String(e.detRow?.CTLStyleRef || e.detRow?.["CTL Style Ref"] || "—")}
+                </div>
             </td>
             <td style="padding:9px 12px;">
                 <span class="psd-badge-old">${e.oldPSD || "—"}</span>
@@ -320,7 +323,7 @@
                 <div style="max-height:420px;overflow-y:auto;">
                     <table class="psd-val-table">
                         <thead><tr>
-                            <th style="width:28%;">Buyer Style+Color</th>
+                            <th style="width:28%;">Style (CTL Ref)</th>
                             <th style="width:22%;">PSD actuel</th>
                             <th style="width:30%;">Nouveau PSD</th>
                             <th style="width:10%;text-align:center;">Appliquer</th>
@@ -427,18 +430,11 @@
                     .filter(r => String(r["Cust Style Ref"] || "").trim())
                     .map(r => {
                         const ref     = String(r["Cust Style Ref"] || "").trim();
-                        // Matching : essai exact puis sans le dernier segment (coloris)
-                        // Ex: "CALVAIRE-BF-VEM" → essai "calvaire-bf-vem" puis "calvaire-bf"
-                        const normRef = normalizeRef(ref);
-                        let match = lookup[normRef];
-                        if (!match) {
-                            const parts = normRef.split("-");
-                            // Retirer progressivement les segments de fin jusqu'à trouver
-                            for (let cut = parts.length - 1; cut >= 1; cut--) {
-                                const shorter = parts.slice(0, cut).join("-");
-                                if (lookup[shorter]) { match = lookup[shorter]; break; }
-                            }
-                        }
+                        // Matching par CTL Style Ref (colonne CTLStyleRef dans Details)
+                        // qui correspond à Buyer Style+Color dans l'Excel
+                        const ctlRef  = String(r["CTLStyleRef"] || r["CTL Style Ref"] || "").trim();
+                        const normRef = normalizeRef(ctlRef);
+                        const match   = lookup[normRef];
                         return {
                             ref,
                             psdRaw:   match?.psdRaw   || null,
