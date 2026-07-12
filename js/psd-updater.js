@@ -154,8 +154,9 @@
                         for (let i = 0; i < Math.min(data.length, 20); i++) {
                             const row = data[i].map(h => String(h).trim().toLowerCase());
                             const rRef = row.findIndex(h =>
-                                h.includes("buyer style") || h.includes("style+color") ||
-                                h.includes("style + color") || h.includes("buyer ref")
+                                h === "ctl style" ||
+                                h.includes("ctl style") ||
+                                h.includes("ctl ref")
                             );
                             const rPSD = row.findIndex(h =>
                                 h.includes("possible psd") ||
@@ -169,8 +170,8 @@
 
                         if (headerRow === -1 || iRef === -1 || iPSD === -1) {
                             reject(new Error(
-                                `Colonnes "Buyer Style+Color" et "Possible PSD" introuvables.\n` +
-                                `En-têtes ligne 1 : ${(data[0]||[]).slice(0,10).join(" | ")}`
+                                `Colonnes "CTL Style" et "Possible PSD" introuvables.\n` +
+                                `En-têtes trouvés : ${(data[0]||[]).slice(0,10).join(" | ")}`
                             )); return;
                         }
 
