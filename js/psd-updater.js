@@ -427,7 +427,18 @@
                     .filter(r => String(r["Cust Style Ref"] || "").trim())
                     .map(r => {
                         const ref     = String(r["Cust Style Ref"] || "").trim();
-                        const match   = lookup[normalizeRef(ref)];
+                        // Matching : essai exact puis sans le dernier segment (coloris)
+                        // Ex: "CALVAIRE-BF-VEM" → essai "calvaire-bf-vem" puis "calvaire-bf"
+                        const normRef = normalizeRef(ref);
+                        let match = lookup[normRef];
+                        if (!match) {
+                            const parts = normRef.split("-");
+                            // Retirer progressivement les segments de fin jusqu'à trouver
+                            for (let cut = parts.length - 1; cut >= 1; cut--) {
+                                const shorter = parts.slice(0, cut).join("-");
+                                if (lookup[shorter]) { match = lookup[shorter]; break; }
+                            }
+                        }
                         return {
                             ref,
                             psdRaw:   match?.psdRaw   || null,
