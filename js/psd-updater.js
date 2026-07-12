@@ -126,13 +126,19 @@
                 rd.onload  = e => {
                     try {
                         const base64 = e.target.result.split(",")[1];
-                        const wb     = XL.read(base64, { type: "base64", cellDates: true });
+                        const wb     = XL.read(base64, {
+                            type:        "base64",
+                            cellDates:   false,  // on parse les dates nous-mêmes
+                            cellFormula: true,   // lire les formules
+                            cellNF:      false,
+                            raw:         false   // utiliser la valeur affichée (pas la valeur brute)
+                        });
 
                         // Chercher la feuille avec "Possible PSD"
                         let ws = null;
                         for (const name of wb.SheetNames) {
                             const sheet = wb.Sheets[name];
-                            const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                            const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
                             const flat  = data.slice(0, 15).flat().map(h =>
                                 String(h).trim().toLowerCase());
                             if (flat.some(h => h.includes("possible psd"))) {
@@ -141,7 +147,7 @@
                         }
                         if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
 
-                        const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "" });
+                        const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
 
                         // Trouver la ligne d'en-têtes
                         let headerRow = -1, iRef = -1, iPSD = -1;
@@ -187,9 +193,12 @@
                             }
                         }
 
-                        // Log pour debug
-                        console.log("[PSD] Lookup Excel (" + Object.keys(lookup).length + " entrées) :",
-                            Object.keys(lookup).slice(0, 5).join(", ") + "...");
+                        // Log pour debug : afficher les 5 premières entrées
+                        const keys = Object.keys(lookup);
+                        console.log("[PSD] Lookup Excel", keys.length, "entrées :");
+                        keys.slice(0, 8).forEach(k =>
+                            console.log("  clé:", k, "→", lookup[k].psdRaw)
+                        );
                         resolve(lookup);
                     } catch(err) {
                         reject(err);
