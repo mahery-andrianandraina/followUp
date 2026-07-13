@@ -162,15 +162,26 @@
                             raw:         true    // valeur brute (serial pour dates, texte pour texte)
                         });
 
-                        // Chercher la feuille avec "Possible PSD"
+                        // Chercher la feuille "commitment" (insensible à la casse)
+                        // Fallback : feuille avec "Possible PSD" ou première feuille
                         let ws = null;
-                        for (const name of wb.SheetNames) {
-                            const sheet = wb.Sheets[name];
-                            const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
-                            const flat  = data.slice(0, 15).flat().map(h =>
-                                String(h).trim().toLowerCase());
-                            if (flat.some(h => h.includes("possible psd"))) {
-                                ws = sheet; break;
+                        const commitmentSheet = wb.SheetNames.find(n =>
+                            n.trim().toLowerCase() === "commitment"
+                        );
+                        if (commitmentSheet) {
+                            ws = wb.Sheets[commitmentSheet];
+                            console.log("[PSD] Feuille trouvée :", commitmentSheet);
+                        } else {
+                            for (const name of wb.SheetNames) {
+                                const sheet = wb.Sheets[name];
+                                const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
+                                const flat  = data.slice(0, 15).flat().map(h =>
+                                    String(h).trim().toLowerCase());
+                                if (flat.some(h => h.includes("possible psd"))) {
+                                    ws = sheet;
+                                    console.log("[PSD] Feuille fallback :", name);
+                                    break;
+                                }
                             }
                         }
                         if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
