@@ -668,15 +668,58 @@
 
                 <!-- Email -->
                 <div>
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                        margin-bottom:6px;">
+                        <label class="form-label" style="margin:0;">
+                            Envoyer par email à
+                            <span style="font-size:11px;color:var(--text-muted,#9ca3af);
+                                font-weight:400;">(optionnel)</span>
+                        </label>
+                        <button type="button" id="sc-add-email-btn"
+                            onclick="window._scAddEmailField()"
+                            style="display:inline-flex;align-items:center;gap:4px;
+                                padding:3px 10px;border-radius:20px;
+                                background:var(--bg-accent,#eff6ff);
+                                color:var(--text-accent,#1565c0);
+                                border:0.5px solid var(--border-accent,#93c5fd);
+                                font-size:11px;font-weight:500;
+                                font-family:inherit;cursor:pointer;">
+                            + Ajouter un destinataire
+                        </button>
+                    </div>
+                    <div id="sc-email-fields"
+                        style="display:flex;flex-direction:column;gap:6px;">
+                        <div class="sc-email-row"
+                            style="display:flex;align-items:center;gap:6px;">
+                            <input class="sc-pdf-email-input form-input" type="email"
+                                placeholder="email@example.com"
+                                value="${lastEmail}"
+                                style="flex:1;"/>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message supplémentaire -->
+                <div>
                     <label class="form-label" style="margin-bottom:5px;">
-                        Envoyer par email à
+                        Message
                         <span style="font-size:11px;color:var(--text-muted,#9ca3af);
                             font-weight:400;">(optionnel)</span>
                     </label>
-                    <input id="sc-pdf-email" class="form-input" type="email"
-                        placeholder="email@example.com"
-                        value="${lastEmail}"
-                        style="width:100%;box-sizing:border-box;"/>
+                    <textarea id="sc-pdf-message"
+                        placeholder="Ajoutez une note ou un commentaire à inclure dans l'email…"
+                        rows="3"
+                        style="width:100%;box-sizing:border-box;
+                            border:1px solid var(--border-strong,#d1d5db);
+                            border-radius:8px;padding:8px 10px;
+                            font-size:12px;font-family:inherit;
+                            color:var(--text-primary,#111827);
+                            background:var(--surface-2,#fff);
+                            resize:vertical;outline:none;
+                            line-height:1.5;"
+                        onfocus="this.style.borderColor='#1565c0'"
+                        onblur="this.style.borderColor='var(--border-strong,#d1d5db)'"
+                    ></textarea>
                 </div>
 
                 <!-- Actions -->
@@ -720,7 +763,7 @@
 
     // ── Construire le HTML du rapport ─────────────────────────
     // ── Email HTML optimisé pour clients mail (Outlook, Gmail) ──
-    function buildStyleCompEmailHTML(rows) {
+    function buildStyleCompEmailHTML(rows, customMsg) {
         const groups = {};
         const order  = [];
         rows.forEach(row => {
@@ -944,6 +987,22 @@
             </tr></table>
         </td>
     </tr>
+
+    <!-- MESSAGE PERSONNALISÉ -->
+    ${customMsg ? `
+    <tr>
+        <td style="padding:14px 24px 0;">
+            <div style="padding:12px 16px;background:#fffbeb;
+                border:1px solid #fde68a;border-radius:8px;
+                font-size:13px;color:#78350f;line-height:1.6;">
+                <div style="font-size:9.5px;font-weight:600;color:#92400e;
+                    text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;">
+                    Message
+                </div>
+                ${customMsg.replace(/\n/g,"<br>")}
+            </div>
+        </td>
+    </tr>` : ""}
 
     <!-- BODY -->
     <tr>
@@ -1432,14 +1491,45 @@ ${sectionsHTML}
         }
     });
 
+    // ── Ajouter un champ email supplémentaire ────────────────
+    window._scAddEmailField = function() {
+        const container = document.getElementById("sc-email-fields");
+        if (!container) return;
+
+        const row = document.createElement("div");
+        row.className = "sc-email-row";
+        row.style.cssText = "display:flex;align-items:center;gap:6px;";
+        row.innerHTML = `
+            <input class="sc-pdf-email-input form-input" type="email"
+                placeholder="email@example.com"
+                style="flex:1;"/>
+            <button type="button"
+                onclick="this.closest('.sc-email-row').remove()"
+                style="display:flex;align-items:center;justify-content:center;
+                    width:26px;height:26px;border-radius:50%;flex-shrink:0;
+                    background:var(--surface-2,#f3f4f6);
+                    border:0.5px solid var(--border-strong,#d1d5db);
+                    color:var(--text-muted,#9ca3af);cursor:pointer;
+                    font-size:14px;font-family:inherit;">
+                ✕
+            </button>`;
+        container.appendChild(row);
+        row.querySelector("input")?.focus();
+    };
+
     // ── Handler principal (exposé globalement) ────────────────
     window._scGeneratePDF = async function(sendEmail) {
-        const recipient = (document.getElementById("sc-pdf-email")?.value || "").trim();
+        // Collecter tous les emails des champs dynamiques
+        const emailInputs = [...document.querySelectorAll(".sc-pdf-email-input")];
+        const recipient = emailInputs
+            .map(i => i.value.trim())
+            .filter(Boolean)
+            .join(",");
 
         if (sendEmail && !recipient) {
             typeof showToast === "function" &&
-                showToast("Entrez un email destinataire.", "error");
-            document.getElementById("sc-pdf-email")?.focus();
+                showToast("Entrez au moins un email destinataire.", "error");
+            document.querySelector(".sc-pdf-email-input")?.focus();
             return;
         }
 
@@ -1494,10 +1584,13 @@ ${sectionsHTML}
                 const today   = new Date().toISOString().slice(0, 10);
                 const subject = `AW27 — Style Components — ${today}`;
 
+                // Récupérer le message personnalisé
+                const customMsg = (document.getElementById("sc-pdf-message")?.value || "").trim();
+
                 // Corps email propre pour clients mail
                 let emailBody;
                 try {
-                    emailBody = buildStyleCompEmailHTML(rows);
+                    emailBody = buildStyleCompEmailHTML(rows, customMsg);
                 } catch(emailErr) {
                     console.error("[SC] buildStyleCompEmailHTML error:", emailErr);
                     emailBody = htmlDoc; // fallback au PDF HTML
