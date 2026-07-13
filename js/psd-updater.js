@@ -218,48 +218,20 @@
                             )); return;
                         }
 
-                        // Étape 2 : détecter la colonne PSD par son CONTENU (dates dans les données)
-                        // Le header peut être un texte OU une date — on cherche dans les lignes de données
+                        // Colonne PSD = colonne Z (index 25, confirmé par l'utilisateur)
+                        // Vérification : chercher d'abord par texte, sinon hardcode Z
                         const headerRow2 = data[headerRow].map(h => String(h).trim().toLowerCase());
-                        // D'abord essayer par texte
                         iPSD = headerRow2.findIndex(h =>
                             h.includes("possible psd") || h === "psd" ||
-                            (h.includes("psd") && h.length < 20)
+                            (h.includes("psd") && !h.includes("crp") && h.length < 20)
                         );
-
-                        // Fallback : auto-détecter par le contenu des données (première colonne avec dates)
                         if (iPSD === -1) {
-                            for (let col = 0; col < iRef; col++) {
-                                let dateCount = 0;
-                                for (let row = headerRow + 1;
-                                     row < Math.min(headerRow + 6, data.length); row++) {
-                                    const v = data[row][col];
-                                    if (v instanceof Date ||
-                                        (typeof v === "string" && (
-                                            v.includes("GMT") || v.includes("2026") ||
-                                            v.includes("2025") || v.includes("2027")
-                                        )) ||
-                                        (typeof v === "number" && v > 44000 && v < 50000)) {
-                                        dateCount++;
-                                    }
-                                }
-                                if (dateCount >= 2) {
-                                    iPSD = col;
-                                    console.log("[PSD] PSD col auto-détectée :", iPSD,
-                                        "header =", data[headerRow][iPSD]);
-                                    break;
-                                }
-                            }
+                            iPSD = 25; // Colonne Z (confirmé)
                         }
-
-                        if (iPSD === -1) {
-                            reject(new Error(
-                                `Colonne PSD (dates) introuvable.\n` +
-                                `Headers : ${headerRow2.join(" | ")}`
-                            )); return;
-                        }
-
-                        console.log("[PSD] Colonnes → CTL:", iRef, "| PSD:", iPSD);
+                        console.log("[PSD] Colonnes → CTL col:", iRef,
+                            "| PSD col:", iPSD,
+                            "| header PSD:", data[headerRow][iPSD],
+                            "| ex valeur:", data[headerRow + 1]?.[iPSD]);
 
                         // Construire le lookup map (insensible à la casse)
                         const lookup = {};
