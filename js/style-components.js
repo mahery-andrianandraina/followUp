@@ -771,7 +771,22 @@
             const appPrice  = detRow?.["Approved Price $"] ? `$${detRow["Approved Price $"]}` : "";
             const confTotal = detRow?.["Conf Total"] ? String(detRow["Conf Total"]) : "";
             const vslDate   = fmtD(detRow?.["Initial Vsl Date"]);
-            const psdDate   = String(detRow?.["PSD"] || "").trim();
+            // Formater PSD comme les autres dates (DD/MM/YYYY → "28 août 2026")
+            const _psdRaw  = String(detRow?.["PSD"] || "").trim();
+            const psdDate  = (() => {
+                if (!_psdRaw) return "";
+                // "All OK - ..." → garder tel quel
+                if (_psdRaw.toLowerCase().startsWith("all ok")) return _psdRaw;
+                // DD/MM/YYYY → Date → format fr-FR
+                const m = _psdRaw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                if (m) {
+                    const d = new Date(+m[3], +m[2]-1, +m[1]);
+                    if (!isNaN(d)) return d.toLocaleDateString("fr-FR", {
+                        day: "2-digit", month: "short", year: "numeric"
+                    });
+                }
+                return fmtD(_psdRaw); // fallback
+            })();
             const approved = group.rows.filter(r => String(r.Status||"").toLowerCase() === "approved").length;
             const rejected = group.rows.filter(r => String(r.Status||"").toLowerCase() === "rejected").length;
             const ongoing  = group.rows.filter(r => String(r.Status||"").toLowerCase() === "on going").length;
