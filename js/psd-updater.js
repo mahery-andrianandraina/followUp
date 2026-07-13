@@ -82,26 +82,40 @@
         const s = String(val).trim();
         if (!s || s === "0") return "";
 
-        // Nombre Excel (serial date)
+        // Nombre Excel serial date (ex: 45849 = 06/07/2026)
+        // Formule : (serial - 25569) * 86400 * 1000 ms depuis epoch Unix
         if (/^\d+(\.\d+)?$/.test(s)) {
             const n = parseFloat(s);
-            if (n > 1000) {
+            if (n > 40000) { // dates après 2009
+                // Corriger le bug Excel du 29/02/1900 (+1)
                 const d = new Date(Math.round((n - 25569) * 86400 * 1000));
-                if (!isNaN(d)) return fmtDateFR(d);
+                if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
             }
         }
-        // DD/MM/YYYY
+        // DD/MM/YYYY (format French)
         const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (m1) return `${m1[1].padStart(2,"0")}/${m1[2].padStart(2,"0")}/${m1[3]}`;
+        if (m1) {
+            const year = parseInt(m1[3]);
+            // Corriger les années sur 2 chiffres interprétées comme 19xx
+            const fullYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
+            return `${m1[1].padStart(2,"0")}/${m1[2].padStart(2,"0")}/${fullYear}`;
+        }
+        // DD/MM/YY (2 chiffres)
+        const m1b = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
+        if (m1b) {
+            const year = parseInt(m1b[3]);
+            const fullYear = year < 50 ? 2000 + year : 1900 + year;
+            return `${m1b[1].padStart(2,"0")}/${m1b[2].padStart(2,"0")}/${fullYear}`;
+        }
         // DD-MM-YYYY
         const m2 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
         if (m2) return `${m2[1].padStart(2,"0")}/${m2[2].padStart(2,"0")}/${m2[3]}`;
         // YYYY-MM-DD
         const m3 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (m3) return `${m3[3]}/${m3[2]}/${m3[1]}`;
-        // JS natif
+        // JS natif (ISO string etc.)
         const d = new Date(s);
-        if (!isNaN(d)) return fmtDateFR(d);
+        if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
         return s;
     }
 
@@ -130,15 +144,15 @@
                             type:        "base64",
                             cellDates:   false,  // on parse les dates nous-mêmes
                             cellFormula: true,   // lire les formules
-                            cellNF:      false,
-                            raw:         false   // utiliser la valeur affichée (pas la valeur brute)
+                            cellNF:      true,
+                            raw:         true    // valeur brute (serial pour dates, texte pour texte)
                         });
 
                         // Chercher la feuille avec "Possible PSD"
                         let ws = null;
                         for (const name of wb.SheetNames) {
                             const sheet = wb.Sheets[name];
-                            const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: false });
+                            const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
                             const flat  = data.slice(0, 15).flat().map(h =>
                                 String(h).trim().toLowerCase());
                             if (flat.some(h => h.includes("possible psd"))) {
@@ -147,31 +161,47 @@
                         }
                         if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
 
-                        const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
+                        const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true });
 
-                        // Trouver la ligne d'en-têtes
+                        // Trouver la ligne d'en-têtes — log complet pour debug
                         let headerRow = -1, iRef = -1, iPSD = -1;
                         for (let i = 0; i < Math.min(data.length, 20); i++) {
                             const row = data[i].map(h => String(h).trim().toLowerCase());
+                            // Log chaque ligne pour voir les en-têtes réels
+                            if (row.some(h => h.length > 0)) {
+                                console.log("[PSD] Ligne", i, ":", row.filter(h=>h).join(" | "));
+                            }
+                            // Chercher CTL Style (toute variante)
                             const rRef = row.findIndex(h =>
                                 h === "ctl style" ||
+                                h === "ctl style ref" ||
+                                h === "ctl" ||
                                 h.includes("ctl style") ||
-                                h.includes("ctl ref")
+                                h.includes("ctl ref") ||
+                                h.includes("ctlstyle")
                             );
+                            // Chercher Possible PSD
                             const rPSD = row.findIndex(h =>
                                 h.includes("possible psd") ||
-                                (h === "psd") ||
-                                (h.includes("psd") && h.length < 15)
+                                h === "psd" ||
+                                (h.includes("psd") && h.length < 20)
                             );
                             if (rRef !== -1 && rPSD !== -1) {
-                                headerRow = i; iRef = rRef; iPSD = rPSD; break;
+                                headerRow = i; iRef = rRef; iPSD = rPSD;
+                                console.log("[PSD] En-têtes trouvés ligne", i,
+                                    "→ Ref col", iRef, "("+data[i][iRef]+")",
+                                    "| PSD col", iPSD, "("+data[i][iPSD]+")");
+                                break;
                             }
                         }
 
                         if (headerRow === -1 || iRef === -1 || iPSD === -1) {
+                            // Afficher toutes les lignes trouvées pour debug
+                            const allHeaders = data.slice(0,10)
+                                .map((r,i) => `Ligne ${i}: ${r.filter(Boolean).join(" | ")}`)
+                                .join("\n");
                             reject(new Error(
-                                `Colonnes "CTL Style" et "Possible PSD" introuvables.\n` +
-                                `En-têtes trouvés : ${(data[0]||[]).slice(0,10).join(" | ")}`
+                                `Colonnes "CTL Style" et "Possible PSD" introuvables.\n${allHeaders}`
                             )); return;
                         }
 
