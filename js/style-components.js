@@ -719,6 +719,254 @@
     }
 
     // ── Construire le HTML du rapport ─────────────────────────
+    // ── Email HTML optimisé pour clients mail (Outlook, Gmail) ──
+    function buildStyleCompEmailHTML(rows) {
+        const groups = {};
+        const order  = [];
+        rows.forEach(row => {
+            const custRef = String(row["Cust Style Ref"] || "").trim();
+            const ctlRef  = String(row["CTL Style Ref"]  || "").trim();
+            const key     = custRef || "(sans référence)";
+            if (!groups[key]) { groups[key] = { custRef, ctlRef, rows: [] }; order.push(key); }
+            groups[key].rows.push(row);
+        });
+
+        const today = new Date().toLocaleDateString("fr-FR", {
+            weekday:"long", day:"2-digit", month:"long", year:"numeric"
+        });
+        const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
+
+        const statusLabel = s => {
+            const v = String(s||"").trim().toLowerCase();
+            if (v === "in house")         return {label:"In House",     bg:"#f0fdf4",color:"#166534",border:"#86efac"};
+            if (v === "po sent")          return {label:"PO Sent",      bg:"#eff6ff",color:"#1e40af",border:"#93c5fd"};
+            if (v === "pending")          return {label:"Pending",      bg:"#fef9c3",color:"#854d0e",border:"#fde68a"};
+            if (v === "waiting approval") return {label:"Waiting Appr.",bg:"#fff7ed",color:"#9a3412",border:"#fed7aa"};
+            if (v === "approved")         return {label:"Approved",     bg:"#f0fdf4",color:"#166534",border:"#86efac"};
+            if (v === "rejected")         return {label:"Rejected",     bg:"#fef2f2",color:"#991b1b",border:"#fca5a5"};
+            return {label: s||"—", bg:"#f9fafb",color:"#6b7280",border:"#e5e7eb"};
+        };
+
+        const fmtD = val => {
+            if (!val) return "—";
+            const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) { const d = new Date(+m[1], +m[2]-1, +m[3]); return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); }
+            try { const d = new Date(val); if (!isNaN(d)) return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e){}
+            return String(val);
+        };
+
+        const getDetailRow = c => (window.state?.data?.details||[]).find(r => String(r["Cust Style Ref"]||"").trim()===c)||null;
+
+        const sectionsHTML = order.map(key => {
+            const g       = groups[key];
+            const det     = getDetailRow(g.custRef);
+            const imgUrl  = det?._imageUrl || "";
+            const price   = det?.["Approved Price $"] ? `$${det["Approved Price $"]}` : "";
+            const qty     = det?.["Conf Total"] ? `${det["Conf Total"]} u.` : "";
+            const vsl     = fmtD(det?.["Initial Vsl Date"]);
+            const psdRaw  = String(det?.PSD||"").trim();
+            const psd     = psdRaw ? fmtD(psdRaw) || psdRaw : "";
+
+            const compRows = g.rows.map((r,i) => {
+                const sc  = statusLabel(r.Status);
+                const det2 = String(r.Details||"").trim().split(String.fromCharCode(10)).join("<br>");
+                const bg  = i%2===0?"#ffffff":"#f9fafb";
+                return `<tr style="background:${bg};">
+                    <td style="padding:9px 14px;font-size:13px;font-weight:600;
+                        color:#111827;border-bottom:1px solid #f0f0f0;width:28%;">
+                        ${r.Composant||"—"}
+                    </td>
+                    <td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;width:18%;">
+                        <span style="display:inline-block;padding:3px 10px;border-radius:20px;
+                            font-size:11px;font-weight:600;
+                            background:${sc.bg};color:${sc.color};border:1px solid ${sc.border};">
+                            ${sc.label}
+                        </span>
+                    </td>
+                    <td style="padding:9px 14px;font-size:12px;color:#475569;
+                        border-bottom:1px solid #f0f0f0;line-height:1.5;">
+                        ${det2||"—"}
+                    </td>
+                </tr>`;
+            }).join("");
+
+            const inHouse = g.rows.filter(r=>String(r.Status||"").toLowerCase()==="in house").length;
+            const pending = g.rows.filter(r=>String(r.Status||"").toLowerCase()==="pending").length;
+            const waiting = g.rows.filter(r=>String(r.Status||"").toLowerCase()==="waiting approval").length;
+
+            return `
+            <table width="100%" cellpadding="0" cellspacing="0"
+                style="border-collapse:collapse;border:1px solid #e2e8f0;
+                       border-radius:10px;overflow:hidden;margin-bottom:20px;">
+
+                <!-- Style header -->
+                <tr>
+                    <td style="background:#0f172a;padding:12px 16px;" colspan="2">
+                        <table cellpadding="0" cellspacing="0"><tr>
+                            ${imgUrl ? `<td style="padding-right:14px;vertical-align:middle;">
+                                <img src="${imgUrl}" width="60" height="60"
+                                    style="border-radius:6px;object-fit:cover;display:block;"/>
+                            </td>` : ""}
+                            <td style="vertical-align:middle;">
+                                <div style="font-size:15px;font-weight:700;
+                                    color:#ffffff;letter-spacing:.01em;">
+                                    ${g.custRef}
+                                </div>
+                                <div style="font-size:10px;color:rgba(255,255,255,.5);
+                                    margin-top:2px;">
+                                    CTL : ${g.ctlRef||"—"}
+                                </div>
+                            </td>
+                        </tr></table>
+                    </td>
+                </tr>
+
+                <!-- Métriques -->
+                ${(price||qty||vsl||psd) ? `
+                <tr>
+                    <td colspan="2" style="background:#f8fafc;padding:10px 16px;
+                        border-bottom:1px solid #e2e8f0;">
+                        <table cellpadding="0" cellspacing="0"><tr>
+                            ${price ? `<td style="padding-right:20px;">
+                                <div style="font-size:9px;text-transform:uppercase;
+                                    letter-spacing:.07em;color:#94a3b8;">Prix approuvé</div>
+                                <div style="font-size:13px;font-weight:700;color:#166534;margin-top:1px;">
+                                    ${price}</div>
+                            </td>` : ""}
+                            ${qty ? `<td style="padding-right:20px;">
+                                <div style="font-size:9px;text-transform:uppercase;
+                                    letter-spacing:.07em;color:#94a3b8;">Conf Total</div>
+                                <div style="font-size:13px;font-weight:700;color:#0f172a;margin-top:1px;">
+                                    ${qty}</div>
+                            </td>` : ""}
+                            ${vsl ? `<td style="padding-right:20px;">
+                                <div style="font-size:9px;text-transform:uppercase;
+                                    letter-spacing:.07em;color:#94a3b8;">Initial VSL</div>
+                                <div style="font-size:13px;font-weight:700;color:#1e40af;margin-top:1px;">
+                                    ${vsl}</div>
+                            </td>` : ""}
+                            ${psd ? `<td>
+                                <div style="font-size:9px;text-transform:uppercase;
+                                    letter-spacing:.07em;color:#94a3b8;">PSD</div>
+                                <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-top:1px;">
+                                    ${psd}</div>
+                            </td>` : ""}
+                        </tr></table>
+                    </td>
+                </tr>` : ""}
+
+                <!-- Status résumé -->
+                <tr>
+                    <td colspan="2" style="padding:8px 16px;border-bottom:1px solid #e2e8f0;
+                        background:#fff;">
+                        <span style="font-size:11px;color:#64748b;margin-right:8px;">
+                            ${g.rows.length} composant${g.rows.length>1?"s":""}
+                        </span>
+                        ${inHouse>0?`<span style="display:inline-block;padding:2px 8px;border-radius:20px;
+                            font-size:10px;font-weight:600;background:#f0fdf4;color:#166534;
+                            border:1px solid #86efac;margin-right:4px;">
+                            ✓ ${inHouse} In House</span>`:""}
+                        ${pending>0?`<span style="display:inline-block;padding:2px 8px;border-radius:20px;
+                            font-size:10px;font-weight:600;background:#fef9c3;color:#854d0e;
+                            border:1px solid #fde68a;margin-right:4px;">
+                            ${pending} Pending</span>`:""}
+                        ${waiting>0?`<span style="display:inline-block;padding:2px 8px;border-radius:20px;
+                            font-size:10px;font-weight:600;background:#fff7ed;color:#9a3412;
+                            border:1px solid #fed7aa;">
+                            ${waiting} Waiting</span>`:""}
+                    </td>
+                </tr>
+
+                <!-- En-têtes tableau -->
+                <tr style="background:#f1f5f9;">
+                    <td style="padding:7px 14px;font-size:9px;text-transform:uppercase;
+                        letter-spacing:.08em;font-weight:700;color:#64748b;width:28%;">
+                        Composant
+                    </td>
+                    <td style="padding:7px 14px;font-size:9px;text-transform:uppercase;
+                        letter-spacing:.08em;font-weight:700;color:#64748b;width:18%;">
+                        Status
+                    </td>
+                    <td style="padding:7px 14px;font-size:9px;text-transform:uppercase;
+                        letter-spacing:.08em;font-weight:700;color:#64748b;">
+                        Details
+                    </td>
+                </tr>
+
+                ${compRows}
+
+            </table>`;
+        }).join("");
+
+        const total    = rows.length;
+        const nStyles  = order.length;
+
+        return `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f3f4f6;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+
+<table width="100%" cellpadding="0" cellspacing="0"
+    style="max-width:700px;margin:24px auto;background:#fff;
+           border-radius:14px;overflow:hidden;border:1px solid #e2e8f0;">
+
+    <!-- HEADER -->
+    <tr>
+        <td style="background:linear-gradient(135deg,#0f172a,#1e3a5f);padding:20px 24px;">
+            <table cellpadding="0" cellspacing="0"><tr>
+                <td style="padding-right:14px;">
+                    <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);
+                        border-radius:8px;padding:6px 14px;display:inline-block;">
+                        <span style="color:#fff;font-size:17px;font-weight:700;
+                            letter-spacing:.07em;">AW27</span>
+                    </div>
+                </td>
+                <td>
+                    <div style="color:#fff;font-size:15px;font-weight:600;">
+                        Style Components Report</div>
+                    <div style="color:rgba(255,255,255,.55);font-size:11px;margin-top:2px;">
+                        ${todayCap}</div>
+                </td>
+                <td style="text-align:right;padding-left:20px;">
+                    <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+                        border-radius:20px;padding:4px 12px;display:inline-block;
+                        color:#fff;font-size:10px;text-align:center;margin-bottom:5px;">
+                        <strong style="font-size:14px;font-weight:700;display:block;">
+                            ${nStyles}</strong>styles</div>
+                    &nbsp;
+                    <div style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+                        border-radius:20px;padding:4px 12px;display:inline-block;
+                        color:#fff;font-size:10px;text-align:center;">
+                        <strong style="font-size:14px;font-weight:700;display:block;">
+                            ${total}</strong>composants</div>
+                </td>
+            </tr></table>
+        </td>
+    </tr>
+
+    <!-- BODY -->
+    <tr>
+        <td style="padding:20px 24px;">
+            ${sectionsHTML}
+        </td>
+    </tr>
+
+    <!-- FOOTER -->
+    <tr>
+        <td style="padding:14px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;
+            text-align:center;font-size:10.5px;color:#94a3b8;">
+            Rapport généré par <strong style="color:#1e3a5f;">AW27 Checkers</strong>
+            — ${todayCap}<br>
+            <span style="color:#cbd5e1;">Le fichier PDF est joint à cet email.</span>
+        </td>
+    </tr>
+
+</table>
+</body>
+</html>`;
+    }
+
     function buildPDFHTML(rows) {
         const groups = {};
         const order  = [];
@@ -802,7 +1050,7 @@
                         ${r.Status
                             ? `<span class="status-badge"
                                 style="background:${sc.bg};color:${sc.color};border:0.5px solid ${sc.border};">
-                                <span class="badge-dot" style="background:${sc.dot};"></span>
+                                <span class="badge-dot-status" style="background:${sc.dot};"></span>
                                 ${r.Status}
                               </span>`
                             : '<span style="color:#cbd5e1;">—</span>'}
@@ -917,7 +1165,7 @@
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     background: #fff;
-    color: #1a1a2e;
+    color: #0f172a;
     font-size: 11px;
     line-height: 1.5;
     -webkit-print-color-adjust: exact;
@@ -927,23 +1175,46 @@
     @page { margin: 10mm 8mm; size: A4; }
     .page-break { page-break-before: always; }
     .no-break { page-break-inside: avoid; }
+    /* N&B : remplacer toutes les couleurs par noir/blanc/gris */
+    .doc-header { background: #000 !important; }
+    .summary-bar { background: #f0f0f0 !important; border-color: #ccc !important; }
+    .summary-item { background: #fff !important; color: #000 !important;
+                    border: 1.5px solid #000 !important; }
+    .summary-dot  { background: #000 !important; }
+    .card-image   { background: #f0f0f0 !important; }
+    .metrics-strip { background: #f5f5f5 !important; border-color: #ccc !important; }
+    .metric-item  { border-color: #ccc !important; }
+    .metric-value { color: #000 !important; }
+    .metric-label { color: #666 !important; }
+    .badges .badge { background: #fff !important; color: #000 !important;
+                     border: 1.5px solid #000 !important; }
+    .badge-dot    { display: none !important; }
+    .comp-table thead tr { background: #e0e0e0 !important; }
+    .comp-table tr:nth-child(even) td { background: #f8f8f8 !important; }
+    .comp-table td, .comp-table th { border-color: #ccc !important; }
+    .status-badge { background: #fff !important; color: #000 !important;
+                    border: 1.5px solid #000 !important; }
+    .badge-dot-status { display: none !important; }
+    .card-name    { color: #000 !important; }
+    .comp-name    { color: #000 !important; }
+    .comp-detail  { color: #333 !important; }
+    .card-ctl span { color: #000 !important; }
+    a { color: #000 !important; }
   }
 
   /* ── HEADER ─────────────────────── */
   .doc-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    background: #0f172a;
     padding: 20px 28px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 24px;
+    margin-bottom: 0;
   }
-  .doc-logo {
-    display: flex; align-items: center; gap: 14px;
-  }
+  .doc-logo { display: flex; align-items: center; gap: 14px; }
   .logo-badge {
     background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.25);
     border-radius: 8px;
     padding: 6px 14px;
     font-size: 17px;
@@ -952,14 +1223,12 @@
     letter-spacing: .08em;
   }
   .doc-title { color: #fff; }
-  .doc-title h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
-  .doc-title p  { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px; }
-  .doc-stats {
-    display: flex; gap: 10px; align-items: center;
-  }
+  .doc-title h1 { font-size: 16px; font-weight: 700; }
+  .doc-title p  { font-size: 11px; color: rgba(255,255,255,.5); margin-top: 2px; }
+  .doc-stats    { display: flex; gap: 10px; }
   .stat-pill {
     background: rgba(255,255,255,.1);
-    border: 1px solid rgba(255,255,255,.15);
+    border: 1px solid rgba(255,255,255,.2);
     border-radius: 20px;
     padding: 4px 12px;
     text-align: center;
@@ -971,31 +1240,26 @@
   /* ── SUMMARY BAR ─────────────────── */
   .summary-bar {
     display: flex; gap: 8px; flex-wrap: wrap;
-    margin: 0 28px 24px;
-    padding: 12px 16px;
+    padding: 10px 28px;
     background: #f8fafc;
-    border-radius: 10px;
-    border: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 20px;
   }
   .summary-item {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 12px;
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px;
     border-radius: 20px;
     font-size: 10.5px;
     font-weight: 600;
   }
-  .summary-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    flex-shrink: 0;
-  }
+  .summary-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
   /* ── STYLE CARD ──────────────────── */
   .style-card {
-    margin: 0 28px 20px;
-    border-radius: 12px;
+    margin: 0 28px 18px;
+    border-radius: 10px;
     overflow: hidden;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    border: 1px solid #cbd5e1;
   }
   .card-header {
     display: flex;
@@ -1003,135 +1267,72 @@
     background: #fff;
   }
   .card-image {
-    width: 100px;
-    flex-shrink: 0;
-    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+    width: 96px; flex-shrink: 0;
+    background: #f1f5f9;
     border-right: 1px solid #e2e8f0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px;
+    display: flex; align-items: center; justify-content: center; padding: 10px;
   }
-  .card-image img {
-    width: 76px; height: 76px;
-    object-fit: cover;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,.12);
-  }
+  .card-image img { width: 74px; height: 74px; object-fit: cover; border-radius: 6px; }
   .card-image-placeholder {
-    width: 76px; height: 76px;
-    background: #e2e8f0;
-    border-radius: 8px;
+    width: 74px; height: 74px;
+    background: #e2e8f0; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; color: #94a3b8;
+    font-size: 22px; color: #94a3b8;
   }
-  .card-info {
-    flex: 1;
-    padding: 14px 18px;
-  }
-  .card-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #0f172a;
-    letter-spacing: .01em;
-    margin-bottom: 2px;
-  }
-  .card-ctl {
-    font-size: 10.5px;
-    color: #64748b;
-    margin-bottom: 10px;
-  }
+  .card-info { flex: 1; padding: 12px 16px; }
+  .card-name { font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
+  .card-ctl  { font-size: 10px; color: #64748b; margin-bottom: 9px; }
   .card-ctl span { color: #1e3a5f; font-weight: 600; }
 
-  /* Metrics strip */
   .metrics-strip {
-    display: flex; gap: 0;
+    display: flex;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 7px;
     overflow: hidden;
-    margin-bottom: 10px;
+    margin-bottom: 9px;
   }
-  .metric-item {
-    flex: 1;
-    padding: 7px 12px;
-    border-right: 1px solid #e2e8f0;
-  }
+  .metric-item { flex: 1; padding: 6px 10px; border-right: 1px solid #e2e8f0; }
   .metric-item:last-child { border-right: none; }
-  .metric-label {
-    font-size: 8.5px;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    color: #94a3b8;
-    margin-bottom: 2px;
-  }
-  .metric-value {
-    font-size: 12px;
-    font-weight: 700;
-  }
+  .metric-label { font-size: 8px; text-transform: uppercase; letter-spacing: .07em; color: #94a3b8; margin-bottom: 1px; }
+  .metric-value { font-size: 12px; font-weight: 700; }
 
-  /* Status badges */
   .badges { display: flex; gap: 5px; flex-wrap: wrap; }
   .badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 2px 9px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-weight: 600;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 9.5px; font-weight: 600;
   }
-  .badge-dot {
-    width: 5px; height: 5px; border-radius: 50%;
-  }
+  .badge-dot { width: 5px; height: 5px; border-radius: 50%; }
 
-  /* ── COMPONENT TABLE ─────────────── */
-  .comp-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .comp-table thead tr {
-    background: #f1f5f9;
-    border-bottom: 2px solid #e2e8f0;
-  }
+  /* ── TABLE ───────────────────────── */
+  .comp-table { width: 100%; border-collapse: collapse; }
+  .comp-table thead tr { background: #f1f5f9; border-bottom: 1.5px solid #cbd5e1; }
   .comp-table th {
-    padding: 8px 14px;
-    text-align: left;
-    font-size: 9px;
-    text-transform: uppercase;
-    letter-spacing: .08em;
-    font-weight: 700;
-    color: #64748b;
+    padding: 7px 14px; text-align: left;
+    font-size: 9px; text-transform: uppercase;
+    letter-spacing: .08em; font-weight: 700; color: #64748b;
   }
-  .comp-table td {
-    padding: 8px 14px;
-    border-bottom: 1px solid #f1f5f9;
-    vertical-align: top;
-    font-size: 11.5px;
-  }
+  .comp-table td { padding: 7px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; font-size: 11px; }
   .comp-table tr:last-child td { border-bottom: none; }
   .comp-table tr:nth-child(even) td { background: #fafbfc; }
-  .comp-name { font-weight: 600; color: #0f172a; }
+  .comp-name   { font-weight: 600; color: #0f172a; }
   .comp-detail { color: #475569; line-height: 1.5; }
-
-  /* Status badge in table */
   .status-badge {
     display: inline-flex; align-items: center; gap: 4px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    font-size: 10px;
-    font-weight: 600;
-    white-space: nowrap;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 9.5px; font-weight: 600; white-space: nowrap;
   }
+  .badge-dot-status { width: 4px; height: 4px; border-radius: 50%; }
 
   /* ── FOOTER ──────────────────────── */
   .doc-footer {
-    margin: 24px 28px 0;
-    padding: 12px 0;
+    margin: 20px 28px 0;
+    padding: 10px 0;
     border-top: 1px solid #e2e8f0;
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    font-size: 9.5px;
-    color: #94a3b8;
+    font-size: 9.5px; color: #94a3b8;
   }
   .footer-brand { font-weight: 600; color: #1e3a5f; }
 </style>
@@ -1293,17 +1494,24 @@ ${sectionsHTML}
                 const today   = new Date().toISOString().slice(0, 10);
                 const subject = `AW27 — Style Components — ${today}`;
 
+                // Corps email propre pour clients mail
+                const emailBody = buildStyleCompEmailHTML(rows);
+
+                // PDF HTML joint en pièce jointe (fichier .html à ouvrir + imprimer)
+                const pdfBase64 = btoa(unescape(encodeURIComponent(htmlDoc)));
+
                 const res = await fetch(gasUrl, {
                     method:   "POST",
                     headers:  { "Content-Type": "text/plain;charset=utf-8" },
                     redirect: "follow",
                     body: JSON.stringify({
-                        action:     "SEND_ALERT_EMAIL",
+                        action:          "SEND_ALERT_EMAIL",
                         recipient,
                         subject,
-                        htmlBody:   htmlDoc,
-                        xlsxBase64: "",
-                        fileName:   ""
+                        htmlBody:        emailBody,
+                        xlsxBase64:      pdfBase64,
+                        fileName:        `AW27_StyleComponents_${today}.html`,
+                        attachMimeType:  "text/html"
                     })
                 });
 
