@@ -1495,27 +1495,33 @@ ${sectionsHTML}
                 const subject = `AW27 — Style Components — ${today}`;
 
                 // Corps email propre pour clients mail
-                const emailBody = buildStyleCompEmailHTML(rows);
+                let emailBody;
+                try {
+                    emailBody = buildStyleCompEmailHTML(rows);
+                } catch(emailErr) {
+                    console.error("[SC] buildStyleCompEmailHTML error:", emailErr);
+                    emailBody = htmlDoc; // fallback au PDF HTML
+                }
 
-                // PDF HTML joint en pièce jointe (fichier .html à ouvrir + imprimer)
-                const pdfBase64 = btoa(unescape(encodeURIComponent(htmlDoc)));
+                const payload = {
+                    action:     "SEND_ALERT_EMAIL",
+                    recipient,
+                    subject,
+                    htmlBody:   emailBody,
+                    xlsxBase64: "",
+                    fileName:   ""
+                };
 
+                console.log("[SC] Envoi email à:", recipient);
                 const res = await fetch(gasUrl, {
                     method:   "POST",
                     headers:  { "Content-Type": "text/plain;charset=utf-8" },
                     redirect: "follow",
-                    body: JSON.stringify({
-                        action:          "SEND_ALERT_EMAIL",
-                        recipient,
-                        subject,
-                        htmlBody:        emailBody,
-                        xlsxBase64:      pdfBase64,
-                        fileName:        `AW27_StyleComponents_${today}.html`,
-                        attachMimeType:  "text/html"
-                    })
+                    body: JSON.stringify(payload)
                 });
 
                 const json = await res.json();
+                console.log("[SC] Réponse GAS:", json);
                 if (json.status !== "ok") throw new Error(json.message || "Erreur GAS");
 
                 typeof showToast === "function" &&
