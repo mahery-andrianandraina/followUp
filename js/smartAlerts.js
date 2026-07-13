@@ -5,7 +5,6 @@
 //  <script src="smartAlerts.js"></script>
 // ============================================================
 
-
 (function initSmartAlerts() {
 
     // ── Config ──────────────────────────────────────────────
@@ -286,137 +285,88 @@
     }
 
     // ══════════════════════════════════════════════════════════
-    //  COLLECTE DES ALERTES
+    //  COLLECTE DES ALERTES — COMMITMENTS PSD
     // ══════════════════════════════════════════════════════════
     function collectAlerts() {
-        const st = window.state?.data || {};
-        const details  = st.details  || [];
-        const sample   = st.sample   || [];
-        const ordering = st.ordering || [];
-        const alerts   = [];
+        const st      = window.state?.data || {};
+        const details = st.details || [];
+        const alerts  = [];
 
-        const norm = v => String(v || "").replace(/[\s\-_]/g, "").toLowerCase();
+        // Parser de date robuste (DD/MM/YYYY, YYYY-MM-DD, texte)
+        function parseCommitDate(val) {
+            if (!val) return null;
+            const s = String(val).trim();
+            if (!s || s.toLowerCase().replace(/\s/g, "") === "inhouse") return null;
+            // YYYY-MM-DD
+            const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m1) return new Date(+m1[1], +m1[2]-1, +m1[3]);
+            // DD/MM/YYYY
+            const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m2) return new Date(+m2[3], +m2[2]-1, +m2[1]);
+            const d = new Date(s);
+            return isNaN(d) ? null : d;
+        }
+
+        // Vérifier si une valeur est "in house"
+        function isInHouse(val) {
+            return String(val||"").trim().toLowerCase().replace(/\s/g,"") === "inhouse";
+        }
+
+        const COMMIT_FIELDS = [
+            { key: "PSD",          label: "PSD",           type: "psd_alert"     },
+            { key: "SRS_Launching",label: "SRS Launching", type: "srs_alert"     },
+            { key: "Sewing_Trims", label: "Sewing Trims",  type: "sewing_alert"  },
+            { key: "Packing_Trims",label: "Packing Trims", type: "packing_alert" }
+        ];
 
         details.forEach(row => {
-            const styleCode = row["Cust Style Ref"] || row.Style || "";
-            const client    = row.Client || row["Coll"] || "";
+            const styleCode = String(row["Cust Style Ref"] || row.Style || "").trim();
+            const client    = String(row.Client || row["Coll"] || "").trim();
             if (!styleCode) return;
 
-            // ── 1. Sample approuvée ? ──────────────────────
-            const styleSamples = sample.filter(s =>
-                norm(s.Style) === norm(styleCode) || norm(s.Style) === norm(row.CTLStyleRef || "")
-            );
-            const hasPendingSample = styleSamples.some(s =>
-                s.Approval !== "Approved" &&
-                s["Sending Date"] && String(s["Sending Date"]).trim()
-            );
-            const hasNoSampleAtAll = styleSamples.length === 0;
+            COMMIT_FIELDS.forEach(field => {
+                const raw = String(row[field.key] || "").trim();
+                if (!raw) return;
+                if (isInHouse(raw)) return; // In House = tout va bien
 
-            // ── 2. PO confirmé ? ──────────────────────────
-            const styleOrders = ordering.filter(o =>
-                norm(o.Description || o.Style) === norm(styleCode)
-            );
-            const hasConfirmedOrder = styleOrders.some(o => o.Status === "Confirmed");
+                const d = parseCommitDate(raw);
+                if (!d) return;
 
-            // ── 3. Ex-Fty ─────────────────────────────────
-            const exFtyRaw = row["Possible etd"] || row["Possible Vsl date"] || "";
-            const exFtyDiff = daysDiff(exFtyRaw);
+                const today = new Date(); today.setHours(0,0,0,0);
+                d.setHours(0,0,0,0);
+                const diff = Math.round((d - today) / 86400000);
 
-            // ── 4. PO Deadline ────────────────────────────
-            const psdRaw  = row["PO Deadline"] || "";
-            const psdDiff = daysDiff(psdRaw);
+                if (diff > 3) return; // Plus de 3 jours → pas d'alerte
 
-            // ── ALERTE : Sample envoyée non approuvée + PO confirmé ──
-            if (hasPendingSample && hasConfirmedOrder) {
+                const isPast  = diff < 0;
+                const isToday = diff === 0;
+
+                const severity = isPast ? "danger" : "warn";
+                const diffStr  = isPast
+                    ? `${Math.abs(diff)}j de retard`
+                    : isToday ? "Aujourd'hui !"
+                    : `dans ${diff}j`;
+
                 alerts.push({
-                    type:     "sample_block",
-                    severity: "danger",
+                    type:     field.type,
+                    severity,
                     style:    styleCode,
                     client,
-                    title:    `Style ${styleCode} — Sample non approuvée (PO confirmé)`,
+                    title:    `${styleCode} — ${field.label} ${diffStr}`,
                     details:  [
-                        `${styleSamples.filter(s => s.Approval !== "Approved" && s["Sending Date"]).length} sample(s) envoyée(s) sans approval`,
-                        `${styleOrders.filter(o => o.Status === "Confirmed").length} commande(s) confirmée(s)`
+                        `${field.label} : ${fmtDate(raw)}`,
+                        isPast ? "⚠️ Date dépassée — action urgente requise"
+                               : isToday ? "🔔 Échéance aujourd'hui"
+                               : `📅 Échéance dans ${diff} jour${diff > 1 ? "s" : ""}`
                     ],
-                    action:   "Relancer le client pour l'approval avant expédition",
-                    icon:     "alert",
-                    rowIndex: row._rowIndex
+                    action:   isPast
+                        ? `Traiter ${field.label} immédiatement (${Math.abs(diff)}j de retard)`
+                        : `Préparer ${field.label} avant le ${fmtDate(raw)}`,
+                    icon:     isPast ? "alert" : "clock",
+                    rowIndex: row._rowIndex,
+                    sheet:    "details"
                 });
-            }
-
-            // ── ALERTE : PO confirmé mais aucune sample ──
-            if (hasNoSampleAtAll && hasConfirmedOrder) {
-                alerts.push({
-                    type:     "no_sample",
-                    severity: "warn",
-                    style:    styleCode,
-                    client,
-                    title:    `Style ${styleCode} — Aucune sample (PO confirmé)`,
-                    details:  [
-                        "Aucune sample enregistrée pour ce style",
-                        `${styleOrders.filter(o => o.Status === "Confirmed").length} commande(s) confirmée(s)`
-                    ],
-                    action:   "Vérifier si la sample a été envoyée/enregistrée",
-                    icon:     "sample",
-                    rowIndex: row._rowIndex
-                });
-            }
-
-            // ── ALERTE : Ex-Fty proche / dépassée ──────────
-            if (exFtyDiff !== null) {
-                if (exFtyDiff < 0 && !_isOrderDelivered(styleOrders)) {
-                    alerts.push({
-                        type:     "exfty_late",
-                        severity: "danger",
-                        style:    styleCode,
-                        client,
-                        title:    `Style ${styleCode} — Ex-Fty dépassée de ${Math.abs(exFtyDiff)}j`,
-                        details:  [
-                            `Ex-Fty prévue le ${fmtDate(exFtyRaw)}`,
-                            "Statut livraison : non expédié"
-                        ],
-                        action:   "Contacter le fournisseur pour confirmer le statut d'expédition",
-                        icon:     "ship",
-                        rowIndex: row._rowIndex
-                    });
-                } else if (exFtyDiff >= 0 && exFtyDiff <= CONFIG.exFtyWarningDays && !_isOrderDelivered(styleOrders)) {
-                    const sev = exFtyDiff <= CONFIG.exFtyDangerDays ? "danger" : "warn";
-                    alerts.push({
-                        type:     "exfty_soon",
-                        severity: sev,
-                        style:    styleCode,
-                        client,
-                        title:    `Style ${styleCode} — Ex-Fty dans ${exFtyDiff}j`,
-                        details:  [
-                            `Ex-Fty prévue le ${fmtDate(exFtyRaw)}`,
-                            exFtyDiff <= CONFIG.exFtyDangerDays ? "⚠️ Urgent — moins d'une semaine" : "Surveiller l'avancement"
-                        ],
-                        action:   exFtyDiff <= CONFIG.exFtyDangerDays
-                            ? "Confirmer la préparation avec le fournisseur d'urgence"
-                            : "Confirmer la date d'expédition avec le fournisseur",
-                        icon:     "clock",
-                        rowIndex: row._rowIndex
-                    });
-                }
-            }
-
-            // ── ALERTE : PO Deadline dépassée sans PO reçu ──
-            if (psdDiff !== null && psdDiff < 0 && row["Order Status"] !== "PO RECEIVED" && row["Order Status"] !== "Cancelled") {
-                alerts.push({
-                    type:     "psd_overdue",
-                    severity: "warn",
-                    style:    styleCode,
-                    client,
-                    title:    `Style ${styleCode} — PO Deadline dépassée de ${Math.abs(psdDiff)}j`,
-                    details:  [
-                        `Deadline : ${fmtDate(psdRaw)}`,
-                        `Statut : ${row["Order Status"] || "Non défini"}`
-                    ],
-                    action:   "Relancer pour réception du PO",
-                    icon:     "alert",
-                    rowIndex: row._rowIndex
-                });
-            }
+            });
         });
 
         // ── 5. Collecteurs personnalisés enregistrés à l'extérieur ──
@@ -751,6 +701,10 @@
     };
 
     const TYPE_LABELS = {
+        psd_alert:    "PSD",
+        srs_alert:    "SRS Launching",
+        sewing_alert: "Sewing Trims",
+        packing_alert:"Packing Trims",
         planning_conflict: "Conflit Planning",
         missing_pi: "PI Manquante",
         artwork_block: "Artwork Bloquant",
@@ -1039,7 +993,6 @@
             if (window.state?.data?.details?.length) {
                 clearInterval(waitForData);
                 refresh();
-                window.saRefresh = refresh; // exposé pour les modules externes
 
                 // Recalcul périodique
                 setInterval(refresh, CONFIG.refreshInterval);
