@@ -771,6 +771,7 @@
             const appPrice  = detRow?.["Approved Price $"] ? `$${detRow["Approved Price $"]}` : "";
             const confTotal = detRow?.["Conf Total"] ? String(detRow["Conf Total"]) : "";
             const vslDate   = fmtD(detRow?.["Initial Vsl Date"]);
+            const psdDate   = String(detRow?.["PSD"] || "").trim();
             const approved = group.rows.filter(r => String(r.Status||"").toLowerCase() === "approved").length;
             const rejected = group.rows.filter(r => String(r.Status||"").toLowerCase() === "rejected").length;
             const ongoing  = group.rows.filter(r => String(r.Status||"").toLowerCase() === "on going").length;
@@ -838,7 +839,7 @@
                         </div>` : '<div style="margin-bottom:8px;"></div>'}
 
                         <!-- Infos clés du style -->
-                        ${(appPrice || confTotal || vslDate) ? `
+                        ${(appPrice || confTotal || vslDate || psdDate) ? `
                         <div style="display:flex;gap:14px;flex-wrap:wrap;
                             margin-bottom:10px;padding:7px 10px;
                             background:#f8fafc;border-radius:6px;
@@ -863,6 +864,13 @@
                                     letter-spacing:.06em;">Initial VSL Date</span>
                                 <span style="font-size:12px;font-weight:600;color:#1e40af;">
                                     ${vslDate}</span>
+                            </div>` : ""}
+                            ${psdDate ? `
+                            <div style="display:flex;flex-direction:column;gap:1px;">
+                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
+                                    letter-spacing:.06em;">PSD</span>
+                                <span style="font-size:12px;font-weight:600;color:#7e22ce;">
+                                    ${psdDate}</span>
                             </div>` : ""}
                         </div>` : ""}
 
