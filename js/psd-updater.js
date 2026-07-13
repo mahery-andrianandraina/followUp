@@ -188,47 +188,78 @@
 
                         const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true });
 
-                        // Trouver la ligne d'en-têtes — log complet pour debug
+                        // Trouver la ligne d'en-têtes
                         let headerRow = -1, iRef = -1, iPSD = -1;
+
+                        // Étape 1 : trouver la ligne avec "ctlstyleref"
                         for (let i = 0; i < Math.min(data.length, 20); i++) {
                             const row = data[i].map(h => String(h).trim().toLowerCase());
-                            // Log chaque ligne pour voir les en-têtes réels
-                            if (row.some(h => h.length > 0)) {
-                                console.log("[PSD] Ligne", i, ":", row.filter(h=>h).join(" | "));
-                            }
-                            // Chercher CTL Style (toute variante)
                             const rRef = row.findIndex(h =>
-                                h === "ctl style" ||
+                                h === "ctlstyleref" ||
                                 h === "ctl style ref" ||
-                                h === "ctl" ||
+                                h === "ctl style" ||
+                                h.includes("ctlstyle") ||
                                 h.includes("ctl style") ||
-                                h.includes("ctl ref") ||
-                                h.includes("ctlstyle")
+                                h.includes("ctl ref")
                             );
-                            // Chercher Possible PSD
-                            const rPSD = row.findIndex(h =>
-                                h.includes("possible psd") ||
-                                h === "psd" ||
-                                (h.includes("psd") && h.length < 20)
-                            );
-                            if (rRef !== -1 && rPSD !== -1) {
-                                headerRow = i; iRef = rRef; iPSD = rPSD;
-                                console.log("[PSD] En-têtes trouvés ligne", i,
-                                    "→ Ref col", iRef, "("+data[i][iRef]+")",
-                                    "| PSD col", iPSD, "("+data[i][iPSD]+")");
+                            if (rRef !== -1) {
+                                headerRow = i;
+                                iRef      = rRef;
+                                console.log("[PSD] Header ligne", i,
+                                    "| CTL Style col", iRef, "=", data[i][iRef]);
                                 break;
                             }
                         }
 
-                        if (headerRow === -1 || iRef === -1 || iPSD === -1) {
-                            // Afficher toutes les lignes trouvées pour debug
-                            const allHeaders = data.slice(0,10)
-                                .map((r,i) => `Ligne ${i}: ${r.filter(Boolean).join(" | ")}`)
-                                .join("\n");
+                        if (headerRow === -1 || iRef === -1) {
                             reject(new Error(
-                                `Colonnes "CTL Style" et "Possible PSD" introuvables.\n${allHeaders}`
+                                `Colonne CTL Style introuvable.\n` +
+                                `En-têtes ligne 1 : ${(data[1]||[]).slice(0,12).join(" | ")}`
                             )); return;
                         }
+
+                        // Étape 2 : détecter la colonne PSD par son CONTENU (dates dans les données)
+                        // Le header peut être un texte OU une date — on cherche dans les lignes de données
+                        const headerRow2 = data[headerRow].map(h => String(h).trim().toLowerCase());
+                        // D'abord essayer par texte
+                        iPSD = headerRow2.findIndex(h =>
+                            h.includes("possible psd") || h === "psd" ||
+                            (h.includes("psd") && h.length < 20)
+                        );
+
+                        // Fallback : auto-détecter par le contenu des données (première colonne avec dates)
+                        if (iPSD === -1) {
+                            for (let col = 0; col < iRef; col++) {
+                                let dateCount = 0;
+                                for (let row = headerRow + 1;
+                                     row < Math.min(headerRow + 6, data.length); row++) {
+                                    const v = data[row][col];
+                                    if (v instanceof Date ||
+                                        (typeof v === "string" && (
+                                            v.includes("GMT") || v.includes("2026") ||
+                                            v.includes("2025") || v.includes("2027")
+                                        )) ||
+                                        (typeof v === "number" && v > 44000 && v < 50000)) {
+                                        dateCount++;
+                                    }
+                                }
+                                if (dateCount >= 2) {
+                                    iPSD = col;
+                                    console.log("[PSD] PSD col auto-détectée :", iPSD,
+                                        "header =", data[headerRow][iPSD]);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (iPSD === -1) {
+                            reject(new Error(
+                                `Colonne PSD (dates) introuvable.\n` +
+                                `Headers : ${headerRow2.join(" | ")}`
+                            )); return;
+                        }
+
+                        console.log("[PSD] Colonnes → CTL:", iRef, "| PSD:", iPSD);
 
                         // Construire le lookup map (insensible à la casse)
                         const lookup = {};
