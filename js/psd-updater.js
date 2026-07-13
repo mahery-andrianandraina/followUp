@@ -417,6 +417,15 @@
     }
 
     // ── Appliquer les mises à jour ────────────────────────────
+    // ── Convertir DD/MM/YYYY → YYYY-MM-DD pour stockage correct ──
+    // Évite que JS interprète "04/09/2026" comme MM/DD (9 avril au lieu de 4 sept.)
+    function toISO(psd) {
+        if (!psd || psd.toLowerCase().startsWith("all ok")) return psd;
+        const m = psd.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+        return psd;
+    }
+
     window._psdApplyUpdates = async function() {
         const modal = document.getElementById("psd-val-modal");
         if (!modal) return;
@@ -439,11 +448,13 @@
         let success = 0;
         for (const item of toUpdate) {
             try {
+                // Convertir en YYYY-MM-DD pour éviter le swap jour/mois dans l'app
+                const valueToSave = toISO(item.newPSD);
                 if (typeof window.quickUpdate === "function") {
-                    await window.quickUpdate(item.rowIdx, "PSD", item.newPSD, "details");
+                    await window.quickUpdate(item.rowIdx, "PSD", valueToSave, "details");
                 }
-                // Mise à jour en mémoire
-                if (item.detRow) item.detRow.PSD = item.newPSD;
+                // Mise à jour en mémoire (garder format ISO)
+                if (item.detRow) item.detRow.PSD = valueToSave;
                 success++;
             } catch(err) {
                 console.error(`[PSD] Erreur pour ${item.ref} :`, err);
