@@ -139,6 +139,25 @@
         return `${dd}/${mm}/${d.getFullYear()}`;
     }
 
+    // ── Convertir une date vers YYYY-MM-DD (identique à bdc-upload.js) ──
+    function convertBDCDate(dateStr) {
+        if (!dateStr) return "";
+        const s = String(dateStr).trim();
+        if (!s || s.toLowerCase().replace(/\s/g,"") === "inhouse") return s;
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s; // déjà DD/MM/YYYY
+        const m1 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if (m1) return `${m1[1].padStart(2,"0")}/${m1[2].padStart(2,"0")}/${m1[3]}`;
+        const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (m2) return `${m2[3]}/${m2[2]}/${m2[1]}`;
+        if (s.includes("GMT") || s.match(/^[A-Z][a-z]{2} [A-Z][a-z]{2}/)) {
+            const d = new Date(s.replace(/\([^)]*\)/g,"").trim());
+            if (!isNaN(d)) {
+                return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
+            }
+        }
+        return s;
+    }
+
     // ── Analyser le fichier Excel PSD → retourne un lookup map ──
     // { "LARIDEL-BG-VEM": { psdRaw, isAllOK }, ... }
     function analyzePSDFile(file) {
