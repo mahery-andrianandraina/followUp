@@ -226,12 +226,16 @@
                             (h.includes("psd") && !h.includes("crp") && h.length < 20)
                         );
                         if (iPSD === -1) {
-                            iPSD = 25; // Colonne Z (confirmé)
+                            iPSD = 25; // Colonne Z (PSD, confirmé)
                         }
-                        console.log("[PSD] Colonnes → CTL col:", iRef,
-                            "| PSD col:", iPSD,
-                            "| header PSD:", data[headerRow][iPSD],
-                            "| ex valeur:", data[headerRow + 1]?.[iPSD]);
+                        // Colonnes commitments hardcodées (confirmées)
+                        const iSRS     = 16; // Colonne Q — SRS Launching
+                        const iSewing  = 18; // Colonne S — Sewing Trims
+                        const iPacking = 19; // Colonne T — Packing Trims
+
+                        console.log("[PSD] Colonnes → CTL:", iRef,
+                            "| PSD:", iPSD, "| SRS:", iSRS,
+                            "| Sewing:", iSewing, "| Packing:", iPacking);
 
                         // Construire le lookup map (insensible à la casse)
                         const lookup = {};
@@ -248,7 +252,21 @@
                             // Stocker avec clé normalisée (insensible casse + séparateurs)
                             const normKey = normalizeRef(ref);
                             if (!lookup[normKey]) {
-                                lookup[normKey] = { psdRaw: psdParsed, isAllOK, originalRef: ref };
+                                const readVal = (idx) => {
+                                    const v = String(row[idx] || "").trim();
+                                    if (!v) return null;
+                                    const lo = v.toLowerCase().replace(/\s/g,"");
+                                    if (lo === "inhouse") return "In House";
+                                    return convertBDCDate(v) || v;
+                                };
+                                lookup[normKey] = {
+                                    psdRaw:        psdParsed,
+                                    isAllOK,
+                                    originalRef:   ref,
+                                    srsLaunching:  readVal(iSRS),
+                                    sewingTrims:   readVal(iSewing),
+                                    packingTrims:  readVal(iPacking)
+                                };
                             }
                         }
 
@@ -284,45 +302,81 @@
         document.getElementById("psd-val-modal")?.remove();
 
         // Les items viennent déjà enrichis depuis triggerPSDUpload
+        const toISO_local = v => {
+            if (!v || v === "In House") return v;
+            const m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+            if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+            return v;
+        };
+
         const enriched = items.map(item => {
-            const detRow = item.detRow;
-            const oldPSD = String(detRow?.PSD || "").trim();
-            const newPSD = item.inExcel ? buildNewPSD(item, detRow) : null;
-            return { ...item, detRow, oldPSD, newPSD, found: item.inExcel };
+            const detRow    = item.detRow;
+            const oldPSD    = String(detRow?.PSD              || "").trim();
+            const oldSRS    = String(detRow?.SRS_Launching    || "").trim();
+            const oldSewing = String(detRow?.Sewing_Trims     || "").trim();
+            const oldPacking= String(detRow?.Packing_Trims    || "").trim();
+            const newPSD    = item.inExcel ? buildNewPSD(item, detRow) : null;
+            const newSRS    = item.inExcel && item.srsLaunching  ? item.srsLaunching  : null;
+            const newSewing = item.inExcel && item.sewingTrims   ? item.sewingTrims   : null;
+            const newPacking= item.inExcel && item.packingTrims  ? item.packingTrims  : null;
+            return {
+                ...item, detRow,
+                oldPSD, newPSD,
+                oldSRS, newSRS,
+                oldSewing, newSewing,
+                oldPacking, newPacking,
+                found: item.inExcel
+            };
         });
 
         const found    = enriched.filter(e => e.found);
         const notFound = enriched.filter(e => !e.found);
 
         // HTML des lignes
-        const rowsHTML = enriched.map((e, i) => `
-        <tr data-idx="${i}">
-            <td style="padding:9px 12px;">
-                <div style="font-size:12px;font-weight:500;
-                    color:var(--text-primary,#111827);">${e.ref}</div>
-                <div style="font-size:10px;color:var(--text-muted,#9ca3af);margin-top:1px;">
-                    CTL: ${String(e.detRow?.CTLStyleRef || e.detRow?.["CTL Style Ref"] || "—")}
-                </div>
-            </td>
-            <td style="padding:9px 12px;">
-                <span class="psd-badge-old">${e.oldPSD || "—"}</span>
-            </td>
-            <td style="padding:9px 12px;">
-                ${e.found
-                    ? `<span class="${e.isAllOK ? "psd-badge-allok" : "psd-badge-new"}">${e.newPSD}</span>`
-                    : `<span style="color:var(--text-muted,#9ca3af);font-size:11px;font-style:italic;"
-                        title="Clé normalisée : ${normalizeRef(e.ref)}">
-                        Absent du fichier</span>`
-                }
-            </td>
-            <td style="padding:9px 12px;text-align:center;">
-                ${e.found
-                    ? `<input type="checkbox" class="psd-row-check" data-idx="${i}" checked
-                        style="width:14px;height:14px;accent-color:#1565c0;cursor:pointer;"/>`
-                    : `<span style="color:#d1d5db;font-size:11px;">—</span>`
-                }
-            </td>
-        </tr>`).join("");
+        const COMMIT_DEFS = [
+            { key:"newPSD",     oldKey:"oldPSD",     label:"PSD"           },
+            { key:"newSRS",     oldKey:"oldSRS",     label:"SRS Launching" },
+            { key:"newSewing",  oldKey:"oldSewing",  label:"Sewing Trims"  },
+            { key:"newPacking", oldKey:"oldPacking", label:"Packing Trims" }
+        ];
+
+        const rowsHTML = enriched.map((e, i) => {
+            const commitCells = COMMIT_DEFS.map(cd => {
+                const nv = e[cd.key];
+                const ov = e[cd.oldKey] || "";
+                const isAO = nv && String(nv).toLowerCase() === "in house";
+                return `<td style="padding:7px 10px;border-bottom:0.5px solid var(--border,#e5e7eb);">
+                    <div style="font-size:9px;color:var(--text-muted,#9ca3af);
+                        text-transform:uppercase;margin-bottom:2px;">${cd.label}</div>
+                    ${ov ? `<div class="psd-badge-old" style="margin-bottom:3px;">${ov}</div>` : ""}
+                    ${e.found && nv
+                        ? `<span class="${isAO ? "psd-badge-allok" : "psd-badge-new"}">${nv}</span>`
+                        : !e.found
+                            ? `<span style="color:var(--text-muted,#9ca3af);font-size:10px;
+                                font-style:italic;">Absent</span>`
+                            : `<span style="color:#d1d5db;font-size:11px;">—</span>`
+                    }
+                </td>`;
+            }).join("");
+
+            return `<tr data-idx="${i}">
+                <td style="padding:9px 12px;">
+                    <div style="font-size:12px;font-weight:500;
+                        color:var(--text-primary,#111827);">${e.ref}</div>
+                    <div style="font-size:10px;color:var(--text-muted,#9ca3af);margin-top:1px;">
+                        CTL: ${String(e.detRow?.CTLStyleRef || e.detRow?.["CTL Style Ref"] || "—")}
+                    </div>
+                </td>
+                ${commitCells}
+                <td style="padding:9px 12px;text-align:center;">
+                    ${e.found
+                        ? `<input type="checkbox" class="psd-row-check" data-idx="${i}" checked
+                            style="width:14px;height:14px;accent-color:#1565c0;cursor:pointer;"/>`
+                        : `<span style="color:#d1d5db;font-size:11px;">—</span>`
+                    }
+                </td>
+            </tr>`;
+        }).join("");
 
         const modal = document.createElement("div");
         modal.id = "psd-val-modal";
@@ -382,9 +436,11 @@
                 <div style="max-height:420px;overflow-y:auto;">
                     <table class="psd-val-table">
                         <thead><tr>
-                            <th style="width:28%;">Style (CTL Ref)</th>
-                            <th style="width:22%;">PSD actuel</th>
-                            <th style="width:30%;">Nouveau PSD</th>
+                            <th style="width:22%;">Style</th>
+                            <th style="width:18%;">PSD</th>
+                            <th style="width:16%;">SRS Launching</th>
+                            <th style="width:16%;">Sewing Trims</th>
+                            <th style="width:16%;">Packing Trims</th>
                             <th style="width:10%;text-align:center;">Appliquer</th>
                         </tr></thead>
                         <tbody>${rowsHTML}</tbody>
@@ -445,16 +501,49 @@
         typeof showToast === "function" &&
             showToast(`Mise à jour de ${toUpdate.length} style${toUpdate.length > 1 ? "s" : ""}…`, "info", 15000);
 
+        // Sauvegarder un champ via UPLOAD_ORDERING_FILE (crée la colonne si absente)
+        async function saveField(rowIdx, colKey, value) {
+            if (!value) return;
+            const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+            if (!gasUrl || gasUrl === "YOUR_WEB_APP_URL_HERE") return;
+            await fetch(gasUrl, {
+                method:"POST",
+                headers:{"Content-Type":"text/plain;charset=utf-8"},
+                redirect:"follow",
+                body: JSON.stringify({
+                    action:"UPLOAD_ORDERING_FILE",
+                    sheet:"Details", colKey, rowIndex: rowIdx,
+                    fileUrl: value, base64Data:"", mimeType:"", fileName:""
+                })
+            });
+        }
+
         let success = 0;
         for (const item of toUpdate) {
             try {
-                // Convertir en YYYY-MM-DD pour éviter le swap jour/mois dans l'app
-                const valueToSave = toISO(item.newPSD);
-                if (typeof window.quickUpdate === "function") {
-                    await window.quickUpdate(item.rowIdx, "PSD", valueToSave, "details");
+                // PSD via quickUpdate (colonne existante)
+                if (item.newPSD) {
+                    const psdISO = toISO(item.newPSD);
+                    if (typeof window.quickUpdate === "function")
+                        await window.quickUpdate(item.rowIdx, "PSD", psdISO, "details");
+                    if (item.detRow) item.detRow.PSD = psdISO;
                 }
-                // Mise à jour en mémoire (garder format ISO)
-                if (item.detRow) item.detRow.PSD = valueToSave;
+                // Commitments via saveField (crée la colonne si absente)
+                if (item.newSRS) {
+                    const v = toISO(item.newSRS);
+                    await saveField(item.rowIdx, "SRS_Launching", v);
+                    if (item.detRow) item.detRow.SRS_Launching = v;
+                }
+                if (item.newSewing) {
+                    const v = toISO(item.newSewing);
+                    await saveField(item.rowIdx, "Sewing_Trims", v);
+                    if (item.detRow) item.detRow.Sewing_Trims = v;
+                }
+                if (item.newPacking) {
+                    const v = toISO(item.newPacking);
+                    await saveField(item.rowIdx, "Packing_Trims", v);
+                    if (item.detRow) item.detRow.Packing_Trims = v;
+                }
                 success++;
             } catch(err) {
                 console.error(`[PSD] Erreur pour ${item.ref} :`, err);
@@ -504,14 +593,25 @@
                         // qui correspond à Buyer Style+Color dans l'Excel
                         const ctlRef  = String(r["CTLStyleRef"] || r["CTL Style Ref"] || "").trim();
                         const normRef = normalizeRef(ctlRef);
-                        const match   = lookup[normRef];
+                        let match = lookup[normRef];
+                        // Fallback sans coloris (CALVAIRE-BF-VEM → calvaire-bf)
+                        if (!match) {
+                            const parts = normRef.split("-");
+                            for (let cut = parts.length-1; cut >= 1; cut--) {
+                                const shorter = parts.slice(0,cut).join("-");
+                                if (lookup[shorter]) { match = lookup[shorter]; break; }
+                            }
+                        }
                         return {
                             ref,
-                            psdRaw:   match?.psdRaw   || null,
-                            isAllOK:  match?.isAllOK  || false,
-                            inExcel:  !!match,
-                            detRow:   r,
-                            rowIdx:   r._rowIndex
+                            psdRaw:        match?.psdRaw        || null,
+                            isAllOK:       match?.isAllOK        || false,
+                            srsLaunching:  match?.srsLaunching   || null,
+                            sewingTrims:   match?.sewingTrims    || null,
+                            packingTrims:  match?.packingTrims   || null,
+                            inExcel:       !!match,
+                            detRow:        r,
+                            rowIdx:        r._rowIndex
                         };
                     });
 
