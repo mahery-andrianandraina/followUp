@@ -1094,6 +1094,17 @@
                 }
                 return fmtD(_psdRaw); // fallback
             })();
+
+            // Commitments depuis Details
+            const fmtCommit = val => {
+                const s = String(val||"").trim();
+                if (!s) return "";
+                if (s.toLowerCase().replace(/\s/g,"") === "inhouse") return "In House ✓";
+                return fmtD(s) || s;
+            };
+            const srsDate     = fmtCommit(detRow?.SRS_Launching);
+            const sewingDate  = fmtCommit(detRow?.Sewing_Trims);
+            const packingDate = fmtCommit(detRow?.Packing_Trims);
             const approved = group.rows.filter(r => String(r.Status||"").toLowerCase() === "approved").length;
             const rejected = group.rows.filter(r => String(r.Status||"").toLowerCase() === "rejected").length;
             const ongoing  = group.rows.filter(r => String(r.Status||"").toLowerCase() === "on going").length;
@@ -1159,6 +1170,21 @@
                             <div class="metric-item">
                                 <div class="metric-label">PSD</div>
                                 <div class="metric-value" style="color:#6d28d9;">${psdDate}</div>
+                            </div>` : ""}
+                            ${srsDate ? `
+                            <div class="metric-item">
+                                <div class="metric-label">SRS Launch.</div>
+                                <div class="metric-value" style="color:#0369a1;">${srsDate}</div>
+                            </div>` : ""}
+                            ${sewingDate ? `
+                            <div class="metric-item">
+                                <div class="metric-label">Sewing Trims</div>
+                                <div class="metric-value" style="color:#0f766e;">${sewingDate}</div>
+                            </div>` : ""}
+                            ${packingDate ? `
+                            <div class="metric-item">
+                                <div class="metric-label">Packing Trims</div>
+                                <div class="metric-value" style="color:#6d28d9;">${packingDate}</div>
                             </div>` : ""}
                         </div>` : ""}
 
