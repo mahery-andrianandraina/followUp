@@ -795,140 +795,103 @@
             const rowsHTML = group.rows.map((r, i) => {
                 const sc  = statusCfg(r.Status);
                 const det = String(r.Details || "").trim().split(String.fromCharCode(10)).join("<br>");
-                const bg  = i % 2 === 0 ? "#ffffff" : "#fafafa";
                 return `
-                <tr style="background:${bg};">
-                    <td style="padding:9px 14px;font-size:12.5px;font-weight:500;
-                        color:#111827;border-bottom:1px solid #f0f0f0;vertical-align:top;
-                        width:26%;">
-                        ${r.Composant || "—"}
-                    </td>
-                    <td style="padding:9px 14px;border-bottom:1px solid #f0f0f0;
-                        vertical-align:top;width:16%;">
+                <tr>
+                    <td><span class="comp-name">${r.Composant || "—"}</span></td>
+                    <td>
                         ${r.Status
-                            ? `<span style="display:inline-flex;align-items:center;gap:5px;
-                                padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;
-                                background:${sc.bg};color:${sc.color};border:0.5px solid ${sc.border};">
-                                <span style="width:5px;height:5px;border-radius:50%;
-                                    background:${sc.dot};flex-shrink:0;display:inline-block;"></span>
-                                ${r.Status}</span>`
-                            : '<span style="color:#d1d5db;font-size:12px;">—</span>'}
+                            ? `<span class="status-badge"
+                                style="background:${sc.bg};color:${sc.color};border:0.5px solid ${sc.border};">
+                                <span class="badge-dot" style="background:${sc.dot};"></span>
+                                ${r.Status}
+                              </span>`
+                            : '<span style="color:#cbd5e1;">—</span>'}
                     </td>
-                    <td style="padding:9px 14px;font-size:12px;color:#374151;
-                        border-bottom:1px solid #f0f0f0;vertical-align:top;
-                        line-height:1.6;width:58%;">${det || '<span style="color:#d1d5db;">—</span>'}</td>
+                    <td class="comp-detail">${det || '<span style="color:#cbd5e1;">—</span>'}</td>
                 </tr>`;
             }).join("");
 
             return `
-            <div style="margin-bottom:36px;page-break-inside:avoid;
-                border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
+            <div class="style-card no-break">
 
-                <!-- En-tête style : image gauche + infos droite -->
-                <div style="display:flex;align-items:stretch;border-bottom:1px solid #e5e7eb;">
+                <!-- ── Card Header ── -->
+                <div class="card-header">
 
-                    <!-- Image du style -->
-                    ${imgUrl ? `
-                    <div style="width:110px;flex-shrink:0;background:#f9fafb;
-                        border-right:1px solid #e5e7eb;display:flex;
-                        align-items:center;justify-content:center;padding:10px;">
-                        <img src="${imgUrl}" alt="${group.custRef}"
-                            style="width:90px;height:90px;object-fit:cover;
-                                border-radius:6px;"/>
-                    </div>` : `
-                    <div style="width:110px;flex-shrink:0;background:#f9fafb;
-                        border-right:1px solid #e5e7eb;display:flex;
-                        align-items:center;justify-content:center;">
-                        <span style="font-size:28px;color:#d1d5db;">&#128247;</span>
-                    </div>`}
+                    <!-- Image -->
+                    <div class="card-image">
+                        ${imgUrl
+                            ? `<img src="${imgUrl}" alt="${group.custRef}"/>`
+                            : `<div class="card-image-placeholder">📷</div>`
+                        }
+                    </div>
 
-                    <!-- Infos style -->
-                    <div style="flex:1;padding:14px 18px;background:#fff;">
-                        <div style="font-size:17px;font-weight:700;color:#111827;
-                            letter-spacing:.01em;margin-bottom:3px;">
-                            ${group.custRef || "—"}
-                        </div>
-                        ${group.ctlRef ? `
-                        <div style="font-size:11.5px;color:#6b7280;margin-bottom:8px;">
-                            CTL Ref : <strong style="color:#374151;">${group.ctlRef}</strong>
-                        </div>` : '<div style="margin-bottom:8px;"></div>'}
+                    <!-- Info -->
+                    <div class="card-info">
+                        <div class="card-name">${group.custRef || "—"}</div>
+                        <div class="card-ctl">CTL Ref : <span>${group.ctlRef || "—"}</span></div>
 
-                        <!-- Infos clés du style -->
+                        <!-- Métriques clés -->
                         ${(appPrice || confTotal || vslDate || psdDate) ? `
-                        <div style="display:flex;gap:14px;flex-wrap:wrap;
-                            margin-bottom:10px;padding:7px 10px;
-                            background:#f8fafc;border-radius:6px;
-                            border:0.5px solid #e5e7eb;">
+                        <div class="metrics-strip">
                             ${appPrice ? `
-                            <div style="display:flex;flex-direction:column;gap:1px;">
-                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
-                                    letter-spacing:.06em;">Prix approuvé</span>
-                                <span style="font-size:12px;font-weight:600;color:#166534;">
-                                    ${appPrice}</span>
+                            <div class="metric-item">
+                                <div class="metric-label">Prix approuvé</div>
+                                <div class="metric-value" style="color:#166534;">${appPrice}</div>
                             </div>` : ""}
                             ${confTotal ? `
-                            <div style="display:flex;flex-direction:column;gap:1px;">
-                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
-                                    letter-spacing:.06em;">Conf Total</span>
-                                <span style="font-size:12px;font-weight:600;color:#111827;">
-                                    ${confTotal} u.</span>
+                            <div class="metric-item">
+                                <div class="metric-label">Conf Total</div>
+                                <div class="metric-value">${confTotal} u.</div>
                             </div>` : ""}
                             ${vslDate ? `
-                            <div style="display:flex;flex-direction:column;gap:1px;">
-                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
-                                    letter-spacing:.06em;">Initial VSL Date</span>
-                                <span style="font-size:12px;font-weight:600;color:#1e40af;">
-                                    ${vslDate}</span>
+                            <div class="metric-item">
+                                <div class="metric-label">Initial VSL</div>
+                                <div class="metric-value" style="color:#1e3a5f;">${vslDate}</div>
                             </div>` : ""}
                             ${psdDate ? `
-                            <div style="display:flex;flex-direction:column;gap:1px;">
-                                <span style="font-size:9px;color:#9ca3af;text-transform:uppercase;
-                                    letter-spacing:.06em;">PSD</span>
-                                <span style="font-size:12px;font-weight:600;color:#7e22ce;">
-                                    ${psdDate}</span>
+                            <div class="metric-item">
+                                <div class="metric-label">PSD</div>
+                                <div class="metric-value" style="color:#6d28d9;">${psdDate}</div>
                             </div>` : ""}
                         </div>` : ""}
 
-                        <!-- Badges statuts -->
-                        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                            <span style="padding:2px 9px;border-radius:20px;
-                                background:#f9fafb;border:0.5px solid #e5e7eb;
-                                font-size:10.5px;color:#6b7280;">
+                        <!-- Status badges -->
+                        <div class="badges">
+                            <span class="badge" style="background:#f1f5f9;color:#64748b;
+                                border:0.5px solid #cbd5e1;">
                                 ${total} composant${total > 1 ? "s" : ""}
                             </span>
-                            ${approved > 0 ? `<span style="padding:2px 9px;border-radius:20px;
-                                background:#f0fdf4;border:0.5px solid #86efac;
-                                font-size:10.5px;font-weight:600;color:#166534;">
-                                ✓ ${approved} Approved</span>` : ""}
-                            ${ongoing  > 0 ? `<span style="padding:2px 9px;border-radius:20px;
-                                background:#eff6ff;border:0.5px solid #93c5fd;
-                                font-size:10.5px;font-weight:600;color:#1e40af;">
-                                ${ongoing} On Going</span>` : ""}
-                            ${rejected > 0 ? `<span style="padding:2px 9px;border-radius:20px;
-                                background:#fef2f2;border:0.5px solid #fca5a5;
-                                font-size:10.5px;font-weight:600;color:#991b1b;">
-                                ✗ ${rejected} Rejected</span>` : ""}
+                            ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "in house").length > 0 ? `
+                            <span class="badge" style="background:#f0fdf4;color:#166534;border:0.5px solid #86efac;">
+                                <span class="badge-dot" style="background:#16a34a;"></span>
+                                ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "in house").length} In House
+                            </span>` : ""}
+                            ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "po sent").length > 0 ? `
+                            <span class="badge" style="background:#eff6ff;color:#1e40af;border:0.5px solid #93c5fd;">
+                                <span class="badge-dot" style="background:#2563eb;"></span>
+                                ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "po sent").length} PO Sent
+                            </span>` : ""}
+                            ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "waiting approval").length > 0 ? `
+                            <span class="badge" style="background:#fff7ed;color:#9a3412;border:0.5px solid #fed7aa;">
+                                <span class="badge-dot" style="background:#ea580c;"></span>
+                                ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "waiting approval").length} Waiting
+                            </span>` : ""}
+                            ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "pending").length > 0 ? `
+                            <span class="badge" style="background:#fef9c3;color:#854d0e;border:0.5px solid #fde68a;">
+                                <span class="badge-dot" style="background:#d97706;"></span>
+                                ${group.rows.filter(r => String(r.Status||"").toLowerCase() === "pending").length} Pending
+                            </span>` : ""}
                         </div>
                     </div>
                 </div>
 
-                <!-- Tableau composants -->
-                <table width="100%" cellpadding="0" cellspacing="0"
-                    style="border-collapse:collapse;">
+                <!-- ── Components Table ── -->
+                <table class="comp-table">
                     <thead>
-                        <tr style="background:#f8fafc;">
-                            <th style="padding:8px 14px;text-align:left;font-size:10px;
-                                color:#9ca3af;text-transform:uppercase;
-                                letter-spacing:.08em;font-weight:600;
-                                border-bottom:1px solid #e5e7eb;">Composant</th>
-                            <th style="padding:8px 14px;text-align:left;font-size:10px;
-                                color:#9ca3af;text-transform:uppercase;
-                                letter-spacing:.08em;font-weight:600;
-                                border-bottom:1px solid #e5e7eb;">Status</th>
-                            <th style="padding:8px 14px;text-align:left;font-size:10px;
-                                color:#9ca3af;text-transform:uppercase;
-                                letter-spacing:.08em;font-weight:600;
-                                border-bottom:1px solid #e5e7eb;">Details</th>
+                        <tr>
+                            <th style="width:26%;">Composant</th>
+                            <th style="width:17%;">Status</th>
+                            <th style="width:57%;">Details</th>
                         </tr>
                     </thead>
                     <tbody>${rowsHTML}</tbody>
@@ -936,54 +899,302 @@
             </div>`;
         }).join("");
 
+        // Statistiques globales pour le header
+        const totalInHouse  = rows.filter(r => String(r.Status||"").toLowerCase() === "in house").length;
+        const totalPOSent   = rows.filter(r => String(r.Status||"").toLowerCase() === "po sent").length;
+        const totalPending  = rows.filter(r => String(r.Status||"").toLowerCase() === "pending").length;
+        const totalWaiting  = rows.filter(r => String(r.Status||"").toLowerCase() === "waiting approval").length;
+        const totalNoStatus = rows.filter(r => !String(r.Status||"").trim()).length;
+
         return `<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8"/>
-<title>AW27 — Style Components</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AW27 — Style Components Report</title>
 <style>
-  * { box-sizing:border-box; }
+  * { box-sizing:border-box; margin:0; padding:0; }
   body {
-    margin:0; padding:28px 36px;
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;
-    background:#fff; color:#111827;
-    font-size:13px; line-height:1.5;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: #fff;
+    color: #1a1a2e;
+    font-size: 11px;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   @media print {
-    body { padding:16px 20px; }
-    @page { margin:12mm 10mm; size:A4; }
+    @page { margin: 10mm 8mm; size: A4; }
+    .page-break { page-break-before: always; }
+    .no-break { page-break-inside: avoid; }
   }
+
+  /* ── HEADER ─────────────────────── */
+  .doc-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    padding: 20px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+  .doc-logo {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .logo-badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 17px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: .08em;
+  }
+  .doc-title { color: #fff; }
+  .doc-title h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+  .doc-title p  { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 2px; }
+  .doc-stats {
+    display: flex; gap: 10px; align-items: center;
+  }
+  .stat-pill {
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 20px;
+    padding: 4px 12px;
+    text-align: center;
+    color: #fff;
+    font-size: 10px;
+  }
+  .stat-pill strong { font-size: 14px; font-weight: 700; display: block; }
+
+  /* ── SUMMARY BAR ─────────────────── */
+  .summary-bar {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin: 0 28px 24px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+  }
+  .summary-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+  .summary-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── STYLE CARD ──────────────────── */
+  .style-card {
+    margin: 0 28px 20px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .card-header {
+    display: flex;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+  }
+  .card-image {
+    width: 100px;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #f1f5f9, #e2e8f0);
+    border-right: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+  }
+  .card-image img {
+    width: 76px; height: 76px;
+    object-fit: cover;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.12);
+  }
+  .card-image-placeholder {
+    width: 76px; height: 76px;
+    background: #e2e8f0;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; color: #94a3b8;
+  }
+  .card-info {
+    flex: 1;
+    padding: 14px 18px;
+  }
+  .card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: .01em;
+    margin-bottom: 2px;
+  }
+  .card-ctl {
+    font-size: 10.5px;
+    color: #64748b;
+    margin-bottom: 10px;
+  }
+  .card-ctl span { color: #1e3a5f; font-weight: 600; }
+
+  /* Metrics strip */
+  .metrics-strip {
+    display: flex; gap: 0;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+  .metric-item {
+    flex: 1;
+    padding: 7px 12px;
+    border-right: 1px solid #e2e8f0;
+  }
+  .metric-item:last-child { border-right: none; }
+  .metric-label {
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #94a3b8;
+    margin-bottom: 2px;
+  }
+  .metric-value {
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* Status badges */
+  .badges { display: flex; gap: 5px; flex-wrap: wrap; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .badge-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+  }
+
+  /* ── COMPONENT TABLE ─────────────── */
+  .comp-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .comp-table thead tr {
+    background: #f1f5f9;
+    border-bottom: 2px solid #e2e8f0;
+  }
+  .comp-table th {
+    padding: 8px 14px;
+    text-align: left;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 700;
+    color: #64748b;
+  }
+  .comp-table td {
+    padding: 8px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+    font-size: 11.5px;
+  }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table tr:nth-child(even) td { background: #fafbfc; }
+  .comp-name { font-weight: 600; color: #0f172a; }
+  .comp-detail { color: #475569; line-height: 1.5; }
+
+  /* Status badge in table */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ── FOOTER ──────────────────────── */
+  .doc-footer {
+    margin: 24px 28px 0;
+    padding: 12px 0;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 9.5px;
+    color: #94a3b8;
+  }
+  .footer-brand { font-weight: 600; color: #1e3a5f; }
 </style>
 </head>
 <body>
 
-<!-- HEADER minimal -->
-<div style="display:flex;align-items:center;justify-content:space-between;
-    margin-bottom:24px;padding-bottom:14px;
-    border-bottom:2px solid #1565c0;">
-    <div style="display:flex;align-items:center;gap:12px;">
-        <div style="background:#1565c0;border-radius:8px;padding:6px 12px;">
-            <span style="color:#fff;font-size:16px;font-weight:700;
-                letter-spacing:.06em;">AW27</span>
-        </div>
-        <div>
-            <div style="font-size:15px;font-weight:700;color:#111827;">
-                Style Components</div>
-            <div style="font-size:11px;color:#9ca3af;margin-top:1px;">
-                ${todayFR}</div>
+<!-- ══ HEADER ══════════════════════════════════════════════════ -->
+<div class="doc-header">
+    <div class="doc-logo">
+        <div class="logo-badge">AW27</div>
+        <div class="doc-title">
+            <h1>Style Components</h1>
+            <p>${todayFR}</p>
         </div>
     </div>
-    <div style="font-size:11px;color:#9ca3af;text-align:right;">
-        ${order.length} style${order.length > 1 ? "s" : ""} · ${rows.length} composant${rows.length > 1 ? "s" : ""}
+    <div class="doc-stats">
+        <div class="stat-pill">
+            <strong>${order.length}</strong>styles
+        </div>
+        <div class="stat-pill">
+            <strong>${rows.length}</strong>composants
+        </div>
     </div>
 </div>
 
+<!-- ══ SUMMARY BAR ═════════════════════════════════════════════ -->
+<div class="summary-bar">
+    ${totalInHouse > 0 ? `
+    <div class="summary-item" style="background:#f0fdf4;color:#166534;border:0.5px solid #86efac;">
+        <span class="summary-dot" style="background:#16a34a;"></span>
+        ${totalInHouse} In House
+    </div>` : ""}
+    ${totalPOSent > 0 ? `
+    <div class="summary-item" style="background:#eff6ff;color:#1e40af;border:0.5px solid #93c5fd;">
+        <span class="summary-dot" style="background:#2563eb;"></span>
+        ${totalPOSent} PO Sent
+    </div>` : ""}
+    ${totalWaiting > 0 ? `
+    <div class="summary-item" style="background:#fff7ed;color:#9a3412;border:0.5px solid #fed7aa;">
+        <span class="summary-dot" style="background:#ea580c;"></span>
+        ${totalWaiting} Waiting Approval
+    </div>` : ""}
+    ${totalPending > 0 ? `
+    <div class="summary-item" style="background:#fef9c3;color:#854d0e;border:0.5px solid #fde68a;">
+        <span class="summary-dot" style="background:#d97706;"></span>
+        ${totalPending} Pending
+    </div>` : ""}
+    ${totalNoStatus > 0 ? `
+    <div class="summary-item" style="background:#f9fafb;color:#6b7280;border:0.5px solid #e5e7eb;">
+        <span class="summary-dot" style="background:#9ca3af;"></span>
+        ${totalNoStatus} Sans statut
+    </div>` : ""}
+</div>
+
+<!-- ══ STYLE CARDS ══════════════════════════════════════════════ -->
 ${sectionsHTML}
 
-<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;
-    text-align:center;font-size:10px;color:#9ca3af;">
-    AW27 Checkers — Style Components — ${todayFR}
+<!-- ══ FOOTER ══════════════════════════════════════════════════ -->
+<div class="doc-footer">
+    <span><span class="footer-brand">AW27 Checkers</span> — Style Components Report</span>
+    <span>${todayFR}</span>
 </div>
+
 </body>
 </html>`;
     }
