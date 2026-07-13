@@ -79,8 +79,22 @@
     // ── Parser de date robuste ────────────────────────────────
     function parseFlexDate(val) {
         if (!val) return "";
+
+        // Objet Date JS direct (SheetJS avec raw:true retourne des Date objects)
+        if (val instanceof Date) {
+            if (!isNaN(val) && val.getFullYear() > 2000) return fmtDateFR(val);
+            return "";
+        }
+
         const s = String(val).trim();
         if (!s || s === "0") return "";
+
+        // Format "Fri Jul 24 2026 00:00:00 GMT+0300 (timezone)" → supprimer la partie timezone
+        if (s.includes("GMT") || s.match(/^[A-Z][a-z]{2} [A-Z][a-z]{2}/)) {
+            const clean = s.replace(/\([^)]*\)/g, "").trim();
+            const d = new Date(clean);
+            if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
+        }
 
         // Nombre Excel serial date (ex: 45849 = 06/07/2026)
         // Formule : (serial - 25569) * 86400 * 1000 ms depuis epoch Unix
