@@ -1,5 +1,5 @@
 // ================================================================
-//  AW27 — Style Components
+//  A W27 — Style Components
 //  Gestion des composants par style avec génération PDF.
 //  Charger après app.js dans index.html.
 // ================================================================

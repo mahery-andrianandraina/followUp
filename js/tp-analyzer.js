@@ -1,6 +1,6 @@
 // ================================================================
 //  AW27 — TP Analyzer
-//  Analyse le Tech Pack PDF d'un style via l'IA (GAS chatbot Gemini)
+//  Analyse le Tech   Pack PDF d'un style via l'IA (GAS chatbot Gemini)
 //  et crée les lignes dans Style Components après validation.
 //  Charger après style-components.js dans index.html.
 // ================================================================

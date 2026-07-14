@@ -1,5 +1,5 @@
 // ================================================================
-//  AW27 — PSD Updater
+//  AW27 — P  SD Updater
 //  Analyse un fichier Excel hebdomadaire et met à jour la colonne
 //  PSD dans le sheet Details. Lecture côté client uniquement.
 //  Charger après app.js dans index.html.
