@@ -1647,6 +1647,9 @@ ${sectionsHTML}
     });
 
     // ── Ajouter un champ email supplémentaire ────────────────
+    // Exposer openPDFModal pour le menu Actions
+    window._scOpenPDFModal = function() { openPDFModal(); };
+
     window._scAddEmailField = function() {
         const container = document.getElementById("sc-email-fields");
         if (!container) return;
