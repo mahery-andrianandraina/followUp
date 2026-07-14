@@ -520,21 +520,29 @@
         typeof showToast === "function" &&
             showToast(`Mise à jour de ${toUpdate.length} style${toUpdate.length > 1 ? "s" : ""}…`, "info", 15000);
 
-        // Sauvegarder un champ via UPLOAD_ORDERING_FILE (crée la colonne si absente)
+        // Sauvegarder un champ via CREATE_OR_UPDATE_FIELD (crée la colonne si absente)
         async function saveField(rowIdx, colKey, value) {
             if (!value) return;
             const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
             if (!gasUrl || gasUrl === "YOUR_WEB_APP_URL_HERE") return;
-            await fetch(gasUrl, {
-                method:"POST",
-                headers:{"Content-Type":"text/plain;charset=utf-8"},
-                redirect:"follow",
+            const res = await fetch(gasUrl, {
+                method:   "POST",
+                headers:  { "Content-Type": "text/plain;charset=utf-8" },
+                redirect: "follow",
                 body: JSON.stringify({
-                    action:"UPLOAD_ORDERING_FILE",
-                    sheet:"Details", colKey, rowIndex: rowIdx,
-                    fileUrl: value, base64Data:"", mimeType:"", fileName:""
+                    action:   "CREATE_OR_UPDATE_FIELD",
+                    sheet:    "Details",
+                    colKey,
+                    rowIndex: rowIdx,
+                    value
                 })
             });
+            const json = await res.json();
+            if (json.status !== "ok") {
+                console.error("[PSD] saveField erreur:", json.message, "| col:", colKey, "| val:", value);
+            } else {
+                console.log("[PSD] Saved", colKey, "=", value, "row", rowIdx);
+            }
         }
 
         let success = 0;
