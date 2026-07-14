@@ -170,7 +170,18 @@
             if (typeof renderKPIs           === "function") renderKPIs();
             if (typeof populateDeptFilter   === "function") populateDeptFilter();
             if (typeof populateClientFilter === "function") populateClientFilter();
+
+            // Injecter le menu Actions
+            _injectActionsMenu();
         });
+
+        // Nettoyer le menu Actions quand on quitte
+        document.addEventListener("click", e => {
+            const navBtn2 = e.target.closest(".nav-item");
+            if (navBtn2 && navBtn2 !== btn) {
+                document.getElementById("sc-actions-menu-wrapper")?.remove();
+            }
+        }, { capture: true });
 
         nav.appendChild(btn);
     }
@@ -2021,7 +2032,118 @@ ${sectionsHTML}
     };
 
     // ── Injecter le bouton PDF dans le header ─────────────────
-    function injectHeaderButton() { /* Géré par sc-actions-menu.js */ }
+    function injectHeaderButton() { /* géré par _injectActionsMenu */ }
+
+    // ── Actions Menu ──────────────────────────────────────────────
+    function _injectActionsMenu() {
+        document.getElementById("sc-actions-menu-wrapper")?.remove();
+        const wrapper = document.createElement("div");
+        wrapper.id = "sc-actions-menu-wrapper";
+        wrapper.style.cssText = "position:relative;display:inline-flex;align-items:center;";
+        if (!document.getElementById("sc-am-style")) {
+            const st = document.createElement("style");
+            st.id = "sc-am-style";
+            st.textContent = `
+            #sc-actions-menu-btn{display:inline-flex;align-items:center;gap:5px;
+                padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;
+                font-family:inherit;cursor:pointer;color:#fff;
+                background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);}
+            #sc-actions-menu-btn:hover{background:rgba(255,255,255,.25);}
+            #sc-actions-dropdown{display:none;position:absolute;right:0;top:calc(100% + 6px);
+                background:var(--surface-2,#fff);border:0.5px solid var(--border,#e5e7eb);
+                border-radius:10px;min-width:215px;z-index:9999;
+                box-shadow:0 4px 16px rgba(0,0,0,.12);overflow:hidden;}
+            #sc-actions-dropdown.open{display:block;}
+            .sc-am-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
+                border-radius:6px;border:none;background:transparent;
+                text-align:left;cursor:pointer;width:100%;font-family:inherit;}
+            .sc-am-item:hover{background:var(--surface-1,#f9fafb);}
+            .sc-am-icon{width:28px;height:28px;border-radius:6px;display:flex;
+                align-items:center;justify-content:center;flex-shrink:0;}
+            .sc-am-lbl{font-size:12px;font-weight:500;color:var(--text-primary,#111827);}
+            .sc-am-sub{font-size:10.5px;color:var(--text-muted,#9ca3af);}
+            .sc-am-sep{height:0.5px;background:var(--border,#e5e7eb);margin:4px 0;}
+            .sc-am-sec{padding:5px 10px 2px;font-size:9.5px;font-weight:600;
+                color:var(--text-muted,#9ca3af);text-transform:uppercase;letter-spacing:.06em;}
+            `;
+            document.head.appendChild(st);
+        }
+        const btn2 = document.createElement("button");
+        btn2.id = "sc-actions-menu-btn";
+        btn2.innerHTML = `<i class="ti ti-menu-2" style="font-size:13px;" aria-hidden="true"></i>
+            Actions <i class="ti ti-chevron-down" style="font-size:10px;" aria-hidden="true"></i>`;
+        btn2.onclick = e => {
+            e.stopPropagation();
+            document.getElementById("sc-actions-dropdown")?.classList.toggle("open");
+        };
+        const drop = document.createElement("div");
+        drop.id = "sc-actions-dropdown";
+        drop.innerHTML = `<div style="padding:5px;">
+            <div class="sc-am-sec">Export</div>
+            <button class="sc-am-item" id="sc-am-pdf">
+                <div class="sc-am-icon" style="background:var(--bg-accent,#eff6ff);">
+                    <i class="ti ti-checklist" style="font-size:14px;color:var(--text-accent,#1565c0);" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Télécharger PDF</div><div class="sc-am-sub">Rapport Style Components</div></div>
+            </button>
+            <button class="sc-am-item" id="sc-am-email">
+                <div class="sc-am-icon" style="background:var(--bg-success,#f0fdf4);">
+                    <i class="ti ti-mail" style="font-size:14px;color:var(--text-success,#166534);" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Envoyer par email</div><div class="sc-am-sub">Order Status Report</div></div>
+            </button>
+            <div class="sc-am-sep"></div>
+            <div class="sc-am-sec">Import & Analyse</div>
+            <button class="sc-am-item" id="sc-am-psd">
+                <div class="sc-am-icon" style="background:var(--bg-warning,#fef9c3);">
+                    <i class="ti ti-calendar-up" style="font-size:14px;color:var(--text-warning,#854d0e);" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Importer PSD</div><div class="sc-am-sub">SRS · Sewing · Packing</div></div>
+            </button>
+            <button class="sc-am-item" id="sc-am-tp">
+                <div class="sc-am-icon" style="background:#f5f3ff;">
+                    <i class="ti ti-bolt" style="font-size:14px;color:#7c3aed;" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Analyser TP</div><div class="sc-am-sub">Extraction IA</div></div>
+            </button>
+        </div>`;
+        drop.querySelector("#sc-am-pdf").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof openPDFModal === "function") openPDFModal();
+        };
+        drop.querySelector("#sc-am-email").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof openPDFModal === "function") {
+                openPDFModal();
+                setTimeout(() => document.querySelector(".sc-pdf-email-input")?.focus(), 400);
+            }
+        };
+        drop.querySelector("#sc-am-psd").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof window._psdTriggerUpload === "function") window._psdTriggerUpload();
+        };
+        drop.querySelector("#sc-am-tp").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
+        };
+        document.addEventListener("click", function scCloseDD(e) {
+            if (!btn2.contains(e.target) && !drop.contains(e.target)) {
+                drop.classList.remove("open");
+            }
+        });
+        wrapper.appendChild(btn2);
+        wrapper.appendChild(drop);
+        const headerRight = document.querySelector(".header-right");
+        const notifBtn    = document.getElementById("btn-notif-global")
+                         || document.querySelector(".header-right button");
+        if (notifBtn?.parentNode) {
+            notifBtn.parentNode.insertBefore(wrapper, notifBtn);
+        } else if (headerRight) {
+            headerRight.prepend(wrapper);
+        }
+        console.log("[AW27] Actions Menu injecté ✓");
+    }
+
     function init() {
         injectStyles();
         registerMenu();
