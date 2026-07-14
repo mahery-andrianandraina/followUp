@@ -665,6 +665,8 @@ ${pdfText.slice(0, 18000)}`;
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
+        // Exposer pour le menu Actions
+        window._tpaOpenModal = openAnalyzeModal;
         injectStyles();
         observeSheetNavigation();
         startButtonGuard();
