@@ -710,6 +710,8 @@
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
+        // Exposer pour le menu Actions
+        window._psdTriggerUpload = triggerPSDUpload;
         injectStyles();
         const tryInject = () => {
             if (document.querySelector(".header-right")) {
