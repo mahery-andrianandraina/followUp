@@ -369,19 +369,8 @@
             });
         });
 
-        // ── 5. Collecteurs personnalisés enregistrés à l'extérieur ──
-        if (Array.isArray(window.smartAlertsCollectors)) {
-            window.smartAlertsCollectors.forEach(collector => {
-                try {
-                    const customAlerts = collector(st);
-                    if (Array.isArray(customAlerts)) {
-                        alerts.push(...customAlerts);
-                    }
-                } catch (e) {
-                    console.error("[smartAlerts] Erreur dans un collecteur personnalisé :", e);
-                }
-            });
-        }
+        // Collecteurs externes désactivés — seules les alertes commitments sont actives
+        // (orderingAlerts.js et autres sont ignorés)
 
         // Trier : danger d'abord, puis warn
         return alerts.sort((a, b) => {
