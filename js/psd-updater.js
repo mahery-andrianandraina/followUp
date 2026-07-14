@@ -1,5 +1,5 @@
 // ================================================================
-//  AW27 — P  SD Updater
+//  AW27 — PSD Updater
 //  Analyse un fichier Excel hebdomadaire et met à jour la colonne
 //  PSD dans le sheet Details. Lecture côté client uniquement.
 //  Charger après app.js dans index.html.
@@ -674,37 +674,14 @@
     }
 
     // ── Injecter le bouton dans le header ─────────────────────
-    function injectHeaderButton() {
-        if (document.getElementById("btn-psd-updater")) return;
-
-        const btn   = document.createElement("button");
-        btn.id      = "btn-psd-updater";
-        btn.title   = "Importer et mettre à jour les dates PSD";
-        btn.innerHTML = btnHTML();
-        btn.onclick   = triggerPSDUpload;
-
-        const targets = [
-            document.getElementById("btn-components-pdf"),
-            document.getElementById("btn-order-scan"),
-            document.getElementById("btn-mail-alerts"),
-            document.getElementById("btn-notif-global"),
-            document.querySelector(".header-right button")
-        ];
-        const target      = targets.find(Boolean);
-        const headerRight = document.querySelector(".header-right");
-        if (target?.parentNode) {
-            target.parentNode.insertBefore(btn, target);
-        } else if (headerRight) {
-            headerRight.prepend(btn);
-        }
-    }
+    function injectHeaderButton() { /* Géré par sc-actions-menu.js */ }
 
     // ── Observer le header pour réinjection ───────────────────
     function startButtonGuard() {
         let count = 0;
         const g = setInterval(() => {
             if (++count > 120) { clearInterval(g); return; }
-            if (!document.getElementById("btn-psd-updater")) injectHeaderButton();
+            /* btn géré par sc-actions-menu.js */;
         }, 1000);
     }
 

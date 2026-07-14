@@ -1,5 +1,5 @@
 // ================================================================
-//  A W27 — Style Components
+//  AW27 — Style Components
 //  Gestion des composants par style avec génération PDF.
 //  Charger après app.js dans index.html.
 // ================================================================
@@ -2021,30 +2021,7 @@ ${sectionsHTML}
     };
 
     // ── Injecter le bouton PDF dans le header ─────────────────
-    function injectHeaderButton() {
-        if (document.getElementById("btn-components-pdf")) return;
-
-        const btn = document.createElement("button");
-        btn.id    = "btn-components-pdf";
-        btn.title = "Télécharger le PDF des composants styles";
-        btn.innerHTML = `<i class="ti ti-checklist" aria-hidden="true" style="font-size:17px;"></i>`;
-        btn.onclick = openPDFModal;
-
-        const targets = [
-            document.getElementById("btn-order-scan"),
-            document.getElementById("btn-mail-alerts"),
-            document.getElementById("btn-notif-global"),
-            document.querySelector(".header-right button")
-        ];
-        const target = targets.find(Boolean);
-        if (target?.parentNode) {
-            target.parentNode.insertBefore(btn, target);
-        } else {
-            document.querySelector(".header-right")?.prepend(btn);
-        }
-    }
-
-    // ── Init ──────────────────────────────────────────────────
+    function injectHeaderButton() { /* Géré par sc-actions-menu.js */ }
     function init() {
         injectStyles();
         registerMenu();
@@ -2090,7 +2067,7 @@ ${sectionsHTML}
         const _scGuard = setInterval(() => {
             if (++_scGuardCount > 50) { clearInterval(_scGuard); return; }
             if (document.querySelector(".header-right") &&
-                !document.getElementById("btn-components-pdf")) {
+                false && !document.getElementById("btn-components-pdf")) {
                 injectHeaderButton();
             }
         }, 600);

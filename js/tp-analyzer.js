@@ -1,6 +1,6 @@
 // ================================================================
 //  AW27 — TP Analyzer
-//  Analyse le Tech   Pack PDF d'un style via l'IA (GAS chatbot Gemini)
+//  Analyse le Tech Pack PDF d'un style via l'IA (GAS chatbot Gemini)
 //  et crée les lignes dans Style Components après validation.
 //  Charger après style-components.js dans index.html.
 // ================================================================
@@ -599,26 +599,7 @@ ${pdfText.slice(0, 18000)}`;
     };
 
     // ── Injecter le bouton dans la toolbar du sheet ───────────
-    function injectAnalyzeButton() {
-        if (document.getElementById("btn-analyze-tp")) return;
-        if (window.state?.activeSheet !== SHEET_KEY) return;
-
-        const titleEl = document.getElementById("header-sheet-title");
-        if (!titleEl) return;
-
-        const btn = document.createElement("button");
-        btn.id = "btn-analyze-tp";
-        btn.title = "Analyser le Tech Pack via IA pour extraire les composants";
-        btn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none"
-                viewBox="0 0 24 24" stroke="currentColor" width="13" height="13">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                    stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-            Analyser TP`;
-        btn.onclick = openAnalyzeModal;
-        titleEl.insertAdjacentElement("afterend", btn);
-    }
+    function injectAnalyzeButton() { /* Géré par sc-actions-menu.js */ }
 
     // ── Observer le titre du header pour détecter la navigation ──
     // renderAll n'est pas appelé lors de la navigation vers un menu custom
@@ -650,8 +631,7 @@ ${pdfText.slice(0, 18000)}`;
         const guard = setInterval(() => {
             if (++count > 120) { clearInterval(guard); return; }
             if (window.state?.activeSheet === SHEET_KEY &&
-                !document.getElementById("btn-analyze-tp")) {
-                injectAnalyzeButton();
+                false) { /* btn géré par sc-actions-menu.js */
             }
         }, 1000);
     }
