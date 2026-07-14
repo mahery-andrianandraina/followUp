@@ -869,30 +869,23 @@
                 <tr>
                     <td colspan="2" style="background:#f8fafc;padding:10px 16px;
                         border-bottom:1px solid #e2e8f0;">
-                        <table cellpadding="0" cellspacing="0"><tr>
+                        <!-- Rangée 1 : commande -->
+                        <table cellpadding="0" cellspacing="0" style="margin-bottom:8px;"><tr>
                             ${price ? `<td style="padding-right:20px;">
-                                <div style="font-size:9px;text-transform:uppercase;
-                                    letter-spacing:.07em;color:#94a3b8;">Prix approuvé</div>
-                                <div style="font-size:13px;font-weight:700;color:#166534;margin-top:1px;">
-                                    ${price}</div>
+                                <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;">Prix approuvé</div>
+                                <div style="font-size:14px;font-weight:700;color:#166534;margin-top:2px;">${price}</div>
                             </td>` : ""}
                             ${qty ? `<td style="padding-right:20px;">
-                                <div style="font-size:9px;text-transform:uppercase;
-                                    letter-spacing:.07em;color:#94a3b8;">Conf Total</div>
-                                <div style="font-size:13px;font-weight:700;color:#0f172a;margin-top:1px;">
-                                    ${qty}</div>
+                                <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;">Conf Total</div>
+                                <div style="font-size:14px;font-weight:700;color:#0f172a;margin-top:2px;">${qty}</div>
                             </td>` : ""}
                             ${vsl ? `<td style="padding-right:20px;">
-                                <div style="font-size:9px;text-transform:uppercase;
-                                    letter-spacing:.07em;color:#94a3b8;">Initial VSL</div>
-                                <div style="font-size:13px;font-weight:700;color:#1e40af;margin-top:1px;">
-                                    ${vsl}</div>
+                                <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;">Initial VSL</div>
+                                <div style="font-size:14px;font-weight:700;color:#1e40af;margin-top:2px;">${vsl}</div>
                             </td>` : ""}
                             ${psd ? `<td>
-                                <div style="font-size:9px;text-transform:uppercase;
-                                    letter-spacing:.07em;color:#94a3b8;">PSD</div>
-                                <div style="font-size:13px;font-weight:700;color:#6d28d9;margin-top:1px;">
-                                    ${psd}</div>
+                                <div style="font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#94a3b8;">PSD</div>
+                                <div style="font-size:14px;font-weight:700;color:#6d28d9;margin-top:2px;">${psd}</div>
                             </td>` : ""}
                         </tr></table>
                     </td>
@@ -1149,44 +1142,50 @@
                         <div class="card-ctl">CTL Ref : <span>${group.ctlRef || "—"}</span></div>
 
                         <!-- Métriques clés -->
-                        ${(appPrice || confTotal || vslDate || psdDate) ? `
-                        <div class="metrics-strip">
+                        ${(appPrice || confTotal || vslDate || psdDate || srsDate || sewingDate || packingDate) ? `
+                        <!-- Rangée 1 : Infos commande -->
+                        <div class="metrics-strip" style="margin-bottom:6px;">
                             ${appPrice ? `
                             <div class="metric-item">
                                 <div class="metric-label">Prix approuvé</div>
-                                <div class="metric-value" style="color:#166534;">${appPrice}</div>
+                                <div class="metric-value" style="color:#166534;font-size:13px;">${appPrice}</div>
                             </div>` : ""}
                             ${confTotal ? `
                             <div class="metric-item">
                                 <div class="metric-label">Conf Total</div>
-                                <div class="metric-value">${confTotal} u.</div>
+                                <div class="metric-value" style="font-size:13px;">${confTotal} u.</div>
                             </div>` : ""}
                             ${vslDate ? `
                             <div class="metric-item">
                                 <div class="metric-label">Initial VSL</div>
-                                <div class="metric-value" style="color:#1e3a5f;">${vslDate}</div>
+                                <div class="metric-value" style="color:#1e3a5f;font-size:13px;">${vslDate}</div>
                             </div>` : ""}
                             ${psdDate ? `
                             <div class="metric-item">
                                 <div class="metric-label">PSD</div>
-                                <div class="metric-value" style="color:#6d28d9;">${psdDate}</div>
+                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">${psdDate}</div>
                             </div>` : ""}
+                        </div>
+                        <!-- Rangée 2 : Commitments -->
+                        ${(srsDate || sewingDate || packingDate) ? `
+                        <div class="metrics-strip">
                             ${srsDate ? `
                             <div class="metric-item">
-                                <div class="metric-label">SRS Launch.</div>
-                                <div class="metric-value" style="color:#0369a1;">${srsDate}</div>
+                                <div class="metric-label">SRS Launching</div>
+                                <div class="metric-value" style="color:#0369a1;font-size:13px;">${srsDate}</div>
                             </div>` : ""}
                             ${sewingDate ? `
                             <div class="metric-item">
                                 <div class="metric-label">Sewing Trims</div>
-                                <div class="metric-value" style="color:#0f766e;">${sewingDate}</div>
+                                <div class="metric-value" style="color:#0f766e;font-size:13px;">${sewingDate}</div>
                             </div>` : ""}
                             ${packingDate ? `
                             <div class="metric-item">
                                 <div class="metric-label">Packing Trims</div>
-                                <div class="metric-value" style="color:#6d28d9;">${packingDate}</div>
+                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">${packingDate}</div>
                             </div>` : ""}
                         </div>` : ""}
+                        ` : ""}
 
                         <!-- Status badges -->
                         <div class="badges">
