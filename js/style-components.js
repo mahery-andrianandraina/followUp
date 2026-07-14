@@ -1672,53 +1672,74 @@ ${sectionsHTML}
         row.querySelector("input")?.focus();
     };
 
-    // ── Générer le PDF comme base64 via jsPDF ────────────────────
+    // ── Générer le PDF via html2canvas + jsPDF (image) ─────────
     async function _scGeneratePDFBase64(htmlContent) {
-        // Charger jsPDF
-        if (!window.jspdf) {
-            await new Promise((res, rej) => {
-                const s = document.createElement("script");
-                s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-                s.onload = res; s.onerror = rej;
-                document.head.appendChild(s);
-            });
-        }
-        // Charger html2canvas
-        if (!window.html2canvas) {
-            await new Promise((res, rej) => {
-                const s = document.createElement("script");
-                s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-                s.onload = res; s.onerror = rej;
-                document.head.appendChild(s);
-            });
-        }
+        const loadScript = url => new Promise((res, rej) => {
+            const s = document.createElement("script");
+            s.src = url; s.onload = res; s.onerror = rej;
+            document.head.appendChild(s);
+        });
 
-        // Conteneur caché pour le rendu
+        if (!window.jspdf)
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+        if (!window.html2canvas)
+            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+
+        // Conteneur visible temporairement (html2canvas ne rend pas l'invisible)
         const container = document.createElement("div");
-        container.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;" +
-            "background:#fff;z-index:-1;";
+        container.style.cssText = [
+            "position:absolute", "top:0", "left:0", "width:794px",
+            "background:#fff", "z-index:99999", "opacity:0",
+            "pointer-events:none"
+        ].join(";");
         container.innerHTML = htmlContent;
         document.body.appendChild(container);
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ format: "a4", unit: "mm", orientation: "portrait" });
+        // Attendre le rendu du DOM
+        await new Promise(r => setTimeout(r, 300));
 
-        return new Promise((resolve, reject) => {
-            doc.html(container, {
-                callback: function(pdf) {
-                    document.body.removeChild(container);
-                    try {
-                        const b64 = pdf.output("datauristring").split(",")[1];
-                        resolve(b64 || "");
-                    } catch(e) { reject(e); }
-                },
-                x: 0, y: 0,
-                width: 210,
+        try {
+            const canvas = await window.html2canvas(container, {
+                scale:       1.5,
+                useCORS:     true,
+                allowTaint:  true,
+                width:       794,
                 windowWidth: 794,
-                margin: [10, 10, 10, 10],
-                autoPaging: "text"
+                backgroundColor: "#ffffff"
             });
-        });
+
+            document.body.removeChild(container);
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ format:"a4", unit:"mm", orientation:"portrait" });
+
+            const pdfW      = doc.internal.pageSize.getWidth();   // 210mm
+            const pdfH      = doc.internal.pageSize.getHeight();  // 297mm
+            const imgW      = canvas.width;
+            const imgH      = canvas.height;
+            const ratio     = pdfW / (imgW / 1.5 * (210 / 210)); // px → mm
+            const imgHeightMM = (imgH / 1.5) * (pdfW / (imgW / 1.5));
+
+            const imgData = canvas.toDataURL("image/jpeg", 0.85);
+
+            let yPos = 0;
+            let remaining = imgHeightMM;
+
+            doc.addImage(imgData, "JPEG", 0, yPos, pdfW, imgHeightMM);
+
+            while (remaining > pdfH) {
+                remaining -= pdfH;
+                yPos       -= pdfH;
+                doc.addPage();
+                doc.addImage(imgData, "JPEG", 0, yPos, pdfW, imgHeightMM);
+            }
+
+            return doc.output("datauristring").split(",")[1] || "";
+
+        } catch(err) {
+            if (document.body.contains(container)) document.body.removeChild(container);
+            throw err;
+        }
     }
 
     // ── Handler principal (exposé globalement) ────────────────
@@ -1786,7 +1807,7 @@ ${sectionsHTML}
                 localStorage.setItem("aw27_sc_pdf_email", recipient);
 
                 const today   = new Date().toISOString().slice(0, 10);
-                const subject = `AW27 — Style Components — ${today}`;
+                const subject = `Order Status — AW27 Style Components — ${today}`;
 
                 // Récupérer le message personnalisé
                 const customMsg = (document.getElementById("sc-pdf-message")?.value || "").trim();
