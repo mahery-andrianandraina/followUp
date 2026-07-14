@@ -763,6 +763,136 @@
 
     // ── Construire le HTML du rapport ─────────────────────────
     // ── Email HTML optimisé pour clients mail (Outlook, Gmail) ──
+    // ── Email body simple et professionnel (liste des styles) ──────
+    function buildSimpleEmailBody(rows, customMsg) {
+        const groups = {};
+        const order  = [];
+        rows.forEach(row => {
+            const k = String(row["Cust Style Ref"]||"").trim();
+            if (!groups[k]) { groups[k] = { rows: [] }; order.push(k); }
+            groups[k].rows.push(row);
+        });
+
+        const today = new Date().toLocaleDateString("fr-FR",
+            { weekday:"long", day:"2-digit", month:"long", year:"numeric" });
+        const todayCap = today.charAt(0).toUpperCase() + today.slice(1);
+
+        const fmtD = val => {
+            if (!val) return "—";
+            const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) {
+                const d = new Date(+m[1], +m[2]-1, +m[3]);
+                return d.toLocaleDateString("fr-FR", { day:"2-digit", month:"short", year:"numeric" });
+            }
+            try { const d = new Date(val); if (!isNaN(d)) return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); } catch(e){}
+            return String(val);
+        };
+
+        const rowsHTML = order.map((key, i) => {
+            const g       = groups[key];
+            const detRow  = (window.state?.data?.details||[]).find(r => String(r["Cust Style Ref"]||"").trim() === key);
+            const ctlRef  = String(detRow?.CTLStyleRef || detRow?.["CTL Style Ref"] || "—");
+            const psd     = fmtD(detRow?.PSD);
+            const inHouse = g.rows.filter(r => String(r.Status||"").toLowerCase()==="in house").length;
+            const poSent  = g.rows.filter(r => String(r.Status||"").toLowerCase()==="po sent").length;
+            const pending = g.rows.filter(r => String(r.Status||"").toLowerCase()==="pending").length;
+            const waiting = g.rows.filter(r => String(r.Status||"").toLowerCase()==="waiting approval").length;
+            const bg = i%2===0 ? "#ffffff" : "#f9fafb";
+
+            const statusSummary = [
+                inHouse > 0 ? `<span style="padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600;background:#f0fdf4;color:#166534;border:1px solid #86efac;">${inHouse} In House</span>` : "",
+                poSent  > 0 ? `<span style="padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600;background:#eff6ff;color:#1e40af;border:1px solid #93c5fd;">${poSent} PO Sent</span>` : "",
+                pending > 0 ? `<span style="padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600;background:#fef9c3;color:#854d0e;border:1px solid #fde68a;">${pending} Pending</span>` : "",
+                waiting > 0 ? `<span style="padding:1px 7px;border-radius:12px;font-size:10px;font-weight:600;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa;">${waiting} Waiting</span>` : ""
+            ].filter(Boolean).join(" ");
+
+            return `<tr style="background:${bg};">
+                <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#0f172a;
+                    border-bottom:1px solid #f0f0f0;">${key}</td>
+                <td style="padding:10px 14px;font-size:11px;color:#475569;
+                    border-bottom:1px solid #f0f0f0;">${ctlRef}</td>
+                <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;">
+                    ${statusSummary || `<span style="color:#d1d5db;font-size:11px;">${g.rows.length} composant${g.rows.length>1?"s":""}</span>`}
+                </td>
+                <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#6d28d9;
+                    border-bottom:1px solid #f0f0f0;white-space:nowrap;">${psd}</td>
+            </tr>`;
+        }).join("");
+
+        return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"/></head>
+<body style="margin:0;padding:0;background:#f3f4f6;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0"
+    style="max-width:620px;margin:24px auto;background:#fff;
+           border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;">
+
+    <!-- Header -->
+    <tr><td style="background:#0f172a;padding:18px 24px;">
+        <table cellpadding="0" cellspacing="0"><tr>
+            <td style="padding-right:12px;">
+                <div style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);
+                    border-radius:7px;padding:5px 12px;display:inline-block;
+                    color:#fff;font-size:15px;font-weight:700;letter-spacing:.06em;">AW27</div>
+            </td>
+            <td>
+                <div style="color:#fff;font-size:14px;font-weight:600;">Style Components — Order Status</div>
+                <div style="color:rgba(255,255,255,.5);font-size:11px;margin-top:2px;">${todayCap}</div>
+            </td>
+            <td style="text-align:right;padding-left:20px;white-space:nowrap;">
+                <div style="color:rgba(255,255,255,.6);font-size:11px;">
+                    ${order.length} style${order.length>1?"s":""}<br>
+                    ${rows.length} composant${rows.length>1?"s":""}
+                </div>
+            </td>
+        </tr></table>
+    </td></tr>
+
+    ${customMsg ? `
+    <tr><td style="padding:14px 24px 0;">
+        <div style="padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;
+            border-radius:8px;font-size:12px;color:#78350f;line-height:1.6;">
+            <strong style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+                color:#92400e;display:block;margin-bottom:4px;">Message</strong>
+            ${customMsg.replace(String.fromCharCode(10),"<br>")}
+        </div>
+    </td></tr>` : ""}
+
+    <!-- Table -->
+    <tr><td style="padding:16px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0"
+            style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+            <thead><tr style="background:#f1f5f9;">
+                <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
+                    color:#64748b;text-transform:uppercase;letter-spacing:.07em;
+                    border-bottom:1.5px solid #e2e8f0;">Style</th>
+                <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
+                    color:#64748b;text-transform:uppercase;letter-spacing:.07em;
+                    border-bottom:1.5px solid #e2e8f0;">CTL Ref</th>
+                <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
+                    color:#64748b;text-transform:uppercase;letter-spacing:.07em;
+                    border-bottom:1.5px solid #e2e8f0;">Composants</th>
+                <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:600;
+                    color:#64748b;text-transform:uppercase;letter-spacing:.07em;
+                    border-bottom:1.5px solid #e2e8f0;">PSD</th>
+            </tr></thead>
+            <tbody>${rowsHTML}</tbody>
+        </table>
+        <p style="text-align:center;font-size:10.5px;color:#94a3b8;margin-top:12px;">
+            Le rapport détaillé est joint en pièce jointe (PDF).
+        </p>
+    </td></tr>
+
+    <!-- Footer -->
+    <tr><td style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;
+        text-align:center;font-size:10px;color:#94a3b8;">
+        <strong style="color:#1e3a5f;">AW27 Checkers</strong> — Style Components Report — ${todayCap}
+    </td></tr>
+
+</table>
+</body></html>`;
+    }
+
     function buildStyleCompEmailHTML(rows, customMsg) {
         const groups = {};
         const order  = [];
@@ -1542,6 +1672,55 @@ ${sectionsHTML}
         row.querySelector("input")?.focus();
     };
 
+    // ── Générer le PDF comme base64 via jsPDF ────────────────────
+    async function _scGeneratePDFBase64(htmlContent) {
+        // Charger jsPDF
+        if (!window.jspdf) {
+            await new Promise((res, rej) => {
+                const s = document.createElement("script");
+                s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+        }
+        // Charger html2canvas
+        if (!window.html2canvas) {
+            await new Promise((res, rej) => {
+                const s = document.createElement("script");
+                s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+        }
+
+        // Conteneur caché pour le rendu
+        const container = document.createElement("div");
+        container.style.cssText = "position:fixed;left:-9999px;top:0;width:794px;" +
+            "background:#fff;z-index:-1;";
+        container.innerHTML = htmlContent;
+        document.body.appendChild(container);
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ format: "a4", unit: "mm", orientation: "portrait" });
+
+        return new Promise((resolve, reject) => {
+            doc.html(container, {
+                callback: function(pdf) {
+                    document.body.removeChild(container);
+                    try {
+                        const b64 = pdf.output("datauristring").split(",")[1];
+                        resolve(b64 || "");
+                    } catch(e) { reject(e); }
+                },
+                x: 0, y: 0,
+                width: 210,
+                windowWidth: 794,
+                margin: [10, 10, 10, 10],
+                autoPaging: "text"
+            });
+        });
+    }
+
     // ── Handler principal (exposé globalement) ────────────────
     window._scGeneratePDF = async function(sendEmail) {
         // Collecter tous les emails des champs dynamiques
@@ -1612,25 +1791,34 @@ ${sectionsHTML}
                 // Récupérer le message personnalisé
                 const customMsg = (document.getElementById("sc-pdf-message")?.value || "").trim();
 
-                // Corps email propre pour clients mail
-                let emailBody;
+                // 1. Email body : liste simple et professionnelle
+                const emailBody = buildSimpleEmailBody(rows, customMsg);
+
+                // 2. Générer le PDF complet via jsPDF et l'attacher
+                typeof showToast === "function" &&
+                    showToast("Génération du PDF en cours…", "info", 15000);
+
+                let pdfBase64 = "";
                 try {
-                    emailBody = buildStyleCompEmailHTML(rows, customMsg);
-                } catch(emailErr) {
-                    console.error("[SC] buildStyleCompEmailHTML error:", emailErr);
-                    emailBody = htmlDoc; // fallback au PDF HTML
+                    pdfBase64 = await _scGeneratePDFBase64(htmlDoc);
+                } catch(pdfErr) {
+                    console.warn("[SC] PDF generation failed:", pdfErr.message);
                 }
 
+                const today2 = new Date().toISOString().slice(0,10);
                 const payload = {
-                    action:     "SEND_ALERT_EMAIL",
+                    action:          "SEND_ALERT_EMAIL",
                     recipient,
                     subject,
-                    htmlBody:   emailBody,
-                    xlsxBase64: "",
-                    fileName:   ""
+                    htmlBody:        emailBody,
+                    xlsxBase64:      pdfBase64,
+                    fileName:        `Order_Status_AW27_${today2}.pdf`,
+                    attachMimeType:  "application/pdf"
                 };
 
-                console.log("[SC] Envoi email à:", recipient);
+                console.log("[SC] Envoi email à:", recipient,
+                    "| body:", emailBody.length, "chars",
+                    "| pdf:", pdfBase64 ? "OK" : "ABSENT");
                 const res = await fetch(gasUrl, {
                     method:   "POST",
                     headers:  { "Content-Type": "text/plain;charset=utf-8" },
