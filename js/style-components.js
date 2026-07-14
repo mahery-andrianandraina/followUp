@@ -1141,49 +1141,47 @@
                         <div class="card-name">${group.custRef || "—"}</div>
                         <div class="card-ctl">CTL Ref : <span>${group.ctlRef || "—"}</span></div>
 
-                        <!-- Métriques clés -->
+                        <!-- Métriques : 2 blocs côte à côte -->
                         ${(appPrice || confTotal || vslDate || psdDate || srsDate || sewingDate || packingDate) ? `
-                        <!-- Rangée 1 : Infos commande -->
-                        <div class="metrics-strip" style="margin-bottom:6px;">
-                            ${appPrice ? `
-                            <div class="metric-item">
-                                <div class="metric-label">Prix approuvé</div>
-                                <div class="metric-value" style="color:#166534;font-size:13px;">${appPrice}</div>
-                            </div>` : ""}
-                            ${confTotal ? `
-                            <div class="metric-item">
-                                <div class="metric-label">Conf Total</div>
-                                <div class="metric-value" style="font-size:13px;">${confTotal} u.</div>
-                            </div>` : ""}
-                            ${vslDate ? `
-                            <div class="metric-item">
-                                <div class="metric-label">Initial VSL</div>
-                                <div class="metric-value" style="color:#1e3a5f;font-size:13px;">${vslDate}</div>
-                            </div>` : ""}
-                            ${psdDate ? `
-                            <div class="metric-item">
-                                <div class="metric-label">PSD</div>
-                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">${psdDate}</div>
-                            </div>` : ""}
-                        </div>
-                        <!-- Rangée 2 : Commitments (toujours affichée si des données existent) -->
-                        <div class="metrics-strip">
-                            <div class="metric-item">
-                                <div class="metric-label">SRS Launching</div>
-                                <div class="metric-value" style="color:#0369a1;font-size:13px;">
-                                    ${srsDate || '<span style="color:#d1d5db;">—</span>'}
+                        <div style="display:flex;gap:6px;margin-bottom:7px;">
+
+                            <div style="flex:1;background:#f8fafc;border:0.5px solid #e2e8f0;border-radius:7px;padding:6px 9px;">
+                                <div style="font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;font-weight:600;margin-bottom:4px;">Commande</div>
+                                <div style="display:flex;gap:10px;">
+                                    ${appPrice ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#94a3b8;">Prix appr.</div>
+                                        <div style="font-size:11px;font-weight:600;color:#166534;">${appPrice}</div>
+                                    </div>` : ""}
+                                    ${confTotal ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#94a3b8;">Conf Total</div>
+                                        <div style="font-size:11px;font-weight:600;color:#0f172a;">${confTotal} u.</div>
+                                    </div>` : ""}
+                                    ${vslDate ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#94a3b8;">Initial VSL</div>
+                                        <div style="font-size:11px;font-weight:600;color:#1e40af;">${vslDate}</div>
+                                    </div>` : ""}
                                 </div>
                             </div>
-                            <div class="metric-item">
-                                <div class="metric-label">Sewing Trims</div>
-                                <div class="metric-value" style="color:#0f766e;font-size:13px;">
-                                    ${sewingDate || '<span style="color:#d1d5db;">—</span>'}
-                                </div>
-                            </div>
-                            <div class="metric-item" style="border-right:none;">
-                                <div class="metric-label">Packing Trims</div>
-                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">
-                                    ${packingDate || '<span style="color:#d1d5db;">—</span>'}
+
+                            <div style="flex:1.4;background:#fff7ed;border:0.5px solid #fed7aa;border-radius:7px;padding:6px 9px;">
+                                <div style="font-size:7.5px;text-transform:uppercase;letter-spacing:.06em;color:#9a3412;font-weight:600;margin-bottom:4px;">Commitments</div>
+                                <div style="display:flex;gap:8px;">
+                                    ${psdDate ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#c2410c;opacity:.8;">PSD</div>
+                                        <div style="font-size:11px;font-weight:600;color:#9a3412;">${String(psdDate).split(" ").slice(0,2).join(" ")}</div>
+                                    </div>` : ""}
+                                    ${srsDate ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#c2410c;opacity:.8;">SRS</div>
+                                        <div style="font-size:11px;font-weight:600;color:#9a3412;">${String(srsDate).split(" ").slice(0,2).join(" ")}</div>
+                                    </div>` : ""}
+                                    ${sewingDate ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#c2410c;opacity:.8;">Sewing</div>
+                                        <div style="font-size:11px;font-weight:600;color:#9a3412;">${String(sewingDate).split(" ").slice(0,2).join(" ")}</div>
+                                    </div>` : ""}
+                                    ${packingDate ? `<div>
+                                        <div style="font-size:7px;text-transform:uppercase;color:#c2410c;opacity:.8;">Packing</div>
+                                        <div style="font-size:11px;font-weight:600;color:#9a3412;">${String(packingDate).split(" ").slice(0,2).join(" ")}</div>
+                                    </div>` : ""}
                                 </div>
                             </div>
                         </div>
