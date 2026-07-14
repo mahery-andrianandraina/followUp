@@ -1672,74 +1672,201 @@ ${sectionsHTML}
         row.querySelector("input")?.focus();
     };
 
-    // ── Générer le PDF via html2canvas + jsPDF (image) ─────────
-    async function _scGeneratePDFBase64(htmlContent) {
-        const loadScript = url => new Promise((res, rej) => {
-            const s = document.createElement("script");
-            s.src = url; s.onload = res; s.onerror = rej;
-            document.head.appendChild(s);
+    // ── Générer le PDF directement via jsPDF (sans HTML rendering) ──
+    async function _scGeneratePDFBase64(rows) {
+        if (!window.jspdf) {
+            await new Promise((res, rej) => {
+                const s = document.createElement("script");
+                s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+                s.onload = res; s.onerror = rej;
+                document.head.appendChild(s);
+            });
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ format:"a4", unit:"mm" });
+        const W = 210, MARGIN = 12;
+        const CW = W - MARGIN * 2;
+        let y = 0;
+
+        const today = new Date().toLocaleDateString("fr-FR",
+            { day:"2-digit", month:"long", year:"numeric" });
+
+        const fmtD = val => {
+            if (!val) return "—";
+            const m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (m) { const d = new Date(+m[1],+m[2]-1,+m[3]);
+                return d.toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"}); }
+            return String(val);
+        };
+
+        // Helpers
+        const addPage = () => { doc.addPage(); y = 0; };
+        const checkPage = (need=20) => { if (y + need > 280) addPage(); };
+
+        const hexToRGB = h => {
+            const r = parseInt(h.slice(1,3),16), g = parseInt(h.slice(3,5),16),
+                  b = parseInt(h.slice(5,7),16);
+            return [r,g,b];
+        };
+        const setFill = hex => { const [r,g,b] = hexToRGB(hex); doc.setFillColor(r,g,b); };
+        const setTxt  = hex => { const [r,g,b] = hexToRGB(hex); doc.setTextColor(r,g,b); };
+
+        // ── HEADER PAGE ────────────────────────────────────────
+        setFill("#0f172a"); doc.rect(0, 0, W, 28, "F");
+        setTxt("#ffffff");
+        doc.setFontSize(9); doc.setFont("helvetica","normal");
+        doc.text("AW27", MARGIN + 2, 11);
+        doc.setFontSize(14); doc.setFont("helvetica","bold");
+        doc.text("Style Components — Order Status", MARGIN + 14, 11);
+        doc.setFontSize(9); doc.setFont("helvetica","normal");
+        doc.text(today, MARGIN + 14, 18);
+        doc.text(`${Object.keys(groups2).length} styles · ${rows.length} composants`,
+            W - MARGIN, 14, { align:"right" });
+
+        y = 34;
+
+        // Grouper les rows par style
+        const groups2 = {};
+        const order2  = [];
+        rows.forEach(r => {
+            const k = String(r["Cust Style Ref"]||"").trim();
+            if (!groups2[k]) { groups2[k] = { rows:[] }; order2.push(k); }
+            groups2[k].rows.push(r);
         });
 
-        if (!window.jspdf)
-            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
-        if (!window.html2canvas)
-            await loadScript("https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js");
+        // ── STYLES ─────────────────────────────────────────────
+        order2.forEach(key => {
+            const g      = groups2[key];
+            const detRow = (window.state?.data?.details||[])
+                .find(r => String(r["Cust Style Ref"]||"").trim() === key);
+            const ctlRef = String(detRow?.CTLStyleRef || detRow?.["CTL Style Ref"] || "—");
+            const price  = detRow?.["Approved Price $"] ? `$${detRow["Approved Price $"]}` : "—";
+            const qty    = detRow?.["Conf Total"] ? `${detRow["Conf Total"]} u.` : "—";
+            const vsl    = fmtD(detRow?.["Initial Vsl Date"]);
+            const psd    = fmtD(detRow?.PSD);
+            const srs    = fmtD(detRow?.SRS_Launching);
+            const sew    = fmtD(detRow?.Sewing_Trims);
+            const pack   = fmtD(detRow?.Packing_Trims);
 
-        // Conteneur visible temporairement (html2canvas ne rend pas l'invisible)
-        const container = document.createElement("div");
-        container.style.cssText = [
-            "position:absolute", "top:0", "left:0", "width:794px",
-            "background:#fff", "z-index:99999", "opacity:0",
-            "pointer-events:none"
-        ].join(";");
-        container.innerHTML = htmlContent;
-        document.body.appendChild(container);
+            checkPage(60);
 
-        // Attendre le rendu du DOM
-        await new Promise(r => setTimeout(r, 300));
+            // Style header bar
+            setFill("#1e3a5f");
+            doc.rect(MARGIN, y, CW, 9, "F");
+            setTxt("#ffffff");
+            doc.setFontSize(10); doc.setFont("helvetica","bold");
+            doc.text(key, MARGIN + 3, y + 6.2);
+            doc.setFontSize(8); doc.setFont("helvetica","normal");
+            doc.text(`CTL: ${ctlRef}`, W - MARGIN - 3, y + 6.2, { align:"right" });
+            y += 9;
 
-        try {
-            const canvas = await window.html2canvas(container, {
-                scale:       1.5,
-                useCORS:     true,
-                allowTaint:  true,
-                width:       794,
-                windowWidth: 794,
-                backgroundColor: "#ffffff"
+            // Commande strip
+            setFill("#f8fafc");
+            doc.rect(MARGIN, y, CW * 0.4, 12, "F");
+            doc.setDrawColor(226,232,240);
+            doc.rect(MARGIN, y, CW * 0.4, 12);
+            setTxt("#94a3b8");
+            doc.setFontSize(6.5); doc.setFont("helvetica","bold");
+            doc.text("COMMANDE", MARGIN + 2, y + 4);
+            setTxt("#0f172a");
+            doc.setFontSize(7.5); doc.setFont("helvetica","normal");
+            [[price,"#166534"],[qty,"#0f172a"],[vsl,"#1e40af"]].forEach(([v,c], i) => {
+                const labels = ["Prix appr.","Conf Total","Initial VSL"];
+                const xBase = MARGIN + 2 + i * (CW * 0.4 / 3);
+                setTxt("#94a3b8");
+                doc.setFontSize(6);
+                doc.text(labels[i], xBase, y + 8);
+                setTxt(c);
+                doc.setFontSize(8); doc.setFont("helvetica","bold");
+                doc.text(v, xBase, y + 12);
+                doc.setFont("helvetica","normal");
             });
 
-            document.body.removeChild(container);
+            // Commitments strip
+            const cx = MARGIN + CW * 0.4 + 2;
+            const cw = CW * 0.6 - 2;
+            setFill("#fff7ed");
+            doc.rect(cx, y, cw, 12, "F");
+            doc.setDrawColor(254,215,170);
+            doc.rect(cx, y, cw, 12);
+            setTxt("#9a3412");
+            doc.setFontSize(6.5); doc.setFont("helvetica","bold");
+            doc.text("COMMITMENTS", cx + 2, y + 4);
+            [[psd,"PSD"],[srs,"SRS"],[sew,"Sewing"],[pack,"Packing"]].forEach(([v,l], i) => {
+                const xBase = cx + 2 + i * (cw / 4);
+                setTxt("#c2410c"); doc.setFontSize(6); doc.setFont("helvetica","normal");
+                doc.text(l, xBase, y + 8);
+                setTxt("#9a3412"); doc.setFontSize(7.5); doc.setFont("helvetica","bold");
+                doc.text(v, xBase, y + 12);
+                doc.setFont("helvetica","normal");
+            });
+            y += 14;
 
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ format:"a4", unit:"mm", orientation:"portrait" });
+            // Components table header
+            setFill("#f1f5f9");
+            doc.rect(MARGIN, y, CW, 7, "F");
+            setTxt("#64748b");
+            doc.setFontSize(6.5); doc.setFont("helvetica","bold");
+            doc.text("COMPOSANT",  MARGIN + 2,      y + 5);
+            doc.text("STATUS",     MARGIN + CW*0.35, y + 5);
+            doc.text("DETAILS",    MARGIN + CW*0.52, y + 5);
+            y += 7;
 
-            const pdfW      = doc.internal.pageSize.getWidth();   // 210mm
-            const pdfH      = doc.internal.pageSize.getHeight();  // 297mm
-            const imgW      = canvas.width;
-            const imgH      = canvas.height;
-            const ratio     = pdfW / (imgW / 1.5 * (210 / 210)); // px → mm
-            const imgHeightMM = (imgH / 1.5) * (pdfW / (imgW / 1.5));
+            // Component rows
+            g.rows.forEach((r, ri) => {
+                const comp   = String(r.Composant||"—");
+                const status = String(r.Status||"—");
+                const det    = String(r.Details||"—").split(String.fromCharCode(10)).join(" ").slice(0,60);
+                const rowH   = 7;
 
-            const imgData = canvas.toDataURL("image/jpeg", 0.85);
+                checkPage(rowH + 2);
 
-            let yPos = 0;
-            let remaining = imgHeightMM;
+                if (ri % 2 === 1) {
+                    setFill("#fafafa");
+                    doc.rect(MARGIN, y, CW, rowH, "F");
+                }
+                doc.setDrawColor(241,245,249);
+                doc.line(MARGIN, y + rowH, MARGIN + CW, y + rowH);
 
-            doc.addImage(imgData, "JPEG", 0, yPos, pdfW, imgHeightMM);
+                setTxt("#0f172a");
+                doc.setFontSize(7.5); doc.setFont("helvetica","bold");
+                doc.text(comp.slice(0,28), MARGIN + 2, y + 4.8);
 
-            while (remaining > pdfH) {
-                remaining -= pdfH;
-                yPos       -= pdfH;
-                doc.addPage();
-                doc.addImage(imgData, "JPEG", 0, yPos, pdfW, imgHeightMM);
-            }
+                // Status badge (text only)
+                const statusColors = {
+                    "in house":         "#166534",
+                    "po sent":          "#1e40af",
+                    "pending":          "#854d0e",
+                    "waiting approval": "#9a3412",
+                    "approved":         "#166534",
+                    "rejected":         "#991b1b"
+                };
+                const sc2 = statusColors[status.toLowerCase()] || "#6b7280";
+                setTxt(sc2);
+                doc.setFontSize(7); doc.setFont("helvetica","normal");
+                doc.text(status, MARGIN + CW*0.35, y + 4.8);
 
-            return doc.output("datauristring").split(",")[1] || "";
+                setTxt("#475569");
+                doc.text(det.slice(0,45), MARGIN + CW*0.52, y + 4.8);
+                y += rowH;
+            });
 
-        } catch(err) {
-            if (document.body.contains(container)) document.body.removeChild(container);
-            throw err;
+            y += 5; // espace entre styles
+        });
+
+        // Footer
+        const pages = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= pages; p++) {
+            doc.setPage(p);
+            setFill("#f8fafc");
+            doc.rect(0, 287, W, 10, "F");
+            setTxt("#94a3b8");
+            doc.setFontSize(7); doc.setFont("helvetica","normal");
+            doc.text("AW27 Checkers — Style Components Report", MARGIN, 293);
+            doc.text(`Page ${p}/${pages}`, W - MARGIN, 293, { align:"right" });
         }
+
+        return doc.output("datauristring").split(",")[1] || "";
     }
 
     // ── Handler principal (exposé globalement) ────────────────
@@ -1821,7 +1948,7 @@ ${sectionsHTML}
 
                 let pdfBase64 = "";
                 try {
-                    pdfBase64 = await _scGeneratePDFBase64(htmlDoc);
+                    pdfBase64 = await _scGeneratePDFBase64(rows);
                 } catch(pdfErr) {
                     console.warn("[SC] PDF generation failed:", pdfErr.message);
                 }
