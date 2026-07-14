@@ -1166,25 +1166,27 @@
                                 <div class="metric-value" style="color:#6d28d9;font-size:13px;">${psdDate}</div>
                             </div>` : ""}
                         </div>
-                        <!-- Rangée 2 : Commitments -->
-                        ${(srsDate || sewingDate || packingDate) ? `
+                        <!-- Rangée 2 : Commitments (toujours affichée si des données existent) -->
                         <div class="metrics-strip">
-                            ${srsDate ? `
                             <div class="metric-item">
                                 <div class="metric-label">SRS Launching</div>
-                                <div class="metric-value" style="color:#0369a1;font-size:13px;">${srsDate}</div>
-                            </div>` : ""}
-                            ${sewingDate ? `
+                                <div class="metric-value" style="color:#0369a1;font-size:13px;">
+                                    ${srsDate || '<span style="color:#d1d5db;">—</span>'}
+                                </div>
+                            </div>
                             <div class="metric-item">
                                 <div class="metric-label">Sewing Trims</div>
-                                <div class="metric-value" style="color:#0f766e;font-size:13px;">${sewingDate}</div>
-                            </div>` : ""}
-                            ${packingDate ? `
-                            <div class="metric-item">
+                                <div class="metric-value" style="color:#0f766e;font-size:13px;">
+                                    ${sewingDate || '<span style="color:#d1d5db;">—</span>'}
+                                </div>
+                            </div>
+                            <div class="metric-item" style="border-right:none;">
                                 <div class="metric-label">Packing Trims</div>
-                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">${packingDate}</div>
-                            </div>` : ""}
-                        </div>` : ""}
+                                <div class="metric-value" style="color:#6d28d9;font-size:13px;">
+                                    ${packingDate || '<span style="color:#d1d5db;">—</span>'}
+                                </div>
+                            </div>
+                        </div>
                         ` : ""}
 
                         <!-- Status badges -->
