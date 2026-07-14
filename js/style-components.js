@@ -1711,6 +1711,15 @@ ${sectionsHTML}
         const setFill = hex => { const [r,g,b] = hexToRGB(hex); doc.setFillColor(r,g,b); };
         const setTxt  = hex => { const [r,g,b] = hexToRGB(hex); doc.setTextColor(r,g,b); };
 
+        // Grouper les rows par style (AVANT le header)
+        const groups2 = {};
+        const order2  = [];
+        rows.forEach(r => {
+            const k = String(r["Cust Style Ref"]||"").trim();
+            if (!groups2[k]) { groups2[k] = { rows:[] }; order2.push(k); }
+            groups2[k].rows.push(r);
+        });
+
         // ── HEADER PAGE ────────────────────────────────────────
         setFill("#0f172a"); doc.rect(0, 0, W, 28, "F");
         setTxt("#ffffff");
@@ -1720,19 +1729,10 @@ ${sectionsHTML}
         doc.text("Style Components — Order Status", MARGIN + 14, 11);
         doc.setFontSize(9); doc.setFont("helvetica","normal");
         doc.text(today, MARGIN + 14, 18);
-        doc.text(`${Object.keys(groups2).length} styles · ${rows.length} composants`,
+        doc.text(`${order2.length} styles · ${rows.length} composants`,
             W - MARGIN, 14, { align:"right" });
 
         y = 34;
-
-        // Grouper les rows par style
-        const groups2 = {};
-        const order2  = [];
-        rows.forEach(r => {
-            const k = String(r["Cust Style Ref"]||"").trim();
-            if (!groups2[k]) { groups2[k] = { rows:[] }; order2.push(k); }
-            groups2[k].rows.push(r);
-        });
 
         // ── STYLES ─────────────────────────────────────────────
         order2.forEach(key => {
@@ -1949,8 +1949,9 @@ ${sectionsHTML}
                 let pdfBase64 = "";
                 try {
                     pdfBase64 = await _scGeneratePDFBase64(rows);
+                    console.log("[SC] PDF généré :", pdfBase64 ? pdfBase64.length + " chars" : "VIDE");
                 } catch(pdfErr) {
-                    console.warn("[SC] PDF generation failed:", pdfErr.message);
+                    console.error("[SC] PDF generation failed:", pdfErr.message, pdfErr.stack);
                 }
 
                 const today2 = new Date().toISOString().slice(0,10);
