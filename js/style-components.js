@@ -2033,28 +2033,42 @@ ${sectionsHTML}
             const st = document.createElement("style");
             st.id = "sc-am-style";
             st.textContent = `
-            #sc-actions-menu-btn{display:inline-flex;align-items:center;justify-content:center;
-                gap:5px;padding:0 12px;height:36px;border-radius:18px;
-                font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;
-                color:#1565c0;background:#fff;border:none;
-                box-shadow:0 1px 3px rgba(0,0,0,.12);transition:transform .1s;}
+            #sc-actions-menu-btn{display:inline-flex !important;align-items:center !important;
+                justify-content:center !important;gap:5px !important;
+                padding:0 12px !important;height:36px !important;border-radius:18px !important;
+                font-size:12px !important;font-weight:600 !important;
+                font-family:inherit !important;cursor:pointer !important;
+                color:#1565c0 !important;background:#fff !important;border:none !important;
+                box-shadow:0 1px 3px rgba(0,0,0,.12) !important;}
             #sc-actions-menu-btn:hover{transform:scale(1.04);}
             #sc-actions-dropdown{display:none;position:absolute;right:0;top:calc(100% + 8px);
-                background:#fff;border:0.5px solid #e5e7eb;
-                border-radius:10px;min-width:225px;z-index:99999;overflow:hidden;
-                box-shadow:0 6px 20px rgba(0,0,0,.15);}
-            #sc-actions-dropdown.open{display:block;}
-            .sc-am-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
-                border-radius:6px;border:none;background:transparent;
-                text-align:left;cursor:pointer;width:100%;font-family:inherit;}
-            .sc-am-item:hover{background:#f9fafb;}
-            .sc-am-icon{width:28px;height:28px;border-radius:6px;display:flex;
-                align-items:center;justify-content:center;flex-shrink:0;}
-            .sc-am-lbl{font-size:12px;font-weight:500;color:#111827;}
-            .sc-am-sub{font-size:10.5px;color:#9ca3af;margin-top:1px;}
-            .sc-am-sep{height:0.5px;background:#e5e7eb;margin:3px 0;}
-            .sc-am-sec{padding:5px 10px 2px;font-size:9.5px;font-weight:600;
-                color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;}`;
+                background:#ffffff !important;border:1px solid #e5e7eb !important;
+                border-radius:10px !important;min-width:230px !important;
+                z-index:99999 !important;overflow:hidden !important;
+                box-shadow:0 6px 24px rgba(0,0,0,.18) !important;}
+            #sc-actions-dropdown.open{display:block !important;}
+            #sc-actions-dropdown .sc-am-item{display:flex !important;align-items:center !important;
+                gap:10px !important;padding:8px 10px !important;
+                border-radius:6px !important;border:none !important;
+                background:transparent !important;text-align:left !important;
+                cursor:pointer !important;width:100% !important;
+                font-family:inherit !important;}
+            #sc-actions-dropdown .sc-am-item:hover{background:#f3f4f6 !important;}
+            #sc-actions-dropdown .sc-am-icon{width:28px !important;height:28px !important;
+                border-radius:6px !important;display:flex !important;
+                align-items:center !important;justify-content:center !important;
+                flex-shrink:0 !important;}
+            #sc-actions-dropdown .sc-am-lbl{font-size:12px !important;font-weight:600 !important;
+                color:#111827 !important;}
+            #sc-actions-dropdown .sc-am-sub{font-size:10.5px !important;
+                color:#6b7280 !important;margin-top:1px !important;}
+            #sc-actions-dropdown .sc-am-sep{height:1px !important;
+                background:#e5e7eb !important;margin:3px 0 !important;}
+            #sc-actions-dropdown .sc-am-sec{padding:5px 10px 2px !important;
+                font-size:9.5px !important;font-weight:700 !important;
+                color:#6b7280 !important;text-transform:uppercase !important;
+                letter-spacing:.06em !important;}
+            #sc-actions-dropdown i.ti{color:inherit !important;}`;
             document.head.appendChild(st);
         }
 
@@ -2078,14 +2092,14 @@ ${sectionsHTML}
             <div class="sc-am-sec">Export</div>
             <button class="sc-am-item" id="sc-am-pdf">
                 <div class="sc-am-icon" style="background:#eff6ff;">
-                    <i class="ti ti-checklist" style="font-size:14px;color:#1565c0;" aria-hidden="true"></i>
+                    <i class="ti ti-checklist" style="font-size:14px;color:#1565c0 !important;" aria-hidden="true"></i>
                 </div>
                 <div><div class="sc-am-lbl">Télécharger PDF</div>
                      <div class="sc-am-sub">Rapport Style Components</div></div>
             </button>
             <button class="sc-am-item" id="sc-am-email">
                 <div class="sc-am-icon" style="background:#f0fdf4;">
-                    <i class="ti ti-mail" style="font-size:14px;color:#166534;" aria-hidden="true"></i>
+                    <i class="ti ti-mail" style="font-size:14px;color:#166534 !important;" aria-hidden="true"></i>
                 </div>
                 <div><div class="sc-am-lbl">Envoyer par email</div>
                      <div class="sc-am-sub">Order Status Report</div></div>
@@ -2094,14 +2108,14 @@ ${sectionsHTML}
             <div class="sc-am-sec">Import & Analyse</div>
             <button class="sc-am-item" id="sc-am-psd">
                 <div class="sc-am-icon" style="background:#fef9c3;">
-                    <i class="ti ti-calendar-up" style="font-size:14px;color:#854d0e;" aria-hidden="true"></i>
+                    <i class="ti ti-calendar-up" style="font-size:14px;color:#854d0e !important;" aria-hidden="true"></i>
                 </div>
                 <div><div class="sc-am-lbl">Importer PSD</div>
                      <div class="sc-am-sub">SRS · Sewing · Packing</div></div>
             </button>
             <button class="sc-am-item" id="sc-am-tp">
                 <div class="sc-am-icon" style="background:#f5f3ff;">
-                    <i class="ti ti-bolt" style="font-size:14px;color:#7c3aed;" aria-hidden="true"></i>
+                    <i class="ti ti-bolt" style="font-size:14px;color:#7c3aed !important;" aria-hidden="true"></i>
                 </div>
                 <div><div class="sc-am-lbl">Analyser TP</div>
                      <div class="sc-am-sub">Extraction IA</div></div>
