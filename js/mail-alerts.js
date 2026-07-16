@@ -1,7 +1,7 @@
 // ================================================================
 //  AW27 — Mail Alert Reporter
 //  Envoie un rapport d'alertes par email avec Excel joint.
-//  Charger après app.js dans index.html.
+//  Charge r après app.js dans index.html.
 // ================================================================
 
 (function initMailAlerts() {
