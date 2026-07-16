@@ -2120,6 +2120,22 @@ ${sectionsHTML}
                 <div><div class="sc-am-lbl">Analyser TP</div>
                      <div class="sc-am-sub">Extraction IA</div></div>
             </button>
+            <div class="sc-am-sep"></div>
+            <div class="sc-am-sec">Alertes & Notifications</div>
+            <button class="sc-am-item" id="sc-am-scan">
+                <div class="sc-am-icon" style="background:#fef2f2;">
+                    <i class="ti ti-alert-triangle" style="font-size:14px;color:#dc2626 !important;" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Scanner commandes</div>
+                     <div class="sc-am-sub">Commandes prêtes à notifier</div></div>
+            </button>
+            <button class="sc-am-item" id="sc-am-mail-report">
+                <div class="sc-am-icon" style="background:#eff6ff;">
+                    <i class="ti ti-mail-forward" style="font-size:14px;color:#0078d4 !important;" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Rapport d'alertes</div>
+                     <div class="sc-am-sub">Envoyer par email Outlook</div></div>
+            </button>
         </div>`;
 
         // ── Handlers : naviguer vers Style Components si nécessaire ──
@@ -2156,6 +2172,14 @@ ${sectionsHTML}
             setTimeout(() => {
                 if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
             }, 150);
+        };
+        drop.querySelector("#sc-am-scan").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof window._ocsOpenScanModal === "function") window._ocsOpenScanModal();
+        };
+        drop.querySelector("#sc-am-mail-report").onclick = () => {
+            drop.classList.remove("open");
+            if (typeof window._maOpenMailModal === "function") window._maOpenMailModal();
         };
 
         document.addEventListener("click", e => {
