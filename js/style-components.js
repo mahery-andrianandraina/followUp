@@ -2025,48 +2025,48 @@ ${sectionsHTML}
 
     // ── Injecter le bouton PDF dans le header ─────────────────
     function injectHeaderButton() {
+        // Même pattern que l'ORIGINAL : bouton dans .header-right, toujours visible
         if (document.getElementById("sc-actions-menu-wrapper")) return;
-        if (window.state?.activeSheet !== SHEET_KEY) return;
-        const titleEl = document.getElementById("header-sheet-title");
-        if (!titleEl) return;
 
         // CSS (une seule fois)
         if (!document.getElementById("sc-am-style")) {
             const st = document.createElement("style");
             st.id = "sc-am-style";
             st.textContent = `
-            #sc-actions-menu-btn{display:inline-flex;align-items:center;gap:5px;
-                padding:5px 11px;border-radius:7px;font-size:12px;font-weight:500;
-                font-family:inherit;cursor:pointer;color:var(--text-secondary,#6b7280);
-                background:var(--surface-2,#f3f4f6);border:1px solid var(--border,#e5e7eb);}
-            #sc-actions-menu-btn:hover{background:var(--surface-1,#e5e7eb);}
-            #sc-actions-dropdown{display:none;position:absolute;left:0;top:calc(100% + 6px);
-                background:var(--surface-2,#fff);border:0.5px solid var(--border,#e5e7eb);
-                border-radius:10px;min-width:220px;z-index:9999;overflow:hidden;
-                box-shadow:0 4px 16px rgba(0,0,0,.12);}
+            #sc-actions-menu-btn{display:inline-flex;align-items:center;justify-content:center;
+                gap:5px;padding:0 12px;height:36px;border-radius:18px;
+                font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;
+                color:#1565c0;background:#fff;border:none;
+                box-shadow:0 1px 3px rgba(0,0,0,.12);transition:transform .1s;}
+            #sc-actions-menu-btn:hover{transform:scale(1.04);}
+            #sc-actions-dropdown{display:none;position:absolute;right:0;top:calc(100% + 8px);
+                background:#fff;border:0.5px solid #e5e7eb;
+                border-radius:10px;min-width:225px;z-index:99999;overflow:hidden;
+                box-shadow:0 6px 20px rgba(0,0,0,.15);}
             #sc-actions-dropdown.open{display:block;}
             .sc-am-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
                 border-radius:6px;border:none;background:transparent;
                 text-align:left;cursor:pointer;width:100%;font-family:inherit;}
-            .sc-am-item:hover{background:var(--surface-1,#f9fafb);}
+            .sc-am-item:hover{background:#f9fafb;}
             .sc-am-icon{width:28px;height:28px;border-radius:6px;display:flex;
                 align-items:center;justify-content:center;flex-shrink:0;}
-            .sc-am-lbl{font-size:12px;font-weight:500;color:var(--text-primary,#111827);}
-            .sc-am-sub{font-size:10.5px;color:var(--text-muted,#9ca3af);margin-top:1px;}
-            .sc-am-sep{height:0.5px;background:var(--border,#e5e7eb);margin:3px 0;}
+            .sc-am-lbl{font-size:12px;font-weight:500;color:#111827;}
+            .sc-am-sub{font-size:10.5px;color:#9ca3af;margin-top:1px;}
+            .sc-am-sep{height:0.5px;background:#e5e7eb;margin:3px 0;}
             .sc-am-sec{padding:5px 10px 2px;font-size:9.5px;font-weight:600;
-                color:var(--text-muted,#9ca3af);text-transform:uppercase;letter-spacing:.06em;}`;
+                color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;}`;
             document.head.appendChild(st);
         }
 
         const wrapper = document.createElement("div");
         wrapper.id = "sc-actions-menu-wrapper";
-        wrapper.style.cssText = "position:relative;display:inline-flex;align-items:center;margin-left:8px;";
+        wrapper.style.cssText = "position:relative;display:inline-flex;align-items:center;";
 
         const btn = document.createElement("button");
         btn.id = "sc-actions-menu-btn";
-        btn.innerHTML = `<i class="ti ti-layout-grid" style="font-size:14px;" aria-hidden="true"></i>
-            Actions <i class="ti ti-chevron-down" style="font-size:10px;" aria-hidden="true"></i>`;
+        btn.title = "Actions Style Components";
+        btn.innerHTML = `<i class="ti ti-layout-grid" style="font-size:15px;" aria-hidden="true"></i>
+            Actions`;
         btn.onclick = e => {
             e.stopPropagation();
             document.getElementById("sc-actions-dropdown")?.classList.toggle("open");
@@ -2108,24 +2108,40 @@ ${sectionsHTML}
             </button>
         </div>`;
 
+        // ── Handlers : naviguer vers Style Components si nécessaire ──
+        const gotoSC = () => {
+            if (window.state?.activeSheet !== SHEET_KEY) {
+                document.getElementById(`tab-custom-${SHEET_KEY}`)?.click();
+            }
+        };
         drop.querySelector("#sc-am-pdf").onclick = () => {
             drop.classList.remove("open");
-            if (typeof openPDFModal === "function") openPDFModal();
+            gotoSC();
+            setTimeout(() => { if (typeof openPDFModal === "function") openPDFModal(); }, 150);
         };
         drop.querySelector("#sc-am-email").onclick = () => {
             drop.classList.remove("open");
-            if (typeof openPDFModal === "function") {
-                openPDFModal();
-                setTimeout(() => document.querySelector(".sc-pdf-email-input")?.focus(), 400);
-            }
+            gotoSC();
+            setTimeout(() => {
+                if (typeof openPDFModal === "function") {
+                    openPDFModal();
+                    setTimeout(() => document.querySelector(".sc-pdf-email-input")?.focus(), 400);
+                }
+            }, 150);
         };
         drop.querySelector("#sc-am-psd").onclick = () => {
             drop.classList.remove("open");
-            if (typeof window._psdTriggerUpload === "function") window._psdTriggerUpload();
+            gotoSC();
+            setTimeout(() => {
+                if (typeof window._psdTriggerUpload === "function") window._psdTriggerUpload();
+            }, 150);
         };
         drop.querySelector("#sc-am-tp").onclick = () => {
             drop.classList.remove("open");
-            if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
+            gotoSC();
+            setTimeout(() => {
+                if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
+            }, 150);
         };
 
         document.addEventListener("click", e => {
@@ -2134,7 +2150,20 @@ ${sectionsHTML}
 
         wrapper.appendChild(btn);
         wrapper.appendChild(drop);
-        titleEl.insertAdjacentElement("afterend", wrapper);
+
+        // ── Insertion : EXACTEMENT comme l'original ──
+        const targets = [
+            document.getElementById("btn-order-scan"),
+            document.getElementById("btn-mail-alerts"),
+            document.getElementById("btn-notif-global"),
+            document.querySelector(".header-right button")
+        ];
+        const target = targets.find(Boolean);
+        if (target?.parentNode) {
+            target.parentNode.insertBefore(wrapper, target);
+        } else {
+            document.querySelector(".header-right")?.prepend(wrapper);
+        }
         console.log("[AW27] Actions Menu ✓");
     }
 
@@ -2183,7 +2212,7 @@ ${sectionsHTML}
         const _scGuard = setInterval(() => {
             if (++_scGuardCount > 50) { clearInterval(_scGuard); return; }
             if (document.querySelector(".header-right") &&
-                false && !document.getElementById("btn-components-pdf")) {
+                !document.getElementById("sc-actions-menu-wrapper")) {
                 injectHeaderButton();
             }
         }, 600);
