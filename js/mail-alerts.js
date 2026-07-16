@@ -589,24 +589,10 @@
         document.head.appendChild(s);
     }
 
-    function injectHeaderButton() {
-        if (document.getElementById("btn-mail-alerts")) return;
+    // Exposer pour le menu Actions
+    window._maOpenMailModal = openMailModal;
 
-        const btn = document.createElement("button");
-        btn.id = "btn-mail-alerts";
-        btn.title = "Envoyer le rapport d'alertes par email";
-        btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="1" y="3" width="10" height="12" rx="1.5" fill="#0078D4"/><circle cx="7" cy="9" r="2.5" fill="white"/><rect x="10" y="5.5" width="7" height="7" rx="1" fill="#28A8E8"/><path d="M10 6.5L13.5 9L17 6.5" stroke="white" stroke-width="0.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
-        btn.onclick = openMailModal;
-
-        const target = document.getElementById("btn-notif-global")
-                     || document.querySelector(".header-right button")
-                     || document.querySelector(".header-right");
-        if (target?.parentNode) {
-            target.parentNode.insertBefore(btn, target);
-        } else if (document.querySelector(".header-right")) {
-            document.querySelector(".header-right").prepend(btn);
-        }
-    }
+    function injectHeaderButton() { /* intégré au menu Actions de style-components.js */ }
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
