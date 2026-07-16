@@ -384,38 +384,10 @@
     }
 
     // ── Injecter le bouton dans le header ─────────────────────
-    function injectHeaderButton() {
-        if (document.getElementById("btn-order-scan")) return;
+    // Exposer pour le menu Actions
+    window._ocsOpenScanModal = openScanModal;
 
-        const btn = document.createElement("button");
-        btn.id    = "btn-order-scan";
-        btn.title = "Scanner les commandes prêtes à notifier";
-        btn.innerHTML = `
-            <i class="ti ti-alert-triangle" aria-hidden="true" style="font-size:17px;"></i>
-            <span class="ocn-scan-badge" id="btn-order-scan-badge"
-                style="display:none;position:absolute;top:-2px;right:-2px;
-                       width:13px;height:13px;border-radius:50%;
-                       background:#ef4444;border:2px solid var(--surface-2,#fff);
-                       font-size:8px;color:#fff;font-weight:700;
-                       align-items:center;justify-content:center;">0</span>`;
-        btn.onclick = openScanModal;
-
-        // Insérer avant le bouton "Rapport email"
-        const mailBtn   = document.getElementById("btn-mail-alerts");
-        const notifBtn  = document.getElementById("btn-notif-global");
-        const headerRight = document.querySelector(".header-right");
-
-        if (mailBtn?.parentNode) {
-            mailBtn.parentNode.insertBefore(btn, mailBtn);
-        } else if (notifBtn?.parentNode) {
-            notifBtn.parentNode.insertBefore(btn, notifBtn);
-        } else if (headerRight) {
-            headerRight.prepend(btn);
-        }
-
-        // Rafraîchir le badge au chargement
-        setTimeout(_refreshHeaderBadge, 2000);
-    }
+    function injectHeaderButton() { /* intégré au menu Actions de style-components.js */ }
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
