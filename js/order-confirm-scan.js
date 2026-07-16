@@ -1,7 +1,7 @@
 // ================================================================
 //  AW27 — Order Confirm Scanner
 //  Bouton manuel qui scanne toutes les lignes Details et liste
-//  les styles éligibles (3 conditions réunies) dans une modale.
+//  les styles éligibles (3 con ditions réunies) dans une modale.
 //  Charger après order-confirm-notify.js dans index.html.
 // ================================================================
 
