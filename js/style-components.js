@@ -2024,6 +2024,60 @@ ${sectionsHTML}
     };
 
     // ── Injecter le bouton PDF dans le header ─────────────────
+    // ── Popup de confirmation générique ───────────────────────
+    function _scConfirmPopup(title, bodyHTML, onContinue) {
+        // Supprimer l'ancien si présent
+        document.getElementById("sc-confirm-overlay")?.remove();
+
+        const overlay = document.createElement("div");
+        overlay.id = "sc-confirm-overlay";
+        overlay.style.cssText = [
+            "position:fixed", "inset:0", "z-index:100000",
+            "background:rgba(15,23,42,.45)",
+            "display:flex", "align-items:center", "justify-content:center",
+            "padding:20px"
+        ].join(";");
+
+        const modal = document.createElement("div");
+        modal.style.cssText = [
+            "background:#fff", "border-radius:14px", "max-width:440px", "width:100%",
+            "box-shadow:0 20px 50px rgba(0,0,0,.25)", "overflow:hidden",
+            "font-family:inherit"
+        ].join(";");
+
+        modal.innerHTML = `
+            <div style="padding:20px 22px 14px;">
+                <div style="font-size:15px;font-weight:700;color:#0f172a;
+                    margin-bottom:10px;">${title}</div>
+                <div style="font-size:12.5px;color:#475569;line-height:1.65;">
+                    ${bodyHTML}
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;
+                padding:12px 22px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+                <button id="sc-confirm-cancel" style="padding:7px 16px;border-radius:8px;
+                    font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;
+                    background:#fff;color:#475569;border:1px solid #d1d5db;">
+                    Annuler
+                </button>
+                <button id="sc-confirm-ok" style="padding:7px 18px;border-radius:8px;
+                    font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;
+                    background:#1565c0;color:#fff;border:none;">
+                    Continuer
+                </button>
+            </div>`;
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        modal.querySelector("#sc-confirm-cancel").onclick = () => overlay.remove();
+        modal.querySelector("#sc-confirm-ok").onclick = () => {
+            overlay.remove();
+            onContinue();
+        };
+        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+    }
+
     function injectHeaderButton() {
         // Même pattern que l'ORIGINAL : bouton dans .header-right, toujours visible
         if (document.getElementById("sc-actions-menu-wrapper")) return;
@@ -2161,17 +2215,42 @@ ${sectionsHTML}
         };
         drop.querySelector("#sc-am-psd").onclick = () => {
             drop.classList.remove("open");
-            gotoSC();
-            setTimeout(() => {
-                if (typeof window._psdTriggerUpload === "function") window._psdTriggerUpload();
-            }, 150);
+            _scConfirmPopup(
+                "Importer le fichier PSD hebdomadaire",
+                `Vous allez importer les données de commitment depuis le fichier Excel PSD :
+                <ul style="margin:8px 0;padding-left:18px;">
+                    <li><strong>PSD</strong> (Possible Ship Date) — colonne Z</li>
+                    <li><strong>SRS Launching</strong> — colonne Q</li>
+                    <li><strong>Sewing Trims</strong> — colonne S</li>
+                    <li><strong>Packing Trims</strong> — colonne T</li>
+                </ul>
+                Les valeurs existantes seront remplacées après validation.
+                Vous pourrez vérifier chaque ligne avant d'appliquer.`,
+                () => {
+                    gotoSC();
+                    setTimeout(() => {
+                        if (typeof window._psdTriggerUpload === "function") window._psdTriggerUpload();
+                    }, 150);
+                }
+            );
         };
         drop.querySelector("#sc-am-tp").onclick = () => {
             drop.classList.remove("open");
-            gotoSC();
-            setTimeout(() => {
-                if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
-            }, 150);
+            _scConfirmPopup(
+                "Analyser un Tech Pack par IA",
+                `Vous allez analyser le PDF Tech Pack d'un style pour en extraire
+                automatiquement les composants (tissus, boutons, zips, étiquettes...).
+                <br><br>
+                L'IA proposera une liste de composants que vous pourrez modifier
+                avant de les ajouter au style. Les composants existants ne seront
+                pas supprimés.`,
+                () => {
+                    gotoSC();
+                    setTimeout(() => {
+                        if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
+                    }, 150);
+                }
+            );
         };
         drop.querySelector("#sc-am-scan").onclick = () => {
             drop.classList.remove("open");
