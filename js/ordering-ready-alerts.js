@@ -1,50 +1,75 @@
 // ================================================================
-//  AW27 — Ordering Ready Date Alerts
+//  AW27 — Ordering Ready Date Alerts (v2 — lecture DOM directe)
 //  Coloration douce des lignes selon Ready Date + Delivery :
-//  - Rouge pâle  : Ready Date dépassée + pas de livraison (retard)
-//  - Bleu pâle   : Ready Date dépassée + In Transit
-//  - Jaune pâle  : Ready Date dans ≤ 3 jours
-//  - Vert pâle   : Delivered
-//  + Bouton "Trier par urgence" dans la barre de filtres.
+//  - Rouge pâle : Ready Date dépassée + pas de livraison (retard)
+//  - Bleu pâle  : Ready Date dépassée + In Transit
+//  - Jaune pâle : Ready Date dans <= 3 jours
+//  - Vert pâle  : Delivered
+//  + Bouton "Urgence" à côté des filtres.
 //  Charger après app.js dans index.html.
 // ================================================================
 
 (function() {
     const SHEET_KEY = "ordering";
 
-    // Couleurs pastel très douces
     const COLORS = {
-        late:     { bg: "#fdf5f5", text: "#b91c1c", border: "#f5dada" }, // rouge très pâle
-        transit:  { bg: "#f4f9fd", text: "#1d6fb8", border: "#dcebf7" }, // bleu ciel très pâle
-        soon:     { bg: "#fdfaf0", text: "#a16207", border: "#f5ecd0" }, // jaune très pâle
-        delivered:{ bg: "#f4faf5", text: "#15803d", border: "#dcefe0" }  // vert très pâle
+        late:      { bg: "#fdf5f5", bar: "#e8b4b4" },
+        transit:   { bg: "#f4f9fd", bar: "#b8d7f0" },
+        soon:      { bg: "#fdfaf0", bar: "#ead9a8" },
+        delivered: { bg: "#f4faf5", bar: "#b9dfc2" }
     };
 
     let sortActive = false;
 
-    // ── Parser de date robuste ────────────────────────────────
     function parseDate(val) {
         if (!val) return null;
         const s = String(val).trim();
-        if (!s) return null;
-        const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m1) return new Date(+m1[1], +m1[2]-1, +m1[3]);
-        const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (m2) return new Date(+m2[3], +m2[2]-1, +m2[1]);
+        if (!s || s === "—" || s === "-") return null;
+        // YYYY-MM-DD
+        let m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (m) return new Date(+m[1], +m[2]-1, +m[3]);
+        // DD/MM/YYYY
+        m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (m) return new Date(+m[3], +m[2]-1, +m[1]);
+        // Format app français : "30 oct. 2026" / "4 sept. 2026"
+        const months = { "janv":0,"févr":1,"mars":2,"avr":3,"mai":4,"juin":5,
+                         "juil":6,"août":7,"sept":8,"oct":9,"nov":10,"déc":11 };
+        m = s.toLowerCase().match(/(\d{1,2})\s+([a-zéûô]+)\.?\s*(\d{4})?/);
+        if (m) {
+            const mon = Object.keys(months).find(k => m[2].startsWith(k));
+            if (mon !== undefined && mon !== null) {
+                const year = m[3] ? +m[3] : new Date().getFullYear();
+                return new Date(year, months[mon], +m[1]);
+            }
+        }
         const d = new Date(s);
         return isNaN(d) ? null : d;
     }
 
-    // ── Déterminer le statut d'une ligne ──────────────────────
-    // Retourne { key, priority } — priority basse = plus urgent
-    function getRowStatus(row) {
-        const delivery = String(row["Delivery"] || "").trim().toLowerCase();
-        const readyRaw = row["Ready Date"];
+    // ── Trouver les index des colonnes via les headers ────────
+    function findCols(table) {
+        const ths = [...table.querySelectorAll("thead th")];
+        let iReady = -1, iDelivery = -1;
+        ths.forEach((th, i) => {
+            const t = th.textContent.trim().toLowerCase();
+            if (t.includes("ready date") || t === "ready") iReady = i;
+            if (t === "delivery" || t.includes("delivery")) iDelivery = i;
+        });
+        return { iReady, iDelivery };
+    }
 
-        // Delivered → vert, priorité basse
-        if (delivery === "delivered") return { key: "delivered", priority: 90 };
+    // ── Statut d'une ligne à partir du DOM ────────────────────
+    function getRowStatus(tr, iReady, iDelivery) {
+        const tds = tr.querySelectorAll("td");
+        if (!tds.length) return { key: null, priority: 100 };
 
-        const d = parseDate(readyRaw);
+        const readyTxt    = iReady    !== -1 ? (tds[iReady]?.textContent || "").trim()    : "";
+        const deliveryTxt = iDelivery !== -1 ? (tds[iDelivery]?.textContent || "").trim() : "";
+        const delivery    = deliveryTxt.toLowerCase();
+
+        if (delivery.includes("delivered")) return { key: "delivered", priority: 90 };
+
+        const d = parseDate(readyTxt);
         if (!d) return { key: null, priority: 100 };
 
         const today = new Date(); today.setHours(0,0,0,0);
@@ -52,174 +77,132 @@
         const diff = Math.round((d - today) / 86400000);
 
         if (diff < 0) {
-            // Ready Date dépassée
             if (delivery.includes("transit")) return { key: "transit", priority: 20 };
-            return { key: "late", priority: 0 }; // retard = le plus urgent
+            return { key: "late", priority: 0 };
         }
         if (diff <= 3) return { key: "soon", priority: 10 };
-
         return { key: null, priority: 100 };
     }
 
-    // ── Trouver l'index de colonne par header ─────────────────
-    function getColIndex(table, name) {
-        const ths = table.querySelectorAll("thead th");
-        for (let i = 0; i < ths.length; i++) {
-            if (ths[i].textContent.trim().toLowerCase() === name.toLowerCase()) return i;
-        }
-        return -1;
-    }
-
-    // ── Appliquer la coloration aux lignes ────────────────────
+    // ── Colorer les lignes ────────────────────────────────────
     function applyColors() {
         if (window.state?.activeSheet !== SHEET_KEY) return;
-        const rows = window.state?.data?.ordering || [];
-        if (!rows.length) return;
 
         const table = document.querySelector("#table-container table")
-                   || document.querySelector("main table");
+                   || document.querySelector("main table")
+                   || document.querySelector("table");
         if (!table) return;
 
-        const trs = table.querySelectorAll("tbody tr");
+        const { iReady, iDelivery } = findCols(table);
+        if (iReady === -1) return; // colonne Ready Date pas visible
 
-        trs.forEach(tr => {
-            // Retrouver la ligne de données via l'index DOM
-            const rowIdx = tr._aw27RowIdx !== undefined
-                ? tr._aw27RowIdx
-                : [...tr.parentNode.children].indexOf(tr);
-            const dataRow = getDataRowForTr(tr, rows);
-            if (!dataRow) return;
-
-            const status = getRowStatus(dataRow);
+        table.querySelectorAll("tbody tr").forEach(tr => {
+            const status = getRowStatus(tr, iReady, iDelivery);
             tr.dataset.urgency = status.priority;
-
-            // Reset
-            tr.style.background = "";
-            tr.querySelectorAll("td").forEach(td => { td.style.background = ""; });
 
             if (status.key && COLORS[status.key]) {
                 const c = COLORS[status.key];
                 tr.style.background = c.bg;
-                tr.style.boxShadow = `inset 3px 0 0 ${c.border}`;
+                tr.style.boxShadow  = `inset 3px 0 0 ${c.bar}`;
             } else {
-                tr.style.boxShadow = "";
+                tr.style.background = "";
+                tr.style.boxShadow  = "";
             }
         });
+
+        table.dataset.orColored = "1";
     }
 
-    // ── Associer une <tr> à sa ligne de données ───────────────
-    // Match par le contenu de la première cellule (style ref)
-    function getDataRowForTr(tr, rows) {
-        const firstCell = tr.querySelector("td");
-        if (!firstCell) return null;
-        const txt = firstCell.textContent.trim();
-        if (!txt) return null;
-        return rows.find(r => {
-            const v = String(r["Cust Style Ref"] || r.Style || r[Object.keys(r)[0]] || "").trim();
-            return v === txt;
-        }) || null;
-    }
-
-    // ── Bouton Trier par urgence ──────────────────────────────
+    // ── Bouton Urgence à côté des filtres ─────────────────────
     function injectSortButton() {
         if (document.getElementById("btn-sort-urgency")) return;
         if (window.state?.activeSheet !== SHEET_KEY) return;
 
-        // Chercher la barre de filtres
-        const filterBar = document.querySelector(".filters-bar")
-                       || document.querySelector(".table-filters")
-                       || document.querySelector("#filters")
-                       || document.querySelector(".toolbar");
+        // La barre de filtres = le parent du champ Rechercher
+        const searchInput = document.querySelector('input[placeholder*="echercher"]');
+        const filterBar = searchInput?.parentElement?.parentElement;
         if (!filterBar) return;
 
         const btn = document.createElement("button");
         btn.id = "btn-sort-urgency";
         btn.style.cssText = [
             "display:inline-flex","align-items:center","gap:5px",
-            "padding:6px 12px","border-radius:8px","font-size:12px",
+            "padding:7px 13px","border-radius:20px","font-size:12px",
             "font-weight:600","font-family:inherit","cursor:pointer",
-            "background:#fdf5f5","color:#b91c1c","border:1px solid #f5dada",
-            "transition:all .15s","white-space:nowrap"
+            "background:#fff","color:#b91c1c","border:1px solid #e5e7eb",
+            "transition:all .15s","white-space:nowrap","margin-left:6px"
         ].join(";");
-        btn.innerHTML = `<i class="ti ti-flame" style="font-size:14px;" aria-hidden="true"></i> Trier par urgence`;
-        btn.title = "Remonter les lignes urgentes en haut du tableau";
+        btn.innerHTML = `<i class="ti ti-flame" style="font-size:14px;" aria-hidden="true"></i> Urgence`;
+        btn.title = "Trier : retards en premier, puis dates proches";
 
         btn.onclick = () => {
             sortActive = !sortActive;
-            btn.style.background = sortActive ? "#b91c1c" : "#fdf5f5";
+            btn.style.background = sortActive ? "#b91c1c" : "#fff";
             btn.style.color      = sortActive ? "#fff"    : "#b91c1c";
+            btn.style.borderColor = sortActive ? "#b91c1c" : "#e5e7eb";
             sortTable();
         };
 
+        // Insérer après le dernier filtre (Tous les clients)
         filterBar.appendChild(btn);
+        console.log("[AW27] Bouton Urgence injecté ✓");
     }
 
-    // ── Trier le tableau par urgence ──────────────────────────
+    // ── Trier par urgence ─────────────────────────────────────
     function sortTable() {
         const table = document.querySelector("#table-container table")
-                   || document.querySelector("main table");
+                   || document.querySelector("main table")
+                   || document.querySelector("table");
         if (!table) return;
         const tbody = table.querySelector("tbody");
         if (!tbody) return;
 
-        const trs = [...tbody.querySelectorAll("tr")];
+        applyColors(); // s'assurer que data-urgency est à jour
 
+        const trs = [...tbody.querySelectorAll("tr")];
         if (sortActive) {
-            // Mémoriser l'ordre original
             trs.forEach((tr, i) => { if (tr._origOrder === undefined) tr._origOrder = i; });
-            // Trier par data-urgency croissant (0 = retard en premier)
             trs.sort((a, b) =>
                 (parseInt(a.dataset.urgency ?? 100)) - (parseInt(b.dataset.urgency ?? 100))
             );
         } else {
-            // Restaurer l'ordre original
             trs.sort((a, b) => (a._origOrder ?? 0) - (b._origOrder ?? 0));
         }
-
         trs.forEach(tr => tbody.appendChild(tr));
     }
 
-    // ── Patcher renderTable/renderAll pour ré-appliquer ───────
+    // ── Patcher les renders ───────────────────────────────────
     function patchRender() {
         if (window._orAlertsPatched) return;
         window._orAlertsPatched = true;
 
-        const origRenderAll = window.renderAll;
-        if (typeof origRenderAll === "function") {
-            window.renderAll = function(...args) {
-                const r = origRenderAll.apply(this, args);
-                setTimeout(() => { applyColors(); injectSortButton(); }, 100);
-                return r;
-            };
-        }
-
-        const origRenderTable = window.renderTable;
-        if (typeof origRenderTable === "function") {
-            window.renderTable = function(...args) {
-                const r = origRenderTable.apply(this, args);
-                setTimeout(() => { applyColors(); injectSortButton(); }, 100);
-                return r;
-            };
-        }
+        ["renderAll", "renderTable"].forEach(fn => {
+            const orig = window[fn];
+            if (typeof orig === "function") {
+                window[fn] = function(...args) {
+                    const r = orig.apply(this, args);
+                    setTimeout(() => { applyColors(); injectSortButton(); }, 120);
+                    return r;
+                };
+            }
+        });
     }
 
     // ── Garde-fou ─────────────────────────────────────────────
     setInterval(() => {
-        if (window.state?.activeSheet === SHEET_KEY) {
-            const table = document.querySelector("#table-container table")
-                       || document.querySelector("main table");
-            if (table && !table.dataset.orColored) {
-                applyColors();
-                injectSortButton();
-            }
-        }
+        if (window.state?.activeSheet !== SHEET_KEY) return;
+        const table = document.querySelector("#table-container table")
+                   || document.querySelector("main table")
+                   || document.querySelector("table");
+        if (table && !table.dataset.orColored) applyColors();
+        if (!document.getElementById("btn-sort-urgency")) injectSortButton();
     }, 1200);
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
         patchRender();
         setTimeout(() => { applyColors(); injectSortButton(); }, 1500);
-        console.log("[AW27] Ordering Ready Alerts ✓");
+        console.log("[AW27] Ordering Ready Alerts v2 ✓");
     }
 
     if (document.readyState === "loading") {
