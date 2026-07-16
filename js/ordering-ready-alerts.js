@@ -113,39 +113,53 @@
         table.dataset.orColored = "1";
     }
 
-    // ── Bouton Urgence à côté des filtres ─────────────────────
+    // ── Bouton Urgence dans la barre titre du tableau ─────────
     function injectSortButton() {
         if (document.getElementById("btn-sort-urgency")) return;
         if (window.state?.activeSheet !== SHEET_KEY) return;
 
-        // La barre de filtres = le parent du champ Rechercher
-        const searchInput = document.querySelector('input[placeholder*="echercher"]');
-        const filterBar = searchInput?.parentElement?.parentElement;
-        if (!filterBar) return;
+        // Trouver l'élément contenant "Détails des Styles"
+        let titleEl = null;
+        document.querySelectorAll("h1,h2,h3,h4,div,span").forEach(el => {
+            if (!titleEl &&
+                el.children.length <= 2 &&
+                el.textContent.trim().startsWith("Détails des Styles")) {
+                titleEl = el;
+            }
+        });
+        if (!titleEl) { console.log("[AW27] Titre tableau introuvable"); return; }
+
+        // Le conteneur de la barre = parent qui contient AUSSI le champ recherche
+        let bar = titleEl.parentElement;
+        for (let i = 0; i < 4 && bar; i++) {
+            if (bar.querySelector('input[placeholder*="echercher"]')) break;
+            bar = bar.parentElement;
+        }
 
         const btn = document.createElement("button");
         btn.id = "btn-sort-urgency";
         btn.style.cssText = [
             "display:inline-flex","align-items:center","gap:5px",
-            "padding:7px 13px","border-radius:20px","font-size:12px",
+            "padding:7px 14px","border-radius:20px","font-size:12px",
             "font-weight:600","font-family:inherit","cursor:pointer",
-            "background:#fff","color:#b91c1c","border:1px solid #e5e7eb",
-            "transition:all .15s","white-space:nowrap","margin-left:6px"
+            "background:#fff","color:#b91c1c","border:1px solid #f0d5d5",
+            "transition:all .15s","white-space:nowrap",
+            "margin:0 12px","vertical-align:middle"
         ].join(";");
-        btn.innerHTML = `<i class="ti ti-flame" style="font-size:14px;" aria-hidden="true"></i> Urgence`;
-        btn.title = "Trier : retards en premier, puis dates proches";
+        btn.innerHTML = `<i class="ti ti-flame" style="font-size:14px;" aria-hidden="true"></i> Trier par urgence`;
+        btn.title = "Retards en premier, puis dates proches, puis in transit";
 
         btn.onclick = () => {
             sortActive = !sortActive;
-            btn.style.background = sortActive ? "#b91c1c" : "#fff";
-            btn.style.color      = sortActive ? "#fff"    : "#b91c1c";
-            btn.style.borderColor = sortActive ? "#b91c1c" : "#e5e7eb";
+            btn.style.background  = sortActive ? "#b91c1c" : "#fff";
+            btn.style.color       = sortActive ? "#fff"    : "#b91c1c";
+            btn.style.borderColor = sortActive ? "#b91c1c" : "#f0d5d5";
             sortTable();
         };
 
-        // Insérer après le dernier filtre (Tous les clients)
-        filterBar.appendChild(btn);
-        console.log("[AW27] Bouton Urgence injecté ✓");
+        // Insertion : juste après le bloc titre (dans la zone rouge indiquée)
+        titleEl.insertAdjacentElement("afterend", btn);
+        console.log("[AW27] Bouton Urgence injecté ✓ après", titleEl.tagName);
     }
 
     // ── Trier par urgence ─────────────────────────────────────
