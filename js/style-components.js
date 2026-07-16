@@ -2146,17 +2146,10 @@ ${sectionsHTML}
             <div class="sc-am-sec">Export</div>
             <button class="sc-am-item" id="sc-am-pdf">
                 <div class="sc-am-icon" style="background:#eff6ff;">
-                    <i class="ti ti-checklist" style="font-size:14px;color:#1565c0 !important;" aria-hidden="true"></i>
+                    <i class="ti ti-file-report" style="font-size:14px;color:#1565c0 !important;" aria-hidden="true"></i>
                 </div>
-                <div><div class="sc-am-lbl">Télécharger PDF</div>
-                     <div class="sc-am-sub">Rapport Style Components</div></div>
-            </button>
-            <button class="sc-am-item" id="sc-am-email">
-                <div class="sc-am-icon" style="background:#f0fdf4;">
-                    <i class="ti ti-mail" style="font-size:14px;color:#166534 !important;" aria-hidden="true"></i>
-                </div>
-                <div><div class="sc-am-lbl">Envoyer par email</div>
-                     <div class="sc-am-sub">Order Status Report</div></div>
+                <div><div class="sc-am-lbl">Order Status Report</div>
+                     <div class="sc-am-sub">Télécharger PDF ou envoyer par email</div></div>
             </button>
             <div class="sc-am-sep"></div>
             <div class="sc-am-sec">Import & Analyse</div>
@@ -2200,18 +2193,21 @@ ${sectionsHTML}
         };
         drop.querySelector("#sc-am-pdf").onclick = () => {
             drop.classList.remove("open");
-            gotoSC();
-            setTimeout(() => { if (typeof openPDFModal === "function") openPDFModal(); }, 150);
-        };
-        drop.querySelector("#sc-am-email").onclick = () => {
-            drop.classList.remove("open");
-            gotoSC();
-            setTimeout(() => {
-                if (typeof openPDFModal === "function") {
-                    openPDFModal();
-                    setTimeout(() => document.querySelector(".sc-pdf-email-input")?.focus(), 400);
+            _scConfirmPopup(
+                "Order Status Report",
+                `Vous allez générer le rapport Order Status des composants de styles.
+                <br><br>
+                Dans la fenêtre suivante, vous pourrez :
+                <ul style="margin:8px 0;padding-left:18px;">
+                    <li>Filtrer les <strong>styles</strong> et <strong>statuts</strong> à inclure</li>
+                    <li><strong>Télécharger le PDF</strong> pour impression</li>
+                    <li>Ou <strong>l'envoyer par email</strong> avec le PDF en pièce jointe</li>
+                </ul>`,
+                () => {
+                    gotoSC();
+                    setTimeout(() => { if (typeof openPDFModal === "function") openPDFModal(); }, 150);
                 }
-            }, 150);
+            );
         };
         drop.querySelector("#sc-am-psd").onclick = () => {
             drop.classList.remove("open");
@@ -2254,11 +2250,32 @@ ${sectionsHTML}
         };
         drop.querySelector("#sc-am-scan").onclick = () => {
             drop.classList.remove("open");
-            if (typeof window._ocsOpenScanModal === "function") window._ocsOpenScanModal();
+            _scConfirmPopup(
+                "Scanner les commandes",
+                `Vous allez scanner toutes les commandes pour détecter celles
+                <strong>prêtes à être notifiées</strong> au client.
+                <br><br>
+                Le scan vérifie les critères de confirmation et vous présentera
+                la liste des commandes éligibles. Aucune notification ne sera
+                envoyée sans votre validation.`,
+                () => {
+                    if (typeof window._ocsOpenScanModal === "function") window._ocsOpenScanModal();
+                }
+            );
         };
         drop.querySelector("#sc-am-mail-report").onclick = () => {
             drop.classList.remove("open");
-            if (typeof window._maOpenMailModal === "function") window._maOpenMailModal();
+            _scConfirmPopup(
+                "Rapport d'alertes par email",
+                `Vous allez préparer l'envoi du <strong>rapport des alertes actives</strong>
+                (commitments PSD, SRS Launching, Sewing & Packing Trims) par email.
+                <br><br>
+                Dans la fenêtre suivante, vous pourrez choisir les destinataires
+                et vérifier le contenu avant l'envoi.`,
+                () => {
+                    if (typeof window._maOpenMailModal === "function") window._maOpenMailModal();
+                }
+            );
         };
 
         document.addEventListener("click", e => {
