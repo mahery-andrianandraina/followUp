@@ -890,6 +890,14 @@
     <tr><td style="padding:12px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;
         text-align:center;font-size:10px;color:#94a3b8;">
         <strong style="color:#1e3a5f;">AW27 Checkers</strong> — Style Components Report — ${todayCap}
+        </p>
+        <p style="margin:6px 0 3px;font-size:10px;color:#94a3b8;">
+            Ceci est un email automatique généré par le système de
+            <strong style="color:#64748b;">Mahery ANDRIANANDRAINA</strong>.
+        </p>
+        <p style="margin:0;font-size:10px;color:#b0b8c4;font-style:italic;">
+            Merci de ne pas répondre directement à cet email.
+        </p>
     </td></tr>
 
 </table>
