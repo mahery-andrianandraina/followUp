@@ -734,22 +734,41 @@ Ne pas inventer de valeur. JSON uniquement, aucun texte autour.`;
         nav.appendChild(btn);
     }
 
-    // ── Patcher renderAll pour re-enregistrer ─────────────────
+    // ── Patcher renderAll — attendre qu'il soit disponible ──────
     function patchRenderAll() {
         if (window._awCheckerPatched) return;
-        const orig = window.renderAll;
-        if (typeof orig !== "function") return;
+        if (typeof window.renderAll !== "function") {
+            // Pas encore disponible → réessayer
+            setTimeout(patchRenderAll, 200);
+            return;
+        }
         window._awCheckerPatched = true;
+        const orig = window.renderAll;
         window.renderAll = function(...args) {
             const r = orig.apply(this, args);
-            registerMenu();
+            // Re-enregistrer le nav item après chaque renderAll
+            setTimeout(registerMenu, 50);
             return r;
         };
+        console.log("[AW27] Artwork patchRenderAll ✓");
+    }
+
+    // ── Garde-fou : vérifier toutes les secondes ──────────────
+    // Si le nav item disparaît (ex: autre renderAll non patché), le remettre
+    function startGuard() {
+        setInterval(() => {
+            if (!document.getElementById(`tab-custom-${SHEET_KEY}`) &&
+                document.getElementById("custom-nav-items")) {
+                registerMenu();
+            }
+        }, 1000);
     }
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
         patchRenderAll();
+        startGuard();
+        // Premier enregistrement dès que la sidebar est prête
         const tryRegister = () => {
             if (document.getElementById("custom-nav-items")) {
                 registerMenu();
