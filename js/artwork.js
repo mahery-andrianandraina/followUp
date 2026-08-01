@@ -372,7 +372,16 @@
         btn.disabled = true;
         btn.innerHTML = `<span class="aw-spin"></span> Analyse IA en cours…`;
 
+        // Panneau debug visible
         const view = document.getElementById("aw-view");
+        let debugEl = document.createElement("div");
+        debugEl.id = "aw-debug";
+        debugEl.style.cssText = "background:#f1f5f9;border:1px solid #e2e8f0;" +
+            "border-radius:8px;padding:12px;margin-bottom:12px;" +
+            "font-size:11px;font-family:monospace;color:#475569;line-height:1.9;";
+        debugEl.innerHTML = "<strong>🔍 Debug Artwork Checker :</strong><br>";
+        view.prepend(debugEl);
+        const dbg = msg => { debugEl.innerHTML += msg + "<br>"; console.log("[AW]", msg); };
 
         // Prompt Claude pour extraire les données du PDF
         const typesDesc = selectedTypes.map(k => {
@@ -405,9 +414,10 @@
                 const imgB64   = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
                 pages.push({ base64: imgB64, mimeType: "image/jpeg", pageNum: p });
             }
-            console.log("[Artwork] Pages rendues:", pages.length);
+            dbg("✓ Pages rendues en image : " + pages.length);
+            pages.forEach((p, i) => dbg("  Page " + (i+1) + " : " + Math.round(p.base64.length/1024) + " KB"));
         } catch(e) {
-            console.error("[Artwork] PDF.js render erreur:", e.message);
+            dbg("❌ PDF.js render erreur : " + e.message);
         }
 
         // ── Prompt Gemini Vision ─────────────────────────────
@@ -432,6 +442,7 @@
 
         // ── Envoyer à GAS ARTWORK_ANALYZE (Gemini Vision) ───
         try {
+            dbg("Envoi à GAS ARTWORK_ANALYZE (" + pages.length + " images)…");
             const res  = await fetch(gasUrl, {
                 method:  "POST",
                 headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -443,16 +454,23 @@
                 })
             });
             const data  = await res.json();
+            dbg("Réponse GAS : status=" + data.status + (data.message ? " | " + data.message : ""));
             if (data.status === "ok") {
+                dbg("Réponse Gemini brute : " + (data.text || "").slice(0, 200) + "…");
                 const clean = (data.text || "{}").replace(/```json|```/g, "").trim();
-                extractedData = JSON.parse(clean);
-                console.log("[Artwork] Gemini Vision extrait:", extractedData);
+                try {
+                    extractedData = JSON.parse(clean);
+                    dbg("✓ JSON parsé OK : " + Object.keys(extractedData).join(", "));
+                } catch(pe) {
+                    dbg("❌ JSON parse erreur : " + pe.message);
+                    extractedData = {};
+                }
             } else {
-                console.error("[Artwork] GAS erreur:", data.message);
+                dbg("❌ GAS erreur : " + (data.message || "inconnu"));
                 extractedData = {};
             }
         } catch(e) {
-            console.error("[Artwork] fetch erreur:", e);
+            dbg("❌ Fetch erreur : " + e.message);
             extractedData = {};
         }
 
