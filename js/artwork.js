@@ -155,11 +155,8 @@
         document.head.appendChild(st);
     }
 
-    // ── Vue principale ─────────────────────────────────────────
-    function renderView() {
-        const container = document.getElementById("table-container");
-        if (!container) return;
-
+    // ── Vue dans le container de la modale ────────────────────
+    function renderViewInto(container) {
         container.innerHTML = `
         <div id="artwork-view">
             <div style="margin-bottom:24px;">
@@ -686,7 +683,8 @@ Ne pas inventer de valeur. JSON uniquement, aucun texte autour.`;
         pdfText        = "";
         excelData      = [];
         extractedData  = {};
-        renderView();
+        const container = document.getElementById("artwork-view");
+        if (container) renderViewInto(container);
     };
 
     // ── Utilitaire : activer une étape ────────────────────────
@@ -702,87 +700,90 @@ Ne pas inventer de valeur. JSON uniquement, aucun texte autour.`;
         }
     }
 
-    // ── Enregistrer le menu Artwork ───────────────────────────
-    function registerMenu() {
-        if (window.SHEET_CONFIG?.[SHEET_KEY]) return;
+    // ── Exposer l'ouverture via le menu Actions ───────────────
+    window._awOpen = function() {
+        injectCSS();
+        openModal();
+    };
 
-        if (!window.SHEET_CONFIG) window.SHEET_CONFIG = {};
-        window.SHEET_CONFIG[SHEET_KEY] = {
-            label: SHEET_NAME,
-            icon:  "ti-palette",
-            type:  "custom",
-            cols:  []
-        };
+    // ── Ouvrir la modale Artwork Checker ──────────────────────
+    function openModal() {
+        document.getElementById("aw-modal-overlay")?.remove();
 
-        const nav = document.getElementById("custom-nav-items");
-        if (!nav || document.getElementById(`tab-custom-${SHEET_KEY}`)) return;
+        const overlay = document.createElement("div");
+        overlay.id = "aw-modal-overlay";
+        overlay.style.cssText = [
+            "position:fixed","inset:0","z-index:99999",
+            "background:rgba(15,23,42,.5)",
+            "display:flex","align-items:center","justify-content:center",
+            "padding:20px"
+        ].join(";");
 
-        const btn = document.createElement("button");
-        btn.className = "nav-item";
-        btn.id = `tab-custom-${SHEET_KEY}`;
-        btn.innerHTML = `<i class="ti ti-palette" style="font-size:16px;" aria-hidden="true"></i>
-            <span>Artwork</span>`;
-        btn.onclick = () => {
-            document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
-            btn.classList.add("active");
-            window.state.activeSheet = SHEET_KEY;
-            const titleEl = document.getElementById("header-sheet-title");
-            if (titleEl) titleEl.textContent = SHEET_NAME;
-            injectCSS();
-            renderView();
-        };
-        nav.appendChild(btn);
-    }
+        const modal = document.createElement("div");
+        modal.style.cssText = [
+            "background:#fff","border-radius:14px",
+            "width:100%","max-width:780px","max-height:90vh",
+            "overflow-y:auto","position:relative",
+            "box-shadow:0 20px 60px rgba(0,0,0,.25)"
+        ].join(";");
 
-    // ── Patcher renderAll — attendre qu'il soit disponible ──────
-    function patchRenderAll() {
-        if (window._awCheckerPatched) return;
-        if (typeof window.renderAll !== "function") {
-            // Pas encore disponible → réessayer
-            setTimeout(patchRenderAll, 200);
-            return;
-        }
-        window._awCheckerPatched = true;
-        const orig = window.renderAll;
-        window.renderAll = function(...args) {
-            const r = orig.apply(this, args);
-            // Re-enregistrer le nav item après chaque renderAll
-            setTimeout(registerMenu, 50);
-            return r;
-        };
-        console.log("[AW27] Artwork patchRenderAll ✓");
-    }
+        // Header de la modale
+        const header = document.createElement("div");
+        header.style.cssText = [
+            "display:flex","align-items:center","justify-content:space-between",
+            "padding:18px 22px","border-bottom:1px solid #e2e8f0",
+            "position:sticky","top:0","background:#fff","z-index:1"
+        ].join(";");
+        header.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:36px;height:36px;border-radius:8px;background:#eff6ff;
+                    display:flex;align-items:center;justify-content:center;">
+                    <i class="ti ti-palette" style="font-size:18px;color:#1565c0;"
+                        aria-hidden="true"></i>
+                </div>
+                <div>
+                    <div style="font-size:14px;font-weight:700;color:#0f172a;">
+                        Artwork Checker</div>
+                    <div style="font-size:11px;color:#64748b;">
+                        Comparer un artwork PDF avec les données de référence</div>
+                </div>
+            </div>
+            <button onclick="document.getElementById('aw-modal-overlay').remove()"
+                style="width:30px;height:30px;border-radius:50%;border:none;
+                    background:#f1f5f9;cursor:pointer;font-size:16px;
+                    display:flex;align-items:center;justify-content:center;
+                    color:#64748b;font-family:inherit;">✕</button>`;
 
-    // ── Garde-fou : vérifier toutes les secondes ──────────────
-    // Si le nav item disparaît (ex: autre renderAll non patché), le remettre
-    function startGuard() {
-        setInterval(() => {
-            if (!document.getElementById(`tab-custom-${SHEET_KEY}`) &&
-                document.getElementById("custom-nav-items")) {
-                registerMenu();
-            }
-        }, 1000);
+        // Contenu de la modale
+        const content = document.createElement("div");
+        content.id = "artwork-view";
+        content.style.cssText = "padding:20px 22px;";
+
+        // Reset état
+        currentType    = null;
+        selectedFields = [];
+        pdfText        = "";
+        excelData      = [];
+        extractedData  = {};
+
+        modal.appendChild(header);
+        modal.appendChild(content);
+        overlay.appendChild(modal);
+        overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+        document.body.appendChild(overlay);
+
+        // Rendre le contenu dans la modale
+        renderViewInto(content);
     }
 
     // ── Init ──────────────────────────────────────────────────
     function init() {
-        patchRenderAll();
-        startGuard();
-        // Premier enregistrement dès que la sidebar est prête
-        const tryRegister = () => {
-            if (document.getElementById("custom-nav-items")) {
-                registerMenu();
-            } else {
-                setTimeout(tryRegister, 300);
-            }
-        };
-        tryRegister();
-        console.log("[AW27] Artwork Checker ✓");
+        console.log("[AW27] Artwork Checker ✓ (via menu Actions)");
     }
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
     } else {
-        setTimeout(init, 800);
+        setTimeout(init, 500);
     }
 })();
