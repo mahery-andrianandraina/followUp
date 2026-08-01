@@ -382,8 +382,10 @@
             if (k === "barcode")   return `Page 3 (Barcode) : extraire TOUS les EAN/codes-barres (format 13 chiffres, supprimer les espaces) et les TAILLES associées (ex: 3 ANS, 4 ANS, S, M...)`;
         }).filter(Boolean).join(String.fromCharCode(10));
 
-        // ── Extraire texte PDF page par page via PDF.js ──────────
-        let pageTexts = {};
+        // ── Rendre chaque page PDF en image via PDF.js canvas ──
+        const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
+        const pages  = [];
+
         try {
             if (!window.pdfjsLib) {
                 await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
@@ -391,50 +393,66 @@
                     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
             }
             const pdf = await window.pdfjsLib.getDocument({data: atob(pdfBase64)}).promise;
-            for (let p = 1; p <= pdf.numPages; p++) {
-                const page    = await pdf.getPage(p);
-                const content = await page.getTextContent();
-                pageTexts[p]  = content.items.map(i => i.str).join(" ").trim();
+            const numPages = Math.min(pdf.numPages, 3); // max 3 pages
+
+            for (let p = 1; p <= numPages; p++) {
+                const page     = await pdf.getPage(p);
+                const viewport = page.getViewport({ scale: 1.8 });
+                const canvas   = document.createElement("canvas");
+                canvas.width   = viewport.width;
+                canvas.height  = viewport.height;
+                await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+                const imgB64   = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+                pages.push({ base64: imgB64, mimeType: "image/jpeg", pageNum: p });
             }
+            console.log("[Artwork] Pages rendues:", pages.length);
         } catch(e) {
-            console.warn("[Artwork] PDF.js erreur:", e.message);
+            console.error("[Artwork] PDF.js render erreur:", e.message);
         }
 
-        const pageInfo = Object.entries(pageTexts)
-            .map(([p, t]) => "=== PAGE " + p + " ===" + String.fromCharCode(10) + (t || "(vide / image)"))
-            .join(String.fromCharCode(10) + String.fromCharCode(10));
-
+        // ── Prompt Gemini Vision ─────────────────────────────
         const prompt = [
             "Tu es un expert en controle qualite textile/garment.",
-            "Voici le texte extrait d un artwork PDF multi-pages :",
-            "",
-            pageInfo,
+            "Analyse ces images de pages d'un artwork PDF :",
+            "- Image 1 = Page 1 : Wash Care label",
+            "- Image 2 = Page 2 : Warning label",
+            "- Image 3 = Page 3 : Barcode label",
             "",
             typesDesc,
             "",
-            "Reponds UNIQUEMENT en JSON valide (sans markdown) :",
+            "Reponds UNIQUEMENT en JSON valide (sans markdown, sans backticks) :",
             "{",
-            '  "wash_care": {"composition": null, "country": null},',
-            '  "warning": {"warning_text": null},',
-            '  "barcode": {"items": [{"ean": "...", "size": "..."}]}',
+            '  "wash_care": {"composition": "valeur exacte lue sur l image ou null", "country": "valeur exacte ou null"},',
+            '  "warning": {"warning_text": "texte exact ou null"},',
+            '  "barcode": {"items": [{"ean": "13 chiffres sans espaces", "size": "ex: 3 ANS"}]}',
             "}",
+            "IMPORTANT: Pour les EAN/barcodes, concatener les chiffres sans espaces (ex: '3 393458 803062' devient '3393458803062').",
             "Ne jamais inventer. JSON uniquement."
         ].join(String.fromCharCode(10));
 
-        // ── Envoyer à Gemini via GAS chatbot ─────────────────
-        const GEMINI_URL = "https://script.google.com/macros/s/AKfycbytsLltnTWWiXyK3KSrwJPEkffuzShjLEpIO8G2s19gktDuEzqkJCR3Xjhkfxouxvg/exec";
+        // ── Envoyer à GAS ARTWORK_ANALYZE (Gemini Vision) ───
         try {
-            const res   = await fetch(GEMINI_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ message: prompt })
+            const res  = await fetch(gasUrl, {
+                method:  "POST",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                redirect:"follow",
+                body: JSON.stringify({
+                    action: "ARTWORK_ANALYZE",
+                    pages:  pages,
+                    prompt: prompt
+                })
             });
             const data  = await res.json();
-            const raw   = data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-            const clean = raw.replace(/```json|```/g, "").trim();
-            extractedData = JSON.parse(clean);
+            if (data.status === "ok") {
+                const clean = (data.text || "{}").replace(/```json|```/g, "").trim();
+                extractedData = JSON.parse(clean);
+                console.log("[Artwork] Gemini Vision extrait:", extractedData);
+            } else {
+                console.error("[Artwork] GAS erreur:", data.message);
+                extractedData = {};
+            }
         } catch(e) {
-            console.error("[Artwork] Gemini erreur:", e);
+            console.error("[Artwork] fetch erreur:", e);
             extractedData = {};
         }
 
