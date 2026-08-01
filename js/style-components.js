@@ -2175,6 +2175,13 @@ ${sectionsHTML}
                 <div><div class="sc-am-lbl">Analyser TP</div>
                      <div class="sc-am-sub">Extraction IA</div></div>
             </button>
+            <button class="sc-am-item" id="sc-am-artwork">
+                <div class="sc-am-icon" style="background:#fdf2ff;">
+                    <i class="ti ti-palette" style="font-size:14px;color:#a21caf !important;" aria-hidden="true"></i>
+                </div>
+                <div><div class="sc-am-lbl">Artwork Checker</div>
+                     <div class="sc-am-sub">Contrôle qualité artwork PDF</div></div>
+            </button>
             <div class="sc-am-sep"></div>
             <div class="sc-am-sec">Alertes & Notifications</div>
             <button class="sc-am-item" id="sc-am-scan">
@@ -2253,6 +2260,25 @@ ${sectionsHTML}
                     setTimeout(() => {
                         if (typeof window._tpaOpenModal === "function") window._tpaOpenModal();
                     }, 150);
+                }
+            );
+        };
+        drop.querySelector("#sc-am-artwork").onclick = () => {
+            drop.classList.remove("open");
+            _scConfirmPopup(
+                "Artwork Checker",
+                `Vous allez vérifier la conformité d'un artwork PDF
+                en comparant ses données avec un fichier Excel de référence.
+                <br><br>
+                Vous pourrez analyser :
+                <ul style="margin:8px 0;padding-left:18px;">
+                    <li><strong>Size & Care</strong> — composition, lavage, taille, pays</li>
+                    <li><strong>Warning</strong> — texte d'avertissement</li>
+                    <li><strong>Barcode</strong> — EAN, style ref, coloris</li>
+                    <li><strong>Hangtag</strong> — prix, code-barres, dimensions</li>
+                </ul>`,
+                () => {
+                    if (typeof window._awOpen === "function") window._awOpen();
                 }
             );
         };
