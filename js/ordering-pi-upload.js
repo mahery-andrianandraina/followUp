@@ -216,13 +216,54 @@
         return result.url || result.fileUrl || result.driveUrl || "";
     }
 
+    // ── Trouver la valeur du PO# / PI# d'une ligne ──────────────
+    function _getKeyValue(row, colDef) {
+        for (const k of (colDef.keys || [])) {
+            const v = (row[k] || "").trim();
+            if (v) return { field: k, value: v };
+        }
+        return null;
+    }
+
     async function _saveFile(rowIndex, colDef, url, name) {
         try {
-            await window.quickUpdate(rowIndex, colDef.urlKey,  url,  "ordering");
-            await window.quickUpdate(rowIndex, colDef.nameKey, name, "ordering");
-            const row = (window.state?.data?.ordering || []).find(r => r._rowIndex === rowIndex);
-            if (row) { row[colDef.urlKey] = url; row[colDef.nameKey] = name; }
-        } catch(e) { typeof showToast === "function" && showToast("Erreur : " + e.message, "error"); }
+            const allRows = window.state?.data?.ordering || [];
+
+            // Trouver la ligne source pour récupérer la valeur PO#/PI#
+            const sourceRow = allRows.find(r => r._rowIndex === rowIndex);
+            const keyInfo   = sourceRow ? _getKeyValue(sourceRow, colDef) : null;
+
+            // Trouver TOUTES les lignes avec la même valeur PO#/PI#
+            let targetRows = [rowIndex];
+            if (keyInfo) {
+                const matchingRows = allRows.filter(r => {
+                    const v = (r[keyInfo.field] || "").trim();
+                    return v && v === keyInfo.value;
+                });
+                if (matchingRows.length > 1) {
+                    targetRows = matchingRows.map(r => r._rowIndex);
+                    console.log("[PI-Upload] Propagation à", targetRows.length,
+                        "lignes pour", keyInfo.field, "=", keyInfo.value);
+                    typeof showToast === "function" &&
+                        showToast("Lien propagé à " + targetRows.length +
+                            " lignes (" + keyInfo.field + " : " + keyInfo.value + ")", "info", 4000);
+                }
+            }
+
+            // Sauvegarder sur toutes les lignes correspondantes
+            for (const ri of targetRows) {
+                await window.quickUpdate(ri, colDef.urlKey,  url,  "ordering");
+                await window.quickUpdate(ri, colDef.nameKey, name, "ordering");
+                const row = allRows.find(r => r._rowIndex === ri);
+                if (row) { row[colDef.urlKey] = url; row[colDef.nameKey] = name; }
+            }
+
+            // Ré-injecter les cellules pour mettre à jour l'UI
+            setTimeout(injectCells, 200);
+
+        } catch(e) {
+            typeof showToast === "function" && showToast("Erreur : " + e.message, "error");
+        }
     }
 
     // ── INJECTION PRINCIPALE ──────────────────────────────────────
