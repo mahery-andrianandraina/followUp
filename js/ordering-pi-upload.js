@@ -258,8 +258,38 @@
                 if (row) { row[colDef.urlKey] = url; row[colDef.nameKey] = name; }
             }
 
-            // Ré-injecter les cellules pour mettre à jour l'UI
-            setTimeout(injectCells, 200);
+            // Mettre à jour directement les tds des lignes propagées
+            const tbody = document.getElementById("table-body");
+            if (tbody) {
+                targetRows.forEach(ri => {
+                    const tr = tbody.querySelector(`tr[data-row-index="${ri}"]`);
+                    if (!tr) return;
+                    UPLOAD_COLS.forEach(cd => {
+                        if (cd.urlKey !== colDef.urlKey) return; // seulement la colonne concernée
+                        let td = null;
+                        for (const k of cd.keys) {
+                            td = tr.querySelector(`td[data-key="${k}"]`);
+                            if (td) break;
+                        }
+                        if (!td) return;
+                        // Forcer le re-rendu de cette cellule
+                        const existing = td.querySelector(".pi-cell");
+                        if (existing) existing.remove();
+                        td.innerHTML = "";
+                        td.style.padding = "5px 10px";
+                        const wrap = document.createElement("div");
+                        wrap.className = "pi-cell";
+                        if (url.startsWith("http")) {
+                            const fw = buildUploaded(url, name, ri, colDef);
+                            Array.from(fw.children).forEach(c => wrap.appendChild(c));
+                        } else {
+                            const row2 = (window.state?.data?.ordering || []).find(r => r._rowIndex === ri);
+                            buildEmpty(wrap, row2 ? _getExistText(row2, colDef) : "", ri, colDef);
+                        }
+                        td.appendChild(wrap);
+                    });
+                });
+            }
 
         } catch(e) {
             typeof showToast === "function" && showToast("Erreur : " + e.message, "error");
@@ -289,11 +319,18 @@
                 }
                 if (!td) return;
 
-                // Déjà notre wrap présent ?
-                if (td.querySelector(".pi-cell")) return;
-
                 const fileUrl  = (row[colDef.urlKey]  || "").trim();
                 const fileName = (row[colDef.nameKey] || "").trim();
+
+                // Si déjà notre wrap ET l'URL est la même → skip
+                const existing = td.querySelector(".pi-cell");
+                if (existing) {
+                    const hasLink  = !!existing.querySelector(".pi-view-btn");
+                    const hasUrl   = fileUrl.startsWith("http");
+                    // Si état identique → skip; sinon forcer refresh
+                    if (hasLink === hasUrl) return;
+                    existing.remove();
+                }
 
                 td.innerHTML = "";
                 td.style.padding = "5px 10px";
