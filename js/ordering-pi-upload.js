@@ -250,13 +250,35 @@
                 }
             }
 
-            // Sauvegarder sur toutes les lignes correspondantes
-            for (const ri of targetRows) {
-                await window.quickUpdate(ri, colDef.urlKey,  url,  "ordering");
-                await window.quickUpdate(ri, colDef.nameKey, name, "ordering");
+            // ── Sauvegarde silencieuse (sans déclencher renderAll) ────
+            const gasUrl2 = window.GOOGLE_APPS_SCRIPT_URL;
+
+            // Arrow function : valide partout, évite les conflits de noms
+            const _quietUpdate = async (ri, colKey, value) => {
+                if (!gasUrl2) return;
+                try {
+                    await fetch(gasUrl2, {
+                        method:  "POST",
+                        headers: { "Content-Type": "text/plain;charset=utf-8" },
+                        redirect:"follow",
+                        body: JSON.stringify({
+                            action:   "UPDATE",
+                            sheet:    "ordering",
+                            rowIndex: ri,
+                            colKey:   colKey,
+                            value:    value
+                        })
+                    });
+                } catch(e) { console.warn("[PI-Upload] _quietUpdate erreur:", e.message); }
+            };
+
+            // Sauvegarder en parallèle (pas de renderAll, plus rapide)
+            await Promise.all(targetRows.map(async ri => {
+                await _quietUpdate(ri, colDef.urlKey,  url);
+                await _quietUpdate(ri, colDef.nameKey, name);
                 const row = allRows.find(r => r._rowIndex === ri);
                 if (row) { row[colDef.urlKey] = url; row[colDef.nameKey] = name; }
-            }
+            }));
 
             // Mettre à jour directement les tds des lignes propagées
             const tbody = document.getElementById("table-body");
