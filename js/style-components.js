@@ -14,6 +14,8 @@
         { key: "Composant",      label: "Composant",      type: "text",   required: true },
         { key: "Status",         label: "Status",         type: "select",
           options: ["", "Pending", "In House", "PO Sent", "Waiting Approval"]                   },
+        { key: "Date PO",        label: "Date PO",        type: "date"                   },
+        { key: "Due Date",       label: "Due Date",       type: "date"                   },
         { key: "Details",        label: "Details",        type: "textarea", full: true   }
 
     ];
