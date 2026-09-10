@@ -369,6 +369,54 @@
             });
         });
 
+        // ── Alertes Style Components : Due Date par composant ───
+        const scRows = st.style_components || [];
+        scRows.forEach(row => {
+            const styleRef  = String(row["Cust Style Ref"] || row["CTL Style Ref"] || "").trim();
+            const composant = String(row["Composant"]   || "").trim();
+            const status    = String(row["Status"]      || "").trim().toLowerCase();
+            const dueRaw    = String(row["Due Date"]    || "").trim();
+
+            if (!dueRaw || !composant) return;
+            if (status === "in house") return; // In House = tout va bien
+
+            const d = parseCommitDate(dueRaw);
+            if (!d) return;
+
+            const today = new Date(); today.setHours(0,0,0,0);
+            d.setHours(0,0,0,0);
+            const diff = Math.round((d - today) / 86400000);
+
+            if (diff > 7) return; // Plus de 7 jours → pas d'alerte
+
+            const isPast  = diff < 0;
+            const isToday = diff === 0;
+            const severity = isPast || diff <= 3 ? "danger" : "warn";
+
+            const diffStr = isPast    ? `${Math.abs(diff)}j de retard`
+                          : isToday   ? "Aujourd'hui !"
+                          : `dans ${diff}j`;
+
+            alerts.push({
+                type:     "sc_due_date",
+                severity,
+                style:    styleRef,
+                client:   "",
+                title:    `${styleRef} — ${composant} : Due Date ${diffStr}`,
+                details:  [
+                    `Composant : ${composant}`,
+                    `Statut actuel : ${row["Status"] || "—"}`,
+                    isPast
+                        ? `⚠️ Due Date dépassée de ${Math.abs(diff)} jour${Math.abs(diff)>1?"s":""}`
+                        : `📅 Due Date : ${fmtDate(dueRaw)}`
+                ],
+                action: isPast
+                    ? `Vérifier ${composant} immédiatement — ${Math.abs(diff)}j de retard`
+                    : `Relancer fournisseur pour ${composant} avant ${fmtDate(dueRaw)}`,
+                icon:     isPast ? "alert" : "clock"
+            });
+        });
+
         // Collecteurs externes désactivés — seules les alertes commitments sont actives
         // (orderingAlerts.js et autres sont ignorés)
 
@@ -694,6 +742,7 @@
         srs_alert:    "SRS Launching",
         sewing_alert: "Sewing Trims",
         packing_alert:"Packing Trims",
+        sc_due_date:  "Style Components",
         planning_conflict: "Conflit Planning",
         missing_pi: "PI Manquante",
         artwork_block: "Artwork Bloquant",
