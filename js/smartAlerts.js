@@ -9,6 +9,13 @@
 //       • Mémorisée dans le navigateur (localStorage)
 //       • Si la date de l'échéance change dans le Sheet, l'alerte revient
 //       • Case "Afficher traitées" pour revoir / annuler
+//
+//  v3 — Règles de fermeture par type
+//       • AUTO   (SRS Launching, Style Components) : l'alerte disparaît
+//         toute seule quand la cellule / le Status passe à "In House"
+//       • MANUEL (PSD, Sewing Trims, Packing Trims) : quand la cellule
+//         passe à "In House", l'alerte reste en bleu "À clôturer"
+//         jusqu'au clic sur « ✓ Fait »
 // ============================================================
 
 (function initSmartAlerts() {
@@ -19,8 +26,18 @@
         exFtyDangerDays:   7,     // alerte rouge si Ex-Fty dans moins de X jours
         refreshInterval:   60000, // recalcul toutes les 60s
         doneStorageKey:    "aw27_sa_done_v1", // clé localStorage des alertes traitées
-        doneRetentionDays: 90     // on oublie les alertes traitées après X jours
+        doneRetentionDays: 90,    // on oublie les alertes traitées après X jours
+        seenStorageKey:    "aw27_sa_seen_v1", // mémoire des alertes déjà vues (types manuels)
+
+        // Types qui ne disparaissent JAMAIS tout seuls : clic « ✓ Fait » obligatoire
+        manualTypes: ["psd_alert", "sewing_alert", "packing_alert"]
+        // Les autres types (srs_alert, sc_due_date) se ferment automatiquement
+        // quand la valeur passe à "In House".
     };
+
+    function isManualType(type) {
+        return CONFIG.manualTypes.includes(type);
+    }
 
     // ── Styles CSS injectés une seule fois ──────────────────
     function injectStyles() {
@@ -262,6 +279,10 @@
             background-color: #fef3c7; color: #b45309; padding: 2px 8px;
             border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
         }
+        .sat-badge-info {
+            background-color: #dbeafe; color: #1d4ed8; padding: 2px 8px;
+            border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
+        }
         .sat-badge-done {
             background-color: #e5e7eb; color: #374151; padding: 2px 8px;
             border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
@@ -335,6 +356,48 @@
         if (typeof showToast === "function") showToast(msg, type || "success");
     }
 
+    // "In House", "in house", "INHOUSE"… → true
+    function isInHouse(val) {
+        return String(val || "").trim().toLowerCase().replace(/\s/g, "") === "inhouse";
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  MÉMOIRE DES ALERTES VUES (types manuels uniquement)
+    //  Format : { "<type>|<style>": { date: "<échéance>", at: <ts>, closed: bool } }
+    //  Sert à savoir qu'un style ÉTAIT en alerte avant de passer
+    //  "In House" → on affiche alors "À clôturer" au lieu de l'effacer.
+    // ══════════════════════════════════════════════════════════
+    let _seenMap = {};
+
+    function loadSeen() {
+        let map = {};
+        try {
+            const raw = localStorage.getItem(CONFIG.seenStorageKey);
+            if (raw) map = JSON.parse(raw) || {};
+        } catch (_) { map = {}; }
+        const limit = Date.now() - CONFIG.doneRetentionDays * 86400000;
+        Object.keys(map).forEach(k => {
+            if (!map[k] || !map[k].at || map[k].at < limit) delete map[k];
+        });
+        _seenMap = map;
+        return _seenMap;
+    }
+
+    function saveSeen() {
+        try { localStorage.setItem(CONFIG.seenStorageKey, JSON.stringify(_seenMap)); }
+        catch (_) { /* stockage indisponible */ }
+    }
+
+    // Enregistre qu'un style est en alerte pour une échéance donnée
+    function rememberSeen(group, dateRaw) {
+        const prev = _seenMap[group];
+        if (prev && prev.date === dateRaw) {
+            prev.at = Date.now();           // même échéance : on garde l'état "closed"
+        } else {
+            _seenMap[group] = { date: dateRaw, at: Date.now(), closed: false }; // nouvelle échéance
+        }
+    }
+
     // ══════════════════════════════════════════════════════════
     //  MÉMOIRE DES ALERTES TRAITÉES (localStorage)
     //  Format : { "<clé alerte>": { at: <timestamp>, title: "..." } }
@@ -370,12 +433,23 @@
         if (!alert || !alert.key) return;
         _doneMap[alert.key] = { at: Date.now(), title: alert.title };
         saveDone();
+        // Type manuel : on ferme le suivi du style → pas de "À clôturer" plus tard
+        if (alert.group && _seenMap[alert.group]) {
+            _seenMap[alert.group].closed = true;
+            _seenMap[alert.group].at = Date.now();
+            saveSeen();
+        }
     }
 
     function unmarkDone(alert) {
         if (!alert || !alert.key) return;
         delete _doneMap[alert.key];
         saveDone();
+        if (alert.group && _seenMap[alert.group]) {
+            _seenMap[alert.group].closed = false;
+            _seenMap[alert.group].at = Date.now();
+            saveSeen();
+        }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -401,11 +475,6 @@
             return isNaN(d) ? null : d;
         }
 
-        // Vérifier si une valeur est "in house"
-        function isInHouse(val) {
-            return String(val||"").trim().toLowerCase().replace(/\s/g,"") === "inhouse";
-        }
-
         const COMMIT_FIELDS = [
             { key: "PSD",          label: "PSD",           type: "psd_alert"     },
             { key: "SRS_Launching",label: "SRS Launching", type: "srs_alert"     },
@@ -419,9 +488,39 @@
             if (!styleCode) return;
 
             COMMIT_FIELDS.forEach(field => {
-                const raw = String(row[field.key] || "").trim();
+                const raw    = String(row[field.key] || "").trim();
+                const manual = isManualType(field.type);
+                const group  = `${field.type}|${normKey(styleCode)}`;
                 if (!raw) return;
-                if (isInHouse(raw)) return; // In House = tout va bien
+
+                if (isInHouse(raw)) {
+                    // AUTO : In House → l'alerte disparaît toute seule
+                    if (!manual) return;
+
+                    // MANUEL : si ce style était en alerte et pas encore clôturé,
+                    // on affiche "À clôturer" jusqu'au clic « ✓ Fait »
+                    const seen = _seenMap[group];
+                    if (!seen || seen.closed) return;
+
+                    alerts.push({
+                        key:      `${group}|inhouse|${normKey(seen.date)}`,
+                        group,
+                        type:     field.type,
+                        severity: "info",
+                        style:    styleCode,
+                        client,
+                        title:    `${styleCode} — ${field.label} In House · à clôturer`,
+                        details:  [
+                            `Échéance suivie : ${fmtDate(parseCommitDate(seen.date) || seen.date)}`,
+                            "✅ Passé « In House » dans le Sheet"
+                        ],
+                        action:   `Vérifier ${field.label} puis cliquer « ✓ Fait » pour clôturer`,
+                        icon:     "check",
+                        rowIndex: row._rowIndex,
+                        sheet:    "details"
+                    });
+                    return;
+                }
 
                 const d = parseCommitDate(raw);
                 if (!d) return;
@@ -431,6 +530,8 @@
                 const diff = Math.round((d - today) / 86400000);
 
                 if (diff > 3) return; // Plus de 3 jours → pas d'alerte
+
+                if (manual) rememberSeen(group, raw);
 
                 const isPast  = diff < 0;
                 const isToday = diff === 0;
@@ -442,7 +543,8 @@
                     : `dans ${diff}j`;
 
                 alerts.push({
-                    key:      `${field.type}|${normKey(styleCode)}|${normKey(raw)}`,
+                    key:      `${group}|${normKey(raw)}`,
+                    group:    manual ? group : null,
                     type:     field.type,
                     severity,
                     style:    styleCode,
@@ -464,7 +566,9 @@
             });
         });
 
-        // ── Alertes Style Components : Due Date par composant ───
+        saveSeen();
+
+        // ── Alertes Style Components : Due Date par composant (AUTO) ───
         const scRows = st.style_components || [];
         scRows.forEach(row => {
             const styleRef  = String(row["Cust Style Ref"] || row["CTL Style Ref"] || "").trim();
@@ -473,7 +577,7 @@
             const dueRaw    = String(row["Due Date"]    || "").trim();
 
             if (!dueRaw || !composant) return;
-            if (status === "in house") return; // In House = tout va bien
+            if (isInHouse(status)) return; // AUTO : In House → l'alerte disparaît
 
             const d = parseCommitDate(dueRaw);
             if (!d) return;
@@ -583,9 +687,9 @@
                 lbl: `Ex-Fty ≤ ${CONFIG.exFtyWarningDays}j`
             },
             {
-                cls: dangerAlerts > 0 ? "sa-kpi-danger" : (warnAlerts > 0 ? "sa-kpi-warn" : "sa-kpi-green"),
+                cls: dangerAlerts > 0 ? "sa-kpi-danger" : (warnAlerts > 0 ? "sa-kpi-warn" : (alerts.length ? "sa-kpi-blue" : "sa-kpi-green")),
                 icon: "🚨",
-                val: dangerAlerts + warnAlerts,
+                val: alerts.length,
                 lbl: "Alertes actives",
                 clickable: true
             }
@@ -759,7 +863,9 @@
         }
 
         body.innerHTML = filtered.map((a, i) => {
-            const iconCls = a.severity === "danger" ? "sa-alert-icon-danger" : "sa-alert-icon-warn";
+            const iconCls = a.severity === "danger" ? "sa-alert-icon-danger"
+                          : a.severity === "warn"   ? "sa-alert-icon-warn"
+                          : "sa-alert-icon-info";
             const icon    = ICONS[a.icon] || ICONS.alert;
             return `
             <div class="sa-alert-card">
@@ -944,6 +1050,7 @@
                             <option value="all">Toutes</option>
                             <option value="danger">🔴 Critiques (Danger)</option>
                             <option value="warn">🟡 Attention (Warning)</option>
+                            <option value="info">🔵 À clôturer (In House)</option>
                         </select>
                     </div>
 
@@ -1083,8 +1190,12 @@
         }
 
         tbody.innerHTML = filtered.map((a, i) => {
-            const badgeCls  = a.severity === "danger" ? "sat-badge-danger" : "sat-badge-warn";
-            const badgeText = a.severity === "danger" ? "Critique" : "Attention";
+            const badgeCls  = a.severity === "danger" ? "sat-badge-danger"
+                            : a.severity === "warn"   ? "sat-badge-warn"
+                            : "sat-badge-info";
+            const badgeText = a.severity === "danger" ? "Critique"
+                            : a.severity === "warn"   ? "Attention"
+                            : "À clôturer";
             const styleCode = a.style || "—";
             const typeLabel = TYPE_LABELS[a.type] || a.type;
             const detailsHtml = a.details.map(d => `
@@ -1162,7 +1273,7 @@
             const rows = filtered.map(a => ({
                 "Statut": a.done ? "Traitée" : "Active",
                 "Traitée le": a.done ? new Date(a.doneAt).toLocaleDateString("fr-FR") : "",
-                "Sévérité": a.severity === "danger" ? "Critique" : "Attention",
+                "Sévérité": a.severity === "danger" ? "Critique" : a.severity === "warn" ? "Attention" : "À clôturer",
                 "Style": a.style || "—",
                 "Client": a.client || "—",
                 "Type d'Alerte": TYPE_LABELS[a.type] || a.type,
@@ -1188,6 +1299,7 @@
         if (!window.state?.data?.details?.length) return;
 
         loadDone();
+        loadSeen();
         _allAlerts = collectAlerts();
         applyDoneFilter();
         rerenderAll();
@@ -1200,6 +1312,7 @@
         injectStyles();
         injectBellButton();
         loadDone();
+        loadSeen();
 
         // Premier calcul dès que les données sont prêtes
         const waitForData = setInterval(() => {
