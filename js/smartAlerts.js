@@ -3,15 +3,23 @@
 //  Fichier : smartAlerts.js
 //  Charger APRÈS app.js dans index.html :
 //  <script src="smartAlerts.js"></script>
+//
+//  v2 — Ajout : marquer une alerte comme "Faite" (✓ Fait)
+//       • L'alerte disparaît des compteurs, de la cloche et des badges
+//       • Mémorisée dans le navigateur (localStorage)
+//       • Si la date de l'échéance change dans le Sheet, l'alerte revient
+//       • Case "Afficher traitées" pour revoir / annuler
 // ============================================================
 
 (function initSmartAlerts() {
 
     // ── Config ──────────────────────────────────────────────
     const CONFIG = {
-        exFtyWarningDays:  14,   // alerte si Ex-Fty dans moins de X jours
-        exFtyDangerDays:   7,    // alerte rouge si Ex-Fty dans moins de X jours
-        refreshInterval:   60000 // recalcul toutes les 60s
+        exFtyWarningDays:  14,    // alerte si Ex-Fty dans moins de X jours
+        exFtyDangerDays:   7,     // alerte rouge si Ex-Fty dans moins de X jours
+        refreshInterval:   60000, // recalcul toutes les 60s
+        doneStorageKey:    "aw27_sa_done_v1", // clé localStorage des alertes traitées
+        doneRetentionDays: 90     // on oublie les alertes traitées après X jours
     };
 
     // ── Styles CSS injectés une seule fois ──────────────────
@@ -191,6 +199,16 @@
             transition: background .12s; float: right; margin-top: 4px;
         }
         .sa-goto-btn:hover { background: #dbeafe; }
+        .sa-done-btn {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px; border-radius: 6px;
+            border: 1px solid #a7f3d0; background: #ecfdf5; color: #047857;
+            font-size: 10.5px; font-weight: 600; cursor: pointer;
+            font-family: inherit; font-style: normal;
+            float: right; margin-top: 4px; margin-left: 6px;
+            transition: background .12s;
+        }
+        .sa-done-btn:hover { background: #d1fae5; }
 
         /* ── Bouton cloche ── */
         #sa-bell-btn {
@@ -229,6 +247,8 @@
         /* ── Table Modal ── */
         .sat-row:nth-child(even) { background-color: #f9fafb; }
         .sat-row:hover { background-color: #f3f4f6; }
+        .sat-row-done { opacity: .55; }
+        .sat-row-done:hover { opacity: .85; }
         .sat-cell {
             padding: 10px 16px; border-bottom: 1px solid #e5e7eb;
             color: #374151; font-size: 12.5px; vertical-align: middle;
@@ -242,6 +262,13 @@
             background-color: #fef3c7; color: #b45309; padding: 2px 8px;
             border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
         }
+        .sat-badge-done {
+            background-color: #e5e7eb; color: #374151; padding: 2px 8px;
+            border-radius: 20px; font-size: 11px; font-weight: 600; display: inline-block;
+        }
+        .sat-done-date {
+            display: block; font-size: 10px; color: #6b7280; margin-top: 3px;
+        }
         .sat-style-link {
             font-weight: 600; color: #1d4ed8; text-decoration: none; cursor: pointer;
         }
@@ -250,8 +277,23 @@
             background: #eff6ff; color: #1d4ed8; border: none; padding: 4px 10px;
             border-radius: 6px; font-size: 11.5px; font-weight: 600; cursor: pointer;
             transition: background 0.15s; display: inline-flex; align-items: center; gap: 4px;
+            font-family: inherit;
         }
         .sat-goto-btn:hover { background: #dbeafe; }
+        .sat-done-btn {
+            background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+            padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+            cursor: pointer; transition: background 0.15s; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+        }
+        .sat-done-btn:hover { background: #d1fae5; }
+        .sat-undo-btn {
+            background: #f3f4f6; color: #374151; border: 1px solid #d1d5db;
+            padding: 4px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 600;
+            cursor: pointer; transition: background 0.15s; font-family: inherit;
+            display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+        }
+        .sat-undo-btn:hover { background: #e5e7eb; }
         `;
         document.head.appendChild(s);
     }
@@ -282,6 +324,58 @@
 
     function esc(s) {
         return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // Normalise un texte pour construire une clé stable
+    function normKey(v) {
+        return String(v || "").replace(/[\s\-_]/g, "").toLowerCase();
+    }
+
+    function toast(msg, type) {
+        if (typeof showToast === "function") showToast(msg, type || "success");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  MÉMOIRE DES ALERTES TRAITÉES (localStorage)
+    //  Format : { "<clé alerte>": { at: <timestamp>, title: "..." } }
+    //  La clé contient la date d'échéance → si la date change dans
+    //  le Sheet, c'est une nouvelle alerte et elle réapparaît.
+    // ══════════════════════════════════════════════════════════
+    let _doneMap = {};
+
+    function loadDone() {
+        let map = {};
+        try {
+            const raw = localStorage.getItem(CONFIG.doneStorageKey);
+            if (raw) map = JSON.parse(raw) || {};
+        } catch (_) { map = {}; }
+
+        // Purge des entrées trop anciennes
+        const limit = Date.now() - CONFIG.doneRetentionDays * 86400000;
+        let changed = false;
+        Object.keys(map).forEach(k => {
+            if (!map[k] || !map[k].at || map[k].at < limit) { delete map[k]; changed = true; }
+        });
+        _doneMap = map;
+        if (changed) saveDone();
+        return _doneMap;
+    }
+
+    function saveDone() {
+        try { localStorage.setItem(CONFIG.doneStorageKey, JSON.stringify(_doneMap)); }
+        catch (_) { /* stockage indisponible : on garde en mémoire pour la session */ }
+    }
+
+    function markDone(alert) {
+        if (!alert || !alert.key) return;
+        _doneMap[alert.key] = { at: Date.now(), title: alert.title };
+        saveDone();
+    }
+
+    function unmarkDone(alert) {
+        if (!alert || !alert.key) return;
+        delete _doneMap[alert.key];
+        saveDone();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -348,6 +442,7 @@
                     : `dans ${diff}j`;
 
                 alerts.push({
+                    key:      `${field.type}|${normKey(styleCode)}|${normKey(raw)}`,
                     type:     field.type,
                     severity,
                     style:    styleCode,
@@ -398,6 +493,7 @@
                           : `dans ${diff}j`;
 
             alerts.push({
+                key:      `sc_due_date|${normKey(styleRef)}|${normKey(composant)}|${normKey(dueRaw)}`,
                 type:     "sc_due_date",
                 severity,
                 style:    styleRef,
@@ -445,13 +541,10 @@
 
         const st = window.state?.data || {};
         const details  = st.details  || [];
-        const ordering = st.ordering || [];
-        const sample   = st.sample   || [];
         const today    = new Date(); today.setHours(0,0,0,0);
 
         // Calculs KPIs
         const totalStyles     = details.length;
-        const totalConfQty    = details.reduce((s, r) => s + (+r["Conf Total"] || 0), 0);
         const poReceived      = details.filter(r => r["Order Status"] === "PO RECEIVED").length;
         const lateExFty       = details.filter(r => {
             const d = daysDiff(r["Possible etd"] || r["Possible Vsl date"]);
@@ -490,7 +583,7 @@
                 lbl: `Ex-Fty ≤ ${CONFIG.exFtyWarningDays}j`
             },
             {
-                cls: dangerAlerts > 0 ? "sa-kpi-danger" : "sa-kpi-green",
+                cls: dangerAlerts > 0 ? "sa-kpi-danger" : (warnAlerts > 0 ? "sa-kpi-warn" : "sa-kpi-green"),
                 icon: "🚨",
                 val: dangerAlerts + warnAlerts,
                 lbl: "Alertes actives",
@@ -530,11 +623,10 @@
 
         document.querySelectorAll(".dbs-sc").forEach(card => {
             const styleCode = card.dataset.styleRaw || card.dataset.style || "";
-            const norm = v => String(v || "").replace(/[\s\-_]/g, "").toLowerCase();
 
             // Chercher les alertes pour ce style
             const cardAlerts = Object.entries(byStyle).find(([k]) =>
-                norm(k) === norm(styleCode)
+                normKey(k) === normKey(styleCode)
             )?.[1];
 
             if (!cardAlerts || !cardAlerts.length) return;
@@ -557,7 +649,7 @@
                           : "sa-badge-info";
                 const badge = document.createElement("span");
                 badge.className = `sa-badge ${cls}`;
-                badge.innerHTML = ICONS[a.icon] + (a.shortTitle || _shortTitle(a.type));
+                badge.innerHTML = ICONS[a.icon] + esc(a.shortTitle || _shortTitle(a.type));
                 badgeWrap.appendChild(badge);
             });
 
@@ -575,22 +667,44 @@
     }
 
     function _shortTitle(type) {
-        const map = {
-            sample_block: "Sample non approuvée",
-            no_sample:    "Aucune sample",
-            exfty_late:   "Ex-Fty dépassée",
-            exfty_soon:   "Ex-Fty proche",
-            psd_overdue:  "PSD dépassée"
-        };
-        return map[type] || type;
+        return TYPE_LABELS[type] || type;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  ÉTAT GLOBAL DES ALERTES
+    // ══════════════════════════════════════════════════════════
+    let _currentTab   = "all";
+    let _allAlerts    = [];  // toutes les alertes calculées (actives + traitées)
+    let _cachedAlerts = [];  // alertes actives uniquement (non traitées)
+    let _panelRows    = [];  // alertes affichées dans le panneau (pour les boutons)
+    let _tableRows    = [];  // alertes affichées dans le tableau (pour les boutons)
+
+    // Sépare actives / traitées selon la mémoire localStorage
+    function applyDoneFilter() {
+        _allAlerts.forEach(a => {
+            const d = _doneMap[a.key];
+            a.done   = !!d;
+            a.doneAt = d ? d.at : null;
+        });
+        _cachedAlerts = _allAlerts.filter(a => !a.done);
+    }
+
+    // Redessine tout ce qui dépend des alertes actives
+    function rerenderAll() {
+        renderKPIBar(_cachedAlerts);
+        injectCardBadges(_cachedAlerts);
+        updateBellButton(_cachedAlerts);
+
+        const panel = document.getElementById("sa-panel-overlay");
+        if (panel && panel.classList.contains("open")) renderPanel(_cachedAlerts);
+
+        const table = document.getElementById("sa-table-modal-overlay");
+        if (table && table.classList.contains("open")) satRenderTable();
     }
 
     // ══════════════════════════════════════════════════════════
     //  PANNEAU LATÉRAL ALERTES
     // ══════════════════════════════════════════════════════════
-    let _currentTab   = "all";
-    let _cachedAlerts = [];
-
     function ensurePanel() {
         if (document.getElementById("sa-panel-overlay")) return;
         const overlay = document.createElement("div");
@@ -628,6 +742,7 @@
 
         const filtered = _currentTab === "all" ? alerts
             : alerts.filter(a => a.severity === _currentTab);
+        _panelRows = filtered;
 
         // Update tabs
         document.querySelectorAll(".sa-tab").forEach((t, i) => {
@@ -643,7 +758,7 @@
             return;
         }
 
-        body.innerHTML = filtered.map(a => {
+        body.innerHTML = filtered.map((a, i) => {
             const iconCls = a.severity === "danger" ? "sa-alert-icon-danger" : "sa-alert-icon-warn";
             const icon    = ICONS[a.icon] || ICONS.alert;
             return `
@@ -664,6 +779,7 @@
                 </div>
                 <div class="sa-alert-action">
                     💡 ${esc(a.action)}
+                    <button class="sa-done-btn" onclick="saPanelMarkDone(${i})" title="Marquer comme traitée">✓ Fait</button>
                     ${a.rowIndex ? `<button class="sa-goto-btn" onclick="saNavigateTo('${a.sheet || 'details'}',${a.rowIndex})">
                         Voir ${ICONS.arrow}
                     </button>` : ""}
@@ -737,6 +853,45 @@
         }
     };
 
+    // ✓ Fait depuis le panneau latéral
+    window.saPanelMarkDone = function(i) {
+        const a = _panelRows[i];
+        if (!a) return;
+        markDone(a);
+        applyDoneFilter();
+        rerenderAll();
+        toast(`Alerte traitée : ${a.style}`, "success");
+    };
+
+    // ✓ Fait / ↺ Annuler depuis le tableau
+    window.satToggleDone = function(i) {
+        const a = _tableRows[i];
+        if (!a) return;
+        if (a.done) {
+            unmarkDone(a);
+            toast(`Alerte remise en suivi : ${a.style}`, "info");
+        } else {
+            markDone(a);
+            toast(`Alerte traitée : ${a.style}`, "success");
+        }
+        applyDoneFilter();
+        rerenderAll();
+    };
+
+    // Marquer toutes les alertes actuellement filtrées comme traitées
+    window.satMarkFilteredDone = function() {
+        const list = satGetFilteredAlerts().filter(a => !a.done);
+        if (!list.length) {
+            toast("Aucune alerte active à marquer", "info");
+            return;
+        }
+        if (!confirm(`Marquer ${list.length} alerte${list.length > 1 ? "s" : ""} comme traitée${list.length > 1 ? "s" : ""} ?`)) return;
+        list.forEach(markDone);
+        applyDoneFilter();
+        rerenderAll();
+        toast(`${list.length} alerte${list.length > 1 ? "s" : ""} marquée${list.length > 1 ? "s" : ""} comme traitée${list.length > 1 ? "s" : ""}`, "success");
+    };
+
     const TYPE_LABELS = {
         psd_alert:    "PSD",
         srs_alert:    "SRS Launching",
@@ -757,32 +912,32 @@
     window.openSATableModal = function() {
         // Fermer le panneau latéral pour éviter la superposition
         closeSAPanel();
-        
+
         let overlay = document.getElementById("sa-table-modal-overlay");
         if (!overlay) {
             overlay = document.createElement("div");
             overlay.id = "sa-table-modal-overlay";
             overlay.className = "modal-overlay";
             overlay.style.cssText = "z-index: 11000; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); opacity: 0; pointer-events: none; transition: opacity 0.2s;";
-            
+
             overlay.innerHTML = `
-            <div class="modal" id="sa-table-modal" style="background: #ffffff; color: #1f2937; border-radius: 12px; width: 1150px; max-width: 98vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #e5e7eb; overflow: hidden; transform: scale(0.95); transition: transform 0.2s; font-family: inherit;">
+            <div class="modal" id="sa-table-modal" style="background: #ffffff; color: #1f2937; border-radius: 12px; width: 1200px; max-width: 98vw; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); border: 1px solid #e5e7eb; overflow: hidden; transform: scale(0.95); transition: transform 0.2s; font-family: inherit;">
                 <div class="modal-header" style="display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; background: #f9fafb;">
                     <div>
                         <h3 style="margin: 0; font-size: 16px; font-weight: 700; color: #111827; display: flex; align-items: center; gap: 8px;">
                             📊 Tableau des Alertes Intelligentes
                         </h3>
-                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">Liste complète, filtrable et exportable vers Excel</p>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280;">Cliquez sur « ✓ Fait » quand une alerte est traitée — elle disparaît des compteurs</p>
                     </div>
                     <button onclick="closeSATableModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #9ca3af; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 6px; transition: background 0.15s;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='none'">✕</button>
                 </div>
-                
+
                 <!-- Barre de filtres et d'action -->
                 <div style="display: flex; gap: 16px; align-items: center; padding: 12px 24px; border-bottom: 1px solid #e5e7eb; background: #fff; flex-wrap: wrap;">
                     <div style="position: relative; flex: 1; min-width: 200px;">
                         <input type="text" id="sat-search" placeholder="Rechercher (style, client, alerte...)" oninput="satFilterChange()" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; box-sizing: border-box;" />
                     </div>
-                    
+
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <label style="font-size: 12px; font-weight: 600; color: #374151;">Sévérité :</label>
                         <select id="sat-severity" onchange="satFilterChange()" style="padding: 7px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; outline: none; background: #fff; cursor: pointer;">
@@ -799,9 +954,19 @@
                         </select>
                     </div>
 
-                    <button onclick="satExportExcel()" style="margin-left: auto; display: flex; align-items: center; gap: 6px; background: #10b981; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
-                        📥 Exporter Excel
-                    </button>
+                    <label style="display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 600; color: #374151; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="sat-show-done" onchange="satFilterChange()" style="cursor: pointer;" />
+                        Afficher traitées (<span id="sat-done-count">0</span>)
+                    </label>
+
+                    <div style="margin-left: auto; display: flex; gap: 8px;">
+                        <button onclick="satMarkFilteredDone()" title="Marquer toutes les alertes affichées comme traitées" style="display: flex; align-items: center; gap: 6px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 8px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;" onmouseover="this.style.background='#d1fae5'" onmouseout="this.style.background='#ecfdf5'">
+                            ✓ Tout marquer fait
+                        </button>
+                        <button onclick="satExportExcel()" style="display: flex; align-items: center; gap: 6px; background: #10b981; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit;" onmouseover="this.style.background='#059669'" onmouseout="this.style.background='#10b981'">
+                            📥 Exporter Excel
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Zone Tableau -->
@@ -809,13 +974,13 @@
                     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; background: #fff;">
                         <thead>
                             <tr style="background: #f3f4f6; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; z-index: 10;">
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 90px;">Sévérité</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 110px;">Style</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 130px;">Client</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 160px;">Type d'Alerte</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151;">Détails / Informations</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 230px;">Action Recommandée</th>
-                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 80px; text-align: center;">Lien</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 100px; background: #f3f4f6;">Sévérité</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 110px; background: #f3f4f6;">Style</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 120px; background: #f3f4f6;">Client</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 140px; background: #f3f4f6;">Type d'Alerte</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; background: #f3f4f6;">Détails / Informations</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 220px; background: #f3f4f6;">Action Recommandée</th>
+                                <th style="padding: 12px 16px; font-weight: 600; color: #374151; width: 170px; text-align: center; background: #f3f4f6;">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="sat-tbody">
@@ -832,12 +997,13 @@
             overlay.addEventListener("click", e => { if (e.target === overlay) closeSATableModal(); });
             document.body.appendChild(overlay);
         }
-        
-        const types = [...new Set(_cachedAlerts.map(a => a.type))];
+
+        // Types disponibles (actives + traitées, pour pouvoir filtrer les deux)
+        const types = [...new Set(_allAlerts.map(a => a.type))];
         const typeSelect = document.getElementById("sat-type");
         if (typeSelect) {
-            typeSelect.innerHTML = '<option value="all">Tous les types</option>' + 
-                types.map(t => `<option value="${t}">${TYPE_LABELS[t] || t}</option>`).join("");
+            typeSelect.innerHTML = '<option value="all">Tous les types</option>' +
+                types.map(t => `<option value="${esc(t)}">${esc(TYPE_LABELS[t] || t)}</option>`).join("");
         }
 
         const searchInput = document.getElementById("sat-search");
@@ -845,6 +1011,8 @@
         const sevSelect = document.getElementById("sat-severity");
         if (sevSelect) sevSelect.value = "all";
         if (typeSelect) typeSelect.value = "all";
+        const showDone = document.getElementById("sat-show-done");
+        if (showDone) showDone.checked = false;
 
         satRenderTable();
 
@@ -869,52 +1037,53 @@
     };
 
     window.satGetFilteredAlerts = function() {
-        const search = (document.getElementById("sat-search")?.value || "").toLowerCase().trim();
+        const search   = (document.getElementById("sat-search")?.value || "").toLowerCase().trim();
         const severity = document.getElementById("sat-severity")?.value || "all";
-        const type = document.getElementById("sat-type")?.value || "all";
+        const type     = document.getElementById("sat-type")?.value || "all";
+        const showDone = !!document.getElementById("sat-show-done")?.checked;
 
-        return _cachedAlerts.filter(a => {
+        const source = showDone ? _allAlerts : _cachedAlerts;
+
+        return source.filter(a => {
             if (severity !== "all" && a.severity !== severity) return false;
             if (type !== "all" && a.type !== type) return false;
             if (search) {
-                const styleText = (a.style || "").toLowerCase();
-                const clientText = (a.client || "").toLowerCase();
-                const titleText = (a.title || "").toLowerCase();
-                const actionText = (a.action || "").toLowerCase();
-                const detailsText = a.details.join(" ").toLowerCase();
-                
-                if (!styleText.includes(search) && 
-                    !clientText.includes(search) && 
-                    !titleText.includes(search) && 
-                    !actionText.includes(search) && 
-                    !detailsText.includes(search)) {
-                    return false;
-                }
+                const haystack = [
+                    a.style, a.client, a.title, a.action, a.details.join(" ")
+                ].join(" ").toLowerCase();
+                if (!haystack.includes(search)) return false;
             }
             return true;
         });
     };
 
     window.satRenderTable = function() {
-        const tbody = document.getElementById("sat-tbody");
-        const statusEl = document.getElementById("sat-status");
+        const tbody     = document.getElementById("sat-tbody");
+        const statusEl  = document.getElementById("sat-status");
+        const doneCount = document.getElementById("sat-done-count");
         if (!tbody) return;
 
+        const nbDone = _allAlerts.length - _cachedAlerts.length;
+        if (doneCount) doneCount.textContent = nbDone;
+
         const filtered = satGetFilteredAlerts();
+        _tableRows = filtered;
 
         if (filtered.length === 0) {
             tbody.innerHTML = `
             <tr>
                 <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 13px;">
-                    🔍 Aucune alerte correspondante aux filtres.
+                    ${_cachedAlerts.length === 0 && _allAlerts.length > 0
+                        ? "✅ Toutes les alertes sont traitées. Cochez « Afficher traitées » pour les revoir."
+                        : "🔍 Aucune alerte correspondante aux filtres."}
                 </td>
             </tr>`;
-            if (statusEl) statusEl.textContent = `0 alerte affichée / ${_cachedAlerts.length} au total`;
+            if (statusEl) statusEl.innerHTML = `0 alerte affichée · <strong>${_cachedAlerts.length}</strong> active${_cachedAlerts.length > 1 ? "s" : ""} · ${nbDone} traitée${nbDone > 1 ? "s" : ""}`;
             return;
         }
 
-        tbody.innerHTML = filtered.map(a => {
-            const badgeCls = a.severity === "danger" ? "sat-badge-danger" : "sat-badge-warn";
+        tbody.innerHTML = filtered.map((a, i) => {
+            const badgeCls  = a.severity === "danger" ? "sat-badge-danger" : "sat-badge-warn";
             const badgeText = a.severity === "danger" ? "Critique" : "Attention";
             const styleCode = a.style || "—";
             const typeLabel = TYPE_LABELS[a.type] || a.type;
@@ -925,9 +1094,18 @@
                 </div>
             `).join("");
 
+            const sevCell = a.done
+                ? `<span class="sat-badge-done">✓ Traitée</span>
+                   <span class="sat-done-date">le ${esc(new Date(a.doneAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }))}</span>`
+                : `<span class="${badgeCls}">${badgeText}</span>`;
+
+            const doneBtn = a.done
+                ? `<button class="sat-undo-btn" onclick="satToggleDone(${i})" title="Remettre cette alerte en suivi">↺ Annuler</button>`
+                : `<button class="sat-done-btn" onclick="satToggleDone(${i})" title="Marquer comme traitée">✓ Fait</button>`;
+
             return `
-            <tr class="sat-row">
-                <td class="sat-cell"><span class="${badgeCls}">${badgeText}</span></td>
+            <tr class="sat-row ${a.done ? "sat-row-done" : ""}">
+                <td class="sat-cell">${sevCell}</td>
                 <td class="sat-cell"><span class="sat-style-link" onclick="satNavigateTo('${a.sheet || 'details'}', ${a.rowIndex || 0})">${esc(styleCode)}</span></td>
                 <td class="sat-cell">${a.client ? esc(a.client) : "—"}</td>
                 <td class="sat-cell" style="font-weight: 500;">${esc(typeLabel)}</td>
@@ -937,18 +1115,21 @@
                 </td>
                 <td class="sat-cell" style="font-style: italic; color: #4b5563;">💡 ${esc(a.action)}</td>
                 <td class="sat-cell" style="text-align: center;">
-                    ${a.rowIndex ? `
-                        <button class="sat-goto-btn" onclick="satNavigateTo('${a.sheet || 'details'}', ${a.rowIndex})">
-                            Voir ➔
-                        </button>
-                    ` : "—"}
+                    <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                        ${doneBtn}
+                        ${a.rowIndex ? `
+                            <button class="sat-goto-btn" onclick="satNavigateTo('${a.sheet || 'details'}', ${a.rowIndex})">
+                                Voir ➔
+                            </button>
+                        ` : ""}
+                    </div>
                 </td>
             </tr>
             `;
         }).join("");
 
         if (statusEl) {
-            statusEl.innerHTML = `Affichage de <strong>${filtered.length}</strong> alerte${filtered.length > 1 ? "s" : ""} filtrée${filtered.length > 1 ? "s" : ""} (sur un total de <strong>${_cachedAlerts.length}</strong> alertes)`;
+            statusEl.innerHTML = `Affichage de <strong>${filtered.length}</strong> alerte${filtered.length > 1 ? "s" : ""} · <strong>${_cachedAlerts.length}</strong> active${_cachedAlerts.length > 1 ? "s" : ""} · ${nbDone} traitée${nbDone > 1 ? "s" : ""}`;
         }
     };
 
@@ -971,14 +1152,16 @@
                 else alert("Bibliothèque Excel non chargée");
                 return;
             }
-            
+
             const filtered = satGetFilteredAlerts();
             if (!filtered.length) {
-                if (typeof showToast === "function") showToast("Aucune alerte à exporter", "info");
+                toast("Aucune alerte à exporter", "info");
                 return;
             }
-            
+
             const rows = filtered.map(a => ({
+                "Statut": a.done ? "Traitée" : "Active",
+                "Traitée le": a.done ? new Date(a.doneAt).toLocaleDateString("fr-FR") : "",
                 "Sévérité": a.severity === "danger" ? "Critique" : "Attention",
                 "Style": a.style || "—",
                 "Client": a.client || "—",
@@ -988,15 +1171,13 @@
                 "Action Recommandée": a.action,
                 "Feuille Source": a.sheet || "details"
             }));
-            
+
             const wb = XL.utils.book_new();
             const ws = XL.utils.json_to_sheet(rows);
             XL.utils.book_append_sheet(wb, ws, "Alertes Intelligentes");
             XL.writeFile(wb, `Alertes_Intelligentes_${new Date().toISOString().slice(0, 10)}.xlsx`);
-            
-            if (typeof showToast === "function") {
-                showToast(`Export de ${filtered.length} alertes réussi`, "success");
-            }
+
+            toast(`Export de ${filtered.length} alertes réussi`, "success");
         });
     };
 
@@ -1006,17 +1187,10 @@
     function refresh() {
         if (!window.state?.data?.details?.length) return;
 
-        _cachedAlerts = collectAlerts();
-
-        renderKPIBar(_cachedAlerts);
-        injectCardBadges(_cachedAlerts);
-        updateBellButton(_cachedAlerts);
-
-        // Rafraîchir le panneau s'il est ouvert
-        const overlay = document.getElementById("sa-panel-overlay");
-        if (overlay && overlay.classList.contains("open")) {
-            renderPanel(_cachedAlerts);
-        }
+        loadDone();
+        _allAlerts = collectAlerts();
+        applyDoneFilter();
+        rerenderAll();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1025,6 +1199,7 @@
     function init() {
         injectStyles();
         injectBellButton();
+        loadDone();
 
         // Premier calcul dès que les données sont prêtes
         const waitForData = setInterval(() => {
