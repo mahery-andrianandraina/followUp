@@ -1210,6 +1210,9 @@
 
         const table = document.getElementById("sa-table-modal-overlay");
         if (table && table.classList.contains("open")) satRenderTable();
+
+        // Prévenir les autres modules (cloche unique du header)
+        document.dispatchEvent(new CustomEvent("sa:updated", { detail: { count: _cachedAlerts.length } }));
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1705,6 +1708,20 @@
 
             toast(`Export de ${filtered.length} alertes réussi`, "success");
         });
+    };
+
+    // ══════════════════════════════════════════════════════════
+    //  API pour les autres modules (ex. header-google.js)
+    // ══════════════════════════════════════════════════════════
+    window.saGetAlerts = () => _cachedAlerts.slice();          // alertes actives
+    window.saTypeLabel = type => TYPE_LABELS[type] || type;
+    window.saMarkDoneKey = function(key) {
+        const a = _allAlerts.find(x => x.key === key);
+        if (!a || a.done) return false;
+        markDone(a);
+        applyDoneFilter();
+        rerenderAll();
+        return true;
     };
 
     // ══════════════════════════════════════════════════════════
