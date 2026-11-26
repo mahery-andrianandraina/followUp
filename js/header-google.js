@@ -13,6 +13,8 @@
 //      Order Status Report, Importer PSD, Analyser TP, Artwork Checker,
 //      Scanner commandes, Rapport d'alertes, Messagerie, Assistant IA, To-Do
 //  • « + Nouveau » en haut de la barre latérale, Paramètres en bas
+//  • Avatar du compte (carte Google), infobulles Google, effet ripple,
+//    snackbar « Annuler » après ✓
 //
 //  Rien n'est supprimé : les anciens boutons sont seulement masqués.
 //  Pour revenir à l'ancien header, retirer la ligne <script> dans index.html.
@@ -95,7 +97,7 @@
         .header-right { gap: 4px !important; align-items: center !important; }
 
         .hg-ib {
-            position: relative; width: 40px; height: 40px; border-radius: 50%; border: none;
+            position: relative; overflow: hidden; width: 40px; height: 40px; border-radius: 50%; border: none;
             background: transparent; color: #fff; cursor: pointer; display: flex;
             align-items: center; justify-content: center; font-size: 21px; transition: background .15s;
             flex-shrink: 0;
@@ -110,6 +112,63 @@
         .hg-badge.show { display: block; }
         .hg-dot { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; border-radius: 50%; background: #fbbc04; border: 2px solid #1a5fd0; display: none; }
         .hg-dot.show { display: block; }
+
+        /* ── Avatar + carte de compte ── */
+        .hg-av-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent; padding: 4px; cursor: pointer; flex-shrink: 0; margin-left: 4px; }
+        .hg-av-btn:hover, .hg-av-btn.on { background: rgba(255,255,255,.18); }
+        .hg-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+                 font: 500 14px Roboto, Arial, sans-serif; color: #fff; overflow: hidden; }
+        .hg-av img { width: 100%; height: 100%; object-fit: cover; }
+        #hg-acc {
+            position: fixed; z-index: 10970; width: 360px; max-width: calc(100vw - 16px);
+            background: #e9eef6; border-radius: 28px; padding: 14px 8px 8px;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3);
+            font-family: Roboto, "Segoe UI", Arial, sans-serif; color: #1f1f1f; text-align: center;
+            opacity: 0; transform: scale(.96); transform-origin: top right; pointer-events: none;
+            transition: opacity .15s, transform .18s cubic-bezier(.2,0,0,1);
+        }
+        #hg-acc.open { opacity: 1; transform: none; pointer-events: auto; }
+        .hg-acc-mail { font-size: 14px; font-weight: 500; color: #1f1f1f; padding: 0 40px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hg-acc-x { position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%; border: none; background: none; cursor: pointer; color: #444746; font-size: 20px; display: flex; align-items: center; justify-content: center; }
+        .hg-acc-x:hover { background: rgba(31,31,31,.08); }
+        .hg-acc-big { width: 80px; height: 80px; border-radius: 50%; margin: 16px auto 10px; font-size: 34px; display: flex; align-items: center; justify-content: center; color: #fff; overflow: hidden; }
+        .hg-acc-big img { width: 100%; height: 100%; object-fit: cover; }
+        .hg-acc-hi { font-size: 22px; font-weight: 400; margin-bottom: 14px; }
+        .hg-acc-manage { display: inline-flex; align-items: center; height: 40px; padding: 0 24px; border-radius: 20px; border: 1px solid #747775; background: transparent; color: #0b57d0; font: 500 14px Roboto, Arial, sans-serif; cursor: pointer; margin-bottom: 14px; }
+        .hg-acc-manage:hover { background: rgba(11,87,208,.08); }
+        .hg-acc-card { background: #fff; border-radius: 20px; overflow: hidden; text-align: left; }
+        .hg-acc-row { display: flex; align-items: center; gap: 14px; width: 100%; height: 52px; padding: 0 24px; border: none; background: none; cursor: pointer; font: 400 14px Roboto, Arial, sans-serif; color: #1f1f1f; }
+        .hg-acc-row:hover { background: #f0f4f9; }
+        .hg-acc-row i { font-size: 22px; color: #444746; }
+        .hg-acc-row + .hg-acc-row { border-top: 1px solid #e9eef6; }
+        .hg-acc-foot { font-size: 12px; color: #444746; padding: 12px 0 6px; }
+
+        /* ── Infobulle Google ── */
+        #hg-tip {
+            position: fixed; z-index: 11000; background: #3c4043; color: #fff; font: 500 12px/16px Roboto, Arial, sans-serif;
+            padding: 5px 8px; border-radius: 4px; pointer-events: none; white-space: nowrap;
+            opacity: 0; transform: scale(.9); transition: opacity .1s, transform .1s;
+        }
+        #hg-tip.show { opacity: .92; transform: none; }
+
+        /* ── Ripple Material ── */
+        .hg-ripple-host { position: relative; overflow: hidden; }
+        .hg-ripple { position: absolute; border-radius: 50%; transform: scale(0); pointer-events: none;
+                     background: currentColor; opacity: .22; animation: hg-rip .45s ease-out forwards; }
+        @keyframes hg-rip { to { transform: scale(2.4); opacity: 0; } }
+
+        /* ── Snackbar ── */
+        #hg-snack {
+            position: fixed; left: 24px; bottom: 24px; z-index: 11000; min-width: 288px; max-width: 560px;
+            background: #313033; color: #f4eff4; font: 400 14px/20px Roboto, Arial, sans-serif;
+            border-radius: 4px; padding: 6px 8px 6px 16px; display: flex; align-items: center; gap: 12px;
+            box-shadow: 0 3px 5px -1px rgba(0,0,0,.2), 0 6px 10px rgba(0,0,0,.14);
+            transform: translateY(24px); opacity: 0; pointer-events: none; transition: transform .2s, opacity .2s;
+        }
+        #hg-snack.show { transform: none; opacity: 1; pointer-events: auto; }
+        #hg-snack span { flex: 1; padding: 8px 0; }
+        #hg-snack button { border: none; background: none; color: #d0bcff; font: 500 14px Roboto, Arial, sans-serif; height: 36px; padding: 0 12px; border-radius: 18px; cursor: pointer; }
+        #hg-snack button:hover { background: rgba(208,188,255,.12); }
 
         /* ── Barre latérale : + Nouveau et Paramètres ── */
         .hg-new {
@@ -191,7 +250,7 @@
         .hg-hint { font-size: 12px; color: #444746; padding: 0 10px 8px; display: none; }
         .hg-edit .hg-hint { display: block; }
         .hg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
-        .hg-ap { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 4px 12px; border-radius: 16px; cursor: pointer; position: relative; text-align: center; border: none; background: none; font-family: inherit; }
+        .hg-ap { overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 14px 4px 12px; border-radius: 16px; cursor: pointer; position: relative; text-align: center; border: none; background: none; font-family: inherit; }
         .hg-ap:hover { background: #e1e8f2; }
         .hg-lo { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 28px; position: relative; }
         .hg-nm { font-size: 13px; color: #1f1f1f; line-height: 16px; }
@@ -213,7 +272,7 @@
         if (!document.getElementById("hg-bell")) {
             const bell = document.createElement("button");
             bell.id = "hg-bell"; bell.className = "hg-ib";
-            bell.title = "Notifications"; bell.setAttribute("aria-label", "Notifications");
+            bell.dataset.tip = "Notifications"; bell.setAttribute("aria-label", "Notifications");
             bell.innerHTML = `<i class="ti ti-bell" aria-hidden="true"></i><span class="hg-badge" id="hg-bell-count"></span>`;
             bell.onclick = e => { e.stopPropagation(); togglePanel(); };
             hr.appendChild(bell);
@@ -221,15 +280,26 @@
         if (!document.getElementById("hg-apps")) {
             const apps = document.createElement("button");
             apps.id = "hg-apps"; apps.className = "hg-ib";
-            apps.title = "Actions"; apps.setAttribute("aria-label", "Actions");
+            apps.dataset.tip = "Outils AW27"; apps.setAttribute("aria-label", "Outils AW27");
             apps.innerHTML = `<i class="ti ti-grid-dots" aria-hidden="true"></i><span class="hg-dot" id="hg-apps-dot"></span>`;
             apps.onclick = e => { e.stopPropagation(); toggleLauncher(); };
             hr.appendChild(apps);
         }
-        // Ordre : ✦ Nouveautés · 🔔 · ⋮⋮⋮
+        if (!document.getElementById("hg-avatar") && window.currentUser) {
+            const av = document.createElement("button");
+            av.id = "hg-avatar"; av.className = "hg-av-btn";
+            const u = window.currentUser;
+            av.dataset.tip = `Compte AW27\n${u.displayName || ""}\n${u.email || ""}`.trim();
+            av.setAttribute("aria-label", "Compte");
+            av.innerHTML = avatarHTML("hg-av");
+            av.onclick = e => { e.stopPropagation(); toggleAccount(); };
+            hr.appendChild(av);
+        }
+        // Ordre : ✦ Nouveautés · 🔔 · ⋮⋮⋮ · avatar
         const wn = document.getElementById("wn-btn");
         if (wn && wn.nextElementSibling !== document.getElementById("hg-bell")) hr.insertBefore(wn, document.getElementById("hg-bell"));
-        return true;
+        if (wn && wn.title) { wn.dataset.tip = "Nouveautés"; wn.removeAttribute("title"); }
+        return !!document.getElementById("hg-avatar");
     }
 
     function buildSidebar() {
@@ -261,6 +331,148 @@
             sb.appendChild(foot);
         }
         return true;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  COMPTE (avatar + carte Google)
+    // ══════════════════════════════════════════════════════════
+    const AV_COLORS = ["#1a73e8", "#d93025", "#188038", "#e37400", "#9334e6", "#007b83", "#c5221f", "#3949ab"];
+    function avatarHTML(cls) {
+        const u = window.currentUser || {};
+        const name = (u.displayName || u.email || "?").trim();
+        if (u.photoURL) return `<span class="${cls}"><img src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer"/></span>`;
+        const parts = name.split(/[\s@.]+/).filter(Boolean);
+        const ini = ((parts[0] || "?")[0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+        let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+        return `<span class="${cls}" style="background:${AV_COLORS[h % AV_COLORS.length]}">${esc(ini)}</span>`;
+    }
+
+    function ensureAccount() {
+        if (document.getElementById("hg-acc")) return;
+        const d = document.createElement("div");
+        d.id = "hg-acc"; d.setAttribute("role", "dialog"); d.setAttribute("aria-label", "Compte");
+        d.addEventListener("click", e => {
+            e.stopPropagation();
+            const a = e.target.closest("[data-acc]");
+            if (!a) return;
+            const act = a.dataset.acc;
+            closeAccount();
+            if (act === "close") return;
+            if (act === "settings") { typeof window.spOpen === "function" ? window.spOpen() : clickEl("#topbar-settings-btn"); }
+            if (act === "news")     { window.openWhatsNew && window.openWhatsNew(); }
+            if (act === "logout")   {
+                if (!confirm("Se déconnecter d'AW27 Checkers ?")) return;
+                if (typeof window.spSignOut === "function") window.spSignOut();
+                else if (typeof window.signOut === "function") window.signOut();
+            }
+        });
+        document.body.appendChild(d);
+    }
+    function renderAccount() {
+        const d = document.getElementById("hg-acc");
+        const u = window.currentUser || {};
+        const first = (u.displayName || u.email || "").split(/[\s@]/)[0];
+        d.innerHTML = `
+            <button class="hg-acc-x" data-acc="close" aria-label="Fermer"><i class="ti ti-x" aria-hidden="true"></i></button>
+            <div class="hg-acc-mail">${esc(u.email || "")}</div>
+            ${avatarHTML("hg-acc-big")}
+            <div class="hg-acc-hi">Bonjour ${esc(first)} !</div>
+            <button class="hg-acc-manage" data-acc="settings">Gérer les paramètres</button>
+            <div class="hg-acc-card">
+                <button class="hg-acc-row" data-acc="news"><i class="ti ti-sparkles" aria-hidden="true"></i>Nouveautés</button>
+                <button class="hg-acc-row" data-acc="logout"><i class="ti ti-logout" aria-hidden="true"></i>Se déconnecter</button>
+            </div>
+            <div class="hg-acc-foot">AW27 Checkers · Socota</div>`;
+    }
+    function toggleAccount() {
+        const d = document.getElementById("hg-acc");
+        if (d && d.classList.contains("open")) closeAccount(); else openAccount();
+    }
+    function openAccount() {
+        closeLauncher(); closePanel();
+        ensureAccount(); renderAccount();
+        const b = document.getElementById("hg-avatar"), d = document.getElementById("hg-acc");
+        if (b) {
+            const r = b.getBoundingClientRect();
+            d.style.top = Math.round(r.bottom + 8) + "px";
+            d.style.right = Math.max(8, Math.round(window.innerWidth - r.right)) + "px";
+        }
+        d.classList.add("open");
+        b && b.classList.add("on");
+    }
+    function closeAccount() {
+        document.getElementById("hg-acc")?.classList.remove("open");
+        document.getElementById("hg-avatar")?.classList.remove("on");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  INFOBULLES GOOGLE (data-tip)
+    // ══════════════════════════════════════════════════════════
+    function setupTooltips() {
+        const tip = document.createElement("div");
+        tip.id = "hg-tip"; tip.setAttribute("role", "tooltip");
+        document.body.appendChild(tip);
+        let timer = null, cur = null;
+        const hide = () => { clearTimeout(timer); tip.classList.remove("show"); cur = null; };
+        document.addEventListener("mouseover", e => {
+            const el = e.target.closest("[data-tip]");
+            if (!el || el === cur) return;
+            hide(); cur = el;
+            timer = setTimeout(() => {
+                if (!document.body.contains(el)) return;
+                tip.style.whiteSpace = "pre"; tip.textContent = el.dataset.tip;
+                const r = el.getBoundingClientRect();
+                tip.style.left = "0px"; tip.style.top = "0px";
+                const w = tip.offsetWidth;
+                tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2)) + "px";
+                tip.style.top = Math.round(r.bottom + 8) + "px";
+                tip.classList.add("show");
+            }, 450);
+        });
+        document.addEventListener("mouseout", e => {
+            const el = e.target.closest("[data-tip]");
+            if (el && !el.contains(e.relatedTarget)) hide();
+        });
+        document.addEventListener("mousedown", hide, true);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  RIPPLE MATERIAL
+    // ══════════════════════════════════════════════════════════
+    function setupRipple() {
+        document.addEventListener("pointerdown", e => {
+            const host = e.target.closest(".hg-ib, .hg-ap, .hg-new, .hg-av-btn, .hg-chip, .hg-ob, .hg-acc-row, .hg-acc-manage");
+            if (!host) return;
+            const r = host.getBoundingClientRect();
+            const size = Math.max(r.width, r.height);
+            const s = document.createElement("span");
+            s.className = "hg-ripple";
+            s.style.width = s.style.height = size + "px";
+            s.style.left = (e.clientX - r.left - size / 2) + "px";
+            s.style.top = (e.clientY - r.top - size / 2) + "px";
+            if (getComputedStyle(host).position === "static") host.style.position = "relative";
+            host.style.overflow = "hidden";
+            host.appendChild(s);
+            setTimeout(() => s.remove(), 500);
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SNACKBAR « ANNULER »
+    // ══════════════════════════════════════════════════════════
+    let _snackTimer = null;
+    function snackbar(text, undoFn) {
+        let sb = document.getElementById("hg-snack");
+        if (!sb) {
+            sb = document.createElement("div");
+            sb.id = "hg-snack"; sb.setAttribute("role", "status");
+            document.body.appendChild(sb);
+        }
+        sb.innerHTML = `<span>${esc(text)}</span>${undoFn ? `<button type="button">Annuler</button>` : ""}`;
+        if (undoFn) sb.querySelector("button").onclick = () => { undoFn(); sb.classList.remove("show"); };
+        requestAnimationFrame(() => sb.classList.add("show"));
+        clearTimeout(_snackTimer);
+        _snackTimer = setTimeout(() => sb.classList.remove("show"), 6000);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -392,7 +604,7 @@
                             <div class="hg-t2">${esc(a.action)}</div>
                             <div class="hg-t3">${esc(typeLbl)}${a.client ? " · " + esc(a.client) : ""}</div>
                         </div>
-                        <button class="hg-ok" data-done="${i}" title="Marquer comme traitée" aria-label="Marquer comme traitée"><i class="ti ti-check" aria-hidden="true"></i></button>
+                        <button class="hg-ok" data-done="${i}" data-tip="Marquer comme traitée" aria-label="Marquer comme traitée"><i class="ti ti-check" aria-hidden="true"></i></button>
                     </div>`;
                 });
             });
@@ -456,8 +668,12 @@
             e.stopPropagation();
             const r = _rows[+t.dataset.done];
             if (r && typeof window.saMarkDoneKey === "function") {
-                window.saMarkDoneKey(r.a.key);
-                if (typeof showToast === "function") showToast("Alerte marquée comme traitée", "success");
+                const key = r.a.key;
+                window.saMarkDoneKey(key);
+                snackbar("Alerte marquée comme traitée", () => {
+                    window.saUnmarkDoneKey && window.saUnmarkDoneKey(key);
+                    updateCounts(); renderPanel();
+                });
             }
             updateCounts(); renderPanel();
             return;
@@ -469,7 +685,12 @@
         if (act === "all") {
             const list = smartAlerts().filter(a => _flt === "all" || a.severity === _flt);
             if (!list.length || !confirm(`Marquer ${list.length} alerte${list.length > 1 ? "s" : ""} comme traitée${list.length > 1 ? "s" : ""} ?`)) return;
-            list.forEach(a => window.saMarkDoneKey && window.saMarkDoneKey(a.key));
+            const keys = list.map(a => a.key);
+            keys.forEach(k => window.saMarkDoneKey && window.saMarkDoneKey(k));
+            snackbar(`${keys.length} alerte${keys.length > 1 ? "s" : ""} marquée${keys.length > 1 ? "s" : ""} comme traitée${keys.length > 1 ? "s" : ""}`, () => {
+                keys.forEach(k => window.saUnmarkDoneKey && window.saUnmarkDoneKey(k));
+                updateCounts(); renderPanel();
+            });
             updateCounts(); renderPanel();
             return;
         }
@@ -527,7 +748,7 @@
 
     function tileHTML(t, favs) {
         const bd = !_edit && t.badge ? t.badge() : "";
-        return `<button class="hg-ap ${favs.includes(t.k) ? "sel" : ""}" data-tool="${t.k}" title="${esc(t.n)}">
+        return `<button class="hg-ap ${favs.includes(t.k) ? "sel" : ""}" data-tool="${t.k}">
             <span class="hg-lo" style="background:${t.b};color:${t.c}"><i class="ti ${t.i}" aria-hidden="true"></i>${bd ? `<span class="hg-ab">${esc(bd)}</span>` : ""}</span>
             <span class="hg-nm">${esc(t.n)}</span>
         </button>`;
@@ -543,7 +764,7 @@
             <div class="hg-fav ${_edit ? "hg-edit" : ""}">
                 <div class="hg-fh">
                     <h4>Vos favoris</h4>
-                    <button class="hg-pen ${_edit ? "on" : ""}" data-pen="1" title="${_edit ? "Terminer" : "Modifier les favoris"}" aria-label="${_edit ? "Terminer" : "Modifier les favoris"}">
+                    <button class="hg-pen ${_edit ? "on" : ""}" data-pen="1" data-tip="${_edit ? "Terminer" : "Modifier les favoris"}" aria-label="${_edit ? "Terminer" : "Modifier les favoris"}">
                         <i class="ti ${_edit ? "ti-check" : "ti-pencil"}" aria-hidden="true"></i>
                     </button>
                 </div>
@@ -583,13 +804,15 @@
     // ══════════════════════════════════════════════════════════
     function init() {
         injectStyles();
+        setupTooltips();
+        setupRipple();
 
         // Le header et la barre latérale peuvent être rendus/modifiés par d'autres scripts
         let tries = 0;
         const t = setInterval(() => {
             const okH = buildHeader();
             const okS = buildSidebar();
-            if ((okH && okS && document.getElementById("wn-btn")) || ++tries > 40) clearInterval(t);
+            if ((okH && okS && document.getElementById("wn-btn")) || ++tries > 60) clearInterval(t);
         }, 500);
 
         // La KPI « Alertes actives » et l'ancienne API ouvrent le nouveau panneau
@@ -605,8 +828,9 @@
         // Fermetures : clic ailleurs, Échap, redimensionnement
         document.addEventListener("click", e => {
             if (!e.target.closest("#hg-lch") && !e.target.closest("#hg-apps")) closeLauncher();
+            if (!e.target.closest("#hg-acc") && !e.target.closest("#hg-avatar")) closeAccount();
         });
-        document.addEventListener("keydown", e => { if (e.key === "Escape") { closeLauncher(); closePanel(); } });
+        document.addEventListener("keydown", e => { if (e.key === "Escape") { closeLauncher(); closePanel(); closeAccount(); } });
         window.addEventListener("resize", () => { positionLauncher(); positionPanel(); });
     }
 
