@@ -16,6 +16,20 @@
 //       • MANUEL (PSD, Sewing Trims, Packing Trims) : quand la cellule
 //         passe à "In House", l'alerte reste en bleu "À clôturer"
 //         jusqu'au clic sur « ✓ Fait »
+//
+//  v4 — Alertes ORDERING intelligentes (menu Ordering)
+//       • Ready Date dépassée / proche (tient compte des nouvelles dates
+//         annoncées dans les Comments)
+//       • En transit trop longtemps
+//       • PO # manquant, commande non confirmée, Ready Date manquante
+//       • Reliquat / livraison partielle détecté dans les Comments
+//         (balance, partial, missing, manque, reliquat…) → reste visible
+//         même si "Delivered", jusqu'au clic « ✓ Fait »
+//       • Risque PSD : trim pas livré à temps pour la PSD du style (Details)
+//       • Artwork en attente / rejeté
+//       • Les lignes d'un même PO + trim + fournisseur sont regroupées
+//  Correctif : les dates ISO du Sheet (…T21:00:00.000Z) sont lues en heure
+//  locale (avant : décalage d'un jour).
 // ============================================================
 
 (function initSmartAlerts() {
@@ -30,9 +44,30 @@
         seenStorageKey:    "aw27_sa_seen_v1", // mémoire des alertes déjà vues (types manuels)
 
         // Types qui ne disparaissent JAMAIS tout seuls : clic « ✓ Fait » obligatoire
-        manualTypes: ["psd_alert", "sewing_alert", "packing_alert"]
+        manualTypes: ["psd_alert", "sewing_alert", "packing_alert", "ord_partial"],
         // Les autres types (srs_alert, sc_due_date) se ferment automatiquement
         // quand la valeur passe à "In House".
+
+        // ── Réglages alertes Ordering ──
+        ordering: {
+            enabled:          true,
+            sheetKey:         "ordering", // clé utilisée par navigateToRow()
+            slashDateOrder:   "MDY",      // dates "11/30/2026" du Sheet Ordering = mois/jour/année
+            readySoonDays:    3,          // Ready Date dans ≤ X jours → Attention
+            transitWarnDays:  7,          // en transit depuis > X jours après Ready Date → Attention
+            transitDangerDays:14,         // … > X jours → Critique
+            noPoAfterDays:    2,          // PO Date passée depuis X jours sans PO # → alerte
+            unconfirmedWarn:  2,          // pas de Status "Confirmed" X jours après PO Date → Attention
+            unconfirmedDanger:5,          // … X jours → Critique
+            noReadyAfterDays: 3,          // Confirmed mais pas de Ready Date après X jours
+            psdHorizonDays:   21,         // on surveille les PSD dans les X prochains jours
+            psdBufferDays:    3,          // le trim doit arriver au moins X jours avant la PSD
+            psdDangerDays:    7,          // PSD dans ≤ X jours → Critique
+            ignoreStatus:     ["cancel", "annul"], // lignes ignorées si Status contient…
+            partialKeywords:  ["balance", "partial", "partiel", "partielle", "missing",
+                               "manque", "manquant", "manquante", "reliquat",
+                               "remaining", "solde", "short"]
+        }
     };
 
     function isManualType(type) {
@@ -361,6 +396,114 @@
         return String(val || "").trim().toLowerCase().replace(/\s/g, "") === "inhouse";
     }
 
+    function today0() {
+        const t = new Date(); t.setHours(0, 0, 0, 0); return t;
+    }
+
+    function diffDays(d) {
+        if (!d) return null;
+        const x = new Date(d); x.setHours(0, 0, 0, 0);
+        return Math.round((x - today0()) / 86400000);
+    }
+
+    // Parser de date commun.
+    // order = "DMY" ou "MDY" pour les dates avec slash ambiguës (ex. 02/03/2026)
+    function parseDate(val, order) {
+        if (val === null || val === undefined || val === "") return null;
+        if (val instanceof Date) return isNaN(val) ? null : new Date(val.getFullYear(), val.getMonth(), val.getDate());
+        const s = String(val).trim();
+        if (!s || /invalid/i.test(s) || isInHouse(s)) return null;
+
+        // ISO complet avec heure (…T21:00:00.000Z) → lire en heure locale
+        if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+            const d = new Date(s);
+            return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+        // YYYY-MM-DD
+        const m1 = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (m1) return new Date(+m1[1], +m1[2] - 1, +m1[3]);
+        // a/b/yyyy
+        const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+        if (m2) {
+            let a = +m2[1], b = +m2[2], y = +m2[3];
+            if (y < 100) y += 2000;
+            let day, month;
+            if (a > 12)      { day = a; month = b; }
+            else if (b > 12) { day = b; month = a; }
+            else if ((order || "DMY") === "MDY") { month = a; day = b; }
+            else             { day = a; month = b; }
+            return new Date(y, month - 1, day);
+        }
+        const d = new Date(s);
+        return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    // ── Lecture des dates écrites dans les commentaires ─────
+    // Comprend : "30-Nov", "Nov.20", "30th nov", "25/11", "02/12", "20 novembre"
+    const MONTH_WORDS = {
+        jan:0, janv:0, janvier:0, january:0,
+        feb:1, february:1, fev:1, fevr:1, fevrier:1,
+        mar:2, mars:2, march:2,
+        apr:3, april:3, avr:3, avril:3,
+        may:4, mai:4,
+        jun:5, june:5, juin:5,
+        jul:6, july:6, juil:6, juillet:6,
+        aug:7, august:7, aou:7, aout:7,
+        sep:8, sept:8, september:8, septembre:8,
+        oct:9, october:9, octobre:9,
+        nov:10, november:10, novembre:10,
+        dec:11, december:11, decembre:11
+    };
+
+    function monthIndex(word) {
+        const w = String(word || "").toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\./g, "");
+        return Object.prototype.hasOwnProperty.call(MONTH_WORDS, w) ? MONTH_WORDS[w] : null;
+    }
+
+    // Choisit l'année la plus proche d'aujourd'hui (± 6 mois)
+    function nearYear(month, day) {
+        const t = today0();
+        let d = new Date(t.getFullYear(), month, day);
+        if ((d - t) / 86400000 > 183)  d = new Date(t.getFullYear() - 1, month, day);
+        if ((t - d) / 86400000 > 183)  d = new Date(t.getFullYear() + 1, month, day);
+        return d;
+    }
+
+    function parseCommentDates(text) {
+        let src = String(text || "");
+        const found = [];
+        const mask = (m) => { src = src.slice(0, m.index) + " ".repeat(m[0].length) + src.slice(m.index + m[0].length); };
+        const validDay = n => n >= 1 && n <= 31;
+
+        // A) 30-Nov, 30th nov, 20 novembre
+        const reA = /(\d{1,2})(?:st|nd|rd|th|er)?[\s\-\.]*([a-zA-Z\u00C0-\u00FF]{3,9})\.?/g;
+        let m;
+        while ((m = reA.exec(src)) !== null) {
+            const mi = monthIndex(m[2]); const d = +m[1];
+            if (mi !== null && validDay(d)) { found.push(nearYear(mi, d)); mask(m); }
+        }
+        // B) Nov.20, Nov 20
+        const reB = /([a-zA-Z\u00C0-\u00FF]{3,9})[\s\.\-]*(\d{1,2})(?!\d)/g;
+        while ((m = reB.exec(src)) !== null) {
+            const mi = monthIndex(m[1]); const d = +m[2];
+            if (mi !== null && validDay(d)) { found.push(nearYear(mi, d)); mask(m); }
+        }
+        // C) 25/11 ou 25/11/2026 (jour/mois dans les commentaires)
+        const reC = /(^|[^\d\/])(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?(?![\d\/])/g;
+        while ((m = reC.exec(src)) !== null) {
+            const d = +m[2], mo = +m[3];
+            if (!validDay(d) || mo < 1 || mo > 12) continue;
+            if (m[4]) { let y = +m[4]; if (y < 100) y += 2000; found.push(new Date(y, mo - 1, d)); }
+            else found.push(nearYear(mo - 1, d));
+        }
+        return found;
+    }
+
+    function maxDate(list) {
+        return list.length ? new Date(Math.max(...list.map(d => d.getTime()))) : null;
+    }
+
     // ══════════════════════════════════════════════════════════
     //  MÉMOIRE DES ALERTES VUES (types manuels uniquement)
     //  Format : { "<type>|<style>": { date: "<échéance>", at: <ts>, closed: bool } }
@@ -460,19 +603,9 @@
         const details = st.details || [];
         const alerts  = [];
 
-        // Parser de date robuste (DD/MM/YYYY, YYYY-MM-DD, texte)
+        // Parser de date robuste (DD/MM/YYYY, YYYY-MM-DD, ISO, texte)
         function parseCommitDate(val) {
-            if (!val) return null;
-            const s = String(val).trim();
-            if (!s || s.toLowerCase().replace(/\s/g, "") === "inhouse") return null;
-            // YYYY-MM-DD
-            const m1 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-            if (m1) return new Date(+m1[1], +m1[2]-1, +m1[3]);
-            // DD/MM/YYYY
-            const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (m2) return new Date(+m2[3], +m2[2]-1, +m2[1]);
-            const d = new Date(s);
-            return isNaN(d) ? null : d;
+            return parseDate(val, "DMY");
         }
 
         const COMMIT_FIELDS = [
@@ -551,14 +684,14 @@
                     client,
                     title:    `${styleCode} — ${field.label} ${diffStr}`,
                     details:  [
-                        `${field.label} : ${fmtDate(raw)}`,
+                        `${field.label} : ${fmtDate(d)}`,
                         isPast ? "⚠️ Date dépassée — action urgente requise"
                                : isToday ? "🔔 Échéance aujourd'hui"
                                : `📅 Échéance dans ${diff} jour${diff > 1 ? "s" : ""}`
                     ],
                     action:   isPast
                         ? `Traiter ${field.label} immédiatement (${Math.abs(diff)}j de retard)`
-                        : `Préparer ${field.label} avant le ${fmtDate(raw)}`,
+                        : `Préparer ${field.label} avant le ${fmtDate(d)}`,
                     icon:     isPast ? "alert" : "clock",
                     rowIndex: row._rowIndex,
                     sheet:    "details"
@@ -608,23 +741,278 @@
                     `Statut actuel : ${row["Status"] || "—"}`,
                     isPast
                         ? `⚠️ Due Date dépassée de ${Math.abs(diff)} jour${Math.abs(diff)>1?"s":""}`
-                        : `📅 Due Date : ${fmtDate(dueRaw)}`
+                        : `📅 Due Date : ${fmtDate(d)}`
                 ],
                 action: isPast
                     ? `Vérifier ${composant} immédiatement — ${Math.abs(diff)}j de retard`
-                    : `Relancer fournisseur pour ${composant} avant ${fmtDate(dueRaw)}`,
+                    : `Relancer fournisseur pour ${composant} avant ${fmtDate(d)}`,
                 icon:     isPast ? "alert" : "clock"
             });
         });
 
-        // Collecteurs externes désactivés — seules les alertes commitments sont actives
-        // (orderingAlerts.js et autres sont ignorés)
+        // ── Alertes Ordering intelligentes ───
+        if (CONFIG.ordering.enabled) {
+            collectOrderingAlerts(st).forEach(a => alerts.push(a));
+            saveSeen();
+        }
 
         // Trier : danger d'abord, puis warn
         return alerts.sort((a, b) => {
             const order = { danger: 0, warn: 1, info: 2 };
-            return (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+            const s = (order[a.severity] ?? 9) - (order[b.severity] ?? 9);
+            if (s) return s;
+            return (a.urgency ?? 0) - (b.urgency ?? 0); // le plus en retard d'abord
         });
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  ALERTES ORDERING — moteur intelligent
+    // ══════════════════════════════════════════════════════════
+    function collectOrderingAlerts(st) {
+        const C      = CONFIG.ordering;
+        const rows   = st.ordering || [];
+        const alerts = [];
+        if (!rows.length) return alerts;
+
+        const pd  = v => parseDate(v, C.slashDateOrder);
+        const low = v => String(v || "").trim().toLowerCase();
+
+        // PSD par style depuis Details (CTLStyleRef ↔ Style, Cust Style Ref ↔ Description)
+        const psdByStyle = {};
+        (st.details || []).forEach(r => {
+            const psd = parseDate(r.PSD, "DMY");
+            if (!psd) return;
+            const info = { psd, cust: String(r["Cust Style Ref"] || "").trim(), ctl: String(r.CTLStyleRef || r["CTL Style Ref"] || "").trim() };
+            [info.ctl, info.cust].forEach(k => { if (k) psdByStyle[normKey(k)] = info; });
+        });
+
+        // 1) Regrouper les lignes : même PO + même trim + même fournisseur
+        const groups = {};
+        rows.forEach(r => {
+            const trim     = String(r.Trims || "").trim();
+            const ctl      = String(r.Style || "").trim();
+            const cust     = String(r.Description || "").trim();
+            if (!trim && !ctl && !cust) return;
+            if (C.ignoreStatus.some(w => low(r.Status).includes(w))) return;
+
+            const po       = String(r["PO #"] || "").trim();
+            const supplier = String(r.Supplier || "").trim();
+            const poDateK  = po ? "" : normKey(r["PO Date"]);
+            const gk = `${normKey(po) || "nopo" + poDateK}|${normKey(trim)}|${normKey(supplier)}`;
+
+            if (!groups[gk]) {
+                groups[gk] = {
+                    gk, po, trim, supplier,
+                    client:    String(r.Client || "").trim(),
+                    poDate:    pd(r["PO Date"]),
+                    ready:     pd(r["Ready Date"]),
+                    status:    String(r.Status || "").trim(),
+                    delivery:  String(r["Delivery Status"] || "").trim(),
+                    comment:   String(r.Comments || "").trim(),
+                    pi:        String(r.PI || r["PI URL"] || "").trim(),
+                    awUrl:     String(r["Artwork Original URL"] || "").trim(),
+                    awAppr:    String(r["Artwork Approval."] || r["Artwork Approval"] || "").trim(),
+                    rowIndex:  r._rowIndex,
+                    styles:    [], ctls: []
+                };
+            }
+            const g = groups[gk];
+            // Ready Date la plus tardive du groupe
+            const rd = pd(r["Ready Date"]);
+            if (rd && (!g.ready || rd > g.ready)) g.ready = rd;
+            // Confirmée si au moins une ligne est confirmée
+            if (String(r.Status || "").toLowerCase().includes("confirm")) g.status = String(r.Status).trim();
+            // Fusion des commentaires différents
+            const cm = String(r.Comments || "").trim();
+            if (cm && !g.comment.includes(cm)) g.comment = g.comment ? `${g.comment} | ${cm}` : cm;
+            if (!g.awAppr && (r["Artwork Approval."] || r["Artwork Approval"])) g.awAppr = String(r["Artwork Approval."] || r["Artwork Approval"]).trim();
+            if (!g.awUrl && r["Artwork Original URL"]) g.awUrl = String(r["Artwork Original URL"]).trim();
+            if (cust && !g.styles.includes(cust)) g.styles.push(cust);
+            if (ctl  && !g.ctls.includes(ctl))    g.ctls.push(ctl);
+            // si une ligne du groupe n'est pas livrée, le groupe n'est pas livré
+            if (low(r["Delivery Status"]) !== "delivered") g.delivery = String(r["Delivery Status"] || "").trim();
+        });
+
+        Object.values(groups).forEach(g => {
+            const delivered  = low(g.delivery) === "delivered";
+            const inTransit  = low(g.delivery).includes("transit");
+            const confirmed  = low(g.status).includes("confirm");
+            const label      = `${g.trim || "Trim"}${g.supplier ? " (" + g.supplier + ")" : ""}`;
+            const poLabel    = g.po ? `PO ${g.po}` : "Sans PO #";
+            const styleTxt   = g.styles.length ? g.styles[0] + (g.styles.length > 1 ? ` +${g.styles.length - 1}` : "") : (g.ctls[0] || "—");
+            const stylesList = g.styles.length > 1 ? `Styles : ${g.styles.join(", ")}` : null;
+            const readyDiff  = diffDays(g.ready);
+            const poAge      = g.poDate ? -diffDays(g.poDate) : null;
+            const commentDates = parseCommentDates(g.comment);
+            const commentNext  = maxDate(commentDates.filter(d => diffDays(d) >= 0)); // prochaine date annoncée
+            const commentLine  = g.comment ? `💬 ${g.comment.replace(/\s+/g, " ").slice(0, 120)}` : null;
+
+            const base = (type, severity, title, details, action, icon, urgency, extraKey) => ({
+                key:      `${type}|${g.gk}${extraKey ? "|" + extraKey : ""}`,
+                group:    isManualType(type) ? `${type}|${g.gk}` : null,
+                type, severity,
+                style:    styleTxt,
+                styles:   g.styles.concat(g.ctls),
+                client:   g.client,
+                title:    `${poLabel} · ${label} — ${title}`,
+                details:  details.filter(Boolean),
+                action, icon,
+                urgency:  urgency ?? 0,
+                rowIndex: g.rowIndex,
+                sheet:    C.sheetKey
+            });
+
+            // ── A) Reliquat / livraison partielle (MANUEL, même si Delivered) ──
+            const kwRe = new RegExp(`\\b(${C.partialKeywords.join("|")})\\b`, "gi");
+            const kwMatches = [...g.comment.matchAll(kwRe)];
+            const partialGroup = `ord_partial|${g.gk}`;
+            if (kwMatches.length) {
+                const lastKw   = kwMatches[kwMatches.length - 1];
+                const after    = g.comment.slice(lastKw.index);
+                const balDate  = maxDate(parseCommentDates(after));
+                const tbc      = !balDate;
+                const bDiff    = balDate ? diffDays(balDate) : null;
+                const dateKey  = balDate ? balDate.toISOString().slice(0, 10) : "tbc";
+                rememberSeen(partialGroup, dateKey);
+                if (!_seenMap[partialGroup].closed) {
+                    const sev = bDiff !== null && bDiff < 0 ? "danger" : "warn";
+                    alerts.push(base("ord_partial", sev,
+                        tbc ? "Reliquat sans date"
+                            : bDiff < 0 ? `Reliquat en retard de ${-bDiff}j`
+                            : bDiff === 0 ? "Reliquat attendu aujourd'hui"
+                            : `Reliquat attendu dans ${bDiff}j`,
+                        [
+                            `Mot-clé détecté : « ${lastKw[0]} »${delivered ? " · ligne marquée Delivered" : ""}`,
+                            balDate ? `📅 Reliquat annoncé : ${fmtDate(balDate)}` : "❓ Aucune date de reliquat (TBC)",
+                            stylesList, commentLine
+                        ],
+                        tbc ? "Demander au fournisseur la date du reliquat"
+                            : bDiff < 0 ? "Relancer le fournisseur : reliquat non reçu"
+                            : `Vérifier la réception du reliquat le ${fmtDate(balDate)}`,
+                        bDiff !== null && bDiff < 0 ? "alert" : "clock",
+                        bDiff ?? 0, dateKey));
+                }
+            } else {
+                // Plus de mot-clé dans le commentaire : si l'alerte avait été vue
+                // et pas clôturée → "À clôturer" (règle livraison : reste visible)
+                const seen = _seenMap[partialGroup];
+                if (seen && !seen.closed) {
+                    alerts.push(base("ord_partial", "info", "Reliquat · à clôturer",
+                        ["✅ Le commentaire ne mentionne plus de reliquat", stylesList, commentLine],
+                        "Vérifier la réception complète puis cliquer « ✓ Fait »",
+                        "check", 0, "done|" + seen.date));
+                }
+            }
+
+            if (delivered) return; // les autres règles ne concernent que le non-livré
+
+            // ── B) Commande non confirmée ──
+            if (!confirmed && poAge !== null && poAge >= C.unconfirmedWarn) {
+                alerts.push(base("ord_not_confirmed", poAge >= C.unconfirmedDanger ? "danger" : "warn",
+                    `Non confirmée depuis ${poAge}j`,
+                    [`PO Date : ${fmtDate(g.poDate)}`, `Status actuel : ${g.status || "vide"}`, stylesList, commentLine],
+                    "Relancer le fournisseur pour confirmation (PI / Ready Date)",
+                    "alert", -poAge));
+            }
+
+            // ── C) PO # manquant ──
+            if (!g.po && poAge !== null && poAge >= C.noPoAfterDays) {
+                alerts.push(base("ord_no_po", "warn", "PO # manquant",
+                    [`Commande saisie le ${fmtDate(g.poDate)} sans numéro de PO`, stylesList, commentLine],
+                    "Renseigner le PO # dans Ordering",
+                    "alert", -poAge));
+            }
+
+            // ── D) Ready Date manquante ──
+            if (confirmed && !g.ready && poAge !== null && poAge >= C.noReadyAfterDays) {
+                alerts.push(base("ord_no_ready", "warn", "Ready Date manquante",
+                    [`Confirmée mais sans Ready Date (PO du ${fmtDate(g.poDate)})`, stylesList, commentLine],
+                    "Demander la Ready Date au fournisseur",
+                    "clock", -poAge));
+            }
+
+            // ── E) Ready Date dépassée / proche (hors transit) ──
+            if (g.ready && !inTransit && readyDiff !== null) {
+                const newDate = commentNext && g.ready && commentNext > g.ready ? commentNext : null;
+                if (readyDiff < 0) {
+                    alerts.push(base("ord_ready_late", newDate ? "warn" : "danger",
+                        `Ready Date dépassée de ${-readyDiff}j`,
+                        [`Ready Date : ${fmtDate(g.ready)} · pas encore expédié`,
+                         newDate ? `🔄 Nouvelle date annoncée en commentaire : ${fmtDate(newDate)}` : "Aucune nouvelle date dans les commentaires",
+                         stylesList, commentLine],
+                        newDate ? `Suivre la nouvelle date (${fmtDate(newDate)}) et mettre à jour la Ready Date`
+                                : "Relancer le fournisseur : statut d'expédition ?",
+                        "alert", readyDiff));
+                } else if (readyDiff <= C.readySoonDays) {
+                    alerts.push(base("ord_ready_soon", "warn",
+                        readyDiff === 0 ? "Ready aujourd'hui" : `Ready dans ${readyDiff}j`,
+                        [`Ready Date : ${fmtDate(g.ready)}`, stylesList, commentLine],
+                        "Confirmer l'expédition / l'enlèvement avec le fournisseur",
+                        "clock", readyDiff));
+                }
+            }
+
+            // ── F) En transit trop longtemps ──
+            if (inTransit && g.ready && readyDiff !== null && -readyDiff > C.transitWarnDays) {
+                const eta = commentNext;
+                alerts.push(base("ord_transit_long", -readyDiff > C.transitDangerDays && !eta ? "danger" : "warn",
+                    `En transit depuis ~${-readyDiff}j`,
+                    [`Ready Date : ${fmtDate(g.ready)}`,
+                     eta ? `📅 Date annoncée en commentaire : ${fmtDate(eta)}` : "Aucune ETA dans les commentaires",
+                     stylesList, commentLine],
+                    eta ? `Vérifier l'arrivée prévue le ${fmtDate(eta)}` : "Demander AWB / ETA au transitaire",
+                    "ship", readyDiff));
+            }
+
+            // ── G) Risque PSD (croisement avec Details) ──
+            const atRisk = [];
+            g.ctls.concat(g.styles).forEach(k => {
+                const info = psdByStyle[normKey(k)];
+                if (!info || atRisk.some(x => x.info === info)) return;
+                const psdDiff = diffDays(info.psd);
+                if (psdDiff > C.psdHorizonDays) return;
+                const expected = (commentNext && (!g.ready || commentNext > g.ready)) ? commentNext : g.ready;
+                const limit    = new Date(info.psd); limit.setDate(limit.getDate() - C.psdBufferDays);
+                const risk = !expected
+                          || expected > limit
+                          || (inTransit && psdDiff <= C.psdDangerDays)
+                          || (!inTransit && readyDiff !== null && readyDiff < 0);
+                if (risk) atRisk.push({ info, psdDiff, expected });
+            });
+            if (atRisk.length) {
+                atRisk.sort((a, b) => a.psdDiff - b.psdDiff);
+                const first = atRisk[0];
+                alerts.push(base("ord_psd_risk", first.psdDiff <= C.psdDangerDays ? "danger" : "warn",
+                    first.psdDiff < 0 ? `PSD dépassée, trim non livré`
+                                      : `Risque PSD dans ${first.psdDiff}j`,
+                    [
+                        ...atRisk.map(x => `${x.info.cust || x.info.ctl} : PSD ${fmtDate(x.info.psd)}`),
+                        first.expected ? `Arrivée trim estimée : ${fmtDate(first.expected)}${inTransit ? " (en transit)" : ""}`
+                                       : "Pas de date d'arrivée connue",
+                        `Marge souhaitée : ${C.psdBufferDays}j avant PSD`,
+                        commentLine
+                    ],
+                    "Sécuriser la livraison (express / partiel) ou alerter la production",
+                    "alert", first.psdDiff - 100, atRisk.map(x => fmtDate(x.info.psd)).join(",")));
+            }
+
+            // ── H) Artwork en attente / rejeté ──
+            if (g.awUrl) {
+                const aw = low(g.awAppr);
+                if (aw.includes("reject") || aw.includes("refus")) {
+                    alerts.push(base("ord_artwork", "danger", "Artwork rejeté",
+                        [`Approbation : ${g.awAppr}`, stylesList],
+                        "Corriger l'artwork et renvoyer pour approbation", "alert", -50));
+                } else if (!aw.includes("approv") && !aw.includes("ok")) {
+                    alerts.push(base("ord_artwork", readyDiff !== null && readyDiff <= C.readySoonDays ? "danger" : "warn",
+                        "Artwork en attente d'approbation",
+                        [`Approbation : ${g.awAppr || "vide"}`, g.ready ? `Ready Date : ${fmtDate(g.ready)}` : null, stylesList],
+                        "Relancer l'approbation client (via N+1)", "clock", readyDiff ?? 0));
+                }
+            }
+        });
+
+        return alerts;
     }
 
     function _isOrderDelivered(orders) {
@@ -721,17 +1109,20 @@
         // Grouper par style
         const byStyle = {};
         alerts.forEach(a => {
-            if (!byStyle[a.style]) byStyle[a.style] = [];
-            byStyle[a.style].push(a);
+            const keys = (a.styles && a.styles.length) ? a.styles : [a.style];
+            keys.forEach(k => {
+                const nk = normKey(k);
+                if (!nk) return;
+                if (!byStyle[nk]) byStyle[nk] = [];
+                byStyle[nk].push(a);
+            });
         });
 
         document.querySelectorAll(".dbs-sc").forEach(card => {
             const styleCode = card.dataset.styleRaw || card.dataset.style || "";
 
             // Chercher les alertes pour ce style
-            const cardAlerts = Object.entries(byStyle).find(([k]) =>
-                normKey(k) === normKey(styleCode)
-            )?.[1];
+            const cardAlerts = byStyle[normKey(styleCode)];
 
             if (!cardAlerts || !cardAlerts.length) return;
 
@@ -1012,7 +1403,16 @@
         no_sample: "Aucune sample",
         exfty_late: "Ex-Fty dépassée",
         exfty_soon: "Ex-Fty proche",
-        psd_overdue: "PO Deadline dépassée"
+        psd_overdue: "PO Deadline dépassée",
+        ord_partial:       "Reliquat",
+        ord_not_confirmed: "Non confirmée",
+        ord_no_po:         "PO # manquant",
+        ord_no_ready:      "Ready Date manquante",
+        ord_ready_late:    "Ready dépassée",
+        ord_ready_soon:    "Ready proche",
+        ord_transit_long:  "Transit long",
+        ord_psd_risk:      "Risque PSD",
+        ord_artwork:       "Artwork"
     };
 
     window.openSATableModal = function() {
