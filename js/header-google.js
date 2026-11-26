@@ -252,7 +252,12 @@
                     <span class="nav-icon"><i class="ti ti-settings" style="font-size:18px" aria-hidden="true"></i></span>
                     <span class="nav-label">Paramètres</span>
                 </button>`;
-            foot.querySelector("button").onclick = () => { if (typeof window.openSettingsPanel === "function") window.openSettingsPanel(); };
+            foot.querySelector("button").onclick = e => {
+                e.stopPropagation();
+                // Panneau de settings-panel.js : window.spOpen() (ou son bouton d'origine, masqué)
+                if (typeof window.spOpen === "function") window.spOpen();
+                else if (!clickEl("#topbar-settings-btn") && typeof window.openSettingsPanel === "function") window.openSettingsPanel();
+            };
             sb.appendChild(foot);
         }
         return true;
