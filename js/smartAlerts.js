@@ -396,6 +396,13 @@
         return String(val || "").trim().toLowerCase().replace(/\s/g, "") === "inhouse";
     }
 
+    // Valeur "terminée" pour une échéance commitment / PSD :
+    // "In House", "ALL OK", "All OK - 2026-12-09"… → true
+    function isClosedValue(val) {
+        const v = String(val || "").trim().toLowerCase().replace(/\s/g, "");
+        return v.startsWith("inhouse") || v.startsWith("allok");
+    }
+
     function today0() {
         const t = new Date(); t.setHours(0, 0, 0, 0); return t;
     }
@@ -412,7 +419,8 @@
         if (val === null || val === undefined || val === "") return null;
         if (val instanceof Date) return isNaN(val) ? null : new Date(val.getFullYear(), val.getMonth(), val.getDate());
         const s = String(val).trim();
-        if (!s || /invalid/i.test(s) || isInHouse(s)) return null;
+        // Texte de statut ("In House", "ALL OK", "All OK - date", "TBC"…) → pas une date
+        if (!s || /invalid/i.test(s) || isClosedValue(s)) return null;
 
         // ISO complet avec heure (…T21:00:00.000Z) → lire en heure locale
         if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
@@ -434,8 +442,13 @@
             else             { day = a; month = b; }
             return new Date(y, month - 1, day);
         }
-        const d = new Date(s);
-        return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        // Dernier recours : seulement si le texte ressemble à une date
+        // (évite que "Waiting 2026-12-09" ou "OK 09/12" soit pris pour une date)
+        if (/^[a-z]{3,9}\.?\s+\d{1,2},?\s+\d{4}$/i.test(s) || /^\d{1,2}[\s\-][a-z]{3,9}[\s\-]\d{2,4}$/i.test(s)) {
+            const d = new Date(s);
+            return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+        return null;
     }
 
     // ── Lecture des dates écrites dans les commentaires ─────
@@ -626,8 +639,8 @@
                 const group  = `${field.type}|${normKey(styleCode)}`;
                 if (!raw) return;
 
-                if (isInHouse(raw)) {
-                    // AUTO : In House → l'alerte disparaît toute seule
+                if (isClosedValue(raw)) {
+                    // AUTO : In House / ALL OK → l'alerte disparaît toute seule
                     if (!manual) return;
 
                     // MANUEL : si ce style était en alerte et pas encore clôturé,
@@ -642,10 +655,10 @@
                         severity: "info",
                         style:    styleCode,
                         client,
-                        title:    `${styleCode} — ${field.label} In House · à clôturer`,
+                        title:    `${styleCode} — ${field.label} ${/^all\s*ok/i.test(raw) ? "ALL OK" : "In House"} · à clôturer`,
                         details:  [
                             `Échéance suivie : ${fmtDate(parseCommitDate(seen.date) || seen.date)}`,
-                            "✅ Passé « In House » dans le Sheet"
+                            `✅ Passé « ${raw} » dans le Sheet`
                         ],
                         action:   `Vérifier ${field.label} puis cliquer « ✓ Fait » pour clôturer`,
                         icon:     "check",
@@ -778,8 +791,10 @@
         const low = v => String(v || "").trim().toLowerCase();
 
         // PSD par style depuis Details (CTLStyleRef ↔ Style, Cust Style Ref ↔ Description)
+        // PSD "In House" / "ALL OK" → pas de risque, le style est ignoré
         const psdByStyle = {};
         (st.details || []).forEach(r => {
+            if (isClosedValue(r.PSD)) return;
             const psd = parseDate(r.PSD, "DMY");
             if (!psd) return;
             const info = { psd, cust: String(r["Cust Style Ref"] || "").trim(), ctl: String(r.CTLStyleRef || r["CTL Style Ref"] || "").trim() };
