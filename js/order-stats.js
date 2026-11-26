@@ -10,7 +10,9 @@
 //  • Calendriers en liste (style Google Agenda), chaque style avec sa date :
 //      - Calendrier Ex-Fty    (Details › Possible etd)
 //      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant
-//  • Alertes par type (alertes intelligentes) et Statut des commandes (Ordering)
+//  • Préparation des styles : trims livrés / commandés + SRS, Sewing, Packing, PSD
+//  • Fournisseurs : lignes, livrées, en transit, en retard, reliquats, délai moyen
+//  • Alertes à traiter : tableau par type (Critiques / Attention / À clôturer)
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
 //  • Le dashboard ne garde que le grand titre et les filtres
 // ============================================================
@@ -37,6 +39,15 @@
         if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return new Date(+m[3], +m[2] - 1, +m[1]);
         return null;
     }
+    // Ordering : dates "11/30/2026" = mois/jour (sauf si le 1er nombre > 12)
+    function parseOrd(v) {
+        const s = String(v == null ? "" : v).trim();
+        const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) { let a = +m[1], b = +m[2]; return a > 12 ? new Date(+m[3], b - 1, a) : new Date(+m[3], a - 1, b); }
+        return parseD(s);
+    }
+    const PARTIAL_RE = /\b(balance|partial|partiel|partielle|missing|manque|manquant|manquante|reliquat|remaining|solde|short)\b/i;
+
     function today0() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
     const dayDiff = d => Math.round((d - today0()) / 86400000);
     function mondayOf(d) { const x = new Date(d); const k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); x.setHours(0, 0, 0, 0); return x; }
@@ -134,6 +145,38 @@
         .os-foot { font-size: 12px; color: #5f6368; padding: 10px 4px 0; border-top: 1px solid #e3e3e3; margin-top: 6px; }
         .os-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
         @media (max-width: 1000px) { .os-grid2 { grid-template-columns: 1fr; } }
+
+        /* Tableaux (Préparation, Fournisseurs, Alertes) */
+        .os-tw { overflow-x: auto; margin: 0 -4px; }
+        .os-t { width: 100%; border-collapse: collapse; font-size: 13px; }
+        html body #stats-screen .os-t th {
+            text-transform: none !important; letter-spacing: 0 !important; background: #fff !important;
+            color: #444746 !important; font-weight: 500 !important; font-size: 12.5px !important; box-shadow: none !important;
+        }
+        html body #stats-screen .os-t td { background: transparent; }
+        .os-t th { text-align: left; font-weight: 500; color: #444746; font-size: 12.5px; padding: 8px 10px; border-bottom: 1px solid #e3e3e3; white-space: nowrap; position: sticky; top: 0; background: #fff; }
+        .os-t th.r, .os-t td.r { text-align: right; } .os-t th.c, .os-t td.c { text-align: center; }
+        .os-t td { padding: 10px; border-bottom: 1px solid #f1f3f4; color: #1f1f1f; vertical-align: middle; }
+        .os-t tr.click { cursor: pointer; } .os-t tr.click:hover td { background: #f8fafd; }
+        .os-t .sub { display: block; font-size: 12px; color: #5f6368; }
+        .os-t tfoot td { font-weight: 500; border-top: 1px solid #e3e3e3; border-bottom: none; }
+        .os-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 24px; padding: 0 8px; border-radius: 8px; font-size: 12.5px; font-weight: 500; }
+        .os-pill.z { color: #c4c7c5; font-weight: 400; }
+        .os-pill.red { background: #fce8e6; color: #c5221f; } .os-pill.amber { background: #fef7e0; color: #b06000; }
+        .os-pill.blue { background: #d3e3fd; color: #041e49; } .os-pill.green { background: #e6f4ea; color: #137333; }
+        .os-pill.grey { background: #f1f3f4; color: #444746; }
+        .os-prog { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+        .os-prog .tr { flex: 1; height: 8px; border-radius: 4px; background: #e9eef6; overflow: hidden; display: flex; }
+        .os-prog .tr div { height: 100%; }
+        .os-prog .v { font-size: 12.5px; color: #444746; white-space: nowrap; min-width: 54px; text-align: right; }
+        .os-cm { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+        .os-cm.ok { background: #e6f4ea; color: #137333; } .os-cm.late { background: #fce8e6; color: #c5221f; }
+        .os-cm.soon { background: #fef7e0; color: #b06000; } .os-cm.date { background: #f1f3f4; color: #444746; }
+        .os-cm.txt { background: #f3e8fd; color: #6a1b9a; } .os-cm.none { color: #c4c7c5; font-weight: 400; }
+        .os-help { font-size: 12px; color: #5f6368; margin-top: 10px; display: flex; gap: 14px; flex-wrap: wrap; }
+        .os-help span { display: inline-flex; align-items: center; gap: 6px; }
+        .os-help i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+        .os-scroll { max-height: 420px; overflow-y: auto; }
 
         /* Barres horizontales (Alertes par type) */
         .os-hb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #444746; }
@@ -308,36 +351,120 @@
             empty: "Aucune PSD renseignée.", sub: r => exfty(r) ? `Ex-Fty ${fmtShort(exfty(r))}` : ""
         });
 
-        // ── Alertes par type ──
+        // ── Préparation des styles : trims (Ordering) + commitments (Details) ──
+        const ordByStyle = {};
+        ordering.forEach(r => {
+            [r.Style, r.Description].forEach(k => {
+                if (!k) return;
+                const key = norm(k);
+                (ordByStyle[key] = ordByStyle[key] || new Set()).add(r);
+            });
+        });
+        const ordState = r => {
+            const d = String(r["Delivery Status"] || "").toLowerCase();
+            if (d.includes("deliver") || d.includes("livr")) return "done";
+            if (d.includes("transit")) return "transit";
+            return "todo";
+        };
+        const commit = v => {
+            const raw = String(v == null ? "" : v).trim();
+            if (!raw || /invalid/i.test(raw)) return `<span class="os-cm none">—</span>`;
+            if (/^(in\s*house|all\s*ok)/i.test(raw)) return `<span class="os-cm ok">✓ ${esc(raw.replace(/\s*-\s*\d.*$/, ""))}</span>`;
+            const d = parseD(raw);
+            if (!d) return `<span class="os-cm txt" title="${esc(raw)}">${esc(raw.length > 14 ? raw.slice(0, 13) + "…" : raw)}</span>`;
+            const n = dayDiff(d);
+            return `<span class="os-cm ${n < 0 ? "late" : n <= 7 ? "soon" : "date"}">${fmtShort(d)}${n < 0 ? ` · ${-n} j` : ""}</span>`;
+        };
+        const prepRows = details.map(r => {
+            const set = new Set();
+            [r.CTLStyleRef, r["CTL Style Ref"], r["Cust Style Ref"], r.Style].forEach(k => { if (k) (ordByStyle[norm(k)] || []).forEach(x => set.add(x)); });
+            const lines = [...set];
+            const c = { done: 0, transit: 0, todo: 0 };
+            lines.forEach(x => c[ordState(x)]++);
+            const psd = parseD(r.PSD);
+            return { r, lines: lines.length, ...c, pct: lines.length ? c.done / lines.length : null, psd, psdN: psd ? dayDiff(psd) : null };
+        }).sort((a, b) => {
+            // PSD la plus proche d'abord, puis le moins prêt
+            const ap = a.psdN == null ? 9999 : a.psdN, bp = b.psdN == null ? 9999 : b.psdN;
+            return ap - bp || (a.pct ?? 1) - (b.pct ?? 1);
+        });
+        const prepHTML = prepRows.length ? `
+            <div class="os-tw os-scroll"><table class="os-t">
+                <thead><tr><th>Style</th><th>PSD</th><th>Trims livrés</th><th class="c">SRS</th><th class="c">Sewing</th><th class="c">Packing</th></tr></thead>
+                <tbody>${prepRows.map(x => {
+                    const st = x.r["Cust Style Ref"] || x.r.Style || "—";
+                    const bar = x.lines
+                        ? `<div class="os-prog"><div class="tr">
+                              <div style="width:${x.done / x.lines * 100}%;background:#188038"></div>
+                              <div style="width:${x.transit / x.lines * 100}%;background:#a8c7fa"></div></div>
+                           <span class="v">${x.done}/${x.lines}${x.transit ? ` · ${x.transit} transit` : ""}</span></div>`
+                        : `<span class="os-cm none">Aucune ligne Ordering</span>`;
+                    return `<tr class="click" data-os="row" data-row="${x.r._rowIndex}" data-tip="Ouvrir ${esc(st)} dans Details">
+                        <td><b style="font-weight:500">${esc(st)}</b><span class="sub">${esc([x.r.CTLStyleRef, x.r.Client || x.r.Coll].filter(Boolean).join(" · "))}</span></td>
+                        <td>${commit(x.r.PSD)}</td>
+                        <td>${bar}</td>
+                        <td class="c">${commit(x.r.SRS_Launching)}</td>
+                        <td class="c">${commit(x.r.Sewing_Trims)}</td>
+                        <td class="c">${commit(x.r.Packing_Trims)}</td></tr>`;
+                }).join("")}</tbody></table></div>
+            <div class="os-help"><span><i style="background:#188038"></i>Trims livrés</span><span><i style="background:#a8c7fa"></i>En transit</span><span><i style="background:#e9eef6"></i>À venir</span>
+                <span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Dépassée</span><span><span class="os-cm soon">date</span>≤ 7 j</span></div>`
+            : `<div class="os-empty">Aucun style.</div>`;
+
+        // ── Fournisseurs (Ordering) ──
+        const sup = {};
+        ordering.forEach(r => {
+            const name = String(r.Supplier || "").trim() || "Sans fournisseur";
+            const g = sup[name] || (sup[name] = { n: 0, done: 0, transit: 0, todo: 0, late: 0, partial: 0, lead: [] });
+            g.n++;
+            const stt = ordState(r); g[stt]++;
+            const rd = parseOrd(r["Ready Date"]), pd = parseOrd(r["PO Date"]);
+            if (stt === "todo" && rd && dayDiff(rd) < 0) g.late++;
+            if (PARTIAL_RE.test(String(r.Comments || ""))) g.partial++;
+            if (rd && pd && rd >= pd) g.lead.push(Math.round((rd - pd) / 86400000));
+        });
+        const supRows = Object.entries(sup).sort((a, b) => (b[1].late + b[1].partial) - (a[1].late + a[1].partial) || b[1].n - a[1].n);
+        const P = (v, cls) => `<span class="os-pill ${v ? cls : "z"}">${v || "0"}</span>`;
+        const tot = supRows.reduce((t, [, g]) => { ["n", "done", "transit", "todo", "late", "partial"].forEach(k => t[k] += g[k]); return t; }, { n: 0, done: 0, transit: 0, todo: 0, late: 0, partial: 0 });
+        const supHTML = supRows.length ? `
+            <div class="os-tw os-scroll"><table class="os-t">
+                <thead><tr><th>Fournisseur</th><th class="r">Lignes</th><th>Livrées</th><th class="c">En transit</th><th class="c">À venir</th><th class="c">Ready dépassée</th><th class="c">Reliquats</th><th class="r">Délai moyen</th></tr></thead>
+                <tbody>${supRows.map(([name, g]) => {
+                    const avg = g.lead.length ? Math.round(g.lead.reduce((a, b) => a + b, 0) / g.lead.length) : null;
+                    return `<tr><td><b style="font-weight:500">${esc(name)}</b></td>
+                        <td class="r">${g.n}</td>
+                        <td><div class="os-prog" style="min-width:120px"><div class="tr"><div style="width:${g.done / g.n * 100}%;background:#188038"></div></div><span class="v">${Math.round(g.done / g.n * 100)} %</span></div></td>
+                        <td class="c">${P(g.transit, "blue")}</td><td class="c">${P(g.todo, "grey")}</td>
+                        <td class="c">${P(g.late, "red")}</td><td class="c">${P(g.partial, "amber")}</td>
+                        <td class="r">${avg == null ? "—" : avg + " j"}</td></tr>`;
+                }).join("")}</tbody>
+                <tfoot><tr><td>Total</td><td class="r">${tot.n}</td><td>${tot.n ? Math.round(tot.done / tot.n * 100) : 0} % livrées</td>
+                    <td class="c">${tot.transit}</td><td class="c">${tot.todo}</td><td class="c">${tot.late}</td><td class="c">${tot.partial}</td><td></td></tr></tfoot>
+            </table></div>
+            <div class="os-help"><span>Délai moyen = de la PO Date à la Ready Date</span><span>Reliquats = commentaire avec balance, partial, missing…</span></div>`
+            : `<div class="os-empty">Aucune ligne Ordering pour cette saison.</div>`;
+
+        // ── Alertes à traiter, par type ──
         const byType = {};
         alerts.forEach(a => {
             const l = typeof window.saTypeLabel === "function" ? window.saTypeLabel(a.type) : a.type;
-            const g = byType[l] || (byType[l] = { n: 0, sev: "info" });
-            g.n++;
-            if (a.severity === "danger") g.sev = "danger"; else if (a.severity === "warn" && g.sev !== "danger") g.sev = "warn";
+            const g = byType[l] || (byType[l] = { danger: 0, warn: 0, info: 0, styles: new Set() });
+            g[a.severity] = (g[a.severity] || 0) + 1;
+            if (a.style) g.styles.add(a.style);
         });
-        const types = Object.entries(byType).sort((a, b) => b[1].n - a[1].n).slice(0, 8);
-        const maxT = Math.max(1, ...types.map(t => t[1].n));
-        const COL = { danger: "#d93025", warn: "#e37400", info: "#0b57d0" };
-        const typeHTML = types.length
-            ? types.map(([l, g]) => `<div class="os-hb"><span class="lbl" title="${esc(l)}">${esc(l)}</span>
-                <div class="tr"><div class="fl" style="width:${Math.round(g.n / maxT * 100)}%;background:${COL[g.sev]}"></div></div><span class="n">${g.n}</span></div>`).join("")
+        const typeRows = Object.entries(byType).sort((a, b) => (b[1].danger - a[1].danger) || ((b[1].danger + b[1].warn + b[1].info) - (a[1].danger + a[1].warn + a[1].info)));
+        const typeHTML = typeRows.length ? `
+            <div class="os-tw"><table class="os-t">
+                <thead><tr><th>Type d'alerte</th><th class="c">Critiques</th><th class="c">Attention</th><th class="c">À clôturer</th><th class="r">Total</th></tr></thead>
+                <tbody>${typeRows.map(([l, g]) => {
+                    const st = [...g.styles];
+                    return `<tr class="click" data-os="alerts" data-tip="Ouvrir les notifications">
+                        <td><b style="font-weight:500">${esc(l)}</b><span class="sub">${esc(st.slice(0, 3).join(", "))}${st.length > 3 ? ` +${st.length - 3}` : ""}</span></td>
+                        <td class="c">${P(g.danger, "red")}</td><td class="c">${P(g.warn, "amber")}</td><td class="c">${P(g.info, "blue")}</td>
+                        <td class="r"><b style="font-weight:500">${g.danger + g.warn + g.info}</b></td></tr>`;
+                }).join("")}</tbody></table></div>
+            <div class="os-help"><span><span class="os-pill red">n</span>Critique : en retard</span><span><span class="os-pill amber">n</span>Attention : échéance proche</span><span><span class="os-pill blue">n</span>À clôturer : passé In House, à valider</span></div>`
             : `<div class="os-empty">Aucune alerte active 🎉</div>`;
-
-        // ── Statut des commandes (Ordering) ──
-        const st = { done: 0, transit: 0, todo: 0 };
-        ordering.forEach(r => {
-            const d = String(r["Delivery Status"] || "").toLowerCase();
-            if (d.includes("deliver") || d.includes("livr")) st.done++;
-            else if (d.includes("transit")) st.transit++;
-            else st.todo++;
-        });
-        const nOrd = st.done + st.transit + st.todo;
-        const SEG = [["done", "Livré", "#0b57d0"], ["transit", "En transit", "#a8c7fa"], ["todo", "À venir", "#c4c7c5"]];
-        const ordHTML = nOrd ? `
-            <div class="os-stack">${SEG.map(([k, , c]) => st[k] ? `<div style="flex:${st[k]};background:${c}" data-tip="${esc(SEG.find(x => x[0] === k)[1])} : ${st[k]}"></div>` : "").join("")}</div>
-            <div class="os-sl">${SEG.map(([k, l, c]) => `<div><i style="background:${c}"></i>${l}<b>${st[k]} · ${Math.round(st[k] / nOrd * 100)} %</b></div>`).join("")}</div>`
-            : `<div class="os-empty">Aucune ligne Ordering pour cette saison.</div>`;
 
         sc.innerHTML = `
             <div class="os-top">
@@ -360,16 +487,21 @@
                     ${calPsd.html}
                 </div>
             </div>
-            <div class="os-grid2">
+            <div class="os-box" style="margin-bottom:12px">
+                <div class="os-bt">Préparation des styles</div>
+                <div class="os-bs">Les trims sont-ils livrés avant la PSD ? Trié par PSD la plus proche · clic sur une ligne pour ouvrir le style</div>
+                ${prepHTML}
+            </div>
+            <div class="os-box" style="margin-bottom:12px">
+                <div class="os-bt">Fournisseurs</div>
+                <div class="os-bs">${tot.n} ligne${tot.n > 1 ? "s" : ""} Ordering · les fournisseurs avec retards ou reliquats en premier</div>
+                ${supHTML}
+            </div>
+            <div>
                 <div class="os-box">
-                    <div class="os-bt">Alertes par type</div>
-                    <div class="os-bs">Alertes intelligentes actives</div>
+                    <div class="os-bt">Alertes à traiter</div>
+                    <div class="os-bs">${alerts.length} alerte${alerts.length > 1 ? "s" : ""} active${alerts.length > 1 ? "s" : ""} par type · clic pour ouvrir les notifications</div>
                     ${typeHTML}
-                </div>
-                <div class="os-box">
-                    <div class="os-bt">Statut des commandes</div>
-                    <div class="os-bs">${nOrd} ligne${nOrd > 1 ? "s" : ""} Ordering · Delivery Status</div>
-                    ${ordHTML}
                 </div>
             </div>`;
     }
