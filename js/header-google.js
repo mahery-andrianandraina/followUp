@@ -360,6 +360,8 @@
             if (act === "close") return;
             if (act === "settings") { typeof window.spOpen === "function" ? window.spOpen() : clickEl("#topbar-settings-btn"); }
             if (act === "news")     { window.openWhatsNew && window.openWhatsNew(); }
+            if (act === "density")  { window.gtToggleDensity && window.gtToggleDensity(); openAccount(); }
+            if (act === "keys")     { window.gtShowShortcuts && window.gtShowShortcuts(); }
             if (act === "logout")   {
                 if (!confirm("Se déconnecter d'AW27 Checkers ?")) return;
                 if (typeof window.spSignOut === "function") window.spSignOut();
@@ -380,6 +382,8 @@
             <button class="hg-acc-manage" data-acc="settings">Gérer les paramètres</button>
             <div class="hg-acc-card">
                 <button class="hg-acc-row" data-acc="news"><i class="ti ti-sparkles" aria-hidden="true"></i>Nouveautés</button>
+                ${typeof window.gtDensity === "function" ? `<button class="hg-acc-row" data-acc="density"><i class="ti ti-layout-rows" aria-hidden="true"></i>Densité : ${window.gtDensity() === "compact" ? "compacte" : "confortable"}</button>` : ""}
+                ${typeof window.gtShowShortcuts === "function" ? `<button class="hg-acc-row" data-acc="keys"><i class="ti ti-keyboard" aria-hidden="true"></i>Raccourcis clavier</button>` : ""}
                 <button class="hg-acc-row" data-acc="logout"><i class="ti ti-logout" aria-hidden="true"></i>Se déconnecter</button>
             </div>
             <div class="hg-acc-foot">AW27 Checkers · Socota</div>`;
