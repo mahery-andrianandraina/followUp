@@ -25,6 +25,27 @@
     // ══════════════════════════════════════════════════════════
     const RELEASES = [
         {
+            id:    "2026-11-26c",
+            date:  "26 nov. 2026",
+            title: "Statistiques de commande",
+            features: [
+                {
+                    tag:     "Nouveau",
+                    title:   "Une page pour vos statistiques",
+                    text:    "Les chiffres clés quittent le dashboard et ont maintenant leur propre page, dans le menu de gauche.",
+                    bullets: [
+                        "Total styles, PO reçus, Ex-Fty dépassées, Ex-Fty ≤ 14 j, alertes actives",
+                        "Graphiques : Ex-Fty par semaine, alertes par type, statut des commandes",
+                        "Filtre par saison pour toute la page"
+                    ],
+                    demo:    "none",
+                    target:  "#tab-stats",
+                    targetText: "Vos statistiques sont ici.",
+                    action:  { label: "Ouvrir", run: () => window.openOrderStats && window.openOrderStats() }
+                }
+            ]
+        },
+        {
             id:    "2026-11-26b",
             date:  "26 nov. 2026",
             title: "Un header plus simple, façon Google",
