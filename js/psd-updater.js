@@ -4,14 +4,13 @@
 //  PSD dans le sheet Details. Lecture côté client uniquement.
 //  Charger après app.js dans index.html.
 //
-//  v2 — Gestion date / texte :
-//   • Dates acceptées : serial Excel, 09/12/2026, 09-12-26, 2026-12-09,
-//     9-Dec, 09-Dec-26, Dec 9 2026… → écrites "YYYY-MM-DD"
-//   • IN HOUSE → "In House" · ALL OK → "All OK - YYYY-MM-DD" (sans doublon)
-//   • TBC / TBA / TBD → gardés tels quels
-//   • Texte inconnu → proposé en orange, décoché par défaut
-//   • #N/A, #REF!, 0, -, "Invalid Date" → ignorés, le Sheet n'est pas écrasé
-//   • Valeurs identiques → "inchangé", rien n'est réécrit
+//  v3 — Import fidèle de la valeur Excel :
+//   • DATE (serial Excel, 09/12/2026, 9-Dec, Dec 9 2026…) → écrite "YYYY-MM-DD"
+//     pour que le Sheet et l'app la lisent comme une vraie date
+//   • TEXTE (IN HOUSE, ALL OK, TBC, autre…) → écrit EXACTEMENT comme dans l'Excel
+//   • Cellule vide → rien n'est écrit
+//   • Valeur identique à celle du Sheet → "inchangé", rien n'est réécrit
+//   Le traitement de chaque type (alertes, etc.) se fait ensuite dans les modules.
 // ================================================================
 
 (function initPSDUpdater() {
@@ -99,14 +98,12 @@
     }
 
     // ══════════════════════════════════════════════════════════
-    //  CLASSIFICATION DES VALEURS (date / statut / texte / invalide)
-    //  Une cellule PSD ou commitment peut contenir :
-    //   • une date        → stockée "YYYY-MM-DD"
-    //   • IN HOUSE        → stocké "In House"
-    //   • ALL OK          → stocké "All OK - YYYY-MM-DD" (ancienne date PSD) ou "All OK"
-    //   • TBC / TBA / TBD → stocké tel quel en majuscules
-    //   • autre texte     → proposé, mais décoché par défaut (à valider)
-    //   • #N/A, #REF!, 0, -, "Invalid Date", vide → IGNORÉ (on n'écrase pas le Sheet)
+    //  CLASSIFICATION DES VALEURS
+    //  Sert à savoir de quel TYPE est la valeur Excel (pour l'affichage
+    //  et pour convertir les dates). La valeur importée reste celle de l'Excel :
+    //   • date  → écrite "YYYY-MM-DD"
+    //   • texte → écrit tel quel (IN HOUSE, ALL OK, TBC, #N/A…)
+    //   • vide  → rien n'est écrit
     // ══════════════════════════════════════════════════════════
     const MONTHS = {
         jan:0, janv:0, janvier:0, january:0,
@@ -213,7 +210,7 @@
         if (val === null || val === undefined) return { kind: "empty", raw: "" };
         if (val instanceof Date || typeof val === "number") {
             const d = parseDateOnly(val);
-            return d ? { kind: "date", date: d, raw: val } : { kind: "invalid", raw: String(val) };
+            return d ? { kind: "date", date: d, raw: val } : { kind: "text", raw: String(val) };
         }
         const s  = String(val).trim();
         if (!s) return { kind: "empty", raw: "" };
@@ -230,7 +227,7 @@
             const rest = s.replace(/^\s*all\s*ok\s*[-–—:]*\s*/i, "");
             return { kind: "allok", date: rest ? parseDateOnly(rest) : null, raw: s };
         }
-        if (["tbc", "tba", "tbd"].includes(lo)) return { kind: "pending", raw: s.toUpperCase() };
+        if (["tbc", "tba", "tbd"].includes(lo)) return { kind: "pending", raw: s };
 
         const d = parseDateOnly(s);
         if (d) return { kind: "date", date: d, raw: s };
@@ -238,23 +235,19 @@
     }
 
     // Valeur finale à écrire dans le Sheet (ou null = ne rien écrire)
-    // oldVal sert pour ALL OK sans date : on reprend la date de l'ancien PSD
-    function toStoredValue(cls, oldVal) {
-        switch (cls.kind) {
-            case "date":    return toISODate(cls.date);
-            case "inhouse": return "In House";
-            case "pending": return cls.raw;
-            case "text":    return cls.raw;
-            case "allok": {
-                let d = cls.date;
-                if (!d && oldVal !== undefined) {
-                    const old = classifyValue(oldVal);
-                    if (old.kind === "date" || old.kind === "allok") d = old.date || null;
-                }
-                return d ? `All OK - ${toISODate(d)}` : "All OK";
-            }
-            default:        return null; // empty / invalid → on n'écrase pas
-        }
+    //  • date  → "YYYY-MM-DD"
+    //  • tout le reste → la valeur Excel telle quelle
+    function toStoredValue(cls) {
+        if (cls.kind === "empty") return null;
+        if (cls.kind === "date")  return toISODate(cls.date);
+        return String(cls.raw).trim();
+    }
+
+    // Comparaison ancien / nouveau : même date ou même texte (casse ignorée)
+    function sameValue(newVal, oldVal) {
+        const a = classifyValue(newVal), b = classifyValue(oldVal);
+        if (a.kind === "date" && b.kind === "date") return toISODate(a.date) === toISODate(b.date);
+        return String(newVal || "").trim().toLowerCase() === String(oldVal || "").trim().toLowerCase();
     }
 
     // Affichage lisible (modale)
@@ -262,10 +255,8 @@
         const c = classifyValue(val);
         switch (c.kind) {
             case "date":    return fmtDateFR(c.date);
-            case "inhouse": return "In House";
-            case "allok":   return c.date ? `All OK - ${fmtDateFR(c.date)}` : "All OK";
             case "empty":   return "";
-            default:        return c.raw;
+            default:        return String(c.raw);
         }
     }
 
@@ -273,8 +264,7 @@
     function badgeClass(kind) {
         if (kind === "date") return "psd-badge-new";
         if (kind === "inhouse" || kind === "allok") return "psd-badge-allok";
-        if (kind === "pending" || kind === "text") return "psd-badge-text";
-        return "psd-badge-notfound";
+        return "psd-badge-text"; // tout autre texte
     }
 
     // ── Analyser le fichier Excel PSD → retourne un lookup map ──
@@ -379,7 +369,6 @@
                         // On garde les cellules BRUTES classées ; la valeur finale
                         // est calculée plus tard (ALL OK a besoin de l'ancien PSD)
                         const lookup = {};
-                        let skippedInvalid = 0;
                         for (let i = headerRow + 1; i < data.length; i++) {
                             const row = data[i];
                             const ref = String(row[iRef] || "").trim();
@@ -390,18 +379,13 @@
                             const sewing  = classifyValue(row[iSewing]);
                             const packing = classifyValue(row[iPacking]);
 
-                            const usable = c => c.kind !== "empty" && c.kind !== "invalid";
-                            if (![psd, srs, sewing, packing].some(usable)) {
-                                if (psd.kind === "invalid") skippedInvalid++;
-                                continue;
-                            }
+                            if (![psd, srs, sewing, packing].some(c => c.kind !== "empty")) continue;
 
                             const key = normalizeRef(ref);
                             if (!lookup[key]) {
                                 lookup[key] = { originalRef: ref, psd, srs, sewing, packing };
                             }
                         }
-                        if (skippedInvalid) console.log("[PSD]", skippedInvalid, "ligne(s) ignorée(s) : PSD invalide (#N/A, 0, -…)");
 
                         // Log pour debug : afficher les 5 premières entrées
                         const keys = Object.keys(lookup);
@@ -438,18 +422,16 @@
             FIELDS.forEach(f => {
                 const oldRaw  = detRow?.[f.col];
                 const cls     = item.inExcel ? item.match[SRC_KEY[f.id]] : { kind: "empty", raw: "" };
-                const newVal  = item.inExcel ? toStoredValue(cls, oldRaw) : null;
-                const same    = newVal !== null && displayValue(newVal) === displayValue(oldRaw);
+                const newVal  = item.inExcel ? toStoredValue(cls) : null;
+                const same    = newVal !== null && sameValue(newVal, oldRaw);
                 fields[f.id]  = { col: f.col, label: f.label, oldRaw, cls, newVal, same };
             });
             const changes    = Object.values(fields).filter(x => x.newVal !== null && !x.same);
-            const hasText    = changes.some(x => x.cls.kind === "text");
             return {
                 ...item, detRow, fields,
                 found:      item.inExcel,
                 hasChange:  changes.length > 0,
-                // coché par défaut : il y a un changement ET pas de texte inconnu à vérifier
-                preChecked: item.inExcel && changes.length > 0 && !hasText
+                preChecked: item.inExcel && changes.length > 0
             };
         });
 
@@ -464,15 +446,12 @@
                 let newHTML;
                 if (!e.found) {
                     newHTML = `<span style="color:var(--text-muted,#9ca3af);font-size:10px;font-style:italic;">Absent</span>`;
-                } else if (x.cls.kind === "invalid") {
-                    newHTML = `<span class="psd-badge-ignored" title="Valeur Excel ignorée, le Sheet n'est pas modifié">${x.cls.raw}</span>`;
                 } else if (x.newVal === null) {
                     newHTML = `<span style="color:#d1d5db;font-size:11px;">—</span>`;
                 } else if (x.same) {
                     newHTML = `<span class="psd-badge-same">inchangé</span>`;
                 } else {
-                    const tip = x.cls.kind === "text" ? ' title="Texte non reconnu : à vérifier avant d\'appliquer"' : "";
-                    newHTML = `<span class="${badgeClass(x.cls.kind)}"${tip}>${displayValue(x.newVal)}</span>`;
+                    newHTML = `<span class="${badgeClass(x.cls.kind)}">${displayValue(x.newVal)}</span>`;
                 }
                 return `<td style="padding:7px 10px;border-bottom:0.5px solid var(--border,#e5e7eb);">
                     ${ov ? `<div class="psd-badge-old" style="margin-bottom:3px;">${ov}</div>` : ""}
@@ -552,8 +531,7 @@
                     <div style="font-size:11px;color:var(--text-muted,#9ca3af);">
                         <span style="color:#166534;font-weight:600;">■</span> Date &nbsp;
                         <span style="color:#1e40af;font-weight:600;">■</span> In House / All OK &nbsp;
-                        <span style="color:#92400e;font-weight:600;">■</span> Texte (à vérifier) &nbsp;
-                        <span style="color:#6b7280;font-weight:600;">■</span> Ignoré
+                        <span style="color:#92400e;font-weight:600;">■</span> Autre texte
                     </div>
                 </div>
 
@@ -647,8 +625,6 @@
             try {
                 for (const x of Object.values(item.fields)) {
                     if (x.newVal === null || x.same) continue;
-                    // Sécurité : ne jamais écrire une valeur invalide
-                    if (/invalid|^#/i.test(String(x.newVal))) continue;
 
                     if (x.col === "PSD") {
                         // PSD via quickUpdate (colonne existante)
