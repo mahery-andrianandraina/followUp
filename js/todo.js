@@ -616,6 +616,37 @@
     .tdf-add:hover { background: #0a4fbd; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
     .tdf-add svg { width: 18px; height: 18px; }
 
+    /* Lien style / sujet */
+    .tdf-seg { display: flex; border: 1px solid #747775; border-radius: 20px; overflow: hidden; }
+    .tdf-seg button { flex: 1; height: 36px; border: none; background: #fff; color: #444746; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; }
+    .tdf-seg button + button { border-left: 1px solid #747775; }
+    .tdf-seg button.on { background: #d3e3fd; color: #041e49; }
+    .tdf-seg button.on::before { content: "✓ "; }
+    .tdf-pick { position: relative; }
+    .tdf-picked { display: flex; align-items: center; gap: 10px; min-height: 48px; border-radius: 8px; background: #e8f0fe; padding: 6px 6px 6px 12px; }
+    .tdf-picked .n { font-size: 14px; font-weight: 500; color: #041e49; }
+    .tdf-picked .s { font-size: 12px; color: #444746; }
+    .tdf-picked button { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; border: none; background: none; cursor: pointer; color: #444746; font-size: 16px; }
+    .tdf-picked button:hover { background: rgba(68,71,70,.1); }
+    .tdf-dd { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; background: #fff; border-radius: 12px;
+              box-shadow: 0 2px 6px 2px rgba(0,0,0,.15), 0 1px 2px rgba(0,0,0,.3); max-height: 280px; overflow-y: auto; padding: 6px 0; }
+    .tdf-dd.open { display: block; }
+    .tdf-opt { padding: 8px 14px; cursor: pointer; display: flex; flex-direction: column; }
+    .tdf-opt:hover, .tdf-opt.hl { background: #f0f4f9; }
+    .tdf-opt .n { font-size: 14px; color: #1f1f1f; font-weight: 500; }
+    .tdf-opt .s { font-size: 12px; color: #5f6368; }
+    .tdf-opt mark { background: #feefc3; color: inherit; border-radius: 2px; }
+    .tdf-dd-empty { padding: 12px 14px; font-size: 13px; color: #5f6368; }
+    .tdf-dd-empty a { color: #0b57d0; cursor: pointer; font-weight: 500; }
+    .tdf-err { display: none; font-size: 12px; color: #b3261e; margin-top: 2px; }
+    .tdf-err.show { display: block; }
+    #todo-overlay .tdf-in.err { border-color: #b3261e !important; box-shadow: inset 0 0 0 1px #b3261e !important; }
+    .tdf-subjects { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tdf-subj { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid #747775; background: #fff; color: #444746; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .tdf-subj.on { background: #d3e3fd; border-color: #d3e3fd; color: #041e49; }
+    .tdf-chip.ghost { border-style: dashed; color: #5f6368; }
+    .tdf-chip.subj { background: #f3e8fd; border-color: #f3e8fd; color: #6a1b9a; }
+
     /* Filtres verticaux (comme les libellés Gmail) */
     #todo-overlay .todo-filters { display: flex; flex-direction: column; gap: 2px; padding: 0; border: none; background: none; overflow: visible; }
     #todo-overlay .todo-filter-btn {
@@ -816,17 +847,38 @@
                                 <input type="date" class="tdf-in" id="todo-due-date"/>
                             </div>
                         </div>
-                        <div class="tdf-row2">
-                            <div class="tdf-field">
-                                <label for="todo-linked-style">Style lié</label>
-                                <input type="text" class="tdf-in" id="todo-linked-style" placeholder="ex. ORB14318" list="todo-style-list"/>
-                                <datalist id="todo-style-list"></datalist>
+                        <div class="tdf-field">
+                            <label>Lier la tâche à</label>
+                            <div class="tdf-seg" role="radiogroup">
+                                <button type="button" class="on" data-mode="style" onclick="_tdfLinkMode('style')">Un style de Details</button>
+                                <button type="button" data-mode="none" onclick="_tdfLinkMode('none')">Pas de style</button>
                             </div>
-                            <div class="tdf-field">
-                                <label for="todo-linked-client">Client lié</label>
-                                <input type="text" class="tdf-in" id="todo-linked-client" placeholder="ex. ORCHESTRA" list="todo-client-list"/>
-                                <datalist id="todo-client-list"></datalist>
+                        </div>
+                        <!-- Valeurs enregistrées (lues par _todoQuickAdd) -->
+                        <input type="hidden" id="todo-linked-style"/>
+                        <input type="hidden" id="todo-linked-sheet"/>
+                        <datalist id="todo-style-list"></datalist>
+
+                        <div class="tdf-field" id="tdf-style-box">
+                            <div class="tdf-pick" id="tdf-pick">
+                                <div class="tdf-picked" id="tdf-picked" style="display:none"></div>
+                                <input type="text" class="tdf-in" id="tdf-style-search" placeholder="Rechercher un style (réf, CTL, client)…" autocomplete="off"
+                                    oninput="_tdfStyleSearch(this.value)" onfocus="_tdfStyleSearch(this.value)"
+                                    onkeydown="_tdfStyleKey(event)"/>
+                                <div class="tdf-dd" id="tdf-dd" role="listbox"></div>
                             </div>
+                            <div class="tdf-err" id="tdf-style-err">Choisissez un style dans la liste, ou « Pas de style ».</div>
+                        </div>
+
+                        <div class="tdf-field" id="tdf-subject-box" style="display:none">
+                            <label>Sujet</label>
+                            <div class="tdf-subjects" id="tdf-subjects"></div>
+                        </div>
+
+                        <div class="tdf-field">
+                            <label for="todo-linked-client">Client</label>
+                            <input type="text" class="tdf-in" id="todo-linked-client" placeholder="ex. ORCHESTRA" list="todo-client-list"/>
+                            <datalist id="todo-client-list"></datalist>
                         </div>
                         <div class="tdf-field">
                             <label for="todo-desc">Description</label>
@@ -982,6 +1034,130 @@
             { id:'t5', title:'Confirmer PO avec supplier Fabric Devo', priority:'Medium', dueDate: d(7), status:'done', createdAt: new Date().toISOString() }
         ];
     }
+
+    // ─── Styles de Details (seule source autorisée pour « Style lié ») ──
+    const _TDF_SUBJECTS = ['Général', 'Fournisseur', 'Client', 'Réunion', 'Interne'];
+    let _tdfMode = 'style', _tdfHl = -1, _tdfShown = [];
+
+    function _tdfStyles() {
+        const rows = (window.state && state.data && state.data.details) || [];
+        const seen = new Set(), out = [];
+        rows.forEach(r => {
+            const ref = String(r['Cust Style Ref'] || r.Style || '').trim();
+            if (!ref || seen.has(ref.toLowerCase())) return;
+            seen.add(ref.toLowerCase());
+            out.push({
+                ref,
+                ctl: String(r.CTLStyleRef || r['CTL Style Ref'] || '').trim(),
+                client: String(r.Client || r.Coll || '').trim(),
+                season: String(r['Full Season'] || r.SEASON || '').trim(),
+                row: r._rowIndex
+            });
+        });
+        return out.sort((a, b) => a.ref.localeCompare(b.ref));
+    }
+    // Retrouve un style de Details à partir d'une réf (Cust Style Ref ou CTL)
+    function _tdfFindStyle(code) {
+        const k = String(code || '').replace(/[\s\-_]/g, '').toLowerCase();
+        if (!k) return null;
+        return _tdfStyles().find(x => [x.ref, x.ctl].some(v => v.replace(/[\s\-_]/g, '').toLowerCase() === k)) || null;
+    }
+
+    window._tdfLinkMode = function(mode) {
+        _tdfMode = mode;
+        document.querySelectorAll('.tdf-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+        const sb = document.getElementById('tdf-style-box'), jb = document.getElementById('tdf-subject-box');
+        if (sb) sb.style.display = mode === 'style' ? '' : 'none';
+        if (jb) jb.style.display = mode === 'none' ? '' : 'none';
+        if (mode === 'none') {
+            window._tdfClearStyle(true);
+            const sh = document.getElementById('todo-linked-sheet');
+            if (sh && !_TDF_SUBJECTS.includes(sh.value)) sh.value = 'Général';
+            _tdfRenderSubjects();
+        } else {
+            const sh = document.getElementById('todo-linked-sheet'); if (sh) sh.value = '';
+        }
+        _tdfErr(false);
+    };
+
+    function _tdfRenderSubjects() {
+        const el = document.getElementById('tdf-subjects'); if (!el) return;
+        const cur = document.getElementById('todo-linked-sheet')?.value || 'Général';
+        el.innerHTML = _TDF_SUBJECTS.map(x => `<button type="button" class="tdf-subj ${x === cur ? 'on' : ''}" onclick="_tdfPickSubject('${x}')">${x}</button>`).join('');
+    }
+    window._tdfPickSubject = function(x) {
+        const sh = document.getElementById('todo-linked-sheet'); if (sh) sh.value = x;
+        _tdfRenderSubjects();
+    };
+
+    function _tdfErr(on) {
+        document.getElementById('tdf-style-err')?.classList.toggle('show', !!on);
+        document.getElementById('tdf-style-search')?.classList.toggle('err', !!on);
+    }
+
+    window._tdfStyleSearch = function(q) {
+        const dd = document.getElementById('tdf-dd'); if (!dd) return;
+        _tdfErr(false);
+        const all = _tdfStyles();
+        const t = String(q || '').trim().toLowerCase();
+        const hi = v => !t ? _escHtml(v) : _escHtml(v).replace(new RegExp('(' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig'), '<mark>$1</mark>');
+        _tdfShown = t ? all.filter(x => [x.ref, x.ctl, x.client, x.season].some(v => v.toLowerCase().includes(t))) : all;
+        _tdfHl = _tdfShown.length ? 0 : -1;
+        if (!all.length) {
+            dd.innerHTML = `<div class="tdf-dd-empty">Les styles de Details ne sont pas encore chargés.</div>`;
+        } else if (!_tdfShown.length) {
+            dd.innerHTML = `<div class="tdf-dd-empty">Aucun style « ${_escHtml(q)} » dans Details.<br><a onclick="_tdfLinkMode('none')">Créer la tâche sans style →</a></div>`;
+        } else {
+            dd.innerHTML = _tdfShown.slice(0, 60).map((x, i) => `<div class="tdf-opt ${i === _tdfHl ? 'hl' : ''}" role="option" onmousedown="event.preventDefault();_tdfPickStyle(${i})">
+                <span class="n">${hi(x.ref)}</span><span class="s">${[x.ctl, x.client, x.season].filter(Boolean).map(hi).join(' · ')}</span></div>`).join('')
+                + (_tdfShown.length > 60 ? `<div class="tdf-dd-empty">+ ${_tdfShown.length - 60} autres : affinez la recherche</div>` : '');
+        }
+        dd.classList.add('open');
+    };
+
+    window._tdfStyleKey = function(e) {
+        const dd = document.getElementById('tdf-dd');
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!_tdfShown.length) return;
+            _tdfHl = (_tdfHl + (e.key === 'ArrowDown' ? 1 : -1) + Math.min(_tdfShown.length, 60)) % Math.min(_tdfShown.length, 60);
+            dd?.querySelectorAll('.tdf-opt').forEach((o, i) => { o.classList.toggle('hl', i === _tdfHl); if (i === _tdfHl) o.scrollIntoView({ block: 'nearest' }); });
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (_tdfHl >= 0) window._tdfPickStyle(_tdfHl);
+        } else if (e.key === 'Escape') {
+            e.stopPropagation(); dd?.classList.remove('open');
+        }
+    };
+
+    window._tdfPickStyle = function(i) {
+        const x = _tdfShown[i]; if (!x) return;
+        document.getElementById('todo-linked-style').value = x.ref;
+        document.getElementById('todo-linked-sheet').value = 'details';
+        const cl = document.getElementById('todo-linked-client');
+        if (cl && x.client) cl.value = x.client;
+        const pk = document.getElementById('tdf-picked'), si = document.getElementById('tdf-style-search');
+        if (pk) {
+            pk.innerHTML = `<div><div class="n">${_escHtml(x.ref)}</div><div class="s">${_escHtml([x.ctl, x.client, x.season].filter(Boolean).join(' · '))}</div></div>
+                <button type="button" onclick="_tdfClearStyle()" title="Changer de style" aria-label="Retirer le style">✕</button>`;
+            pk.style.display = 'flex';
+        }
+        if (si) { si.value = ''; si.style.display = 'none'; }
+        document.getElementById('tdf-dd')?.classList.remove('open');
+        _tdfErr(false);
+    };
+
+    window._tdfClearStyle = function(silent) {
+        const ls = document.getElementById('todo-linked-style'); if (ls) ls.value = '';
+        const pk = document.getElementById('tdf-picked'); if (pk) { pk.style.display = 'none'; pk.innerHTML = ''; }
+        const si = document.getElementById('tdf-style-search');
+        if (si) { si.style.display = ''; si.value = ''; if (!silent) si.focus(); }
+    };
+
+    // Fermer la liste en cliquant ailleurs
+    document.addEventListener('mousedown', e => {
+        if (!e.target.closest('#tdf-pick')) document.getElementById('tdf-dd')?.classList.remove('open');
+    });
 
     // ─── Render ───────────────────────────────────────────────
     function _renderAll() {
@@ -1199,9 +1375,16 @@
         const prioLabels = { High: 'Priorité haute', Medium: 'Priorité moyenne', Low: 'Priorité basse' };
         const chips = [
             `<span class="tdf-chip p-${task.priority || 'Medium'}">${svg('M3 21V5a2 2 0 012-2h11l-2 4 2 4H5')}${prioLabels[task.priority] || task.priority || 'Priorité moyenne'}</span>`,
-            task.linkedStyle ? `<span class="tdf-chip link" title="Ouvrir le style" onclick="event.stopPropagation();_todoNavToStyle('${_escHtml(task.linkedStyle)}','${_escHtml(task.linkedSheet || '')}')">${svg('M7 7h10M7 11h10M7 15h6')}${_escHtml(task.linkedStyle)}</span>` : '',
+            (() => {
+                if (!task.linkedStyle) return '';
+                const st = _tdfFindStyle(task.linkedStyle);
+                return st
+                    ? `<span class="tdf-chip link" title="Ouvrir ${_escHtml(st.ref)} dans Details${st.ctl ? ' (' + _escHtml(st.ctl) + ')' : ''}" onclick="event.stopPropagation();_todoNavToStyle('${_escHtml(task.linkedStyle)}','details')">${svg('M7 7h10M7 11h10M7 15h6')}${_escHtml(st.ref)}</span>`
+                    : `<span class="tdf-chip ghost" title="Ce style n'existe pas dans Details">${svg('M12 9v4m0 4h.01')}${_escHtml(task.linkedStyle)} · absent de Details</span>`;
+            })(),
             task.linkedClient ? `<span class="tdf-chip">${svg('M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z')}${_escHtml(task.linkedClient)}</span>` : '',
-            task.linkedSheet ? `<span class="tdf-chip">${svg('M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}${_escHtml(task.linkedSheet)}</span>` : ''
+            task.linkedSheet && task.linkedSheet !== 'details'
+                ? `<span class="tdf-chip subj">${svg('M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z')}${_escHtml(task.linkedSheet)}</span>` : ''
         ].join('');
 
         // Créée par / le, terminée le
@@ -1269,8 +1452,8 @@
         const clientList = document.getElementById('todo-client-list');
         if (!styleList || !clientList) return;
         if (window.state && window.state.data) {
-            const styles = [...new Set((state.data.details || []).map(r => r.Style).filter(Boolean))];
-            const clients = [...new Set((state.data.details || []).map(r => r.Client).filter(Boolean))];
+            const styles = _tdfStyles().map(x => x.ref);
+            const clients = [...new Set((state.data.details || []).map(r => r.Client || r.Coll).filter(Boolean))].sort();
             styleList.innerHTML = styles.map(s => `<option value="${s}"></option>`).join('');
             clientList.innerHTML = clients.map(c => `<option value="${c}"></option>`).join('');
         }
@@ -1468,7 +1651,16 @@
     window._todoQuickAdd = async function() {
         const input = document.getElementById('todo-quick-input');
         const title = (input?.value || '').trim();
-        if (!title) return;
+        if (!title) { input?.focus(); return; }
+
+        // Style : uniquement un style de Details (ou « Pas de style » + sujet)
+        const typed = (document.getElementById('tdf-style-search')?.value || '').trim();
+        const picked = (document.getElementById('todo-linked-style')?.value || '').trim();
+        if (_tdfMode === 'style' && !picked && typed) {
+            window._tdfStyleSearch(typed); _tdfErr(true);
+            document.getElementById('tdf-style-search')?.focus();
+            return;
+        }
 
         const task = {
             title,
@@ -1476,6 +1668,9 @@
             dueDate: document.getElementById('todo-due-date')?.value || '',
             linkedStyle: (document.getElementById('todo-linked-style')?.value || '').trim(),
             linkedClient: (document.getElementById('todo-linked-client')?.value || '').trim(),
+            linkedSheet: _tdfMode === 'none'
+                ? (document.getElementById('todo-linked-sheet')?.value || 'Général')
+                : (picked ? 'details' : ''),
             description: (document.getElementById('todo-desc')?.value || '').trim(),
             createdBy: window.currentUser?.email || ''
         };
@@ -1488,9 +1683,11 @@
 
         // Reset form — toujours vider tous les champs
         if (input) input.value = '';
-        ['todo-due-date','todo-linked-style','todo-linked-client','todo-desc'].forEach(id => {
+        ['todo-due-date','todo-linked-style','todo-linked-client','todo-desc','todo-linked-sheet'].forEach(id => {
             const el = document.getElementById(id); if (el) el.value = '';
         });
+        window._tdfClearStyle(true);
+        window._tdfLinkMode('style');
         const priorityEl = document.getElementById('todo-priority');
         if (priorityEl) priorityEl.value = 'Medium';
 
@@ -1595,7 +1792,13 @@
     window._todoNavToStyle = function(styleCode, sheetKey) {
         closeTodoPanel();
         setTimeout(() => {
-            if (typeof window.openStyleModal === 'function') openStyleModal(styleCode);
+            // Style de Details → ouvrir sa ligne dans Details
+            const st = _tdfFindStyle(styleCode);
+            if (st && st.row != null && typeof window.navigateToRow === 'function') {
+                window.navigateToRow('details', st.row);
+            } else if (typeof window.openStyleModal === 'function') {
+                openStyleModal(styleCode);
+            }
         }, 350);
     };
 
@@ -1823,7 +2026,7 @@
         const waitForGas = setInterval(() => {
             _waitAttempts++;
             const gasUrl = window.GOOGLE_APPS_SCRIPT_URL;
-            const gasReady = gasUrl && gasUrl !== 'YOUR_WEB_APP_URL_HERE' && !gasUrl.includes('mock-gas-url');
+            const gasReady = gasUrl && gasUrl !== 'https://script.google.com/macros/s/AKfycbyAPuQvrGFhhV73p9i2rGsfD2SvQPLQ3nKYzhcp8HbrFOSI0lNig_PWFFkS_NYdr-EV/exec' && !gasUrl.includes('mock-gas-url');
 
             if (gasReady || _waitAttempts >= 20) { // max 10s d'attente
                 clearInterval(waitForGas);
