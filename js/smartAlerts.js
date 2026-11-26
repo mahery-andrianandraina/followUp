@@ -1067,31 +1067,31 @@
         const kpis = [
             {
                 cls: "sa-kpi-blue",
-                icon: "📦",
+                icon: '<i class="ti ti-shirt" aria-hidden="true"></i>',
                 val: totalStyles,
                 lbl: "Total Styles"
             },
             {
                 cls: "sa-kpi-green",
-                icon: "✅",
+                icon: '<i class="ti ti-file-check" aria-hidden="true"></i>',
                 val: poReceived,
                 lbl: "PO Reçus"
             },
             {
                 cls: lateExFty > 0 ? "sa-kpi-danger" : "sa-kpi-green",
-                icon: "🚢",
+                icon: '<i class="ti ti-ship" aria-hidden="true"></i>',
                 val: lateExFty,
                 lbl: "Ex-Fty dépassées"
             },
             {
                 cls: soonExFty > 0 ? "sa-kpi-warn" : "sa-kpi-green",
-                icon: "⏰",
+                icon: '<i class="ti ti-clock-hour-4" aria-hidden="true"></i>',
                 val: soonExFty,
                 lbl: `Ex-Fty ≤ ${CONFIG.exFtyWarningDays}j`
             },
             {
                 cls: dangerAlerts > 0 ? "sa-kpi-danger" : (warnAlerts > 0 ? "sa-kpi-warn" : (alerts.length ? "sa-kpi-blue" : "sa-kpi-green")),
-                icon: "🚨",
+                icon: '<i class="ti ti-bell-ringing" aria-hidden="true"></i>',
                 val: alerts.length,
                 lbl: "Alertes actives",
                 clickable: true
