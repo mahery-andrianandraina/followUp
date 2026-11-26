@@ -554,6 +554,173 @@
     .todo-startup-toast:hover { transform: translateY(-2px); box-shadow: 0 6px 28px rgba(99,102,241,0.2); }
     .todo-startup-title { font-size: 13px; font-weight: 700; color: #1a1f36; margin-bottom: 4px; }
     .todo-startup-sub { font-size: 11px; color: #6b7280; }
+
+    /* ═══════════════════════════════════════════════════════════
+       PLEIN ÉCRAN (v2) — remplace l'ancien petit panneau flottant
+       ═══════════════════════════════════════════════════════════ */
+    #todo-overlay { z-index: 12050; }
+    #todo-overlay .todo-backdrop { background: rgba(0,0,0,.4); backdrop-filter: none; }
+    #todo-overlay .todo-panel {
+        position: fixed; inset: 24px; bottom: 24px; right: 24px; margin: auto;
+        width: auto; height: auto; max-width: 1360px;
+        border-radius: 28px; border: none; background: #f8fafd;
+        box-shadow: 0 8px 12px 6px rgba(0,0,0,.15), 0 4px 4px rgba(0,0,0,.3);
+        transform: scale(.97); opacity: 0;
+        transition: transform .25s cubic-bezier(.2,0,0,1), opacity .2s;
+        font-family: "Google Sans", Roboto, "Segoe UI", Arial, sans-serif; color: #1f1f1f;
+    }
+    #todo-overlay.open .todo-panel { transform: none; opacity: 1; }
+
+    .tdf-head { display: flex; align-items: center; gap: 14px; padding: 18px 20px 14px 28px; flex-shrink: 0; }
+    .tdf-head-ic { width: 44px; height: 44px; border-radius: 14px; background: #0b57d0; color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .tdf-head-ic svg { width: 24px; height: 24px; }
+    .tdf-head-t { font-size: 24px; line-height: 30px; font-weight: 400; }
+    #todo-header-sub { font-size: 13.5px; color: #5f6368; }
+    .tdf-search {
+        margin-left: auto; width: min(520px, 40vw); height: 48px; border-radius: 24px; background: #e9eef6;
+        display: flex; align-items: center; gap: 10px; padding: 0 12px 0 18px; transition: background .15s, box-shadow .15s;
+    }
+    .tdf-search:focus-within { background: #fff; box-shadow: 0 1px 1px rgba(0,0,0,.1), 0 1px 3px 1px rgba(0,0,0,.08); }
+    .tdf-search svg { width: 20px; height: 20px; color: #444746; flex-shrink: 0; }
+    .tdf-search .todo-search-input { flex: 1; border: none; outline: none; background: transparent; font-weight: 400; font-size: 15px; font-family: inherit; color: #1f1f1f; }
+    .tdf-search .todo-search-count { font-size: 12px; color: #5f6368; white-space: nowrap; }
+    .tdf-search .todo-search-clear { display: none; width: 32px; height: 32px; border-radius: 50%; border: none; background: none; cursor: pointer; color: #444746; align-items: center; justify-content: center; }
+    .tdf-search .todo-search-clear.visible { display: flex; }
+    .tdf-search .todo-search-clear:hover { background: rgba(68,71,70,.08); }
+    .tdf-close { width: 44px; height: 44px; border-radius: 50%; border: none; background: none; cursor: pointer; color: #444746; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .tdf-close:hover { background: rgba(68,71,70,.08); }
+    .tdf-close svg { width: 22px; height: 22px; }
+
+    #todo-main-content.tdf-body { flex: 1; min-height: 0; display: flex; flex-direction: row; gap: 16px; padding: 0 20px 20px; }
+    .tdf-side { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding: 2px; }
+    .tdf-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; border-radius: 24px; overflow: hidden; }
+
+    /* Nouvelle tâche */
+    .tdf-card { background: #fff; border-radius: 20px; padding: 16px; }
+    .tdf-card-t { font-size: 15px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .tdf-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+    .tdf-field label { font-size: 12px; color: #444746; font-weight: 500; }
+    #todo-overlay .tdf-in {
+        border-radius: 8px !important; margin: 0 !important; line-height: normal;
+        width: 100%; box-sizing: border-box; height: 40px; border-radius: 8px; border: 1px solid #c4c7c5; background: #fff;
+        padding: 0 12px; font-weight: 400; font-size: 14px; font-family: inherit; color: #1f1f1f; outline: none; transition: border-color .12s, box-shadow .12s;
+    }
+    #todo-overlay textarea.tdf-in { height: 64px; padding: 10px 12px; resize: vertical; }
+    #todo-overlay .tdf-in:focus { border-color: #0b57d0; box-shadow: inset 0 0 0 1px #0b57d0; }
+    #todo-overlay .tdf-title-in { height: 48px !important; font-size: 15px !important; }
+    .tdf-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tdf-add {
+        width: 100%; height: 44px; border-radius: 22px; border: none; cursor: pointer; margin-top: 4px;
+        background: #0b57d0; color: #fff; font-weight: 500; font-size: 14px; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .tdf-add:hover { background: #0a4fbd; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+    .tdf-add svg { width: 18px; height: 18px; }
+
+    /* Filtres verticaux (comme les libellés Gmail) */
+    #todo-overlay .todo-filters { display: flex; flex-direction: column; gap: 2px; padding: 0; border: none; background: none; overflow: visible; }
+    #todo-overlay .todo-filter-btn {
+        display: flex; align-items: center; gap: 12px; height: 44px; border-radius: 22px; border: none; background: transparent;
+        padding: 0 16px; font-weight: 500; font-size: 14px; font-family: inherit; color: #444746; cursor: pointer; text-align: left; width: 100%;
+    }
+    #todo-overlay .todo-filter-btn:hover { background: rgba(68,71,70,.08); }
+    #todo-overlay .todo-filter-btn.active { background: #d3e3fd; color: #041e49; }
+    #todo-overlay .todo-filter-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+    #todo-overlay .todo-filter-count { margin-left: auto; font-size: 13px; font-weight: 500; background: none; color: inherit; padding: 0; min-width: 0; }
+    #todo-overlay .todo-filter-btn.f-overdue .todo-filter-count.n { color: #c5221f; }
+
+    /* Statistiques */
+    .tdf-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .tdf-stat { background: #fff; border-radius: 16px; padding: 12px 14px; }
+    .tdf-stat b { display: block; font-size: 26px; line-height: 30px; font-weight: 400; }
+    .tdf-stat span { font-size: 12.5px; color: #5f6368; }
+    .tdf-stat b.red { color: #c5221f; } .tdf-stat b.amber { color: #b06000; } .tdf-stat b.green { color: #137333; }
+
+    /* Liste */
+    #todo-overlay .todo-list { flex: 1; overflow-y: auto; padding: 8px 16px 16px; background: #fff; }
+    #todo-overlay .todo-date-group { margin-top: 6px; }
+    #todo-overlay .todo-date-group-header {
+        display: flex; align-items: center; gap: 8px; padding: 14px 8px 8px; cursor: pointer; position: sticky; top: -8px; background: #fff; z-index: 1;
+        font-size: 13px; font-weight: 500; color: #444746; text-transform: none; letter-spacing: 0; border: none;
+    }
+    #todo-overlay .todo-date-group-label { font-size: 13px; font-weight: 500; color: #1f1f1f; text-transform: none; letter-spacing: 0; }
+    #todo-overlay #grp-overdue .todo-date-group-label { color: #c5221f; }
+    #todo-overlay #grp-today .todo-date-group-label { color: #b06000; }
+    #todo-overlay .todo-date-group-count { font-size: 12px; font-weight: 500; background: #f0f4f9; color: #444746; border-radius: 10px; padding: 1px 8px; }
+    #todo-overlay .todo-date-group-line { flex: 1; height: 1px; background: #e3e3e3; }
+    #todo-overlay .todo-date-group-chevron { width: 18px; height: 18px; color: #444746; transition: transform .15s; }
+    #todo-overlay .todo-date-group.collapsed .todo-date-group-chevron { transform: rotate(-90deg); }
+    #todo-overlay .todo-date-group.collapsed .todo-date-group-content { display: none; }
+
+    /* Tâche (ligne détaillée) */
+    #todo-overlay .todo-task.tdf-task {
+        display: flex; align-items: flex-start; gap: 16px; padding: 14px 12px; margin: 0; border: none; border-radius: 16px;
+        border-bottom: 1px solid #f1f3f4; background: transparent; box-shadow: none; cursor: default; transition: background .12s;
+    }
+    #todo-overlay .todo-task.tdf-task:hover { background: #f8fafd; }
+    #todo-overlay .todo-task.tdf-task.overdue { background: transparent; border-left: none; }
+    #todo-overlay .tdf-task .todo-check {
+        width: 24px; height: 24px; border-radius: 50%; border: 2px solid #747775; flex-shrink: 0; margin-top: 2px; cursor: pointer;
+        display: flex; align-items: center; justify-content: center; background: #fff; transition: all .12s;
+    }
+    #todo-overlay .tdf-task .todo-check svg { width: 14px; height: 14px; stroke: #0b57d0; opacity: 0; }
+    #todo-overlay .tdf-task .todo-check:hover { border-color: #0b57d0; background: #e8f0fe; }
+    #todo-overlay .tdf-task .todo-check:hover svg { opacity: .6; }
+    #todo-overlay .tdf-task .todo-check.checked { background: #0b57d0; border-color: #0b57d0; }
+    #todo-overlay .tdf-task .todo-check.checked svg { stroke: #fff; opacity: 1; }
+    .tdf-tb { flex: 1; min-width: 0; }
+    .tdf-title { font-size: 16px; line-height: 22px; font-weight: 500; color: #1f1f1f; word-break: break-word; }
+    .tdf-task.done .tdf-title { text-decoration: line-through; color: #5f6368; font-weight: 400; }
+    .tdf-desc {
+        font-size: 14px; line-height: 20px; color: #444746; margin-top: 4px; white-space: pre-wrap; word-break: break-word;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer;
+    }
+    .tdf-task.expanded .tdf-desc { -webkit-line-clamp: unset; display: block; }
+    .tdf-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .tdf-chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; font-weight: 500; border: 1px solid #c4c7c5; color: #444746; background: #fff; }
+    .tdf-chip svg { width: 15px; height: 15px; }
+    .tdf-chip.link { cursor: pointer; border-color: #a8c7fa; color: #0b57d0; }
+    .tdf-chip.link:hover { background: #e8f0fe; }
+    .tdf-chip.p-High { background: #fce8e6; border-color: #fce8e6; color: #c5221f; }
+    .tdf-chip.p-Medium { background: #fef7e0; border-color: #fef7e0; color: #b06000; }
+    .tdf-chip.p-Low { background: #f1f3f4; border-color: #f1f3f4; color: #444746; }
+    .tdf-meta { font-size: 12.5px; color: #5f6368; margin-top: 8px; }
+    .tdf-due { width: 118px; flex-shrink: 0; text-align: right; }
+    .tdf-due .d { font-size: 15px; font-weight: 500; color: #1f1f1f; }
+    .tdf-due .c { display: inline-block; margin-top: 4px; font-size: 12.5px; font-weight: 500; padding: 3px 10px; border-radius: 8px; background: #f1f3f4; color: #444746; }
+    .tdf-due.late .d { color: #c5221f; } .tdf-due.late .c { background: #fce8e6; color: #c5221f; }
+    .tdf-due.today .d { color: #b06000; } .tdf-due.today .c { background: #fef7e0; color: #b06000; }
+    .tdf-due.soon .c { background: #d3e3fd; color: #041e49; }
+    .tdf-due.done .c { background: #e6f4ea; color: #137333; }
+    .tdf-due.none .d { color: #5f6368; font-weight: 400; }
+    #todo-overlay .tdf-task .todo-task-actions { display: flex; gap: 2px; opacity: 1; flex-shrink: 0; }
+    .tdf-act { width: 40px; height: 40px; border-radius: 50%; border: none; background: none; color: #444746; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .tdf-act:hover { background: rgba(68,71,70,.08); }
+    .tdf-act.del:hover { background: #fce8e6; color: #c5221f; }
+    .tdf-act svg { width: 20px; height: 20px; }
+
+    #todo-overlay .todo-empty { padding: 80px 20px; text-align: center; color: #5f6368; font-size: 15px; }
+    #todo-overlay .todo-empty svg { width: 56px; height: 56px; color: #34a853; margin-bottom: 8px; }
+
+    #todo-overlay .todo-footer { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-top: 1px solid #e3e3e3; background: #fff; }
+    #todo-overlay .todo-footer-stat { font-size: 13px; color: #444746; }
+    #todo-overlay .todo-clear-done { height: 36px; padding: 0 16px; border-radius: 18px; border: 1px solid #747775; background: #fff; color: #0b57d0; font-weight: 500; font-size: 13px; font-family: inherit; cursor: pointer; }
+    #todo-overlay .todo-clear-done:hover { background: rgba(11,87,208,.06); }
+
+    #todo-overlay .todo-welcome { flex: 1; overflow-y: auto; padding: 24px; justify-content: center; }
+    #todo-overlay .todo-welcome > * { max-width: 760px; margin-left: auto; margin-right: auto; }
+    #todo-overlay .todo-welcome-icon { background: #0b57d0 !important; border-radius: 14px !important; }
+    #todo-overlay .todo-welcome-h1 { font-weight: 400 !important; font-size: 24px !important; color: #1f1f1f !important; }
+    #todo-overlay .todo-welcome-hero { background: #fff !important; border: none !important; border-radius: 24px !important; }
+    #todo-overlay .todo-welcome-card { border-radius: 20px !important; border: none !important; border-left: none !important; background: #fff !important; }
+    #todo-overlay .todo-welcome button, #todo-overlay .todo-welcome .todo-welcome-btn { background: #0b57d0 !important; border-radius: 22px !important; box-shadow: none !important; }
+
+    @media (max-width: 900px) {
+        #todo-overlay .todo-panel { inset: 0; border-radius: 0; }
+        #todo-main-content.tdf-body { flex-direction: column; }
+        .tdf-side { width: auto; }
+        .tdf-search { width: auto; flex: 1; }
+        .tdf-due { width: 90px; }
+    }
     `;
     document.head.appendChild(style);
 
@@ -598,114 +765,96 @@
         overlay.id = 'todo-overlay';
         overlay.innerHTML = `
         <div class="todo-backdrop" onclick="closeTodoPanel()"></div>
-        <div class="todo-panel">
-            <div class="todo-header">
-                <div class="todo-header-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
-                    </svg>
+        <div class="todo-panel" role="dialog" aria-modal="true" aria-label="To-Do List">
+            <div class="tdf-head">
+                <div class="tdf-head-ic">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
                 <div>
-                    <div class="todo-header-title">To-Do List</div>
-                    <div class="todo-header-sub" id="todo-header-sub">Chargement…</div>
+                    <div class="tdf-head-t">To-Do List</div>
+                    <div id="todo-header-sub">Chargement…</div>
                 </div>
-                <div class="todo-header-stats" id="todo-header-stats">
-                    <div class="todo-stat-pill"><span class="todo-stat-num" id="stat-total">0</span><span class="todo-stat-label">En cours</span></div>
-                    <div class="todo-stat-pill"><span class="todo-stat-num red" id="stat-overdue">0</span><span class="todo-stat-label">En retard</span></div>
-                    <div class="todo-stat-pill"><span class="todo-stat-num amber" id="stat-today">0</span><span class="todo-stat-label">Aujourd'hui</span></div>
-                    <div class="todo-stat-pill"><span class="todo-stat-num green" id="stat-done">0</span><span class="todo-stat-label">Terminées</span></div>
+                <div class="tdf-search">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input class="todo-search-input" id="todo-search-input" placeholder="Rechercher une tâche, un style, un client…" oninput="_todoOnSearch(this.value)"/>
+                    <span class="todo-search-count" id="todo-search-count"></span>
+                    <button class="todo-search-clear" id="todo-search-clear" onclick="_todoClearSearch()" aria-label="Effacer la recherche">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="18" height="18"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
                 </div>
-                <button class="todo-close-btn" onclick="closeTodoPanel()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="14" height="14">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
+                <button class="tdf-close" onclick="closeTodoPanel()" aria-label="Fermer" title="Fermer (Échap)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
             </div>
 
             <!-- Welcome page (first open only) -->
             <div class="todo-welcome" id="todo-welcome" style="display:none;"></div>
 
-            <!-- Main content wrapper -->
-            <div id="todo-main-content">
-
-            <!-- Add form -->
-            <div class="todo-add-wrap">
-                <div class="todo-add-row">
-                    <input class="todo-add-input" id="todo-quick-input"
-                        placeholder="Nouvelle tâche… (Entrée pour ajouter)"
-                        onkeydown="if(event.key==='Enter') _todoQuickAdd()"/>
-                    <button class="todo-add-btn" onclick="_todoQuickAdd()" title="Ajouter">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-                        </svg>
-                    </button>
-                </div>
-                <button class="todo-expand-btn" onclick="_todoToggleExpand()">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="12" height="12">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                    Options avancées
-                </button>
-                <div class="todo-expand-form" id="todo-expand-form">
-                    <div class="todo-form-group">
-                        <label class="todo-form-label">Priorité</label>
-                        <select class="todo-form-select" id="todo-priority">
-                            <option value="High">Haute</option>
-                            <option value="Medium" selected>Moyenne</option>
-                            <option value="Low">Basse</option>
-                        </select>
+            <!-- Contenu principal : colonne gauche + liste -->
+            <div id="todo-main-content" class="tdf-body">
+                <aside class="tdf-side">
+                    <div class="tdf-card">
+                        <div class="tdf-card-t">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#0b57d0" width="20" height="20"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            Nouvelle tâche
+                        </div>
+                        <div class="tdf-field">
+                            <input class="tdf-in tdf-title-in" id="todo-quick-input" placeholder="Que faut-il faire ?"
+                                onkeydown="if(event.key==='Enter') _todoQuickAdd()"/>
+                        </div>
+                        <div class="tdf-row2">
+                            <div class="tdf-field">
+                                <label for="todo-priority">Priorité</label>
+                                <select class="tdf-in" id="todo-priority">
+                                    <option value="High">Haute</option>
+                                    <option value="Medium" selected>Moyenne</option>
+                                    <option value="Low">Basse</option>
+                                </select>
+                            </div>
+                            <div class="tdf-field">
+                                <label for="todo-due-date">Date limite</label>
+                                <input type="date" class="tdf-in" id="todo-due-date"/>
+                            </div>
+                        </div>
+                        <div class="tdf-row2">
+                            <div class="tdf-field">
+                                <label for="todo-linked-style">Style lié</label>
+                                <input type="text" class="tdf-in" id="todo-linked-style" placeholder="ex. ORB14318" list="todo-style-list"/>
+                                <datalist id="todo-style-list"></datalist>
+                            </div>
+                            <div class="tdf-field">
+                                <label for="todo-linked-client">Client lié</label>
+                                <input type="text" class="tdf-in" id="todo-linked-client" placeholder="ex. ORCHESTRA" list="todo-client-list"/>
+                                <datalist id="todo-client-list"></datalist>
+                            </div>
+                        </div>
+                        <div class="tdf-field">
+                            <label for="todo-desc">Description</label>
+                            <textarea class="tdf-in" id="todo-desc" placeholder="Détails, contact fournisseur, n° de PO…"></textarea>
+                        </div>
+                        <button class="tdf-add" onclick="_todoQuickAdd()">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            Ajouter la tâche
+                        </button>
                     </div>
-                    <div class="todo-form-group">
-                        <label class="todo-form-label">Date limite</label>
-                        <input type="date" class="todo-form-input-sm" id="todo-due-date"/>
+
+                    <nav class="todo-filters" id="todo-filters" aria-label="Filtres"></nav>
+
+                    <div class="tdf-stats">
+                        <div class="tdf-stat"><b id="stat-total">0</b><span>En cours</span></div>
+                        <div class="tdf-stat"><b class="red" id="stat-overdue">0</b><span>En retard</span></div>
+                        <div class="tdf-stat"><b class="amber" id="stat-today">0</b><span>Aujourd'hui</span></div>
+                        <div class="tdf-stat"><b class="green" id="stat-done">0</b><span>Terminées</span></div>
                     </div>
-                    <div class="todo-form-group">
-                        <label class="todo-form-label">Style lié</label>
-                        <input type="text" class="todo-form-input-sm" id="todo-linked-style"
-                            placeholder="ex: ST001" list="todo-style-list"/>
-                        <datalist id="todo-style-list"></datalist>
+                </aside>
+
+                <section class="tdf-main">
+                    <div class="todo-list" id="todo-list"></div>
+                    <div class="todo-footer">
+                        <div class="todo-footer-stat" id="todo-footer-stat"></div>
+                        <button class="todo-clear-done" onclick="_todoClearDone()">Effacer les terminées</button>
                     </div>
-                    <div class="todo-form-group">
-                        <label class="todo-form-label">Client lié</label>
-                        <input type="text" class="todo-form-input-sm" id="todo-linked-client"
-                            placeholder="ex: CALVIN KLEIN" list="todo-client-list"/>
-                        <datalist id="todo-client-list"></datalist>
-                    </div>
-                    <div class="todo-form-group full">
-                        <label class="todo-form-label">Description</label>
-                        <input type="text" class="todo-form-input-sm" id="todo-desc"
-                            placeholder="Détails optionnels…"/>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filters -->
-            <div class="todo-filters" id="todo-filters"></div>
-
-            <!-- Search -->
-            <div class="todo-search-wrap">
-                <div class="todo-search-row">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                    <input class="todo-search-input" id="todo-search-input"
-                        placeholder="Rechercher tâche, style, client…"
-                        oninput="_todoOnSearch(this.value)"/>
-                    <span class="todo-search-count" id="todo-search-count"></span>
-                    <button class="todo-search-clear" id="todo-search-clear" onclick="_todoClearSearch()"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg></button>
-                </div>
-            </div>
-
-            <!-- Task list -->
-            <div class="todo-list" id="todo-list"></div>
-
-            </div><!-- /todo-main-content -->
-
-            <!-- Footer -->
-            <div class="todo-footer">
-                <div class="todo-footer-stat" id="todo-footer-stat"></div>
-                <button class="todo-clear-done" onclick="_todoClearDone()">Effacer terminées</button>
+                </section>
             </div>
         </div>`;
         document.body.appendChild(overlay);
@@ -900,19 +1049,20 @@
     function _renderFilters() {
         const el = document.getElementById('todo-filters');
         if (!el) return;
+        const I = d => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"/></svg>`;
         const filters = [
-            { id: 'all', label: 'Toutes' },
-            { id: 'overdue', label: 'En retard' },
-            { id: 'today', label: 'Aujourd\'hui' },
-            { id: 'high', label: 'Urgent' },
-            { id: 'done', label: 'Terminées' },
+            { id: 'all',     label: 'Toutes les tâches', icon: I('M4 6h16M4 12h16M4 18h10') },
+            { id: 'overdue', label: 'En retard',         icon: I('M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z') },
+            { id: 'today',   label: 'Aujourd\'hui',      icon: I('M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z') },
+            { id: 'high',    label: 'Urgentes',          icon: I('M13 10V3L4 14h7v7l9-11h-7z') },
+            { id: 'done',    label: 'Terminées',         icon: I('M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z') },
         ];
         el.innerHTML = filters.map(f => {
             const count = _countFilter(f.id);
-            return `<button class="todo-filter-btn ${_todoFilter === f.id ? 'active' : ''}"
+            return `<button class="todo-filter-btn f-${f.id} ${_todoFilter === f.id ? 'active' : ''}"
                 onclick="_todoSetFilter('${f.id}')">
-                ${f.label}
-                <span class="todo-filter-count">${count}</span>
+                ${f.icon}${f.label}
+                <span class="todo-filter-count ${count ? 'n' : ''}">${count || ''}</span>
             </button>`;
         }).join('');
     }
@@ -1030,64 +1180,55 @@
         const isDone = task.status === 'done';
         const cls = _taskCls(task);
         const hasDesc = task.description && task.description.trim();
-        const descId = 'todo-desc-' + task.id;
+        const svg = d => `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${d}"/></svg>`;
 
-        // Created info
-        const createdDate = task.createdAt ? new Date(task.createdAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' }) : '';
+        // Échéance (bloc de droite)
+        let dueCls = 'none', dueDate = 'Sans date', dueTxt = '';
+        if (task.dueDate) {
+            const diff = _daysDiff(task.dueDate);
+            dueDate = new Date(task.dueDate).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
+            if (isDone)            { dueCls = 'done';  dueTxt = 'Terminée'; }
+            else if (diff < 0)     { dueCls = 'late';  dueTxt = `Retard de ${Math.abs(diff)} j`; }
+            else if (diff === 0)   { dueCls = 'today'; dueTxt = "Aujourd'hui"; }
+            else if (diff === 1)   { dueCls = 'soon';  dueTxt = 'Demain'; }
+            else if (diff <= 7)    { dueCls = 'soon';  dueTxt = `Dans ${diff} j`; }
+            else                   { dueCls = '';      dueTxt = `Dans ${diff} j`; }
+        } else if (isDone) { dueCls = 'done'; dueTxt = 'Terminée'; }
+
+        // Puces : priorité, style (cliquable), client, menu
+        const prioLabels = { High: 'Priorité haute', Medium: 'Priorité moyenne', Low: 'Priorité basse' };
+        const chips = [
+            `<span class="tdf-chip p-${task.priority || 'Medium'}">${svg('M3 21V5a2 2 0 012-2h11l-2 4 2 4H5')}${prioLabels[task.priority] || task.priority || 'Priorité moyenne'}</span>`,
+            task.linkedStyle ? `<span class="tdf-chip link" title="Ouvrir le style" onclick="event.stopPropagation();_todoNavToStyle('${_escHtml(task.linkedStyle)}','${_escHtml(task.linkedSheet || '')}')">${svg('M7 7h10M7 11h10M7 15h6')}${_escHtml(task.linkedStyle)}</span>` : '',
+            task.linkedClient ? `<span class="tdf-chip">${svg('M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z')}${_escHtml(task.linkedClient)}</span>` : '',
+            task.linkedSheet ? `<span class="tdf-chip">${svg('M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z')}${_escHtml(task.linkedSheet)}</span>` : ''
+        ].join('');
+
+        // Créée par / le, terminée le
+        const createdDate = task.createdAt ? new Date(task.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
         const createdBy = task.createdBy ? task.createdBy.split('@')[0] : '';
-        const createdInfo = [createdBy, createdDate].filter(Boolean).join(' · ');
+        const meta = [
+            createdBy || createdDate ? `Créée${createdBy ? ' par ' + _escHtml(createdBy) : ''}${createdDate ? ' le ' + createdDate : ''}` : '',
+            isDone && task.completedAt ? `Terminée le ${new Date(task.completedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}` : ''
+        ].filter(Boolean).join(' · ');
 
-        // Completed info
-        const completedInfo = isDone && task.completedAt
-            ? `Terminée le ${new Date(task.completedAt).toLocaleDateString('fr-FR', { day:'2-digit', month:'short' })}`
-            : '';
-
-        // Style badge (cliquable → ouvre le style)
-        const styleBadge = task.linkedStyle
-            ? `<span class="todo-linked-badge todo-style-badge" onclick="event.stopPropagation();_todoNavToStyle('${task.linkedStyle}','${task.linkedSheet || ''}')">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h10M7 11h10M7 15h6"/></svg>
-                ${_escHtml(task.linkedStyle)}</span>`
-            : '';
-
-        // Client badge
-        const clientBadge = task.linkedClient
-            ? `<span class="todo-linked-badge todo-client-badge">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
-                ${_escHtml(task.linkedClient)}</span>`
-            : '';
-
-        // Sheet badge
-        const sheetBadge = task.linkedSheet
-            ? `<span class="todo-linked-badge" style="background:#fff7ed;color:#9a3412;cursor:default;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10" style="vertical-align:middle"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                ${_escHtml(task.linkedSheet)}</span>`
-            : '';
-
-        return `<div class="todo-task ${cls} ${isDone ? 'done' : ''}" id="todo-task-${task.id}" onclick="_todoToggleDesc('${task.id}')" style="cursor:pointer">
-            <div class="todo-check ${isDone ? 'checked' : ''}" onclick="event.stopPropagation();_todoToggleDone('${task.id}')">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
-                </svg>
+        return `<div class="todo-task tdf-task ${cls} ${isDone ? 'done' : ''}" id="todo-task-${task.id}">
+            <div class="todo-check ${isDone ? 'checked' : ''}" onclick="event.stopPropagation();_todoToggleDone('${task.id}')" title="${isDone ? 'Rouvrir' : 'Marquer comme terminée'}" role="checkbox" aria-checked="${isDone}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
             </div>
-            <div class="todo-task-body">
-                <div class="todo-task-title">${_escHtml(task.title)}</div>
-                ${createdInfo ? `<div class="todo-task-created">${createdInfo}${completedInfo ? ' · ' + completedInfo : ''}</div>` : ''}
-                <div class="todo-task-meta" style="margin-top:5px;flex-wrap:wrap;gap:5px;">
-                    ${_prioBadge(task.priority)}
-                    ${_dueBadge(task.dueDate, task.status)}
-                </div>
-                ${(styleBadge || clientBadge || sheetBadge) ? `<div class="todo-task-links" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;">${styleBadge}${clientBadge}${sheetBadge}</div>` : ''}
-                ${hasDesc ? `<div class="todo-task-desc" id="${descId}" style="display:none;margin-top:8px;padding:8px 12px;background:#f8f9ff;border-radius:8px;border-left:3px solid #6366f1;font-size:12px;color:#4b5563;line-height:1.5;">${_escHtml(task.description)}</div>` : ''}
-                ${hasDesc ? `<div class="todo-desc-hint" id="hint-${task.id}" style="font-size:10px;color:#c4c9d4;margin-top:4px;display:flex;align-items:center;gap:3px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="10" height="10"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    voir description</div>` : ''}
+            <div class="tdf-tb">
+                <div class="tdf-title">${_escHtml(task.title)}</div>
+                ${hasDesc ? `<div class="tdf-desc" onclick="_todoToggleDesc('${task.id}')" title="Cliquer pour tout afficher">${_escHtml(task.description)}</div>` : ''}
+                <div class="tdf-chips">${chips}</div>
+                ${meta ? `<div class="tdf-meta">${meta}</div>` : ''}
             </div>
-            <div class="todo-task-actions" onclick="event.stopPropagation()">
-                <button class="todo-act-btn" onclick="_todoDelete('${task.id}')" title="Supprimer">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                    </svg>
+            <div class="tdf-due ${dueCls}">
+                <div class="d">${dueDate}</div>
+                ${dueTxt ? `<span class="c">${dueTxt}</span>` : ''}
+            </div>
+            <div class="todo-task-actions">
+                <button class="tdf-act del" onclick="_todoDelete('${task.id}')" title="Supprimer" aria-label="Supprimer">
+                    ${svg('M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16')}
                 </button>
             </div>
         </div>`;
@@ -1441,12 +1582,8 @@
     };
 
     window._todoToggleDesc = function(id) {
-        const desc = document.getElementById('todo-desc-' + id);
-        const hint = document.getElementById('hint-' + id);
-        if (!desc) return;
-        const isOpen = desc.style.display !== 'none';
-        desc.style.display = isOpen ? 'none' : 'block';
-        if (hint) hint.textContent = isOpen ? '▾ voir description' : '▴ masquer';
+        // Plein écran : la description est visible (3 lignes), un clic l'affiche en entier
+        document.getElementById('todo-task-' + id)?.classList.toggle('expanded');
     };
 
     window._todoToggleExpand = function() {
@@ -1571,6 +1708,11 @@
             document.getElementById('todo-overlay')?.classList.add('open');
         });
         _todoOpen = true;
+        document.body.style.overflow = 'hidden';
+        if (!window._todoEscBound) {
+            window._todoEscBound = true;
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && _todoOpen) closeTodoPanel(); });
+        }
 
         const showContent = () => {
             if (!_welcomeShown) {
@@ -1599,6 +1741,7 @@
     window.closeTodoPanel = function() {
         document.getElementById('todo-overlay')?.classList.remove('open');
         _todoOpen = false;
+        document.body.style.overflow = '';
 
         // Re-evaluate showing the signal bubble
         const urgent = _tasks.filter(t => {
