@@ -1020,7 +1020,11 @@ function renderDashboard() {
                 const c = DEPT_COLORS[di % DEPT_COLORS.length];
                 const cards = dd.rows.map((r, cardIdx) => {
                     const qty = r["Conf Total"] ? (+r["Conf Total"]).toLocaleString("fr-FR") + ' u.' : '<span class="dbs-dim">—</span>';
-                    const psd = r["PO Deadline"] ? new Date(r["PO Deadline"]).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }) : '<span class="dbs-dim">—</span>';
+                    // PSD = colonne "PSD" de Details (date ou texte comme "All OK", "In House")
+                    const _psd = _psdInfo(r.PSD);
+                    const psd = _psd.date
+                        ? _psd.date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" })
+                        : (_psd.text ? esc(_psd.text) : '<span class="dbs-dim">—</span>');
                     const cost = r["Approved Price $"] ? '$' + r["Approved Price $"] : (r["Target Price $"] ? '$' + r["Target Price $"] : '<span class="dbs-dim">—</span>');
                     const fab = r["FABRIC"] ? esc(r["FABRIC"]) : '<span class="dbs-dim">—</span>';
                     const desc = esc(r["Theme"] || r["Style Type"] || "");
@@ -1082,9 +1086,8 @@ function renderDashboard() {
                     let deliveryBadge = "";
                     const _today = new Date(); _today.setHours(0,0,0,0);
                     const _exFtyVal = r["Possible etd"] || r["Possible Vsl date"] || "";
-                    const _psdVal   = r["PO Deadline"] || "";
                     const _exFtyDate = _exFtyVal ? new Date(_exFtyVal) : null;
-                    const _psdDate   = _psdVal   ? new Date(_psdVal)   : null;
+                    const _psdDate   = _psdInfo(r.PSD).date; // PSD de Details (null si texte)
                     if (_exFtyDate) _exFtyDate.setHours(0,0,0,0);
                     if (_psdDate)   _psdDate.setHours(0,0,0,0);
 
@@ -1170,7 +1173,7 @@ function renderDashboard() {
                         ' data-order-qty="' + esc(String(r["Conf Total"] || "")) + '"' +
                         ' data-plc="' + esc(r["PLC Booking"] || "") + '"' +
                         ' data-crp="' + esc(r["CRP Booking"] || "") + '"' +
-                        ' data-psd="' + esc(r["PO Deadline"] || "") + '"' +
+                        ' data-psd="' + esc(r.PSD || "") + '"' +
                         ' data-exfty="' + esc(r["Possible etd"] || "") + '"' +
                         ' data-comments="' + esc(r.Comments || "") + '"' +
                         ' data-description-full="' + esc(r["Theme"] || r["Style Type"] || "") + '"' +
@@ -3281,6 +3284,23 @@ function exportExcel() {
  *
  * CUSTOM : même logique que Sample si colonnes détectées + dates dépassées
  */
+
+// ── PSD (colonne "PSD" de Details) : peut être une date OU un texte
+//    ("All OK", "In House", "All OK - 2026-12-09", "TBC"…)
+//    Retourne { date: Date|null, text: string }
+function _psdInfo(val) {
+    const s = String(val == null ? "" : val).trim();
+    if (!s || /^invalid date$/i.test(s)) return { date: null, text: "" };
+    const mk = (y, m, d) => { const x = new Date(y, m - 1, d); return isNaN(x) ? null : x; };
+    let m;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {                       // ISO du Sheet → heure locale
+        const d = new Date(s);
+        return isNaN(d) ? { date: null, text: s } : { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), text: "" };
+    }
+    if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/)))          return { date: mk(+m[1], +m[2], +m[3]), text: "" };
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)))        return { date: mk(+m[3], +m[2], +m[1]), text: "" }; // JJ/MM/AAAA
+    return { date: null, text: s };                               // texte : affiché tel quel
+}
 
 function _fmtDate(val) {
     if (!val) return "—";
