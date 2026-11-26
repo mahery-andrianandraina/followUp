@@ -75,6 +75,11 @@
             font-size: 10.5px; font-weight: 600; text-decoration: line-through;
             background: #f3f4f6; color: #6b7280; border: 0.5px solid #d1d5db;
         }
+        .psd-excel-raw {
+            display: block; margin-top: 3px; font-size: 9.5px;
+            color: var(--text-muted, #9ca3af); white-space: nowrap;
+            overflow: hidden; text-overflow: ellipsis; max-width: 150px;
+        }
         .psd-badge-same {
             font-size: 10.5px; color: var(--text-muted, #9ca3af); font-style: italic;
         }
@@ -194,6 +199,12 @@
         if (!(n > 36526 && n < 73051)) return null; // années 2000 à 2099
         const d = new Date(Math.round((n - 25569) * 86400 * 1000));
         return mkDate(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+
+    function colToLetter(i) {
+        let n = i + 1, out = "";
+        while (n > 0) { const r = (n - 1) % 26; out = String.fromCharCode(65 + r) + out; n = Math.floor((n - 1) / 26); }
+        return out;
     }
 
     function toISODate(d) {
@@ -346,20 +357,28 @@
                             )); return;
                         }
 
-                        // Colonne PSD = colonne Z (index 25, confirmé par l'utilisateur)
-                        // Vérification : chercher d'abord par texte, sinon hardcode Z
-                        const headerRow2 = data[headerRow].map(h => String(h).trim().toLowerCase());
-                        iPSD = headerRow2.findIndex(h =>
-                            h.includes("possible psd") || h === "psd" ||
-                            (h.includes("psd") && !h.includes("crp") && h.length < 20)
-                        );
-                        if (iPSD === -1) {
-                            iPSD = 25; // Colonne Z (PSD, confirmé)
-                        }
-                        // Colonnes commitments hardcodées (confirmées)
-                        const iSRS     = 16; // Colonne Q — SRS Launching
-                        const iSewing  = 18; // Colonne S — Sewing Trims
-                        const iPacking = 19; // Colonne T — Packing Trims
+                        // ── Colonnes recherchées par leur EN-TÊTE (le fichier change chaque semaine)
+                        //    avec repli sur les positions habituelles si l'en-tête est introuvable
+                        const H = data[headerRow].map(h => String(h).trim().toLowerCase().replace(/\s+/g, " "));
+
+                        // PSD : "Possible PSD Wxx" → la semaine la plus récente (1re occurrence)
+                        //       sinon en-tête exact "psd" ; JAMAIS "PSD_FR" ni "CRP"
+                        let bestWeek = -1;
+                        H.forEach((h, i) => {
+                            if (!/^possible\s*psd/.test(h)) return;
+                            const wk = parseInt((h.match(/w\s*(\d{1,2})/) || [])[1] || "0", 10);
+                            if (wk > bestWeek) { bestWeek = wk; iPSD = i; }
+                        });
+                        if (iPSD === -1) iPSD = H.findIndex(h => h === "psd" || h === "possible psd");
+                        if (iPSD === -1) iPSD = 25; // repli : colonne Z
+
+                        const findCol = (re, fallback) => {
+                            const i = H.findIndex(h => re.test(h));
+                            return i !== -1 ? i : fallback;
+                        };
+                        const iSRS     = findCol(/^srs\s*launch/, 16);   // repli Q
+                        const iSewing  = findCol(/^sewing\s*trim/, 18);  // repli S
+                        const iPacking = findCol(/^packing\s*trim/, 19); // repli T
 
                         console.log("[PSD] Colonnes → CTL:", iRef,
                             "| PSD:", iPSD, "| SRS:", iSRS,
@@ -383,9 +402,28 @@
 
                             const key = normalizeRef(ref);
                             if (!lookup[key]) {
-                                lookup[key] = { originalRef: ref, psd, srs, sewing, packing };
+                                lookup[key] = {
+                                    originalRef: ref, psd, srs, sewing, packing,
+                                    cols: { psd: iPSD, srs: iSRS, sewing: iSewing, packing: iPacking }
+                                };
                             }
                         }
+
+                        // Diagnostic : en-têtes réellement utilisés + aperçu des valeurs lues
+                        const hdr = data[headerRow] || [];
+                        console.log("[PSD] Feuille utilisée, ligne d'en-têtes", headerRow + 1);
+                        console.table([
+                            { champ: "CTL Style",     colonne: colToLetter(iRef),     entete: hdr[iRef] },
+                            { champ: "PSD",           colonne: colToLetter(iPSD),     entete: hdr[iPSD] },
+                            { champ: "SRS Launching", colonne: colToLetter(iSRS),     entete: hdr[iSRS] },
+                            { champ: "Sewing Trims",  colonne: colToLetter(iSewing),  entete: hdr[iSewing] },
+                            { champ: "Packing Trims", colonne: colToLetter(iPacking), entete: hdr[iPacking] }
+                        ]);
+                        console.table(Object.values(lookup).slice(0, 15).map(v => ({
+                            ref: v.originalRef,
+                            PSD: String(v.psd.raw), "PSD type": v.psd.kind,
+                            SRS: String(v.srs.raw), Sewing: String(v.sewing.raw), Packing: String(v.packing.raw)
+                        })));
 
                         // Log pour debug : afficher les 5 premières entrées
                         const keys = Object.keys(lookup);
@@ -424,7 +462,9 @@
                 const cls     = item.inExcel ? item.match[SRC_KEY[f.id]] : { kind: "empty", raw: "" };
                 const newVal  = item.inExcel ? toStoredValue(cls) : null;
                 const same    = newVal !== null && sameValue(newVal, oldRaw);
-                fields[f.id]  = { col: f.col, label: f.label, oldRaw, cls, newVal, same };
+                const colIdx  = item.match?.cols?.[SRC_KEY[f.id]];
+                const colLetter = colIdx === undefined ? "?" : colToLetter(colIdx);
+                fields[f.id]  = { col: f.col, label: f.label, oldRaw, cls, newVal, same, colLetter };
             });
             const changes    = Object.values(fields).filter(x => x.newVal !== null && !x.same);
             return {
@@ -453,9 +493,17 @@
                 } else {
                     newHTML = `<span class="${badgeClass(x.cls.kind)}">${displayValue(x.newVal)}</span>`;
                 }
+                // Ce qui a été réellement lu dans l'Excel (diagnostic)
+                const KIND_FR = { empty: "vide", date: "date", inhouse: "texte", allok: "texte",
+                                  pending: "texte", text: "texte", invalid: "texte" };
+                const excelInfo = e.found
+                    ? `<span class="psd-excel-raw" title="Valeur lue dans l'Excel (colonne ${x.colLetter})">Excel ${x.colLetter} : ${
+                        x.cls.kind === "empty" ? "(vide)" : String(x.cls.raw)} · ${KIND_FR[x.cls.kind] || x.cls.kind}</span>`
+                    : "";
                 return `<td style="padding:7px 10px;border-bottom:0.5px solid var(--border,#e5e7eb);">
                     ${ov ? `<div class="psd-badge-old" style="margin-bottom:3px;">${ov}</div>` : ""}
                     ${newHTML}
+                    ${excelInfo}
                 </td>`;
             }).join("");
 
@@ -484,7 +532,7 @@
         modal.id = "psd-val-modal";
         modal.className = "modal-overlay";
         modal.innerHTML = `
-        <div class="modal" style="max-width:700px;width:95vw;">
+        <div class="modal" style="max-width:960px;width:96vw;">
             <div class="modal-header">
                 <div>
                     <div class="modal-title">
@@ -760,7 +808,7 @@
             }
         };
         tryInject();
-        console.log("[AW27] PSD Updater ✓");
+        console.log("[AW27] PSD Updater v4 ✓ (colonnes par en-tête, texte importé tel quel)");
     }
 
     if (document.readyState === "loading") {
