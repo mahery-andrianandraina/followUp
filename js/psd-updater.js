@@ -278,6 +278,54 @@
         return "psd-badge-text"; // tout autre texte
     }
 
+    // ══════════════════════════════════════════════════════════
+    //  LECTURE FIABLE DES CELLULES
+    //  Certaines versions / surcouches de SheetJS transforment les textes
+    //  des colonnes au format date en "Invalid Date". On lit donc chaque
+    //  cellule nous-mêmes : valeur brute si elle est sûre, sinon le texte
+    //  affiché dans Excel (cell.w / h / r).
+    // ══════════════════════════════════════════════════════════
+    function cellText(cell) {
+        const t = cell.w ?? cell.h ?? (typeof cell.r === "string" ? cell.r.replace(/<[^>]*>/g, "") : undefined);
+        return t === undefined || t === null ? "" : String(t);
+    }
+
+    function cellValue(cell) {
+        if (!cell) return "";
+        const v = cell.v;
+        // Date JS : valide → on la garde ; invalide → c'était un texte, on reprend le texte affiché
+        if (v instanceof Date) return isNaN(v) ? cellText(cell) : v;
+        if (cell.t === "s" || cell.t === "str") return v === undefined || v === null ? cellText(cell) : String(v);
+        if (cell.t === "n") return typeof v === "number" ? v : cellText(cell);
+        if (cell.t === "d") {
+            const d = new Date(v);
+            return isNaN(d) ? cellText(cell) : d;
+        }
+        if (cell.t === "b" || cell.t === "e") return cellText(cell);
+        if (v === undefined || v === null || v === "") return cellText(cell);
+        // Sécurité : une chaîne "Invalid Date" alors qu'Excel affiche autre chose
+        if (typeof v === "string" && /^invalid date$/i.test(v) && cellText(cell) && !/^invalid date$/i.test(cellText(cell))) {
+            return cellText(cell);
+        }
+        return v;
+    }
+
+    // Équivalent de sheet_to_json(header:1) mais cellule par cellule
+    function readSheetRows(XL, ws, maxRows) {
+        if (!ws || !ws["!ref"]) return [];
+        const range = XL.utils.decode_range(ws["!ref"]);
+        const last  = maxRows ? Math.min(range.e.r, range.s.r + maxRows - 1) : range.e.r;
+        const rows  = [];
+        for (let r = range.s.r; r <= last; r++) {
+            const row = [];
+            for (let c = 0; c <= range.e.c; c++) {
+                row[c] = cellValue(ws[XL.utils.encode_cell({ r, c })]);
+            }
+            rows.push(row);
+        }
+        return rows;
+    }
+
     // ── Analyser le fichier Excel PSD → retourne un lookup map ──
     // { "laridel-bg-vem": { originalRef, psd, srs, sewing, packing } } (valeurs classées)
     function analyzePSDFile(file) {
@@ -313,8 +361,8 @@
                         } else {
                             for (const name of wb.SheetNames) {
                                 const sheet = wb.Sheets[name];
-                                const data  = XL.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true });
-                                const flat  = data.slice(0, 15).flat().map(h =>
+                                const data  = readSheetRows(XL, sheet, 15);
+                                const flat  = data.flat().map(h =>
                                     String(h).trim().toLowerCase());
                                 if (flat.some(h => h.includes("possible psd"))) {
                                     ws = sheet;
@@ -325,7 +373,8 @@
                         }
                         if (!ws) ws = wb.Sheets[wb.SheetNames[0]];
 
-                        const data = XL.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true });
+                        const data = readSheetRows(XL, ws);
+                        console.log("[PSD] SheetJS version :", XL.version || "?");
 
                         // Trouver la ligne d'en-têtes
                         let headerRow = -1, iRef = -1, iPSD = -1;
@@ -408,6 +457,13 @@
                                 };
                             }
                         }
+
+                        // Diagnostic : cellule PSD brute de la 1re ligne de données
+                        try {
+                            const firstR = headerRow + 1 + (XL.utils.decode_range(ws["!ref"]).s.r || 0);
+                            console.log("[PSD] Cellule brute PSD ligne", firstR + 1, ":",
+                                ws[XL.utils.encode_cell({ r: firstR, c: iPSD })]);
+                        } catch (_) {}
 
                         // Diagnostic : en-têtes réellement utilisés + aperçu des valeurs lues
                         const hdr = data[headerRow] || [];
@@ -808,7 +864,7 @@
             }
         };
         tryInject();
-        console.log("[AW27] PSD Updater v4 ✓ (colonnes par en-tête, texte importé tel quel)");
+        console.log("[AW27] PSD Updater v5 ✓ (lecture cellule par cellule, texte importé tel quel)");
     }
 
     if (document.readyState === "loading") {
