@@ -296,7 +296,15 @@
         const dot = document.getElementById("hg-apps-dot");
         if (dot) dot.classList.toggle("show", TOOLS.some(t => t.badge && t.badge()));
 
-        if (document.getElementById("hg-np")?.classList.contains("open")) renderPanel();
+        const np = document.getElementById("hg-np");
+        if (np && np.classList.contains("open")) {
+            if (_tab === "smart") renderPanel();
+            else {   // « Par menu » : on met juste à jour les compteurs des onglets
+                const ems = np.querySelectorAll(".hg-tab em");
+                if (ems[0]) ems[0].textContent = s;
+                if (ems[1]) ems[1].textContent = g;
+            }
+        }
         return { s, g };
     }
 
@@ -387,27 +395,11 @@
             foot = `<span>${smart.length} alerte${smart.length > 1 ? "s" : ""} active${smart.length > 1 ? "s" : ""}</span>
                     <button class="hg-ob" data-act="table">Ouvrir le tableau</button>`;
         } else {
-            groups.forEach(g => {
-                list += `<div class="hg-gh">${esc(g.label)} · ${g.items.length}</div>`;
-                g.items.slice(0, 40).forEach(it => {
-                    const i = _rows.push({ kind: "global", it }) - 1;
-                    const cls = it.urgency === "high" ? "hg-red" : it.urgency === "mid" ? "hg-amb" : "hg-gry";
-                    list += `
-                    <div class="hg-it" data-row="${i}" role="button" tabindex="0">
-                        <div class="hg-ic ${cls}"><i class="ti ${it.urgency === "high" ? "ti-alert-triangle" : "ti-clock"}" aria-hidden="true"></i></div>
-                        <div class="hg-tx">
-                            <div class="hg-t1">${esc(stripHTML(it.title))}</div>
-                            <div class="hg-t2">${esc(stripHTML(it.action))}</div>
-                            ${it.meta ? `<div class="hg-t3">${esc(stripHTML(it.meta))}</div>` : ""}
-                        </div>
-                    </div>`;
-                });
-                if (g.items.length > 40) list += `<div class="hg-t3" style="padding:4px 12px 8px">+ ${g.items.length - 40} autres dans la vue détaillée</div>`;
-            });
-            if (!groups.length) list = `<div class="hg-empty"><i class="ti ti-circle-check" aria-hidden="true"></i>Aucune alerte dans les menus</div>`;
-            foot = `<span>${gCount} alerte${gCount > 1 ? "s" : ""}</span>
-                    <button class="hg-ob" data-act="export">Export Excel</button>
-                    <button class="hg-ob" data-act="drawer">Vue détaillée</button>`;
+            // « Par menu » : design d'origine (regroupement par menu + code couleur),
+            // rendu par _renderGndFull() d'app.js dans #gnd-body
+            list = "__GND__";
+            foot = `<span>${gCount} alerte${gCount > 1 ? "s" : ""} · ${groups.length} menu${groups.length > 1 ? "s" : ""}</span>
+                    <button class="hg-ob" data-act="export">Export Excel</button>`;
         }
 
         p.innerHTML = `
@@ -421,11 +413,36 @@
                 <button class="hg-tab ${_tab === "global" ? "on" : ""}" data-tab="global" role="tab">Par menu<em>${gCount}</em></button>
             </div>
             ${chips ? `<div class="hg-chips">${chips}</div>` : ""}
-            <div class="hg-list">${list}</div>
+            ${list === "__GND__" ? `<div class="hg-list gnd-body" id="gnd-body"></div>` : `<div class="hg-list">${list}</div>`}
             <div class="hg-np-f">${foot}</div>`;
+
+        if (list === "__GND__") renderGlobalOriginal();
+    }
+
+    // Affiche les alertes par menu avec le rendu d'origine (_renderGndFull)
+    function renderGlobalOriginal() {
+        // Un ancien tiroir déjà créé aurait aussi un #gnd-body : on le retire
+        const old = document.getElementById("global-notif-drawer");
+        if (old && old.querySelector(".gnd-panel")) old.remove();
+
+        if (typeof window.openGlobalNotifDrawer === "function") {
+            // Conteneur factice invisible : openGlobalNotifDrawer() injecte ses styles
+            // puis appelle _renderGndFull(), qui remplit notre #gnd-body
+            if (!document.getElementById("global-notif-drawer")) {
+                const dummy = document.createElement("div");
+                dummy.id = "global-notif-drawer";
+                dummy.style.display = "none";
+                document.body.appendChild(dummy);
+            }
+            try { window.openGlobalNotifDrawer(); } catch (e) { console.warn("[HG] openGlobalNotifDrawer:", e); }
+        } else if (typeof window._renderGndFull === "function") {
+            try { window._renderGndFull(); } catch (e) { console.warn("[HG] _renderGndFull:", e); }
+        }
     }
 
     function onPanelClick(e) {
+        // Ligne d'alerte d'origine (onclick="navigateToRow(...)") → fermer le panneau
+        if (e.target.closest(".gnd-row-clickable")) { setTimeout(closePanel, 0); return; }
         const t = e.target.closest("[data-tab],[data-flt],[data-done],[data-act],[data-row]");
         if (!t) return;
         if (t.dataset.tab) { _tab = t.dataset.tab; _flt = "all"; renderPanel(); return; }
@@ -443,7 +460,6 @@
         const act = t.dataset.act;
         if (act === "close") { closePanel(); return; }
         if (act === "table") { closePanel(); window.openSATableModal && window.openSATableModal(); return; }
-        if (act === "drawer") { closePanel(); window.openGlobalNotifDrawer && window.openGlobalNotifDrawer(); return; }
         if (act === "export") { window.exportGlobalNotifExcel && window.exportGlobalNotifExcel(); return; }
         if (act === "all") {
             const list = smartAlerts().filter(a => _flt === "all" || a.severity === _flt);
