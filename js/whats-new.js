@@ -25,6 +25,50 @@
     // ══════════════════════════════════════════════════════════
     const RELEASES = [
         {
+            id:    "2026-11-26b",
+            date:  "26 nov. 2026",
+            title: "Un header plus simple, façon Google",
+            features: [
+                {
+                    tag:     "Nouveau",
+                    title:   "Tous vos outils au même endroit",
+                    text:    "Le bouton ⋮⋮⋮ regroupe tous les outils : import PSD, rapports, Messagerie, Assistant IA, To-Do…",
+                    bullets: [
+                        "Cliquez sur le crayon pour choisir vos favoris",
+                        "Un point jaune signale un message ou une tâche en attente",
+                        "« + Nouveau » est maintenant en haut du menu de gauche"
+                    ],
+                    demo:    "launcher",
+                    target:  "#hg-apps",
+                    targetText: "Tous vos outils sont ici.",
+                    action:  { label: "Ouvrir", run: () => window.openHGLauncher && window.openHGLauncher() }
+                },
+                {
+                    tag:     "Nouveau",
+                    title:   "Une seule cloche pour toutes les alertes",
+                    text:    "Les deux cloches sont réunies. Le panneau s'ouvre sur le côté avec deux onglets : Intelligentes et Par menu.",
+                    bullets: [
+                        "Filtres Critiques, Attention, À clôturer",
+                        "✓ au survol pour marquer une alerte traitée",
+                        "Cliquez une alerte pour aller à la ligne concernée"
+                    ],
+                    demo:    "bell",
+                    target:  "#hg-bell",
+                    targetText: "Toutes vos alertes sont ici.",
+                    action:  { label: "Ouvrir", run: () => window.openHGNotifications && window.openHGNotifications("smart") }
+                },
+                {
+                    tag:     "Amélioré",
+                    title:   "Paramètres en bas du menu",
+                    text:    "Les Paramètres sont maintenant épinglés en bas du menu de gauche, comme dans Google Drive.",
+                    bullets: [],
+                    demo:    "none",
+                    target:  "#hg-settings",
+                    targetText: "Les Paramètres sont ici."
+                }
+            ]
+        },
+        {
             id:    "2026-11-26",
             date:  "26 nov. 2026",
             title: "Alertes plus intelligentes et PSD fiable",
@@ -39,9 +83,9 @@
                         "Case « Afficher traitées » pour revoir ou annuler"
                     ],
                     demo:    "done",
-                    target:  "#sa-bell-btn",
-                    targetText: "Ouvrez les alertes ici, puis cliquez « ✓ Fait » sur une ligne.",
-                    action:  { label: "Ouvrir les alertes", run: () => window.openSATableModal && window.openSATableModal() }
+                    target:  "#hg-bell",
+                    targetText: "Ouvrez les notifications ici, puis cliquez ✓ sur une alerte.",
+                    action:  { label: "Ouvrir les notifications", run: () => window.openHGNotifications ? window.openHGNotifications("smart") : (window.openSATableModal && window.openSATableModal()) }
                 },
                 {
                     tag:     "Nouveau",
@@ -53,9 +97,9 @@
                         "Risque PSD : trim pas livré à temps pour la PSD du style"
                     ],
                     demo:    "ordering",
-                    target:  "#sa-bell-btn",
+                    target:  "#hg-bell",
                     targetText: "Les alertes Ordering apparaissent dans la même liste, filtrables par type.",
-                    action:  { label: "Voir les alertes", run: () => window.openSATableModal && window.openSATableModal() }
+                    action:  { label: "Voir les alertes", run: () => window.openHGNotifications ? window.openHGNotifications("smart") : (window.openSATableModal && window.openSATableModal()) }
                 },
                 {
                     tag:     "Amélioré",
@@ -67,8 +111,8 @@
                         "Colonnes trouvées par leur en-tête, même si le fichier change"
                     ],
                     demo:    "psd",
-                    target:  "#sc-actions-menu-btn",
-                    targetText: "Menu Actions → Mise à jour PSD."
+                    target:  "#hg-apps",
+                    targetText: "Actions (⋮⋮⋮) → Importer PSD."
                 },
                 {
                     tag:     "Corrigé",
@@ -337,6 +381,25 @@
                         <div class="wd-f"><span>PSD</span><b><span class="wd-old">19 août</span><span class="wd-new">09 déc.</span></b></div>
                         <div class="wd-src"><span class="wd-pill wd-red">PO Deadline</span> → <span class="wd-pill wd-grn">PSD (Details)</span></div>
                     </div>
+                </div>`;
+            case "launcher": return `
+                <div class="wd-box" style="width:300px">
+                    <div style="font-weight:500;font-size:13px;margin-bottom:8px;color:#1f1f1f">Vos favoris</div>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;font-size:10.5px;color:#1f1f1f">
+                        ${[["#1a73e8","#e8f0fe","ti-calendar-up","Importer PSD"],["#d93025","#fce8e6","ti-file-report","Report"],["#188038","#e6f4ea","ti-message-circle","Messagerie"],
+                           ["#9334e6","#f3e8fd","ti-robot","Assistant IA"],["#e37400","#fef7e0","ti-checklist","To-Do"],["#1a73e8","#e8f0fe","ti-bolt","Analyser TP"]]
+                          .map((x,i) => `<div class="wd-s${(i%4)+1}" style="opacity:1;animation-name:none"><div style="width:38px;height:38px;border-radius:12px;margin:0 auto 4px;background:${x[1]};color:${x[0]};display:flex;align-items:center;justify-content:center;font-size:21px"><i class="ti ${x[2]}"></i></div>${x[3]}</div>`).join("")}
+                    </div>
+                </div>`;
+            case "bell": return `
+                <div class="wd-box" style="width:300px">
+                    <div style="display:flex;gap:14px;border-bottom:1px solid #e3e3e3;margin-bottom:6px;font-size:12px;font-weight:500">
+                        <span style="color:#0b57d0;border-bottom:2px solid #0b57d0;padding-bottom:6px">Intelligentes 12</span><span style="color:#444746">Par menu 5</span>
+                    </div>
+                    <div class="wd-row wd-done-row"><span class="wd-pill wd-red">Critique</span><span class="wd-txt">Reliquat en retard de 1j</span><span class="wd-fait wd-done-btn">✓</span></div>
+                    <div class="wd-row"><span class="wd-pill wd-amb">Attention</span><span class="wd-txt">RILEY-BG — Sewing Trims dans 2j</span></div>
+                    <div class="wd-row"><span class="wd-pill wd-blu">À clôturer</span><span class="wd-txt">EREA-BG — PSD In House</span></div>
+                    ${CURSOR_SVG.replace("wd-cursor", "wd-cursor")}
                 </div>`;
             default: return `<div style="font-size:44px">✨</div>`;
         }
