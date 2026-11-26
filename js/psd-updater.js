@@ -11,6 +11,9 @@
 //   • Cellule vide → rien n'est écrit
 //   • Valeur identique à celle du Sheet → "inchangé", rien n'est réécrit
 //   Le traitement de chaque type (alertes, etc.) se fait ensuite dans les modules.
+//
+//  v6 — Ex-Fty : colonne "Ex-fty" de l'Excel (AB) → colonne "Possible etd"
+//       de Details (utilisée par le badge Ex-Fty des cards et les KPI)
 // ================================================================
 
 (function initPSDUpdater() {
@@ -428,6 +431,7 @@
                         const iSRS     = findCol(/^srs\s*launch/, 16);   // repli Q
                         const iSewing  = findCol(/^sewing\s*trim/, 18);  // repli S
                         const iPacking = findCol(/^packing\s*trim/, 19); // repli T
+                        const iExFty   = findCol(/^ex[\s\-]*f(ac)?to?ry?$|^ex[\s\-]*fty/, 27); // repli AB
 
                         console.log("[PSD] Colonnes → CTL:", iRef,
                             "| PSD:", iPSD, "| SRS:", iSRS,
@@ -446,14 +450,15 @@
                             const srs     = classifyValue(row[iSRS]);
                             const sewing  = classifyValue(row[iSewing]);
                             const packing = classifyValue(row[iPacking]);
+                            const exfty   = classifyValue(row[iExFty]);
 
-                            if (![psd, srs, sewing, packing].some(c => c.kind !== "empty")) continue;
+                            if (![psd, srs, sewing, packing, exfty].some(c => c.kind !== "empty")) continue;
 
                             const key = normalizeRef(ref);
                             if (!lookup[key]) {
                                 lookup[key] = {
-                                    originalRef: ref, psd, srs, sewing, packing,
-                                    cols: { psd: iPSD, srs: iSRS, sewing: iSewing, packing: iPacking }
+                                    originalRef: ref, psd, srs, sewing, packing, exfty,
+                                    cols: { psd: iPSD, srs: iSRS, sewing: iSewing, packing: iPacking, exfty: iExFty }
                                 };
                             }
                         }
@@ -473,12 +478,14 @@
                             { champ: "PSD",           colonne: colToLetter(iPSD),     entete: hdr[iPSD] },
                             { champ: "SRS Launching", colonne: colToLetter(iSRS),     entete: hdr[iSRS] },
                             { champ: "Sewing Trims",  colonne: colToLetter(iSewing),  entete: hdr[iSewing] },
-                            { champ: "Packing Trims", colonne: colToLetter(iPacking), entete: hdr[iPacking] }
+                            { champ: "Packing Trims", colonne: colToLetter(iPacking), entete: hdr[iPacking] },
+                            { champ: "Ex-Fty",        colonne: colToLetter(iExFty),   entete: hdr[iExFty] }
                         ]);
                         console.table(Object.values(lookup).slice(0, 15).map(v => ({
                             ref: v.originalRef,
                             PSD: String(v.psd.raw), "PSD type": v.psd.kind,
-                            SRS: String(v.srs.raw), Sewing: String(v.sewing.raw), Packing: String(v.packing.raw)
+                            SRS: String(v.srs.raw), Sewing: String(v.sewing.raw), Packing: String(v.packing.raw),
+                            ExFty: String(v.exfty.raw)
                         })));
 
                         // Log pour debug : afficher les 5 premières entrées
@@ -506,9 +513,10 @@
             { id: "PSD",     col: "PSD",           label: "PSD" },
             { id: "SRS",     col: "SRS_Launching", label: "SRS Launching" },
             { id: "Sewing",  col: "Sewing_Trims",  label: "Sewing Trims" },
-            { id: "Packing", col: "Packing_Trims", label: "Packing Trims" }
+            { id: "Packing", col: "Packing_Trims", label: "Packing Trims" },
+            { id: "ExFty",   col: "Possible etd",  label: "Ex-Fty" }
         ];
-        const SRC_KEY = { PSD: "psd", SRS: "srs", Sewing: "sewing", Packing: "packing" };
+        const SRC_KEY = { PSD: "psd", SRS: "srs", Sewing: "sewing", Packing: "packing", ExFty: "exfty" };
 
         const enriched = items.map(item => {
             const detRow = item.detRow;
@@ -588,7 +596,7 @@
         modal.id = "psd-val-modal";
         modal.className = "modal-overlay";
         modal.innerHTML = `
-        <div class="modal" style="max-width:960px;width:96vw;">
+        <div class="modal" style="max-width:1100px;width:97vw;">
             <div class="modal-header">
                 <div>
                     <div class="modal-title">
@@ -643,12 +651,13 @@
                 <div style="max-height:420px;overflow-y:auto;">
                     <table class="psd-val-table">
                         <thead><tr>
-                            <th style="width:22%;">Style</th>
-                            <th style="width:18%;">PSD</th>
-                            <th style="width:16%;">SRS Launching</th>
-                            <th style="width:16%;">Sewing Trims</th>
-                            <th style="width:16%;">Packing Trims</th>
-                            <th style="width:10%;text-align:center;">Appliquer</th>
+                            <th style="width:17%;">Style</th>
+                            <th style="width:15%;">PSD</th>
+                            <th style="width:14%;">SRS Launching</th>
+                            <th style="width:14%;">Sewing Trims</th>
+                            <th style="width:14%;">Packing Trims</th>
+                            <th style="width:14%;">Ex-Fty</th>
+                            <th style="width:8%;text-align:center;">Appliquer</th>
                         </tr></thead>
                         <tbody>${rowsHTML}</tbody>
                     </table>
@@ -730,10 +739,10 @@
                 for (const x of Object.values(item.fields)) {
                     if (x.newVal === null || x.same) continue;
 
-                    if (x.col === "PSD") {
-                        // PSD via quickUpdate (colonne existante)
+                    if (x.col === "PSD" || x.col === "Possible etd") {
+                        // PSD et Ex-Fty (Possible etd) via quickUpdate (colonnes existantes)
                         if (typeof window.quickUpdate === "function")
-                            await window.quickUpdate(item.rowIdx, "PSD", x.newVal, "details");
+                            await window.quickUpdate(item.rowIdx, x.col, x.newVal, "details");
                     } else {
                         // Commitments via saveField (crée la colonne si absente)
                         await saveField(item.rowIdx, x.col, x.newVal);
@@ -864,7 +873,7 @@
             }
         };
         tryInject();
-        console.log("[AW27] PSD Updater v5 ✓ (lecture cellule par cellule, texte importé tel quel)");
+        console.log("[AW27] PSD Updater v6 ✓ (PSD + commitments + Ex-Fty)");
     }
 
     if (document.readyState === "loading") {
