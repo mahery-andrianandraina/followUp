@@ -7,10 +7,10 @@
 //  • Nouvel onglet « Statistiques » dans la barre latérale (sous Dashboard)
 //  • Les 5 cartes KPI quittent le dashboard et viennent ici :
 //      Total styles · PO reçus · Ex-Fty dépassées · Ex-Fty ≤ 14 j · Alertes actives
-//  • 3 graphiques avec les vraies données :
-//      - Ex-Fty par semaine   (Details › Possible etd)
-//      - Alertes par type     (alertes intelligentes)
-//      - Statut des commandes (Ordering › Delivery Status)
+//  • Calendriers en liste (style Google Agenda), chaque style avec sa date :
+//      - Calendrier Ex-Fty    (Details › Possible etd)
+//      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant
+//  • Alertes par type (alertes intelligentes) et Statut des commandes (Ordering)
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
 //  • Le dashboard ne garde que le grand titre et les filtres
 // ============================================================
@@ -18,6 +18,7 @@
 (function initOrderStats() {
 
     const EXFTY_SOON_DAYS = 14;
+    const PSD_SOON_DAYS   = 14;
     let _season = "";        // "" = toutes les saisons
     let _updatedAt = null;
 
@@ -104,25 +105,35 @@
         .os-blue  { background: #d3e3fd; color: #0b57d0; } .os-green { background: #e6f4ea; color: #137333; }
         .os-red   { background: #fce8e6; color: #c5221f; } .os-amber { background: #fef7e0; color: #b06000; }
 
-        .os-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 12px; }
-        @media (max-width: 1000px) { .os-grid { grid-template-columns: 1fr; } }
+
         .os-box { background: #fff; border: 1px solid #e3e3e3; border-radius: 16px; padding: 16px 18px; min-width: 0; }
         .os-bt { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
         .os-bs { font-size: 12.5px; color: #5f6368; margin-bottom: 14px; }
         .os-empty { font-size: 13px; color: #5f6368; padding: 24px 0; text-align: center; }
 
-        /* Barres verticales (Ex-Fty par semaine) */
-        .os-weeks { display: flex; align-items: flex-end; gap: 8px; height: 190px; padding-top: 18px; border-bottom: 1px solid #e3e3e3; }
-        .os-wcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; }
-        .os-wbar { width: 100%; max-width: 42px; border-radius: 6px 6px 0 0; background: #a8c7fa; position: relative; transition: filter .15s; min-height: 2px; }
-        .os-wbar:hover { filter: brightness(.92); }
-        .os-wbar.past { background: #f28b82; } .os-wbar.now { background: #0b57d0; }
-        .os-wn { font-size: 11.5px; color: #444746; margin-bottom: 4px; font-weight: 500; }
-        .os-wl { display: flex; gap: 8px; margin-top: 6px; }
-        .os-wl span { flex: 1; text-align: center; font-size: 11px; color: #5f6368; min-width: 0; }
-        .os-wl span.now { color: #0b57d0; font-weight: 500; }
-        .os-leg { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #444746; margin-top: 12px; }
-        .os-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+        /* Calendriers en liste (Ex-Fty / PSD) */
+        .os-cal { max-height: 440px; overflow-y: auto; margin: 0 -8px; padding: 0 8px; }
+        .os-gh { font-size: 12px; font-weight: 500; color: #444746; padding: 12px 4px 6px; display: flex; align-items: center; gap: 8px; position: sticky; top: 0; background: #fff; z-index: 1; }
+        .os-gh .c { font-weight: 400; color: #5f6368; }
+        .os-gh.late { color: #c5221f; }
+        .os-row { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 12px; cursor: pointer; }
+        .os-row:hover { background: #f0f4f9; }
+        .os-date { width: 46px; flex-shrink: 0; text-align: center; border-radius: 10px; padding: 4px 0; background: #f0f4f9; }
+        .os-date .d { font-size: 18px; line-height: 20px; font-weight: 500; color: #1f1f1f; }
+        .os-date .m { font-size: 11px; color: #5f6368; text-transform: lowercase; }
+        .os-row.late .os-date { background: #fce8e6; } .os-row.late .os-date .d { color: #c5221f; }
+        .os-row.soon .os-date { background: #fef7e0; } .os-row.soon .os-date .d { color: #b06000; }
+        .os-row.near .os-date { background: #d3e3fd; } .os-row.near .os-date .d { color: #0b57d0; }
+        .os-st { flex: 1; min-width: 0; }
+        .os-st .n { font-size: 14px; font-weight: 500; color: #1f1f1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .os-st .s { font-size: 12px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .os-cd { flex-shrink: 0; height: 24px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; white-space: nowrap; }
+        .os-cd.late { background: #fce8e6; color: #c5221f; } .os-cd.soon { background: #fef7e0; color: #b06000; }
+        .os-cd.near { background: #d3e3fd; color: #041e49; } .os-cd.far { background: #f1f3f4; color: #444746; }
+        .os-cd.done { background: #e6f4ea; color: #137333; }
+        .os-foot { font-size: 12px; color: #5f6368; padding: 10px 4px 0; border-top: 1px solid #e3e3e3; margin-top: 6px; }
+        .os-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
+        @media (max-width: 1000px) { .os-grid2 { grid-template-columns: 1fr; } }
 
         /* Barres horizontales (Alertes par type) */
         .os-hb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #444746; }
@@ -175,6 +186,10 @@
             const k = e.target.closest("[data-os]");
             if (!k) return;
             if (k.dataset.os === "alerts" && window.openHGNotifications) window.openHGNotifications("smart");
+            if (k.dataset.os === "row" && typeof window.navigateToRow === "function") {
+                closeStats();
+                window.navigateToRow("details", +k.dataset.row);
+            }
         });
         return sc;
     }
@@ -225,37 +240,73 @@
                 <div class="os-ic ${cls}"><i class="ti ${icon}" aria-hidden="true"></i></div>
                 <div><div class="os-v">${v.toLocaleString("fr-FR")}</div><div class="os-l">${l}</div></div>
              </div>`;
-        const kpis = [
+        const kpisHTML = () => [
             kpi("os-blue", "ti-shirt", total, "Total styles"),
             kpi("os-green", "ti-file-check", poRec, "PO reçus"),
             kpi(late.length ? "os-red" : "os-green", "ti-ship", late.length, "Ex-Fty dépassées", late.length ? { tip: names(late) } : {}),
             kpi(soon.length ? "os-amber" : "os-green", "ti-clock-hour-4", soon.length, `Ex-Fty ≤ ${EXFTY_SOON_DAYS} j`, soon.length ? { tip: names(soon) } : {}),
+            kpi(calPsd.soonCount ? "os-amber" : "os-green", "ti-calendar-event", calPsd.soonCount, `PSD ≤ ${PSD_SOON_DAYS} j`, calPsd.soonCount ? { tip: names(calPsd.soonList) } : {}),
             kpi(dangers ? "os-red" : alerts.length ? "os-amber" : "os-green", "ti-bell-ringing", alerts.length, "Alertes actives", { os: "alerts", tip: "Ouvrir les notifications" })
         ].join("");
 
-        // ── Ex-Fty par semaine : 2 semaines passées → 9 à venir ──
-        const start = mondayOf(today0()); start.setDate(start.getDate() - 14);
-        const weeks = Array.from({ length: 12 }, (_, i) => { const m = new Date(start); m.setDate(m.getDate() + i * 7); return { m, list: [] }; });
-        let outRange = 0;
-        details.forEach(r => {
-            const d = exfty(r); if (!d) return;
-            const i = Math.floor((mondayOf(d) - start) / (7 * 86400000));
-            if (i >= 0 && i < weeks.length) weeks[i].list.push(r); else outRange++;
+        // ── Calendriers en liste : chaque style avec sa date ──
+        const psdOf = r => parseD(r.PSD);
+        const isDoneText = v => /^(all\s*ok|in\s*house)/i.test(String(v || "").trim());
+        const endOfWeek = (() => { const e = mondayOf(today0()); e.setDate(e.getDate() + 6); return e; })();
+        const endNextWeek = (() => { const e = new Date(endOfWeek); e.setDate(e.getDate() + 7); return e; })();
+
+        function calendar(getDate, soonDays, opts) {
+            const rows = [], noDate = [], done = [];
+            details.forEach(r => {
+                const raw = opts.raw(r);
+                if (opts.doneText && isDoneText(raw)) { done.push(r); return; }
+                const d = getDate(r);
+                if (d) rows.push({ r, d, n: dayDiff(d) }); else noDate.push(r);
+            });
+            rows.sort((a, b) => a.d - b.d);
+            const groups = [
+                { key: "late", title: opts.lateTitle, list: rows.filter(x => x.n < 0) },
+                { key: "week", title: "Cette semaine", list: rows.filter(x => x.n >= 0 && x.d <= endOfWeek) },
+                { key: "next", title: "Semaine prochaine", list: rows.filter(x => x.d > endOfWeek && x.d <= endNextWeek) },
+                { key: "later", title: "Plus tard", list: rows.filter(x => x.d > endNextWeek) }
+            ];
+            const cd = n => n < 0 ? `${opts.lateWord} de ${-n} j` : n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : `Dans ${n} j`;
+            const cls = n => n < 0 ? "late" : n <= 7 ? "soon" : n <= soonDays ? "near" : "far";
+            const row = x => {
+                const st = x.r["Cust Style Ref"] || x.r.Style || "—";
+                const sub = [x.r.CTLStyleRef || x.r["CTL Style Ref"], x.r.Client || x.r.Coll, opts.sub ? opts.sub(x.r) : ""].filter(Boolean).join(" · ");
+                return `<div class="os-row ${cls(x.n)}" data-os="row" data-row="${x.r._rowIndex}" role="button" tabindex="0" data-tip="Ouvrir ${esc(st)} dans Details">
+                    <div class="os-date"><div class="d">${x.d.getDate()}</div><div class="m">${x.d.toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")}</div></div>
+                    <div class="os-st"><div class="n">${esc(st)}</div><div class="s">${esc(sub)}</div></div>
+                    <span class="os-cd ${cls(x.n)}">${cd(x.n)}</span>
+                </div>`;
+            };
+            let html = groups.filter(g => g.list.length).map(g =>
+                `<div class="os-gh ${g.key === "late" ? "late" : ""}">${g.title}<span class="c">· ${g.list.length}</span></div>${g.list.map(row).join("")}`).join("");
+            if (done.length) {
+                html += `<div class="os-gh">Terminé<span class="c">· ${done.length}</span></div>` + done.map(r => {
+                    const st = r["Cust Style Ref"] || r.Style || "—";
+                    return `<div class="os-row" data-os="row" data-row="${r._rowIndex}" role="button" tabindex="0">
+                        <div class="os-date"><div class="d" style="color:#137333">✓</div><div class="m">ok</div></div>
+                        <div class="os-st"><div class="n">${esc(st)}</div><div class="s">${esc([r.CTLStyleRef, r.Client].filter(Boolean).join(" · "))}</div></div>
+                        <span class="os-cd done">${esc(String(opts.raw(r)).trim())}</span></div>`;
+                }).join("");
+            }
+            if (!html) html = `<div class="os-empty">${opts.empty}</div>`;
+            const foot = noDate.length ? `<div class="os-foot">${noDate.length} style${noDate.length > 1 ? "s" : ""} sans date : ${esc(noDate.slice(0, 8).map(r => r["Cust Style Ref"] || r.Style).join(", "))}${noDate.length > 8 ? "…" : ""}</div>` : "";
+            const soonCount = rows.filter(x => x.n >= 0 && x.n <= soonDays).length;
+            const lateCount = rows.filter(x => x.n < 0).length;
+            return { html: `<div class="os-cal">${html}</div>${foot}`, soonCount, lateCount, soonList: rows.filter(x => x.n >= 0 && x.n <= soonDays).map(x => x.r) };
+        }
+
+        const calEx = calendar(exfty, EXFTY_SOON_DAYS, {
+            raw: r => r["Possible etd"] || r["Possible Vsl date"], lateTitle: "Ex-Fty dépassée", lateWord: "Dépassée",
+            empty: "Aucune date Ex-Fty.", sub: r => r.PSD && parseD(r.PSD) ? `PSD ${fmtShort(parseD(r.PSD))}` : ""
         });
-        const nowMon = mondayOf(today0()).getTime();
-        const maxW = Math.max(1, ...weeks.map(w => w.list.length));
-        const weekHTML = weeks.some(w => w.list.length) ? `
-            <div class="os-weeks">${weeks.map(w => {
-                const cls = w.m.getTime() < nowMon ? "past" : w.m.getTime() === nowMon ? "now" : "";
-                const h = w.list.length ? Math.max(4, Math.round(w.list.length / maxW * 100)) : 0;
-                const tip = w.list.length ? `S${isoWeek(w.m)} · semaine du ${fmtShort(w.m)}\n${names(w.list)}` : "";
-                return `<div class="os-wcol">${w.list.length ? `<div class="os-wn">${w.list.length}</div>` : ""}
-                        <div class="os-wbar ${cls}" style="height:${h}%" ${tip ? `data-tip="${esc(tip)}"` : ""}></div></div>`;
-            }).join("")}</div>
-            <div class="os-wl">${weeks.map(w => `<span class="${w.m.getTime() === nowMon ? "now" : ""}">S${isoWeek(w.m)}</span>`).join("")}</div>
-            <div class="os-leg"><span><i style="background:#f28b82"></i>Semaines passées</span><span><i style="background:#0b57d0"></i>Cette semaine</span><span><i style="background:#a8c7fa"></i>À venir</span>
-            ${outRange ? `<span style="margin-left:auto;color:#5f6368">${outRange} style${outRange > 1 ? "s" : ""} hors période</span>` : ""}</div>`
-            : `<div class="os-empty">Aucune date Ex-Fty sur les 12 semaines autour d'aujourd'hui.</div>`;
+        const calPsd = calendar(psdOf, PSD_SOON_DAYS, {
+            raw: r => r.PSD, doneText: true, lateTitle: "PSD dépassée", lateWord: "Retard",
+            empty: "Aucune PSD renseignée.", sub: r => exfty(r) ? `Ex-Fty ${fmtShort(exfty(r))}` : ""
+        });
 
         // ── Alertes par type ──
         const byType = {};
@@ -296,24 +347,29 @@
                     ${seasons.map(x => `<option value="${esc(x)}" ${x === _season ? "selected" : ""}>${esc(x)}</option>`).join("")}
                 </select>
             </div>
-            <div class="os-kpis">${kpis}</div>
-            <div class="os-grid">
+            <div class="os-kpis">${kpisHTML()}</div>
+            <div class="os-grid2">
                 <div class="os-box">
-                    <div class="os-bt">Ex-Fty par semaine</div>
-                    <div class="os-bs">Nombre de styles par semaine d'Ex-Fty (Possible etd)</div>
-                    ${weekHTML}
+                    <div class="os-bt">Calendrier Ex-Fty</div>
+                    <div class="os-bs">Chaque style avec sa date Ex-Fty (Possible etd)</div>
+                    ${calEx.html}
                 </div>
-                <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
-                    <div class="os-box">
-                        <div class="os-bt">Alertes par type</div>
-                        <div class="os-bs">Alertes intelligentes actives</div>
-                        ${typeHTML}
-                    </div>
-                    <div class="os-box">
-                        <div class="os-bt">Statut des commandes</div>
-                        <div class="os-bs">${nOrd} ligne${nOrd > 1 ? "s" : ""} Ordering · Delivery Status</div>
-                        ${ordHTML}
-                    </div>
+                <div class="os-box">
+                    <div class="os-bt">Calendrier PSD</div>
+                    <div class="os-bs">${calPsd.soonCount ? `<b style="color:#b06000;font-weight:500">${calPsd.soonCount} PSD dans les ${PSD_SOON_DAYS} prochains jours</b>` : `Aucune PSD dans les ${PSD_SOON_DAYS} prochains jours`}${calPsd.lateCount ? ` · <b style="color:#c5221f;font-weight:500">${calPsd.lateCount} en retard</b>` : ""}</div>
+                    ${calPsd.html}
+                </div>
+            </div>
+            <div class="os-grid2">
+                <div class="os-box">
+                    <div class="os-bt">Alertes par type</div>
+                    <div class="os-bs">Alertes intelligentes actives</div>
+                    ${typeHTML}
+                </div>
+                <div class="os-box">
+                    <div class="os-bt">Statut des commandes</div>
+                    <div class="os-bs">${nOrd} ligne${nOrd > 1 ? "s" : ""} Ordering · Delivery Status</div>
+                    ${ordHTML}
                 </div>
             </div>`;
     }
