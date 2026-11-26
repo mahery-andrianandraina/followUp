@@ -1715,6 +1715,14 @@
     // ══════════════════════════════════════════════════════════
     window.saGetAlerts = () => _cachedAlerts.slice();          // alertes actives
     window.saTypeLabel = type => TYPE_LABELS[type] || type;
+    window.saUnmarkDoneKey = function(key) {
+        const a = _allAlerts.find(x => x.key === key);
+        if (!a || !a.done) return false;
+        unmarkDone(a);
+        applyDoneFilter();
+        rerenderAll();
+        return true;
+    };
     window.saMarkDoneKey = function(key) {
         const a = _allAlerts.find(x => x.key === key);
         if (!a || a.done) return false;
