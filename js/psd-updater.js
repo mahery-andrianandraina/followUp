@@ -3,6 +3,15 @@
 //  Analyse un fichier Excel hebdomadaire et met à jour la colonne
 //  PSD dans le sheet Details. Lecture côté client uniquement.
 //  Charger après app.js dans index.html.
+//
+//  v2 — Gestion date / texte :
+//   • Dates acceptées : serial Excel, 09/12/2026, 09-12-26, 2026-12-09,
+//     9-Dec, 09-Dec-26, Dec 9 2026… → écrites "YYYY-MM-DD"
+//   • IN HOUSE → "In House" · ALL OK → "All OK - YYYY-MM-DD" (sans doublon)
+//   • TBC / TBA / TBD → gardés tels quels
+//   • Texte inconnu → proposé en orange, décoché par défaut
+//   • #N/A, #REF!, 0, -, "Invalid Date" → ignorés, le Sheet n'est pas écrasé
+//   • Valeurs identiques → "inchangé", rien n'est réécrit
 // ================================================================
 
 (function initPSDUpdater() {
@@ -57,6 +66,19 @@
         .psd-badge-old {
             font-size: 11px; color: var(--text-muted, #9ca3af);
         }
+        .psd-badge-text {
+            display: inline-block; padding: 2px 8px; border-radius: 20px;
+            font-size: 10.5px; font-weight: 600;
+            background: #fffbeb; color: #92400e; border: 0.5px solid #fcd34d;
+        }
+        .psd-badge-ignored {
+            display: inline-block; padding: 2px 8px; border-radius: 20px;
+            font-size: 10.5px; font-weight: 600; text-decoration: line-through;
+            background: #f3f4f6; color: #6b7280; border: 0.5px solid #d1d5db;
+        }
+        .psd-badge-same {
+            font-size: 10.5px; color: var(--text-muted, #9ca3af); font-style: italic;
+        }
         .psd-badge-notfound {
             display: inline-block; padding: 2px 8px; border-radius: 20px;
             font-size: 10.5px; font-weight: 600;
@@ -76,90 +98,187 @@
             .replace(/^-|-$/g, "");       // supprimer tirets en début/fin
     }
 
-    // ── Parser de date robuste ────────────────────────────────
-    function parseFlexDate(val) {
-        if (!val) return "";
+    // ══════════════════════════════════════════════════════════
+    //  CLASSIFICATION DES VALEURS (date / statut / texte / invalide)
+    //  Une cellule PSD ou commitment peut contenir :
+    //   • une date        → stockée "YYYY-MM-DD"
+    //   • IN HOUSE        → stocké "In House"
+    //   • ALL OK          → stocké "All OK - YYYY-MM-DD" (ancienne date PSD) ou "All OK"
+    //   • TBC / TBA / TBD → stocké tel quel en majuscules
+    //   • autre texte     → proposé, mais décoché par défaut (à valider)
+    //   • #N/A, #REF!, 0, -, "Invalid Date", vide → IGNORÉ (on n'écrase pas le Sheet)
+    // ══════════════════════════════════════════════════════════
+    const MONTHS = {
+        jan:0, janv:0, janvier:0, january:0,
+        feb:1, february:1, fev:1, fevr:1, fevrier:1,
+        mar:2, mars:2, march:2,
+        apr:3, april:3, avr:3, avril:3,
+        may:4, mai:4,
+        jun:5, june:5, juin:5,
+        jul:6, july:6, juil:6, juillet:6,
+        aug:7, august:7, aou:7, aout:7,
+        sep:8, sept:8, september:8, septembre:8,
+        oct:9, october:9, octobre:9,
+        nov:10, november:10, novembre:10,
+        dec:11, december:11, decembre:11
+    };
 
-        // Objet Date JS direct (SheetJS avec raw:true retourne des Date objects)
+    function monthIdx(w) {
+        const k = String(w || "").toLowerCase()
+            .normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\./g, "");
+        return Object.prototype.hasOwnProperty.call(MONTHS, k) ? MONTHS[k] : null;
+    }
+
+    // Construit une date valide ou null (contrôle jour/mois/année)
+    function mkDate(y, m, d) {
+        if (y < 100) y += 2000;
+        if (y < 2000 || y > 2100 || m < 0 || m > 11 || d < 1 || d > 31) return null;
+        const dt = new Date(y, m, d);
+        return dt.getMonth() === m ? dt : null; // rejette 31/02 etc.
+    }
+
+    // Date sans année ("9-Dec") → année la plus proche d'aujourd'hui (± 6 mois)
+    function nearYearDate(m, d) {
+        const t = new Date(); t.setHours(0, 0, 0, 0);
+        let dt = mkDate(t.getFullYear(), m, d);
+        if (!dt) return null;
+        if ((dt - t) / 86400000 > 183) dt = mkDate(t.getFullYear() - 1, m, d);
+        else if ((t - dt) / 86400000 > 183) dt = mkDate(t.getFullYear() + 1, m, d);
+        return dt;
+    }
+
+    // Essaie de lire une date. Retourne un objet Date (minuit local) ou null.
+    function parseDateOnly(val) {
+        if (val === null || val === undefined || val === "") return null;
+
+        // Objet Date
         if (val instanceof Date) {
-            if (!isNaN(val) && val.getFullYear() > 2000) return fmtDateFR(val);
-            return "";
+            return isNaN(val) ? null : mkDate(val.getFullYear(), val.getMonth(), val.getDate());
         }
+
+        // Nombre Excel (serial) — reçu en number avec raw:true
+        if (typeof val === "number") return fromExcelSerial(val);
 
         const s = String(val).trim();
-        if (!s || s === "0") return "";
+        if (!s) return null;
 
-        // Format "Fri Jul 24 2026 00:00:00 GMT+0300 (timezone)" → supprimer la partie timezone
-        if (s.includes("GMT") || s.match(/^[A-Z][a-z]{2} [A-Z][a-z]{2}/)) {
-            const clean = s.replace(/\([^)]*\)/g, "").trim();
-            const d = new Date(clean);
-            if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
-        }
+        // Serial Excel en texte ("46000")
+        if (/^\d+(\.\d+)?$/.test(s)) return fromExcelSerial(parseFloat(s));
 
-        // Nombre Excel serial date (ex: 45849 = 06/07/2026)
-        // Formule : (serial - 25569) * 86400 * 1000 ms depuis epoch Unix
-        if (/^\d+(\.\d+)?$/.test(s)) {
-            const n = parseFloat(s);
-            if (n > 40000) { // dates après 2009
-                // Corriger le bug Excel du 29/02/1900 (+1)
-                const d = new Date(Math.round((n - 25569) * 86400 * 1000));
-                if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
-            }
+        // ISO avec heure (…T21:00:00.000Z) → heure locale
+        if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+            const d = new Date(s);
+            return isNaN(d) ? null : mkDate(d.getFullYear(), d.getMonth(), d.getDate());
         }
-        // DD/MM/YYYY (format French)
-        const m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (m1) {
-            const year = parseInt(m1[3]);
-            // Corriger les années sur 2 chiffres interprétées comme 19xx
-            const fullYear = year < 100 ? (year < 50 ? 2000 + year : 1900 + year) : year;
-            return `${m1[1].padStart(2,"0")}/${m1[2].padStart(2,"0")}/${fullYear}`;
+        let m;
+        // YYYY-MM-DD ou YYYY/MM/DD
+        if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/))) return mkDate(+m[1], +m[2] - 1, +m[3]);
+        // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (et années sur 2 chiffres) — format français
+        if ((m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/))) return mkDate(+m[3], +m[2] - 1, +m[1]);
+        // DD-Mon, DD-Mon-YY, DD Mon YYYY, 9th Dec
+        if ((m = s.match(/^(\d{1,2})(?:st|nd|rd|th|er)?[\s\-.\/]*([A-Za-zÀ-ÿ]{3,9})\.?(?:[\s\-.\/,]+(\d{2,4}))?$/))) {
+            const mi = monthIdx(m[2]);
+            if (mi !== null) return m[3] ? mkDate(+m[3], mi, +m[1]) : nearYearDate(mi, +m[1]);
         }
-        // DD/MM/YY (2 chiffres)
-        const m1b = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})$/);
-        if (m1b) {
-            const year = parseInt(m1b[3]);
-            const fullYear = year < 50 ? 2000 + year : 1900 + year;
-            return `${m1b[1].padStart(2,"0")}/${m1b[2].padStart(2,"0")}/${fullYear}`;
+        // Mon DD, Mon DD YYYY, Dec 9, 2026
+        if ((m = s.match(/^([A-Za-zÀ-ÿ]{3,9})\.?[\s\-.]*(\d{1,2})(?:st|nd|rd|th)?(?:[\s,\-.]+(\d{2,4}))?$/))) {
+            const mi = monthIdx(m[1]);
+            if (mi !== null) return m[3] ? mkDate(+m[3], mi, +m[2]) : nearYearDate(mi, +m[2]);
         }
-        // DD-MM-YYYY
-        const m2 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-        if (m2) return `${m2[1].padStart(2,"0")}/${m2[2].padStart(2,"0")}/${m2[3]}`;
-        // YYYY-MM-DD
-        const m3 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m3) return `${m3[3]}/${m3[2]}/${m3[1]}`;
-        // JS natif (ISO string etc.)
-        const d = new Date(s);
-        if (!isNaN(d) && d.getFullYear() > 2000) return fmtDateFR(d);
-        return s;
+        // "Fri Jul 24 2026 00:00:00 GMT+0300 (…)"
+        if (/GMT/.test(s)) {
+            const d = new Date(s.replace(/\([^)]*\)/g, "").trim());
+            return isNaN(d) ? null : mkDate(d.getFullYear(), d.getMonth(), d.getDate());
+        }
+        return null; // pas une date reconnue → JAMAIS de new Date() "au hasard"
+    }
+
+    function fromExcelSerial(n) {
+        if (!(n > 36526 && n < 73051)) return null; // années 2000 à 2099
+        const d = new Date(Math.round((n - 25569) * 86400 * 1000));
+        return mkDate(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    }
+
+    function toISODate(d) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     }
 
     function fmtDateFR(d) {
-        const dd = String(d.getDate()).padStart(2,"0");
-        const mm = String(d.getMonth()+1).padStart(2,"0");
-        return `${dd}/${mm}/${d.getFullYear()}`;
+        return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
     }
 
-    // ── Convertir une date vers YYYY-MM-DD (identique à bdc-upload.js) ──
-    function convertBDCDate(dateStr) {
-        if (!dateStr) return "";
-        const s = String(dateStr).trim();
-        if (!s || s.toLowerCase().replace(/\s/g,"") === "inhouse") return s;
-        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s; // déjà DD/MM/YYYY
-        const m1 = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
-        if (m1) return `${m1[1].padStart(2,"0")}/${m1[2].padStart(2,"0")}/${m1[3]}`;
-        const m2 = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m2) return `${m2[3]}/${m2[2]}/${m2[1]}`;
-        if (s.includes("GMT") || s.match(/^[A-Z][a-z]{2} [A-Z][a-z]{2}/)) {
-            const d = new Date(s.replace(/\([^)]*\)/g,"").trim());
-            if (!isNaN(d)) {
-                return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
-            }
+    // Classe une valeur brute (Excel ou Sheet)
+    // → { kind: "empty" | "invalid" | "date" | "inhouse" | "allok" | "pending" | "text", date?, raw }
+    function classifyValue(val) {
+        if (val === null || val === undefined) return { kind: "empty", raw: "" };
+        if (val instanceof Date || typeof val === "number") {
+            const d = parseDateOnly(val);
+            return d ? { kind: "date", date: d, raw: val } : { kind: "invalid", raw: String(val) };
         }
-        return s;
+        const s  = String(val).trim();
+        if (!s) return { kind: "empty", raw: "" };
+        const lo = s.toLowerCase().replace(/\s+/g, "");
+
+        // Erreurs Excel / valeurs vides déguisées
+        if (/^#/.test(s) || lo.includes("invalid") ||
+            ["0", "-", "--", "—", "n/a", "na", "null", "undefined", "nan"].includes(lo)) {
+            return { kind: "invalid", raw: s };
+        }
+        if (lo.startsWith("inhouse")) return { kind: "inhouse", raw: s };
+        if (lo.startsWith("allok")) {
+            // "All OK - 2026-12-09" → garder la date si présente
+            const rest = s.replace(/^\s*all\s*ok\s*[-–—:]*\s*/i, "");
+            return { kind: "allok", date: rest ? parseDateOnly(rest) : null, raw: s };
+        }
+        if (["tbc", "tba", "tbd"].includes(lo)) return { kind: "pending", raw: s.toUpperCase() };
+
+        const d = parseDateOnly(s);
+        if (d) return { kind: "date", date: d, raw: s };
+        return { kind: "text", raw: s };
+    }
+
+    // Valeur finale à écrire dans le Sheet (ou null = ne rien écrire)
+    // oldVal sert pour ALL OK sans date : on reprend la date de l'ancien PSD
+    function toStoredValue(cls, oldVal) {
+        switch (cls.kind) {
+            case "date":    return toISODate(cls.date);
+            case "inhouse": return "In House";
+            case "pending": return cls.raw;
+            case "text":    return cls.raw;
+            case "allok": {
+                let d = cls.date;
+                if (!d && oldVal !== undefined) {
+                    const old = classifyValue(oldVal);
+                    if (old.kind === "date" || old.kind === "allok") d = old.date || null;
+                }
+                return d ? `All OK - ${toISODate(d)}` : "All OK";
+            }
+            default:        return null; // empty / invalid → on n'écrase pas
+        }
+    }
+
+    // Affichage lisible (modale)
+    function displayValue(val) {
+        const c = classifyValue(val);
+        switch (c.kind) {
+            case "date":    return fmtDateFR(c.date);
+            case "inhouse": return "In House";
+            case "allok":   return c.date ? `All OK - ${fmtDateFR(c.date)}` : "All OK";
+            case "empty":   return "";
+            default:        return c.raw;
+        }
+    }
+
+    // Classe CSS du badge selon le type de nouvelle valeur
+    function badgeClass(kind) {
+        if (kind === "date") return "psd-badge-new";
+        if (kind === "inhouse" || kind === "allok") return "psd-badge-allok";
+        if (kind === "pending" || kind === "text") return "psd-badge-text";
+        return "psd-badge-notfound";
     }
 
     // ── Analyser le fichier Excel PSD → retourne un lookup map ──
-    // { "LARIDEL-BG-VEM": { psdRaw, isAllOK }, ... }
+    // { "laridel-bg-vem": { originalRef, psd, srs, sewing, packing } } (valeurs classées)
     function analyzePSDFile(file) {
         return new Promise((resolve, reject) => {
             if (typeof _waitForXLSX !== "function") {
@@ -257,43 +376,38 @@
                             "| Sewing:", iSewing, "| Packing:", iPacking);
 
                         // Construire le lookup map (insensible à la casse)
+                        // On garde les cellules BRUTES classées ; la valeur finale
+                        // est calculée plus tard (ALL OK a besoin de l'ancien PSD)
                         const lookup = {};
+                        let skippedInvalid = 0;
                         for (let i = headerRow + 1; i < data.length; i++) {
-                            const row    = data[i];
-                            const ref    = String(row[iRef] || "").trim();
-                            const psdRaw = String(row[iPSD] || "").trim();
-                            if (!ref || !psdRaw) continue;
+                            const row = data[i];
+                            const ref = String(row[iRef] || "").trim();
+                            if (!ref) continue;
 
-                            const isAllOK   = psdRaw.toLowerCase().replace(/\s/g,"") === "allok";
-                            const psdParsed = isAllOK ? "ALL OK" : parseFlexDate(psdRaw);
-                            if (!psdParsed) continue;
+                            const psd     = classifyValue(row[iPSD]);
+                            const srs     = classifyValue(row[iSRS]);
+                            const sewing  = classifyValue(row[iSewing]);
+                            const packing = classifyValue(row[iPacking]);
 
-                            // Stocker avec clé normalisée (insensible casse + séparateurs)
-                            const normKey = normalizeRef(ref);
-                            if (!lookup[normKey]) {
-                                const readVal = (idx) => {
-                                    const v = String(row[idx] || "").trim();
-                                    if (!v) return null;
-                                    const lo = v.toLowerCase().replace(/\s/g,"");
-                                    if (lo === "inhouse") return "In House";
-                                    return convertBDCDate(v) || v;
-                                };
-                                lookup[normKey] = {
-                                    psdRaw:        psdParsed,
-                                    isAllOK,
-                                    originalRef:   ref,
-                                    srsLaunching:  readVal(iSRS),
-                                    sewingTrims:   readVal(iSewing),
-                                    packingTrims:  readVal(iPacking)
-                                };
+                            const usable = c => c.kind !== "empty" && c.kind !== "invalid";
+                            if (![psd, srs, sewing, packing].some(usable)) {
+                                if (psd.kind === "invalid") skippedInvalid++;
+                                continue;
+                            }
+
+                            const key = normalizeRef(ref);
+                            if (!lookup[key]) {
+                                lookup[key] = { originalRef: ref, psd, srs, sewing, packing };
                             }
                         }
+                        if (skippedInvalid) console.log("[PSD]", skippedInvalid, "ligne(s) ignorée(s) : PSD invalide (#N/A, 0, -…)");
 
                         // Log pour debug : afficher les 5 premières entrées
                         const keys = Object.keys(lookup);
                         console.log("[PSD] Lookup Excel", keys.length, "entrées :");
                         keys.slice(0, 8).forEach(k =>
-                            console.log("  clé:", k, "→", lookup[k].psdRaw)
+                            console.log("  clé:", k, "→", lookup[k].psd.kind, lookup[k].psd.raw)
                         );
                         resolve(lookup);
                     } catch(err) {
@@ -305,46 +419,37 @@
         });
     }
 
-    // ── Construire la valeur PSD finale ───────────────────────
-    // Si ALL OK → "All OK - {ancienne date PSD}"
-    // Sinon → la date parsée
-    function buildNewPSD(item, detRow) {
-        if (item.isAllOK) {
-            const oldPSD = String(detRow?.PSD || "").trim();
-            return oldPSD ? `All OK - ${oldPSD}` : "All OK";
-        }
-        return item.psdRaw;
-    }
-
     // ── Ouvrir la modale de validation ────────────────────────
     function openPSDValidationModal(items) {
         document.getElementById("psd-val-modal")?.remove();
 
-        // Les items viennent déjà enrichis depuis triggerPSDUpload
-        const toISO_local = v => {
-            if (!v || v === "In House") return v;
-            const m = String(v).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-            if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
-            return v;
-        };
+        // Pour chaque champ : ancienne valeur, nouvelle valeur à écrire, type, changement ?
+        const FIELDS = [
+            { id: "PSD",     col: "PSD",           label: "PSD" },
+            { id: "SRS",     col: "SRS_Launching", label: "SRS Launching" },
+            { id: "Sewing",  col: "Sewing_Trims",  label: "Sewing Trims" },
+            { id: "Packing", col: "Packing_Trims", label: "Packing Trims" }
+        ];
+        const SRC_KEY = { PSD: "psd", SRS: "srs", Sewing: "sewing", Packing: "packing" };
 
         const enriched = items.map(item => {
-            const detRow    = item.detRow;
-            const oldPSD    = String(detRow?.PSD              || "").trim();
-            const oldSRS    = String(detRow?.SRS_Launching    || "").trim();
-            const oldSewing = String(detRow?.Sewing_Trims     || "").trim();
-            const oldPacking= String(detRow?.Packing_Trims    || "").trim();
-            const newPSD    = item.inExcel ? buildNewPSD(item, detRow) : null;
-            const newSRS    = item.inExcel && item.srsLaunching  ? item.srsLaunching  : null;
-            const newSewing = item.inExcel && item.sewingTrims   ? item.sewingTrims   : null;
-            const newPacking= item.inExcel && item.packingTrims  ? item.packingTrims  : null;
+            const detRow = item.detRow;
+            const fields = {};
+            FIELDS.forEach(f => {
+                const oldRaw  = detRow?.[f.col];
+                const cls     = item.inExcel ? item.match[SRC_KEY[f.id]] : { kind: "empty", raw: "" };
+                const newVal  = item.inExcel ? toStoredValue(cls, oldRaw) : null;
+                const same    = newVal !== null && displayValue(newVal) === displayValue(oldRaw);
+                fields[f.id]  = { col: f.col, label: f.label, oldRaw, cls, newVal, same };
+            });
+            const changes    = Object.values(fields).filter(x => x.newVal !== null && !x.same);
+            const hasText    = changes.some(x => x.cls.kind === "text");
             return {
-                ...item, detRow,
-                oldPSD, newPSD,
-                oldSRS, newSRS,
-                oldSewing, newSewing,
-                oldPacking, newPacking,
-                found: item.inExcel
+                ...item, detRow, fields,
+                found:      item.inExcel,
+                hasChange:  changes.length > 0,
+                // coché par défaut : il y a un changement ET pas de texte inconnu à vérifier
+                preChecked: item.inExcel && changes.length > 0 && !hasText
             };
         });
 
@@ -352,29 +457,26 @@
         const notFound = enriched.filter(e => !e.found);
 
         // HTML des lignes
-        const COMMIT_DEFS = [
-            { key:"newPSD",     oldKey:"oldPSD",     label:"PSD"           },
-            { key:"newSRS",     oldKey:"oldSRS",     label:"SRS Launching" },
-            { key:"newSewing",  oldKey:"oldSewing",  label:"Sewing Trims"  },
-            { key:"newPacking", oldKey:"oldPacking", label:"Packing Trims" }
-        ];
-
         const rowsHTML = enriched.map((e, i) => {
-            const commitCells = COMMIT_DEFS.map(cd => {
-                const nv = e[cd.key];
-                const ov = e[cd.oldKey] || "";
-                const isAO = nv && String(nv).toLowerCase() === "in house";
+            const commitCells = FIELDS.map(f => {
+                const x   = e.fields[f.id];
+                const ov  = displayValue(x.oldRaw);
+                let newHTML;
+                if (!e.found) {
+                    newHTML = `<span style="color:var(--text-muted,#9ca3af);font-size:10px;font-style:italic;">Absent</span>`;
+                } else if (x.cls.kind === "invalid") {
+                    newHTML = `<span class="psd-badge-ignored" title="Valeur Excel ignorée, le Sheet n'est pas modifié">${x.cls.raw}</span>`;
+                } else if (x.newVal === null) {
+                    newHTML = `<span style="color:#d1d5db;font-size:11px;">—</span>`;
+                } else if (x.same) {
+                    newHTML = `<span class="psd-badge-same">inchangé</span>`;
+                } else {
+                    const tip = x.cls.kind === "text" ? ' title="Texte non reconnu : à vérifier avant d\'appliquer"' : "";
+                    newHTML = `<span class="${badgeClass(x.cls.kind)}"${tip}>${displayValue(x.newVal)}</span>`;
+                }
                 return `<td style="padding:7px 10px;border-bottom:0.5px solid var(--border,#e5e7eb);">
-                    <div style="font-size:9px;color:var(--text-muted,#9ca3af);
-                        text-transform:uppercase;margin-bottom:2px;">${cd.label}</div>
                     ${ov ? `<div class="psd-badge-old" style="margin-bottom:3px;">${ov}</div>` : ""}
-                    ${e.found && nv
-                        ? `<span class="${isAO ? "psd-badge-allok" : "psd-badge-new"}">${nv}</span>`
-                        : !e.found
-                            ? `<span style="color:var(--text-muted,#9ca3af);font-size:10px;
-                                font-style:italic;">Absent</span>`
-                            : `<span style="color:#d1d5db;font-size:11px;">—</span>`
-                    }
+                    ${newHTML}
                 </td>`;
             }).join("");
 
@@ -388,14 +490,16 @@
                 </td>
                 ${commitCells}
                 <td style="padding:9px 12px;text-align:center;">
-                    ${e.found
-                        ? `<input type="checkbox" class="psd-row-check" data-idx="${i}" checked
+                    ${e.found && e.hasChange
+                        ? `<input type="checkbox" class="psd-row-check" data-idx="${i}" ${e.preChecked ? "checked" : ""}
                             style="width:14px;height:14px;accent-color:#1565c0;cursor:pointer;"/>`
                         : `<span style="color:#d1d5db;font-size:11px;">—</span>`
                     }
                 </td>
             </tr>`;
         }).join("");
+
+        const nbChanges = enriched.filter(e => e.found && e.hasChange).length;
 
         const modal = document.createElement("div");
         modal.id = "psd-val-modal";
@@ -411,6 +515,7 @@
                         ${enriched.length} style${enriched.length > 1 ? "s" : ""} dans Details
                         · ${found.length} trouvé${found.length > 1 ? "s" : ""} dans le fichier
                         ${notFound.length > 0 ? ` · ${notFound.length} absent${notFound.length > 1 ? "s" : ""}` : ""}
+                        · ${nbChanges} à mettre à jour
                     </div>
                 </div>
                 <button class="btn-close"
@@ -445,9 +550,10 @@
                         </button>
                     </div>
                     <div style="font-size:11px;color:var(--text-muted,#9ca3af);">
-                        <span style="color:#166534;font-weight:600;">■</span> Nouvelle date &nbsp;
-                        <span style="color:#1e40af;font-weight:600;">■</span> All OK &nbsp;
-                        <span style="color:#991b1b;font-weight:600;">■</span> Introuvable
+                        <span style="color:#166534;font-weight:600;">■</span> Date &nbsp;
+                        <span style="color:#1e40af;font-weight:600;">■</span> In House / All OK &nbsp;
+                        <span style="color:#92400e;font-weight:600;">■</span> Texte (à vérifier) &nbsp;
+                        <span style="color:#6b7280;font-weight:600;">■</span> Ignoré
                     </div>
                 </div>
 
@@ -492,15 +598,6 @@
     }
 
     // ── Appliquer les mises à jour ────────────────────────────
-    // ── Convertir DD/MM/YYYY → YYYY-MM-DD pour stockage correct ──
-    // Évite que JS interprète "04/09/2026" comme MM/DD (9 avril au lieu de 4 sept.)
-    function toISO(psd) {
-        if (!psd || psd.toLowerCase().startsWith("all ok")) return psd;
-        const m = psd.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
-        return psd;
-    }
-
     window._psdApplyUpdates = async function() {
         const modal = document.getElementById("psd-val-modal");
         if (!modal) return;
@@ -510,7 +607,7 @@
         const checked   = [...document.querySelectorAll(".psd-row-check:checked")]
                             .map(c => parseInt(c.dataset.idx));
 
-        const toUpdate  = enriched.filter((_, i) => checked.includes(i) && enriched[i].found);
+        const toUpdate  = enriched.filter((_, i) => checked.includes(i) && enriched[i].found && enriched[i].hasChange);
         if (!toUpdate.length) {
             typeof showToast === "function" && showToast("Aucune ligne sélectionnée.", "error");
             return;
@@ -548,28 +645,20 @@
         let success = 0;
         for (const item of toUpdate) {
             try {
-                // PSD via quickUpdate (colonne existante)
-                if (item.newPSD) {
-                    const psdISO = toISO(item.newPSD);
-                    if (typeof window.quickUpdate === "function")
-                        await window.quickUpdate(item.rowIdx, "PSD", psdISO, "details");
-                    if (item.detRow) item.detRow.PSD = psdISO;
-                }
-                // Commitments via saveField (crée la colonne si absente)
-                if (item.newSRS) {
-                    const v = toISO(item.newSRS);
-                    await saveField(item.rowIdx, "SRS_Launching", v);
-                    if (item.detRow) item.detRow.SRS_Launching = v;
-                }
-                if (item.newSewing) {
-                    const v = toISO(item.newSewing);
-                    await saveField(item.rowIdx, "Sewing_Trims", v);
-                    if (item.detRow) item.detRow.Sewing_Trims = v;
-                }
-                if (item.newPacking) {
-                    const v = toISO(item.newPacking);
-                    await saveField(item.rowIdx, "Packing_Trims", v);
-                    if (item.detRow) item.detRow.Packing_Trims = v;
+                for (const x of Object.values(item.fields)) {
+                    if (x.newVal === null || x.same) continue;
+                    // Sécurité : ne jamais écrire une valeur invalide
+                    if (/invalid|^#/i.test(String(x.newVal))) continue;
+
+                    if (x.col === "PSD") {
+                        // PSD via quickUpdate (colonne existante)
+                        if (typeof window.quickUpdate === "function")
+                            await window.quickUpdate(item.rowIdx, "PSD", x.newVal, "details");
+                    } else {
+                        // Commitments via saveField (crée la colonne si absente)
+                        await saveField(item.rowIdx, x.col, x.newVal);
+                    }
+                    if (item.detRow) item.detRow[x.col] = x.newVal;
                 }
                 success++;
             } catch(err) {
@@ -631,14 +720,10 @@
                         }
                         return {
                             ref,
-                            psdRaw:        match?.psdRaw        || null,
-                            isAllOK:       match?.isAllOK        || false,
-                            srsLaunching:  match?.srsLaunching   || null,
-                            sewingTrims:   match?.sewingTrims    || null,
-                            packingTrims:  match?.packingTrims   || null,
-                            inExcel:       !!match,
-                            detRow:        r,
-                            rowIdx:        r._rowIndex
+                            match:   match || null,
+                            inExcel: !!match,
+                            detRow:  r,
+                            rowIdx:  r._rowIndex
                         };
                     });
 
