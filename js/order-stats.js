@@ -9,6 +9,7 @@
 //      - Calendrier Ex-Fty    (Details › Possible etd)
 //      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant,
 //        PSD passées affichées « Il y a N j » puis retirées après 7 jours
+//  • En attente de PSS : PSD passée, shipment sample à envoyer PSD + 4 j
 //  • Préparation des styles : styles dont la PSD n'est pas encore passée,
 //    avec leurs commitments SRS Launching, Sewing et Packing
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
@@ -20,6 +21,8 @@
     const EXFTY_SOON_DAYS = 14;
     const PSD_SOON_DAYS   = 14;
     const PSD_PAST_KEEP   = 7;   // PSD passée : visible encore 7 jours, puis retirée
+    const PSS_AFTER_PSD   = 4;   // Le shipment sample (PSS) doit être envoyé 4 jours après la PSD
+    const PSS_TYPE_RE     = /\b(pss|shipment|shipping)\b/i;   // Type de sample considéré comme PSS
     let _season = "";        // "" = toutes les saisons
     let _updatedAt = null;
 
@@ -78,7 +81,8 @@
             .filter(a => !_season || [a.style].concat(a.styles || []).some(inSeason));
 
         const seasons = [...new Set(allDetails.map(seasonOf).filter(Boolean))].sort();
-        return { details, ordering, alerts, seasons };
+        const samples = st.sample || [];
+        return { details, ordering, alerts, seasons, samples };
     }
 
     // ══════════════════════════════════════════════════════════
@@ -174,6 +178,12 @@
         .os-cm.ok { background: #e6f4ea; color: #137333; } .os-cm.late { background: #fce8e6; color: #c5221f; }
         .os-cm.soon { background: #fef7e0; color: #b06000; } .os-cm.date { background: #f1f3f4; color: #444746; }
         .os-cm.txt { background: #f3e8fd; color: #6a1b9a; } .os-cm.none { color: #c4c7c5; font-weight: 400; }
+        .os-pss-kpis { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+        .os-pss-kpi { display: flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 10px; background: #f1f3f4; font-size: 12.5px; color: #444746; }
+        .os-pss-kpi b { font-size: 18px; font-weight: 500; color: #1f1f1f; }
+        .os-pss-kpi.late { background: #fce8e6; } .os-pss-kpi.late b { color: #c5221f; }
+        .os-pss-kpi.today { background: #fef7e0; } .os-pss-kpi.today b { color: #b06000; }
+        .os-pss-kpi.ok { background: #e8f0fe; } .os-pss-kpi.ok b { color: #0b57d0; }
         .os-help { font-size: 12px; color: #5f6368; margin-top: 10px; display: flex; gap: 14px; flex-wrap: wrap; }
         .os-help span { display: inline-flex; align-items: center; gap: 6px; }
         .os-help i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
@@ -278,7 +288,7 @@
     function render() {
         const sc = document.getElementById("stats-screen");
         if (!sc || !sc.classList.contains("show")) return;
-        const { details, ordering, alerts, seasons } = data();
+        const { details, ordering, alerts, seasons, samples } = data();
         _updatedAt = new Date();
 
         const exfty = r => parseD(r["Possible etd"] || r["Possible Vsl date"]);
@@ -400,6 +410,59 @@
             <div class="os-help"><span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Sewing / Packing dépassé</span><span><span class="os-cm soon">date</span>≤ 7 j</span><span><span class="os-cm none">—</span>Non renseigné</span></div>`
             : `<div class="os-empty">Tous les styles ont déjà eu leur PSD.</div>`;
 
+        // ── En attente de PSS : PSD passée, shipment sample pas encore envoyé ──
+        // Règle : le PSS doit partir PSS_AFTER_PSD (4) jours après la PSD.
+        // Une ligne Sample de type PSS / Shipment avec une Sending Date = PSS envoyé → le style sort de la liste.
+        const pssOf = r => {
+            const st = norm(r["Cust Style Ref"] || r.Style), cl = norm(r.Client || r.Coll);
+            return samples.filter(x => PSS_TYPE_RE.test(String(x.Type || "")) && norm(x.Style) === st
+                && (!cl || !norm(x.Client) || norm(x.Client) === cl));
+        };
+        const pssRows = details.map(r => {
+            if (isDoneText(r.PSD)) return null;
+            const psd = parseD(r.PSD);
+            if (!psd) return null;
+            const since = -dayDiff(psd);                   // jours depuis la PSD
+            if (since < 0) return null;                    // PSD pas encore passée
+            const pss = pssOf(r);
+            if (pss.some(x => String(x["Sending Date"] || "").trim())) return null;   // PSS déjà envoyé
+            const due = new Date(psd); due.setDate(due.getDate() + PSS_AFTER_PSD);
+            const left = dayDiff(due);                     // > 0 : reste N j · 0 : aujourd'hui · < 0 : retard
+            const last = pss[pss.length - 1];
+            const sampleState = !last ? "none" : String(last["Received Date"] || "").trim() ? "received" : "pending";
+            return { r, psd, since, due, left, sampleState };
+        }).filter(Boolean).sort((a, b) => a.left - b.left);
+        const pssLate = pssRows.filter(x => x.left < 0).length;
+        const pssToday = pssRows.filter(x => x.left === 0).length;
+        const pssOk = pssRows.length - pssLate - pssToday;
+        const pssDue = x => x.left < 0
+            ? `<span class="os-cm late">${fmtShort(x.due)} · retard ${-x.left} j</span>`
+            : x.left === 0 ? `<span class="os-cm soon">Aujourd'hui</span>`
+            : `<span class="os-cm ${x.left <= 1 ? "soon" : "date"}">${fmtShort(x.due)} · dans ${x.left} j</span>`;
+        const pssSample = x => x.sampleState === "received" ? `<span class="os-cm soon">Reçu · à envoyer</span>`
+            : x.sampleState === "pending" ? `<span class="os-cm txt">Pas encore reçu</span>`
+            : `<span class="os-cm none">Aucune ligne PSS</span>`;
+        const pssHTML = pssRows.length ? `
+            <div class="os-pss-kpis">
+                <span class="os-pss-kpi"><b>${pssRows.length}</b>en attente de PSS</span>
+                ${pssLate ? `<span class="os-pss-kpi late"><b>${pssLate}</b>en retard</span>` : ""}
+                ${pssToday ? `<span class="os-pss-kpi today"><b>${pssToday}</b>à envoyer aujourd'hui</span>` : ""}
+                ${pssOk ? `<span class="os-pss-kpi ok"><b>${pssOk}</b>dans les délais</span>` : ""}
+            </div>
+            <div class="os-tw os-scroll"><table class="os-t">
+                <thead><tr><th>Style</th><th>PSD</th><th class="c">Depuis la PSD</th><th class="c">PSS à envoyer le</th><th class="c">Sample PSS</th></tr></thead>
+                <tbody>${pssRows.map(x => {
+                    const st = x.r["Cust Style Ref"] || x.r.Style || "—";
+                    return `<tr class="click" data-os="row" data-row="${x.r._rowIndex}" data-tip="Ouvrir ${esc(st)} dans Details">
+                        <td><b style="font-weight:500">${esc(st)}</b><span class="sub">${esc([x.r.CTLStyleRef, x.r.Client || x.r.Coll].filter(Boolean).join(" · "))}</span></td>
+                        <td>${fmtShort(x.psd)}</td>
+                        <td class="c">${x.since === 0 ? "Aujourd'hui" : `${x.since} j`}</td>
+                        <td class="c">${pssDue(x)}</td>
+                        <td class="c">${pssSample(x)}</td></tr>`;
+                }).join("")}</tbody></table></div>
+            <div class="os-help"><span>Règle : PSS à envoyer ${PSS_AFTER_PSD} jours après la PSD</span><span><span class="os-cm late">date</span>Délai dépassé</span><span>Le style sort de la liste dès qu'une Sending Date est saisie sur sa sample PSS</span></div>`
+            : `<div class="os-empty">Aucun style en attente de PSS.</div>`;
+
         sc.innerHTML = `
             <div class="os-top">
                 <span class="os-upd">Mis à jour à ${_updatedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}${_season ? ` · ${esc(_season)}` : ""}</span>
@@ -419,6 +482,11 @@
                     <div class="os-bs">${calPsd.soonCount ? `<b style="color:#b06000;font-weight:500">${calPsd.soonCount} PSD dans les ${PSD_SOON_DAYS} prochains jours</b>` : `Aucune PSD dans les ${PSD_SOON_DAYS} prochains jours`}${calPsd.lateCount ? ` · ${calPsd.lateCount} passée${calPsd.lateCount > 1 ? "s" : ""} ces ${PSD_PAST_KEEP} derniers jours` : ""}</div>
                     ${calPsd.html}
                 </div>
+            </div>
+            <div class="os-box" style="margin-bottom:12px">
+                <div class="os-bt">En attente de PSS</div>
+                <div class="os-bs">Styles dont la PSD est passée et dont le shipment sample n'est pas encore envoyé · trié par urgence · clic sur une ligne pour ouvrir le style</div>
+                ${pssHTML}
             </div>
             <div class="os-box" style="margin-bottom:12px">
                 <div class="os-bt">Préparation des styles</div>
