@@ -11,7 +11,7 @@
 //        PSD passées affichées « Il y a N j » puis retirées après 7 jours
 //  • En attente de PSS : PSD passée, shipment sample à envoyer PSD + 4 j
 //  • Préparation des styles : styles dont la PSD n'est pas encore passée,
-//    avec leurs commitments SRS Launching, Sewing et Packing
+//    avec leurs commitments SRS Launching, Sewing et Packing 
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
 //  • Le dashboard ne garde que le grand titre et les filtres
 // ============================================================
