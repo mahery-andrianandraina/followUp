@@ -455,7 +455,7 @@ async function fetchAllData() {
     state._lastFetch = Date.now();
 
     // Animation de chargement : uniquement à l'ouverture de l'app.
-    // Les actualisations suivantes se font en silence (petite notification en bas).
+    // Les actualisations suivantes se font en silence (barre fine en haut de l'écran).
     const firstLoad = !state._loadedOnce;
     let refreshOk = false;
     if (firstLoad) { showDashboardLoading(); _setProgress(5); }
@@ -649,12 +649,11 @@ function _injectLoaderCSS() {
     #dashboard-progress.gl-out { opacity: 0; pointer-events: none; }
     .gl-box { display: flex; flex-direction: column; align-items: center; gap: 18px; }
     .gl-logo { display: flex; align-items: center; gap: 12px; }
-    .gl-aw { width: 48px; height: 48px; border-radius: 14px; background: #1a73e8; color: #fff; font-weight: 700; font-size: 18px;
-             display: flex; align-items: center; justify-content: center; }
-    .gl-name { font-size: 24px; font-weight: 400; color: #1f1f1f; letter-spacing: -.2px; }
+    .gl-mark { display: flex; color: #1f1f1f; }
+    [data-theme="dark"] .gl-mark { color: #e3e3e3; }
+    .gl-name { font-size: 26px; font-weight: 500; color: #1f1f1f; letter-spacing: 2px; line-height: 1.1; }
     [data-theme="dark"] .gl-name { color: #e3e3e3; }
-    .gl-name b { font-weight: 500; }
-    .gl-name .g1 { color: #4285F4; } .gl-name .g2 { color: #EA4335; } .gl-name .g3 { color: #FBBC05; } .gl-name .g4 { color: #34A853; }
+    .gl-sub { font-size: 13px; color: #5f6368; letter-spacing: .3px; margin-top: 2px; }
     .gl-spinner { width: 40px; height: 40px; animation: gl-rot 1.4s linear infinite; margin-top: 6px; }
     .gl-spinner circle { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 1, 200; stroke-dashoffset: 0;
                          animation: gl-dash 1.4s ease-in-out infinite, gl-col 5.6s ease-in-out infinite; }
@@ -669,18 +668,19 @@ function _injectLoaderCSS() {
                background: linear-gradient(90deg, #4285F4 0 25%, #EA4335 25% 50%, #FBBC05 50% 75%, #34A853 75% 100%) 0 0 / 240px 100% no-repeat; }
     .gl-pct { font-size: 12px; color: #80868b; }
 
-    /* Actualisation silencieuse : petite notification en bas à gauche */
-    #gl-snack {
-        position: fixed; left: 24px; bottom: 24px; z-index: 99998; display: flex; align-items: center; gap: 10px;
-        padding: 8px 14px; border-radius: 8px; background: #303134; color: #e8eaed;
-        font: 400 13px "Google Sans", Roboto, Arial, sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.25);
-        opacity: 0; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease; pointer-events: none;
+    /* Actualisation silencieuse : barre fine en haut de l'écran (style Google Drive / Sheets) */
+    #gl-topbar {
+        position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 99998; overflow: hidden;
+        background: #d2e3fc; opacity: 0; transition: opacity .25s ease; pointer-events: none;
     }
-    #gl-snack.show { opacity: .92; transform: none; }
-    #gl-snack .sp { width: 14px; height: 14px; animation: gl-rot 1.4s linear infinite; }
-    #gl-snack .sp circle { fill: none; stroke-width: 5; stroke-linecap: round; stroke: #8ab4f8; animation: gl-dash 1.4s ease-in-out infinite; }
-    #gl-snack .ok { color: #81c995; font-size: 14px; line-height: 1; }
-    #gl-snack .ko { color: #f28b82; font-size: 14px; line-height: 1; }
+    [data-theme="dark"] #gl-topbar { background: #28354d; }
+    #gl-topbar.show { opacity: 1; }
+    #gl-topbar i { position: absolute; top: 0; bottom: 0; }
+    #gl-topbar.show i { animation: gl-m1 2.1s cubic-bezier(.65,.815,.735,.395) infinite, gl-bc 4.2s linear infinite; }
+    #gl-topbar.show i + i { animation: gl-m2 2.1s cubic-bezier(.165,.84,.44,1) 1.15s infinite, gl-bc 4.2s linear infinite; }
+    @keyframes gl-m1 { 0% { left: -35%; right: 100%; } 60%, 100% { left: 100%; right: -90%; } }
+    @keyframes gl-m2 { 0% { left: -200%; right: 100%; } 60%, 100% { left: 107%; right: -8%; } }
+    @keyframes gl-bc { 0%, 100% { background: #4285F4; } 25% { background: #EA4335; } 50% { background: #FBBC05; } 75% { background: #34A853; } }
     `;
     document.head.appendChild(st);
 }
@@ -696,8 +696,8 @@ function showDashboardLoading() {
         el.innerHTML = `
             <div class="gl-box">
                 <div class="gl-logo">
-                    <div class="gl-aw">AW</div>
-                    <div class="gl-name"><b class="g1">A</b><b class="g2">W</b><b class="g3">2</b><b class="g4">7</b> Checkers</div>
+                    <span class="gl-mark"><svg class="orc-mark" width="52" height="52" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke-width="6" stroke-linecap="round"><path d="M24 6 A18 18 0 0 1 42 24" stroke="#4285F4"/><path d="M42 24 A18 18 0 0 1 24 42" stroke="#EA4335"/><path d="M24 42 A18 18 0 0 1 6 24" stroke="#FBBC05"/><path d="M6 24 A18 18 0 0 1 24 6" stroke="#34A853"/></g><path d="M17 31 L31 17" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="31.5" cy="16.5" r="2.6" fill="currentColor"/></svg></span>
+                    <div><div class="gl-name">ORCHESTRA</div><div class="gl-sub">Order Follow Up</div></div>
                 </div>
                 <svg class="gl-spinner" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20"></circle></svg>
                 <div class="gl-step" id="progress-step-text">Initialisation...</div>
@@ -722,32 +722,31 @@ function hideDashboardLoading() {
 }
 
 // ─── Actualisation silencieuse ────────────────────────────────
-let _silentCount = 0, _snackTimer = null;
-function _snack(html, autoHideMs) {
+// Barre fine animée en haut de l'écran pendant l'actualisation, aucun texte.
+// En cas d'échec seulement : petit message (toast) pour signaler que les données n'ont pas changé.
+let _silentCount = 0;
+function _topBar(show) {
     _injectLoaderCSS();
-    let sn = document.getElementById("gl-snack");
-    if (!sn) {
-        sn = document.createElement("div");
-        sn.id = "gl-snack";
-        sn.setAttribute("role", "status");
-        sn.setAttribute("aria-live", "polite");
-        document.body.appendChild(sn);
+    let bar = document.getElementById("gl-topbar");
+    if (!bar) {
+        bar = document.createElement("div");
+        bar.id = "gl-topbar";
+        bar.setAttribute("role", "progressbar");
+        bar.setAttribute("aria-label", "Actualisation des données");
+        bar.innerHTML = "<i></i><i></i>";
+        document.body.appendChild(bar);
     }
-    sn.innerHTML = html;
-    requestAnimationFrame(() => sn.classList.add("show"));
-    clearTimeout(_snackTimer);
-    if (autoHideMs) _snackTimer = setTimeout(() => sn.classList.remove("show"), autoHideMs);
+    bar.classList.toggle("show", !!show);
 }
 function _silentRefreshStart() {
     _silentCount++;
-    _snack(`<svg class="sp" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20"></circle></svg><span>Actualisation…</span>`);
+    _topBar(true);
 }
 function _silentRefreshEnd(ok) {
     _silentCount = Math.max(0, _silentCount - 1);
     if (_silentCount) return; // une autre actualisation est encore en cours
-    const t = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-    if (ok) _snack(`<span class="ok">✓</span><span>Données à jour · ${t}</span>`, 2200);
-    else _snack(`<span class="ko">!</span><span>Actualisation impossible — données inchangées</span>`, 4000);
+    _topBar(false);
+    if (!ok && typeof showToast === "function") showToast("Actualisation impossible — données inchangées", "error", 4000);
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
