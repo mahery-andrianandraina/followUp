@@ -223,7 +223,7 @@
                     <div style="background:rgba(255,255,255,0.15);border-radius:10px;
                         padding:8px 14px;display:inline-block;">
                         <span style="color:#fff;font-size:19px;font-weight:700;
-                            letter-spacing:0.06em;">AW27</span>
+                            letter-spacing:0.06em;">ORCHESTRA</span>
                     </div>
                 </td>
                 <td>
@@ -312,7 +312,7 @@
             text-align:center;">
             <p style="font-size:11px;color:#9ca3af;margin:0;line-height:1.6;">
                 Rapport généré automatiquement par
-                <strong style="color:#1565c0;">AW27 Checkers</strong> — ${todayCap}.<br>
+                <strong style="color:#1565c0;">ORCHESTRA – Order Follow Up</strong> — ${todayCap}.<br>
                 Le fichier Excel complet est joint à cet email.
             </p>
         </td>
