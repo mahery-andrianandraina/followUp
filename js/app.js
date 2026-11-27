@@ -449,23 +449,23 @@ function setupTabListeners() {
 
 // ─── Fetch ────────────────────────────────────────────────────
 async function fetchAllData() {
-    const sleep = ms => new Promise(r => setTimeout(r, ms));
-    
     // Update refresh badge
     const refreshDot = document.getElementById("refresh-dot");
     if (refreshDot) refreshDot.style.display = "none";
     state._lastFetch = Date.now();
 
-    showDashboardLoading();
-    _setProgress(5); // Connexion au serveur...
+    // Animation de chargement : uniquement à l'ouverture de l'app.
+    // Les actualisations suivantes se font en silence (petite notification en bas).
+    const firstLoad = !state._loadedOnce;
+    let refreshOk = false;
+    if (firstLoad) { showDashboardLoading(); _setProgress(5); }
+    else _silentRefreshStart();
 
     try {
         const res = await fetch(GOOGLE_APPS_SCRIPT_URL);
         _setProgress(25); // Réponse reçue
-        await sleep(150);
         const json = await res.json();
         _setProgress(40); // Données décodées
-        await sleep(150);
         if (json.status !== "ok") throw new Error(json.message);
 
         // Assign _rowIndex if missing or fix offset (row 1 = headers → data starts at row 2)
@@ -488,16 +488,12 @@ async function fetchAllData() {
 
         state.data.details = computeSheetCalculations(fixRows(json.data.details?.rows), SHEET_CONFIG.details);
         _setProgress(50); // Details chargés
-        await sleep(150);
         state.data.sample = computeSheetCalculations(fixRows(json.data.sample?.rows), SHEET_CONFIG.sample);
         _setProgress(58); // Samples chargés
-        await sleep(150);
         state.data.ordering = computeSheetCalculations(fixRows(json.data.ordering?.rows), SHEET_CONFIG.ordering);
         _setProgress(66); // Ordering chargé
-        await sleep(150);
         state.data.style = fixRows(json.data.style?.rows);
         _setProgress(72); // Styles chargés
-        await sleep(150);
 
         // ── Charger les menus custom depuis GAS (priorité sur localStorage)
         if (json.menus && Array.isArray(json.menus)) {
@@ -545,7 +541,6 @@ async function fetchAllData() {
             state.data[k] = computeSheetCalculations(fixRows(fromGAS ? fromGAS[1].rows : []), SHEET_CONFIG[k]);
         });
         _setProgress(85); // Menus custom chargés
-        await sleep(150);
 
         state.loading = false;
 
@@ -562,11 +557,10 @@ async function fetchAllData() {
         console.table(sampleImg);
 
         _setProgress(92); // Rendu en cours...
-        await sleep(150);
         renderAll();
         _setProgress(98); // Finalisation...
-        await sleep(150);
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
+        refreshOk = true;
         // Log any Pantone names from GS that are not in the TCX database
         setTimeout(_debugUnresolvedPantones, 500);
     } catch (err) {
@@ -581,7 +575,9 @@ async function fetchAllData() {
         renderAll();
         if (typeof updateGlobalNotifBadge === "function") updateGlobalNotifBadge();
     } finally {
-        hideDashboardLoading();
+        state._loadedOnce = true;
+        if (firstLoad) hideDashboardLoading();
+        else _silentRefreshEnd(refreshOk);
     }
 }
 
@@ -631,7 +627,7 @@ function _setProgress(pct, statusText) {
         else statusText = "Prêt !";
     }
 
-    const fill = document.querySelector('.progress-bar-fill');
+    const fill = document.getElementById('gl-fill');
     const label = document.getElementById('progress-percentage');
     const stepLabel = document.getElementById('progress-step-text');
     if (fill) fill.style.width = pct + '%';
@@ -639,35 +635,119 @@ function _setProgress(pct, statusText) {
     if (stepLabel) stepLabel.textContent = statusText;
 }
 
-function showDashboardLoading() {
-    const main = document.querySelector('main.main');
-    if (!main) return;
-    main.classList.add('dashboard-loading');
-    if (!document.getElementById('dashboard-progress')) {
-        const container = document.createElement('div');
-        container.id = 'dashboard-progress';
-        container.className = 'loading-progress-container';
-        container.innerHTML = `
-            <div class="progress-step-text" id="progress-step-text">Initialisation...</div>
-            <div class="progress-bar-background">
-                <div class="progress-bar-fill" style="width: 0%;"></div>
-            </div>
-            <div class="progress-percentage" id="progress-percentage">0%</div>
-        `;
-        main.appendChild(container);
+// ─── Écran de chargement (ouverture de l'app, style Google) ───
+function _injectLoaderCSS() {
+    if (document.getElementById("gl-loader-css")) return;
+    const st = document.createElement("style");
+    st.id = "gl-loader-css";
+    st.textContent = `
+    #dashboard-progress.gl-splash {
+        position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center;
+        background: #fff; font-family: "Google Sans", Roboto, "Segoe UI", Arial, sans-serif; transition: opacity .35s ease;
     }
+    [data-theme="dark"] #dashboard-progress.gl-splash { background: #1f1f1f; }
+    #dashboard-progress.gl-out { opacity: 0; pointer-events: none; }
+    .gl-box { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+    .gl-logo { display: flex; align-items: center; gap: 12px; }
+    .gl-aw { width: 48px; height: 48px; border-radius: 14px; background: #1a73e8; color: #fff; font-weight: 700; font-size: 18px;
+             display: flex; align-items: center; justify-content: center; }
+    .gl-name { font-size: 24px; font-weight: 400; color: #1f1f1f; letter-spacing: -.2px; }
+    [data-theme="dark"] .gl-name { color: #e3e3e3; }
+    .gl-name b { font-weight: 500; }
+    .gl-name .g1 { color: #4285F4; } .gl-name .g2 { color: #EA4335; } .gl-name .g3 { color: #FBBC05; } .gl-name .g4 { color: #34A853; }
+    .gl-spinner { width: 40px; height: 40px; animation: gl-rot 1.4s linear infinite; margin-top: 6px; }
+    .gl-spinner circle { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 1, 200; stroke-dashoffset: 0;
+                         animation: gl-dash 1.4s ease-in-out infinite, gl-col 5.6s ease-in-out infinite; }
+    @keyframes gl-rot { to { transform: rotate(360deg); } }
+    @keyframes gl-dash { 0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; } 50% { stroke-dasharray: 90, 200; stroke-dashoffset: -35; } 100% { stroke-dasharray: 90, 200; stroke-dashoffset: -124; } }
+    @keyframes gl-col { 0%, 100% { stroke: #4285F4; } 25% { stroke: #EA4335; } 50% { stroke: #FBBC05; } 75% { stroke: #34A853; } }
+    .gl-step { font-size: 14px; color: #5f6368; min-height: 20px; text-align: center; }
+    [data-theme="dark"] .gl-step { color: #c4c7c5; }
+    .gl-bar { width: 240px; height: 4px; border-radius: 2px; background: #e8eaed; overflow: hidden; }
+    [data-theme="dark"] .gl-bar { background: #3c4043; }
+    #gl-fill { height: 100%; width: 0; transition: width .3s ease;
+               background: linear-gradient(90deg, #4285F4 0 25%, #EA4335 25% 50%, #FBBC05 50% 75%, #34A853 75% 100%) 0 0 / 240px 100% no-repeat; }
+    .gl-pct { font-size: 12px; color: #80868b; }
+
+    /* Actualisation silencieuse : petite notification en bas à gauche */
+    #gl-snack {
+        position: fixed; left: 24px; bottom: 24px; z-index: 99998; display: flex; align-items: center; gap: 10px;
+        padding: 8px 14px; border-radius: 8px; background: #303134; color: #e8eaed;
+        font: 400 13px "Google Sans", Roboto, Arial, sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.25);
+        opacity: 0; transform: translateY(8px); transition: opacity .2s ease, transform .2s ease; pointer-events: none;
+    }
+    #gl-snack.show { opacity: .92; transform: none; }
+    #gl-snack .sp { width: 14px; height: 14px; animation: gl-rot 1.4s linear infinite; }
+    #gl-snack .sp circle { fill: none; stroke-width: 5; stroke-linecap: round; stroke: #8ab4f8; animation: gl-dash 1.4s ease-in-out infinite; }
+    #gl-snack .ok { color: #81c995; font-size: 14px; line-height: 1; }
+    #gl-snack .ko { color: #f28b82; font-size: 14px; line-height: 1; }
+    `;
+    document.head.appendChild(st);
+}
+
+function showDashboardLoading() {
+    _injectLoaderCSS();
+    let el = document.getElementById("dashboard-progress");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "dashboard-progress";
+        el.className = "gl-splash";
+        el.setAttribute("role", "status");
+        el.innerHTML = `
+            <div class="gl-box">
+                <div class="gl-logo">
+                    <div class="gl-aw">AW</div>
+                    <div class="gl-name"><b class="g1">A</b><b class="g2">W</b><b class="g3">2</b><b class="g4">7</b> Checkers</div>
+                </div>
+                <svg class="gl-spinner" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20"></circle></svg>
+                <div class="gl-step" id="progress-step-text">Initialisation...</div>
+                <div class="gl-bar"><div id="gl-fill"></div></div>
+                <div class="gl-pct" id="progress-percentage">0%</div>
+            </div>`;
+        document.body.appendChild(el);
+    }
+    el.classList.remove("gl-out");
     _setProgress(0);
     _startNetworkTimer();
 }
 
 function hideDashboardLoading() {
     _stopProgress();
+    const el = document.getElementById("dashboard-progress");
+    if (!el) return;
     setTimeout(() => {
-        const main = document.querySelector('main.main');
-        if (main) main.classList.remove('dashboard-loading');
-        const prog = document.getElementById('dashboard-progress');
-        if (prog) prog.remove();
-    }, 400); // laisser voir 100% un instant
+        el.classList.add("gl-out");
+        setTimeout(() => el.remove(), 400);
+    }, 250); // laisser voir 100 % un instant
+}
+
+// ─── Actualisation silencieuse ────────────────────────────────
+let _silentCount = 0, _snackTimer = null;
+function _snack(html, autoHideMs) {
+    _injectLoaderCSS();
+    let sn = document.getElementById("gl-snack");
+    if (!sn) {
+        sn = document.createElement("div");
+        sn.id = "gl-snack";
+        sn.setAttribute("role", "status");
+        sn.setAttribute("aria-live", "polite");
+        document.body.appendChild(sn);
+    }
+    sn.innerHTML = html;
+    requestAnimationFrame(() => sn.classList.add("show"));
+    clearTimeout(_snackTimer);
+    if (autoHideMs) _snackTimer = setTimeout(() => sn.classList.remove("show"), autoHideMs);
+}
+function _silentRefreshStart() {
+    _silentCount++;
+    _snack(`<svg class="sp" viewBox="0 0 50 50" aria-hidden="true"><circle cx="25" cy="25" r="20"></circle></svg><span>Actualisation…</span>`);
+}
+function _silentRefreshEnd(ok) {
+    _silentCount = Math.max(0, _silentCount - 1);
+    if (_silentCount) return; // une autre actualisation est encore en cours
+    const t = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    if (ok) _snack(`<span class="ok">✓</span><span>Données à jour · ${t}</span>`, 2200);
+    else _snack(`<span class="ko">!</span><span>Actualisation impossible — données inchangées</span>`, 4000);
 }
 
 // ─── Demo Data ────────────────────────────────────────────────
