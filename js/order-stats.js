@@ -5,8 +5,6 @@
 //  <script src="js/order-stats.js"></script>
 //
 //  • Nouvel onglet « Statistiques » dans la barre latérale (sous Dashboard)
-//  • Les 5 cartes KPI quittent le dashboard et viennent ici :
-//      Total styles · PO reçus · Ex-Fty dépassées · Ex-Fty ≤ 14 j · Alertes actives
 //  • Calendriers en liste (style Google Agenda), chaque style avec sa date :
 //      - Calendrier Ex-Fty    (Details › Possible etd)
 //      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant,
@@ -283,29 +281,7 @@
         const { details, ordering, alerts, seasons } = data();
         _updatedAt = new Date();
 
-        // ── KPI (mêmes règles que les anciennes cartes du dashboard) ──
         const exfty = r => parseD(r["Possible etd"] || r["Possible Vsl date"]);
-        const total = details.length;
-        const poRec = details.filter(r => String(r["Order Status"] || "").trim().toUpperCase() === "PO RECEIVED").length;
-        const late  = details.filter(r => { const d = exfty(r); return d && dayDiff(d) < 0; });
-        const soon  = details.filter(r => { const d = exfty(r); return d && dayDiff(d) >= 0 && dayDiff(d) <= EXFTY_SOON_DAYS; });
-        const dangers = alerts.filter(a => a.severity === "danger").length;
-        const names = list => list.slice(0, 6).map(r => r["Cust Style Ref"] || r.Style).join("\n") + (list.length > 6 ? `\n+ ${list.length - 6}` : "");
-
-        // opt : { os: action au clic, tip: infobulle }
-        const kpi = (cls, icon, v, l, opt = {}) =>
-            `<div class="os-k ${opt.os ? "click" : ""}" ${opt.os ? `data-os="${opt.os}" role="button" tabindex="0"` : ""} ${opt.tip ? `data-tip="${esc(opt.tip)}"` : ""}>
-                <div class="os-ic ${cls}"><i class="ti ${icon}" aria-hidden="true"></i></div>
-                <div><div class="os-v">${v.toLocaleString("fr-FR")}</div><div class="os-l">${l}</div></div>
-             </div>`;
-        const kpisHTML = () => [
-            kpi("os-blue", "ti-shirt", total, "Total styles"),
-            kpi("os-green", "ti-file-check", poRec, "PO reçus"),
-            kpi(late.length ? "os-red" : "os-green", "ti-ship", late.length, "Ex-Fty dépassées", late.length ? { tip: names(late) } : {}),
-            kpi(soon.length ? "os-amber" : "os-green", "ti-clock-hour-4", soon.length, `Ex-Fty ≤ ${EXFTY_SOON_DAYS} j`, soon.length ? { tip: names(soon) } : {}),
-            kpi(calPsd.soonCount ? "os-amber" : "os-green", "ti-calendar-event", calPsd.soonCount, `PSD ≤ ${PSD_SOON_DAYS} j`, calPsd.soonCount ? { tip: names(calPsd.soonList) } : {}),
-            kpi(dangers ? "os-red" : alerts.length ? "os-amber" : "os-green", "ti-bell-ringing", alerts.length, "Alertes actives", { os: "alerts", tip: "Ouvrir les notifications" })
-        ].join("");
 
         // ── Calendriers en liste : chaque style avec sa date ──
         const psdOf = r => parseD(r.PSD);
@@ -432,7 +408,6 @@
                     ${seasons.map(x => `<option value="${esc(x)}" ${x === _season ? "selected" : ""}>${esc(x)}</option>`).join("")}
                 </select>
             </div>
-            <div class="os-kpis">${kpisHTML()}</div>
             <div class="os-grid2">
                 <div class="os-box">
                     <div class="os-bt">Calendrier Ex-Fty</div>
