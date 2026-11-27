@@ -13,8 +13,6 @@
 //        PSD passées affichées « Il y a N j » puis retirées après 7 jours
 //  • Préparation des styles : styles dont la PSD n'est pas encore passée,
 //    avec leurs commitments SRS Launching, Sewing et Packing
-//  • Fournisseurs : lignes, livrées, en transit, en retard, reliquats, délai moyen
-//  • Alertes à traiter : tableau par type (Critiques / Attention / À clôturer)
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
 //  • Le dashboard ne garde que le grand titre et les filtres
 // ============================================================
@@ -151,7 +149,7 @@
         .os-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
         @media (max-width: 1000px) { .os-grid2 { grid-template-columns: 1fr; } }
 
-        /* Tableaux (Préparation, Fournisseurs, Alertes) */
+        /* Tableau Préparation des styles */
         .os-tw { overflow-x: auto; margin: 0 -4px; }
         .os-t { width: 100%; border-collapse: collapse; font-size: 13px; }
         html body #stats-screen .os-t th {
@@ -374,12 +372,6 @@
         });
 
         // ── Préparation des styles : styles sans PSD passée + commitments (Details) ──
-        const ordState = r => {
-            const d = String(r["Delivery Status"] || "").toLowerCase();
-            if (d.includes("deliver") || d.includes("livr")) return "done";
-            if (d.includes("transit")) return "transit";
-            return "todo";
-        };
         const commit = v => {
             const raw = String(v == null ? "" : v).trim();
             if (!raw || /invalid/i.test(raw)) return `<span class="os-cm none">—</span>`;
@@ -388,6 +380,16 @@
             if (!d) return `<span class="os-cm txt" title="${esc(raw)}">${esc(raw.length > 14 ? raw.slice(0, 13) + "…" : raw)}</span>`;
             const n = dayDiff(d);
             return `<span class="os-cm ${n < 0 ? "late" : n <= 7 ? "soon" : "date"}">${fmtShort(d)}${n < 0 ? ` · ${-n} j` : ""}</span>`;
+        };
+        // SRS Launching : date passée = « Lancé il y a N j » (neutre), date à venir = « Dans N j »
+        const srsCell = v => {
+            const raw = String(v == null ? "" : v).trim();
+            const d = parseD(raw);
+            if (!d) return commit(v);
+            const n = dayDiff(d);
+            if (n < 0) return `<span class="os-cm date">${fmtShort(d)} · Lancé il y a ${-n} j</span>`;
+            const when = n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : `Dans ${n} j`;
+            return `<span class="os-cm ${n <= 7 ? "soon" : "date"}">${fmtShort(d)} · ${when}</span>`;
         };
         // PSD à venir : date du jour ou future, ou pas encore de date. Exclues : PSD passée ou « In House / All OK ».
         const psdCell = x => {
@@ -415,67 +417,12 @@
                     return `<tr class="click" data-os="row" data-row="${x.r._rowIndex}" data-tip="Ouvrir ${esc(st)} dans Details">
                         <td><b style="font-weight:500">${esc(st)}</b><span class="sub">${esc([x.r.CTLStyleRef, x.r.Client || x.r.Coll].filter(Boolean).join(" · "))}</span></td>
                         <td>${psdCell(x)}</td>
-                        <td class="c">${commit(x.r.SRS_Launching)}</td>
+                        <td class="c">${srsCell(x.r.SRS_Launching)}</td>
                         <td class="c">${commit(x.r.Sewing_Trims)}</td>
                         <td class="c">${commit(x.r.Packing_Trims)}</td></tr>`;
                 }).join("")}</tbody></table></div>
-            <div class="os-help"><span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Commitment dépassé</span><span><span class="os-cm soon">date</span>≤ 7 j</span><span><span class="os-cm none">—</span>Non renseigné</span></div>`
+            <div class="os-help"><span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Sewing / Packing dépassé</span><span><span class="os-cm soon">date</span>≤ 7 j</span><span><span class="os-cm none">—</span>Non renseigné</span></div>`
             : `<div class="os-empty">Tous les styles ont déjà eu leur PSD.</div>`;
-
-        // ── Fournisseurs (Ordering) ──
-        const sup = {};
-        ordering.forEach(r => {
-            const name = String(r.Supplier || "").trim() || "Sans fournisseur";
-            const g = sup[name] || (sup[name] = { n: 0, done: 0, transit: 0, todo: 0, late: 0, partial: 0, lead: [] });
-            g.n++;
-            const stt = ordState(r); g[stt]++;
-            const rd = parseOrd(r["Ready Date"]), pd = parseOrd(r["PO Date"]);
-            if (stt === "todo" && rd && dayDiff(rd) < 0) g.late++;
-            if (PARTIAL_RE.test(String(r.Comments || ""))) g.partial++;
-            if (rd && pd && rd >= pd) g.lead.push(Math.round((rd - pd) / 86400000));
-        });
-        const supRows = Object.entries(sup).sort((a, b) => (b[1].late + b[1].partial) - (a[1].late + a[1].partial) || b[1].n - a[1].n);
-        const P = (v, cls) => `<span class="os-pill ${v ? cls : "z"}">${v || "0"}</span>`;
-        const tot = supRows.reduce((t, [, g]) => { ["n", "done", "transit", "todo", "late", "partial"].forEach(k => t[k] += g[k]); return t; }, { n: 0, done: 0, transit: 0, todo: 0, late: 0, partial: 0 });
-        const supHTML = supRows.length ? `
-            <div class="os-tw os-scroll"><table class="os-t">
-                <thead><tr><th>Fournisseur</th><th class="r">Lignes</th><th>Livrées</th><th class="c">En transit</th><th class="c">À venir</th><th class="c">Ready dépassée</th><th class="c">Reliquats</th><th class="r">Délai moyen</th></tr></thead>
-                <tbody>${supRows.map(([name, g]) => {
-                    const avg = g.lead.length ? Math.round(g.lead.reduce((a, b) => a + b, 0) / g.lead.length) : null;
-                    return `<tr><td><b style="font-weight:500">${esc(name)}</b></td>
-                        <td class="r">${g.n}</td>
-                        <td><div class="os-prog" style="min-width:120px"><div class="tr"><div style="width:${g.done / g.n * 100}%;background:#188038"></div></div><span class="v">${Math.round(g.done / g.n * 100)} %</span></div></td>
-                        <td class="c">${P(g.transit, "blue")}</td><td class="c">${P(g.todo, "grey")}</td>
-                        <td class="c">${P(g.late, "red")}</td><td class="c">${P(g.partial, "amber")}</td>
-                        <td class="r">${avg == null ? "—" : avg + " j"}</td></tr>`;
-                }).join("")}</tbody>
-                <tfoot><tr><td>Total</td><td class="r">${tot.n}</td><td>${tot.n ? Math.round(tot.done / tot.n * 100) : 0} % livrées</td>
-                    <td class="c">${tot.transit}</td><td class="c">${tot.todo}</td><td class="c">${tot.late}</td><td class="c">${tot.partial}</td><td></td></tr></tfoot>
-            </table></div>
-            <div class="os-help"><span>Délai moyen = de la PO Date à la Ready Date</span><span>Reliquats = commentaire avec balance, partial, missing…</span></div>`
-            : `<div class="os-empty">Aucune ligne Ordering pour cette saison.</div>`;
-
-        // ── Alertes à traiter, par type ──
-        const byType = {};
-        alerts.forEach(a => {
-            const l = typeof window.saTypeLabel === "function" ? window.saTypeLabel(a.type) : a.type;
-            const g = byType[l] || (byType[l] = { danger: 0, warn: 0, info: 0, styles: new Set() });
-            g[a.severity] = (g[a.severity] || 0) + 1;
-            if (a.style) g.styles.add(a.style);
-        });
-        const typeRows = Object.entries(byType).sort((a, b) => (b[1].danger - a[1].danger) || ((b[1].danger + b[1].warn + b[1].info) - (a[1].danger + a[1].warn + a[1].info)));
-        const typeHTML = typeRows.length ? `
-            <div class="os-tw"><table class="os-t">
-                <thead><tr><th>Type d'alerte</th><th class="c">Critiques</th><th class="c">Attention</th><th class="c">À clôturer</th><th class="r">Total</th></tr></thead>
-                <tbody>${typeRows.map(([l, g]) => {
-                    const st = [...g.styles];
-                    return `<tr class="click" data-os="alerts" data-tip="Ouvrir les notifications">
-                        <td><b style="font-weight:500">${esc(l)}</b><span class="sub">${esc(st.slice(0, 3).join(", "))}${st.length > 3 ? ` +${st.length - 3}` : ""}</span></td>
-                        <td class="c">${P(g.danger, "red")}</td><td class="c">${P(g.warn, "amber")}</td><td class="c">${P(g.info, "blue")}</td>
-                        <td class="r"><b style="font-weight:500">${g.danger + g.warn + g.info}</b></td></tr>`;
-                }).join("")}</tbody></table></div>
-            <div class="os-help"><span><span class="os-pill red">n</span>Critique : en retard</span><span><span class="os-pill amber">n</span>Attention : échéance proche</span><span><span class="os-pill blue">n</span>À clôturer : passé In House, à valider</span></div>`
-            : `<div class="os-empty">Aucune alerte active 🎉</div>`;
 
         sc.innerHTML = `
             <div class="os-top">
@@ -502,18 +449,6 @@
                 <div class="os-bt">Préparation des styles</div>
                 <div class="os-bs">${prepRows.length} style${prepRows.length > 1 ? "s" : ""} sans PSD passée · commitments SRS Launching, Sewing et Packing · trié par PSD la plus proche · clic sur une ligne pour ouvrir le style</div>
                 ${prepHTML}
-            </div>
-            <div class="os-box" style="margin-bottom:12px">
-                <div class="os-bt">Fournisseurs</div>
-                <div class="os-bs">${tot.n} ligne${tot.n > 1 ? "s" : ""} Ordering · les fournisseurs avec retards ou reliquats en premier</div>
-                ${supHTML}
-            </div>
-            <div>
-                <div class="os-box">
-                    <div class="os-bt">Alertes à traiter</div>
-                    <div class="os-bs">${alerts.length} alerte${alerts.length > 1 ? "s" : ""} active${alerts.length > 1 ? "s" : ""} par type · clic pour ouvrir les notifications</div>
-                    ${typeHTML}
-                </div>
             </div>`;
     }
 
