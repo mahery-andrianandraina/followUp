@@ -9,8 +9,10 @@
 //      Total styles · PO reçus · Ex-Fty dépassées · Ex-Fty ≤ 14 j · Alertes actives
 //  • Calendriers en liste (style Google Agenda), chaque style avec sa date :
 //      - Calendrier Ex-Fty    (Details › Possible etd)
-//      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant
-//  • Préparation des styles : trims livrés / commandés + SRS, Sewing, Packing, PSD
+//      - Calendrier PSD       (Details › PSD) — PSD proches mises en avant,
+//        PSD passées affichées « Il y a N j » puis retirées après 7 jours
+//  • Préparation des styles : styles dont la PSD n'est pas encore passée,
+//    avec leurs commitments SRS Launching, Sewing et Packing
 //  • Fournisseurs : lignes, livrées, en transit, en retard, reliquats, délai moyen
 //  • Alertes à traiter : tableau par type (Critiques / Attention / À clôturer)
 //  • Filtre par saison (Details › Full Season) appliqué à toute la page
@@ -21,6 +23,7 @@
 
     const EXFTY_SOON_DAYS = 14;
     const PSD_SOON_DAYS   = 14;
+    const PSD_PAST_KEEP   = 7;   // PSD passée : visible encore 7 jours, puis retirée
     let _season = "";        // "" = toutes les saisons
     let _updatedAt = null;
 
@@ -135,13 +138,15 @@
         .os-row.late .os-date { background: #fce8e6; } .os-row.late .os-date .d { color: #c5221f; }
         .os-row.soon .os-date { background: #fef7e0; } .os-row.soon .os-date .d { color: #b06000; }
         .os-row.near .os-date { background: #d3e3fd; } .os-row.near .os-date .d { color: #0b57d0; }
+        .os-row.past .os-date { background: #f1f3f4; } .os-row.past .os-date .d { color: #5f6368; }
+        .os-row.past .os-st .n { color: #5f6368; }
         .os-st { flex: 1; min-width: 0; }
         .os-st .n { font-size: 14px; font-weight: 500; color: #1f1f1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .os-st .s { font-size: 12px; color: #5f6368; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .os-cd { flex-shrink: 0; height: 24px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; white-space: nowrap; }
         .os-cd.late { background: #fce8e6; color: #c5221f; } .os-cd.soon { background: #fef7e0; color: #b06000; }
         .os-cd.near { background: #d3e3fd; color: #041e49; } .os-cd.far { background: #f1f3f4; color: #444746; }
-        .os-cd.done { background: #e6f4ea; color: #137333; }
+        .os-cd.done { background: #e6f4ea; color: #137333; } .os-cd.past { background: #f1f3f4; color: #5f6368; font-weight: 400; }
         .os-foot { font-size: 12px; color: #5f6368; padding: 10px 4px 0; border-top: 1px solid #e3e3e3; margin-top: 6px; }
         .os-grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 12px; }
         @media (max-width: 1000px) { .os-grid2 { grid-template-columns: 1fr; } }
@@ -304,7 +309,10 @@
                 const raw = opts.raw(r);
                 if (opts.doneText && isDoneText(raw)) { done.push(r); return; }
                 const d = getDate(r);
-                if (d) rows.push({ r, d, n: dayDiff(d) }); else noDate.push(r);
+                if (!d) { noDate.push(r); return; }
+                const n = dayDiff(d);
+                if (opts.pastKeep != null && n < -opts.pastKeep) return;   // trop ancienne : retirée de la liste
+                rows.push({ r, d, n });
             });
             rows.sort((a, b) => a.d - b.d);
             const groups = [
@@ -313,8 +321,10 @@
                 { key: "next", title: "Semaine prochaine", list: rows.filter(x => x.d > endOfWeek && x.d <= endNextWeek) },
                 { key: "later", title: "Plus tard", list: rows.filter(x => x.d > endNextWeek) }
             ];
-            const cd = n => n < 0 ? `${opts.lateWord} de ${-n} j` : n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : `Dans ${n} j`;
-            const cls = n => n < 0 ? "late" : n <= 7 ? "soon" : n <= soonDays ? "near" : "far";
+            const pastMode = opts.pastKeep != null;   // passé = neutre (« Il y a N j »), pas un retard
+            const cd = n => n < 0 ? (pastMode ? (n === -1 ? "Hier" : `Il y a ${-n} j`) : `${opts.lateWord} de ${-n} j`)
+                : n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : `Dans ${n} j`;
+            const cls = n => n < 0 ? (pastMode ? "past" : "late") : n <= 7 ? "soon" : n <= soonDays ? "near" : "far";
             const row = x => {
                 const st = x.r["Cust Style Ref"] || x.r.Style || "—";
                 const sub = [x.r.CTLStyleRef || x.r["CTL Style Ref"], x.r.Client || x.r.Coll, opts.sub ? opts.sub(x.r) : ""].filter(Boolean).join(" · ");
@@ -325,7 +335,7 @@
                 </div>`;
             };
             let html = groups.filter(g => g.list.length).map(g =>
-                `<div class="os-gh ${g.key === "late" ? "late" : ""}">${g.title}<span class="c">· ${g.list.length}</span></div>${g.list.map(row).join("")}`).join("");
+                `<div class="os-gh ${g.key === "late" && !pastMode ? "late" : ""}">${g.title}<span class="c">· ${g.list.length}</span></div>${g.list.map(row).join("")}`).join("");
             if (done.length) {
                 html += `<div class="os-gh">Terminé<span class="c">· ${done.length}</span></div>` + done.map(r => {
                     const st = r["Cust Style Ref"] || r.Style || "—";
@@ -347,19 +357,11 @@
             empty: "Aucune date Ex-Fty.", sub: r => r.PSD && parseD(r.PSD) ? `PSD ${fmtShort(parseD(r.PSD))}` : ""
         });
         const calPsd = calendar(psdOf, PSD_SOON_DAYS, {
-            raw: r => r.PSD, doneText: true, lateTitle: "PSD dépassée", lateWord: "Retard",
+            raw: r => r.PSD, doneText: true, lateTitle: `PSD passées (${PSD_PAST_KEEP} derniers jours)`, pastKeep: PSD_PAST_KEEP,
             empty: "Aucune PSD renseignée.", sub: r => exfty(r) ? `Ex-Fty ${fmtShort(exfty(r))}` : ""
         });
 
-        // ── Préparation des styles : trims (Ordering) + commitments (Details) ──
-        const ordByStyle = {};
-        ordering.forEach(r => {
-            [r.Style, r.Description].forEach(k => {
-                if (!k) return;
-                const key = norm(k);
-                (ordByStyle[key] = ordByStyle[key] || new Set()).add(r);
-            });
-        });
+        // ── Préparation des styles : styles sans PSD passée + commitments (Details) ──
         const ordState = r => {
             const d = String(r["Delivery Status"] || "").toLowerCase();
             if (d.includes("deliver") || d.includes("livr")) return "done";
@@ -375,41 +377,38 @@
             const n = dayDiff(d);
             return `<span class="os-cm ${n < 0 ? "late" : n <= 7 ? "soon" : "date"}">${fmtShort(d)}${n < 0 ? ` · ${-n} j` : ""}</span>`;
         };
+        // PSD à venir : date du jour ou future, ou pas encore de date. Exclues : PSD passée ou « In House / All OK ».
+        const psdCell = x => {
+            if (!x.psd) return commit(x.r.PSD);
+            const n = x.psdN;
+            const when = n === 0 ? "Aujourd'hui" : n === 1 ? "Demain" : `Dans ${n} j`;
+            return `<span class="os-cm ${n <= 7 ? "soon" : "date"}">${fmtShort(x.psd)} · ${when}</span>`;
+        };
         const prepRows = details.map(r => {
-            const set = new Set();
-            [r.CTLStyleRef, r["CTL Style Ref"], r["Cust Style Ref"], r.Style].forEach(k => { if (k) (ordByStyle[norm(k)] || []).forEach(x => set.add(x)); });
-            const lines = [...set];
-            const c = { done: 0, transit: 0, todo: 0 };
-            lines.forEach(x => c[ordState(x)]++);
+            if (isDoneText(r.PSD)) return null;
             const psd = parseD(r.PSD);
-            return { r, lines: lines.length, ...c, pct: lines.length ? c.done / lines.length : null, psd, psdN: psd ? dayDiff(psd) : null };
-        }).sort((a, b) => {
-            // PSD la plus proche d'abord, puis le moins prêt
+            const psdN = psd ? dayDiff(psd) : null;
+            if (psdN != null && psdN < 0) return null;
+            return { r, psd, psdN };
+        }).filter(Boolean).sort((a, b) => {
+            // PSD la plus proche d'abord, styles sans date à la fin
             const ap = a.psdN == null ? 9999 : a.psdN, bp = b.psdN == null ? 9999 : b.psdN;
-            return ap - bp || (a.pct ?? 1) - (b.pct ?? 1);
+            return ap - bp;
         });
         const prepHTML = prepRows.length ? `
             <div class="os-tw os-scroll"><table class="os-t">
-                <thead><tr><th>Style</th><th>PSD</th><th>Trims livrés</th><th class="c">SRS</th><th class="c">Sewing</th><th class="c">Packing</th></tr></thead>
+                <thead><tr><th>Style</th><th>PSD</th><th class="c">SRS Launching</th><th class="c">Sewing</th><th class="c">Packing</th></tr></thead>
                 <tbody>${prepRows.map(x => {
                     const st = x.r["Cust Style Ref"] || x.r.Style || "—";
-                    const bar = x.lines
-                        ? `<div class="os-prog"><div class="tr">
-                              <div style="width:${x.done / x.lines * 100}%;background:#188038"></div>
-                              <div style="width:${x.transit / x.lines * 100}%;background:#a8c7fa"></div></div>
-                           <span class="v">${x.done}/${x.lines}${x.transit ? ` · ${x.transit} transit` : ""}</span></div>`
-                        : `<span class="os-cm none">Aucune ligne Ordering</span>`;
                     return `<tr class="click" data-os="row" data-row="${x.r._rowIndex}" data-tip="Ouvrir ${esc(st)} dans Details">
                         <td><b style="font-weight:500">${esc(st)}</b><span class="sub">${esc([x.r.CTLStyleRef, x.r.Client || x.r.Coll].filter(Boolean).join(" · "))}</span></td>
-                        <td>${commit(x.r.PSD)}</td>
-                        <td>${bar}</td>
+                        <td>${psdCell(x)}</td>
                         <td class="c">${commit(x.r.SRS_Launching)}</td>
                         <td class="c">${commit(x.r.Sewing_Trims)}</td>
                         <td class="c">${commit(x.r.Packing_Trims)}</td></tr>`;
                 }).join("")}</tbody></table></div>
-            <div class="os-help"><span><i style="background:#188038"></i>Trims livrés</span><span><i style="background:#a8c7fa"></i>En transit</span><span><i style="background:#e9eef6"></i>À venir</span>
-                <span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Dépassée</span><span><span class="os-cm soon">date</span>≤ 7 j</span></div>`
-            : `<div class="os-empty">Aucun style.</div>`;
+            <div class="os-help"><span><span class="os-cm ok">✓</span>In House / All OK</span><span><span class="os-cm late">date</span>Commitment dépassé</span><span><span class="os-cm soon">date</span>≤ 7 j</span><span><span class="os-cm none">—</span>Non renseigné</span></div>`
+            : `<div class="os-empty">Tous les styles ont déjà eu leur PSD.</div>`;
 
         // ── Fournisseurs (Ordering) ──
         const sup = {};
@@ -483,13 +482,13 @@
                 </div>
                 <div class="os-box">
                     <div class="os-bt">Calendrier PSD</div>
-                    <div class="os-bs">${calPsd.soonCount ? `<b style="color:#b06000;font-weight:500">${calPsd.soonCount} PSD dans les ${PSD_SOON_DAYS} prochains jours</b>` : `Aucune PSD dans les ${PSD_SOON_DAYS} prochains jours`}${calPsd.lateCount ? ` · <b style="color:#c5221f;font-weight:500">${calPsd.lateCount} en retard</b>` : ""}</div>
+                    <div class="os-bs">${calPsd.soonCount ? `<b style="color:#b06000;font-weight:500">${calPsd.soonCount} PSD dans les ${PSD_SOON_DAYS} prochains jours</b>` : `Aucune PSD dans les ${PSD_SOON_DAYS} prochains jours`}${calPsd.lateCount ? ` · ${calPsd.lateCount} passée${calPsd.lateCount > 1 ? "s" : ""} ces ${PSD_PAST_KEEP} derniers jours` : ""}</div>
                     ${calPsd.html}
                 </div>
             </div>
             <div class="os-box" style="margin-bottom:12px">
                 <div class="os-bt">Préparation des styles</div>
-                <div class="os-bs">Les trims sont-ils livrés avant la PSD ? Trié par PSD la plus proche · clic sur une ligne pour ouvrir le style</div>
+                <div class="os-bs">${prepRows.length} style${prepRows.length > 1 ? "s" : ""} sans PSD passée · commitments SRS Launching, Sewing et Packing · trié par PSD la plus proche · clic sur une ligne pour ouvrir le style</div>
                 ${prepHTML}
             </div>
             <div class="os-box" style="margin-bottom:12px">
