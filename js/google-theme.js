@@ -69,6 +69,11 @@
             width: 36px !important; height: 36px !important; display: flex !important; align-items: center !important;
             justify-content: center !important; font-weight: 500 !important; font-size: 14px !important;
         }
+        /* Logo ORCHESTRA : anneau 4 couleurs + baguette, sans fond */
+        html body aside.sidebar .header-logo.orc-logo { background: transparent !important; flex-shrink: 0 !important; }
+        html body aside.sidebar .header-logo.orc-logo .orc-mark { color: var(--gt-on, #1f1f1f) !important; }
+        html body aside.sidebar .sidebar-brand-name { letter-spacing: 1px !important; }
+        html body aside.sidebar .sidebar-brand-sub { letter-spacing: .6px !important; font-size: 10px !important; }
         html body aside.sidebar .sidebar-section-label {
             text-transform: none !important; letter-spacing: 0 !important; font-size: 12.5px !important;
             font-weight: 500 !important; color: var(--gt-muted) !important; padding-left: 20px !important;
