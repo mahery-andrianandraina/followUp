@@ -99,7 +99,7 @@
         html body .header .header-title h1, html body #header-sheet-title { font-size: 28px !important; line-height: 36px !important; font-weight: 400 !important; }
 
         #stats-screen { display: none; padding: 4px 24px 32px; font-family: "Google Sans", Roboto, "Segoe UI", Arial, sans-serif; color: #1f1f1f; }
-        #stats-screen.show { display: block; }
+        #stats-screen.show { display: block; overflow-y: auto; overscroll-behavior: contain; }
         .os-top { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
         .os-upd { font-size: 13px; color: #5f6368; }
         .os-season {
@@ -182,6 +182,8 @@
         .os-help span { display: inline-flex; align-items: center; gap: 6px; }
         .os-help i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
         .os-scroll { max-height: 420px; overflow-y: auto; }
+        .os-scroll thead th { z-index: 2; }
+        .os-prep { max-height: 480px; }
 
         /* Barres horizontales (Alertes par type) */
         .os-hb { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; color: #444746; }
@@ -256,11 +258,21 @@
         if (t) t.textContent = "Statistiques de commande";
 
         const sc = ensureScreen();
-        if (sc) { sc.classList.add("show"); render(); }
+        if (sc) { sc.classList.add("show"); render(); fitHeight(); }
     }
 
+    // L'écran Statistiques défile lui-même : hauteur = espace visible restant sous le header
+    function fitHeight() {
+        const sc = document.getElementById("stats-screen");
+        if (!sc || !sc.classList.contains("show")) return;
+        const top = Math.max(0, sc.getBoundingClientRect().top);
+        sc.style.height = Math.max(300, window.innerHeight - top) + "px";
+    }
+    window.addEventListener("resize", fitHeight);
+
     function closeStats() {
-        document.getElementById("stats-screen")?.classList.remove("show");
+        const sc = document.getElementById("stats-screen");
+        if (sc) { sc.classList.remove("show"); sc.style.height = ""; }
         document.getElementById("tab-stats")?.classList.remove("active");
     }
 
@@ -396,7 +408,7 @@
             return ap - bp;
         });
         const prepHTML = prepRows.length ? `
-            <div class="os-tw os-scroll"><table class="os-t">
+            <div class="os-tw os-scroll os-prep"><table class="os-t">
                 <thead><tr><th>Style</th><th>PSD</th><th class="c">SRS Launching</th><th class="c">Sewing</th><th class="c">Packing</th></tr></thead>
                 <tbody>${prepRows.map(x => {
                     const st = x.r["Cust Style Ref"] || x.r.Style || "—";
